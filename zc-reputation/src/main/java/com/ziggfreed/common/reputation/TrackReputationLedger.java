@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackKey;
 import com.ziggfreed.common.track.TrackReading;
@@ -276,6 +277,7 @@ public final class TrackReputationLedger implements ReputationLedger {
         }
         if (record != null) {
             record.markImported(def.id());
+            PlayerRecords.changed(store, ref, ReputationComponent.REGISTRY_ID);
         }
         return climb(store, ref, def);
     }
@@ -375,8 +377,9 @@ public final class TrackReputationLedger implements ReputationLedger {
     private void behind(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nonnull Climb climb,
             @Nonnull ReputationDef def, boolean behind) {
         ReputationComponent record = records.apply(store, ref);
-        if (record != null && ReputationComponent.keeps(def.id())) {
+        if (record != null && ReputationComponent.keeps(def.id()) && record.unsynced(def.id()) != behind) {
             record.unsynced(def.id(), behind);
+            PlayerRecords.changed(store, ref, ReputationComponent.REGISTRY_ID);
         }
         String key = unsyncedKey(climb, def);
         if (behind) {

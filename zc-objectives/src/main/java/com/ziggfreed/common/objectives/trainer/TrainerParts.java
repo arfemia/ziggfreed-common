@@ -48,7 +48,7 @@ public final class TrainerParts {
     /** The quests this character gives. */
     public static final String QUESTS = "Quests";
 
-    /** A respec of each track it teaches, and the services mods add ({@link TrainerServices}). */
+    /** A respec of each track it teaches, then its trainer services ({@link TrainerServices}). */
     public static final String SERVICES = "Services";
 
     /** The event a row's click carries, with the part's index on the page and the row's id. */
@@ -92,8 +92,9 @@ public final class TrainerParts {
                 + "level it opens at and what it costs."), LearnOffers::offers);
         register(part(QUESTS, "The quests this character gives, each opening its quest list on that quest."),
                 QuestOffers::offers);
-        register(part(SERVICES, "A respec of each track this trainer teaches, and the services other mods add."),
-                ServiceOffers::offers);
+        register(part(SERVICES, "A respec of each track this trainer teaches, then its next prestige, the picks a "
+                + "prestige put aside and its suggested build where each can do something, and the services other "
+                + "mods add."), ServiceOffers::offers);
     }
 
     /** The source registered with the part {@code name}, or null. */

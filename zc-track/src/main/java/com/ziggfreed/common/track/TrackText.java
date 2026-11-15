@@ -14,12 +14,16 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.curve.CurveTable;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.PickOptionConfig;
+import com.ziggfreed.common.track.pick.PickService;
+import com.ziggfreed.common.track.pick.PickService.Status;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
 
 /**
  * Every word the track module says: its lines are keys in {@code ziggfreedcommon.track.lang}, and a track or a
- * tier is called by its own authored key, else its id.
+ * tier is called by its own authored key, else its id. Why a pick, a respec or a build swap was refused, and what a
+ * respec did, read here once ({@link #refusal(Status, int, Message)}, {@link #refusal(Status)}, {@link #respecLine}),
+ * for every page that offers one (a track's tree, a trainer), so no two pages word one answer two ways.
  */
 public final class TrackText {
 
@@ -106,6 +110,74 @@ public final class TrackText {
         TrackAsset.Branch declared = track.branch(branch);
         String key = declared == null ? null : declared.titleKey();
         return key != null ? Msg.key(key) : Msg.raw(branch == null ? "" : branch.trim());
+    }
+
+    /**
+     * Why a take of a pick that opens at {@code opensAt} on the track called {@code track} was or would be refused
+     * ({@code PickService.take}'s answer, or the status a page reads before it), in the player's words: the level
+     * it opens at for {@link Status#NOT_OPEN}, else {@link #refusal(Status)}.
+     */
+    @Nonnull
+    public static Message refusal(@Nonnull Status status, int opensAt, @Nonnull Message track) {
+        return status == Status.NOT_OPEN ? levelNeeded(opensAt, track) : refusal(status);
+    }
+
+    /**
+     * Why a write on a player's picks (a take, a respec, a build swap, a re-spend) was refused, for an answer that
+     * names nothing: one sentence per status, a pick not open yet reading as one whose needs are unmet (the take's
+     * own form, {@link #refusal(Status, int, Message)}, names the level), and every status with nothing to say to a
+     * player (unknown, not live, a lost build) the one "not right now" line.
+     */
+    @Nonnull
+    public static Message refusal(@Nonnull Status status) {
+        return switch (status) {
+            case NOT_OPEN, LOCKED -> line("refused.locked");
+            case NEEDS_PREREQUISITE -> line("refused.before");
+            case NODE_TAKEN -> line("refused.node");
+            case NO_POINTS -> line("refused.points");
+            case SPEND_CAP -> line("refused.cap");
+            case MAXED -> line("refused.maxed");
+            case ELSEWHERE -> line("refused.elsewhere");
+            case CANNOT_PAY -> line("refused.pay");
+            case IN_COMBAT -> line("refused.combat");
+            case IN_ENCOUNTER -> line("refused.encounter");
+            default -> line("refused.other");
+        };
+    }
+
+    /**
+     * {@link Status#NODE_TAKEN} for a page that knows which face closed the choice off: the face the player holds
+     * ({@code face}) and the track it is held on ({@code track}), so they know what to undo or respec.
+     */
+    @Nonnull
+    public static Message nodeTaken(@Nonnull Message face, @Nonnull Message track) {
+        return line("refused.node.face", face, track);
+    }
+
+    /** The line that asks for level {@code level} on the track called {@code track} first. */
+    @Nonnull
+    public static Message levelNeeded(int level, @Nonnull Message track) {
+        return line("refused.level", level, track);
+    }
+
+    /**
+     * What a player's own respec of the track called {@code track} answered ({@code PickService.buyRespec}): done,
+     * with how many picks it cleared ({@code cleared}); nothing to clear (also what a respec offer reads before
+     * there is anything to clear); else why it was refused ({@link #refusal(Status)}).
+     */
+    @Nonnull
+    public static Message respecLine(@Nonnull Status status, int cleared, @Nonnull Message track) {
+        return switch (status) {
+            case DONE -> line("respec.done", track, cleared);
+            case NOTHING -> line("respec.nothing", track);
+            default -> refusal(status);
+        };
+    }
+
+    /** {@link #respecLine(Status, int, Message)} straight off a respec's result. */
+    @Nonnull
+    public static Message respecLine(@Nonnull PickService.Result result, @Nonnull Message track) {
+        return respecLine(result.status(), result.count(), track);
     }
 
     /** What {@code tier} is called: its {@code Name}, else its id. */

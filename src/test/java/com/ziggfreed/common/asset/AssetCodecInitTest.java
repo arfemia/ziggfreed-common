@@ -114,7 +114,6 @@ import com.ziggfreed.common.proc.ProcAsset;
 import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
 import com.ziggfreed.common.stats.condition.EffectFamilyAsset;
 import com.ziggfreed.common.track.ZigTrackReward;
-import com.ziggfreed.common.track.pick.PickDeckAsset;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
@@ -139,6 +138,7 @@ import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.gather.BlockFamilyAsset;
+import com.ziggfreed.common.world.gather.GatherRulesAsset;
 import com.ziggfreed.common.world.gather.GatherShapeAsset;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.common.worldmap.GatewayAsset;
@@ -279,8 +279,6 @@ class AssetCodecInitTest {
                 "TrackPickGeneratorAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(TrackAsset.Tree.CODEC, "the track's Tree group codec must static-init");
         assertNotNull(PickOptionAsset.CODEC, "PickOptionAsset.CODEC must static-init (PascalCase keys)");
-        assertNotNull(PickDeckAsset.CODEC, "PickDeckAsset.CODEC must static-init (PascalCase keys)");
-        assertNotNull(PickDeckAsset.Foes.CODEC, "the deck's Foes group codec must static-init");
         // The grant kind registers into the grant union every pick reads, so a lower-case key in it would fail
         // inside a pack's pick instead of at this build.
         assertNotNull(StatGrant.CODEC, "StatGrant.CODEC must static-init (PascalCase keys)");
@@ -675,6 +673,10 @@ class AssetCodecInitTest {
         assertNotNull(GatherShapeAsset.Shape.CODEC, "GatherShapeAsset.Shape.CODEC must static-init");
         assertNotNull(GatherShapeAsset.Offset.CODEC, "GatherShapeAsset.Offset.CODEC must static-init");
         assertNotNull(GatherShapeAsset.Canopy.CODEC, "GatherShapeAsset.Canopy.CODEC must static-init");
+        assertNotNull(GatherRulesAsset.CODEC, "GatherRulesAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(GatherRulesAsset.TallTree.CODEC, "GatherRulesAsset.TallTree.CODEC must static-init");
+        assertNotNull(GatherRulesAsset.Rhythm.CODEC, "GatherRulesAsset.Rhythm.CODEC must static-init");
+        assertNotNull(GatherRulesAsset.Shaped.CODEC, "GatherRulesAsset.Shaped.CODEC must static-init");
     }
 
     @Test

@@ -48,7 +48,8 @@ import com.ziggfreed.common.track.TrackFactors;
  * the same group a conditional stat reads (zc-entity's {@code HitReads}: first hit, projectile, class, distance, the
  * weapon's head branch), read as the hit's attacker dealt it, and {@code OverTime} is false unless written (a
  * damage-over-time tick never procs by accident); {@code Like} counts it only where a damage line counts.
- * {@code Holder} conditions are asked of the holder, {@code Target} conditions of the moment's target (a foe family,
+ * {@code Holder} conditions are asked of the holder (a hit-aware one, zc-entity's {@code HitAwareCondition}, of the
+ * hit on a moment the holder dealt one), {@code Target} conditions of the moment's target (a foe family,
  * an effect family, a health band, the engine's own {@code Wielding} for a guard that is up); a moment with no target
  * of its own finds one through {@code Seek}. {@code Ability} asks which move a hit or a cast came from, and
  * {@code Effect} names what an effect moment watches. A coming hit (HitIncoming, AllyHitIncoming) is read by
@@ -142,9 +143,9 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
                         + "cast when its chain did. None when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Names", Codec.STRING_ARRAY, false),
                         (o, v) -> o.names = v, o -> o.names, (o, p) -> o.names = p.names)
-                .documentation("Ability ids a mod names for its own moves (MMO Skill Tree's abilities, Fireball "
-                        + "or Berserker_Charge), any case: a hit that mod says one of these dealt (a damage-over-time "
-                        + "tick of it included), a cast of one of these. None when unauthored.").add()
+                .documentation("Ability ids a mod names for its own moves (its abilities' ids, such as Fireball or "
+                        + "Leap_Strike), any case: a hit that mod says one of these dealt (a damage-over-time tick of "
+                        + "it included), a cast of one of these. None when unauthored.").add()
                 .build();
 
         public Ability() {
@@ -292,7 +293,9 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
             .appendInherited(new KeyedCodec<>("Holder", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
                     (a, v) -> a.holder = v, a -> a.holder, (a, p) -> a.holder = p.holder)
             .documentation("Entity conditions every one of which must hold on the holder (Sprinting, "
-                    + "ZigCrouching, ZigStatPercent). None when unauthored.").add()
+                    + "ZigCrouching, ZigStatPercent). On a hit the holder dealt, a condition a mod made hit-aware (a "
+                    + "weapon skill's, which holds on a hit that earns that skill) is asked of that hit. None when "
+                    + "unauthored.").add()
             .appendInherited(new KeyedCodec<>("Target", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
                     (a, v) -> a.target = v, a -> a.target, (a, p) -> a.target = p.target)
             .documentation("Entity conditions every one of which must hold on the moment's target (ZigFoeFamily, "

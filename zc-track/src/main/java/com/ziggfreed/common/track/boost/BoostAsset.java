@@ -45,7 +45,10 @@ import com.ziggfreed.common.track.asset.TrackCategoryAsset;
  * }</pre>
  *
  * <p>A TIMED boost ({@code Seconds}) runs once something starts it: a boost item's {@code ZigBoost} interaction, a
- * {@code Boost} reward when its Claim is collected, or {@code /zigboost start}. It shows a tile on the buff bar
+ * {@code Boost} reward when its Claim is collected, {@code /zigboost start}, or the player themselves from a page
+ * that lists it ({@code Reusable}, whose own {@code Requires} says who may). A start may name one track it lifts,
+ * inside what the boost lifts (a token
+ * pointed at one skill of a boost that lifts every skill). It shows a tile on the buff bar
  * while it runs and keeps running across a restart and while the player is away. A STANDING boost
  * ({@code Standing: true}) is never started: it lifts every gain on its tracks whenever it is switched on, in
  * season and its {@code Requires} passes, and stays off the bar (a bonus weekend). Every boost running on a track
@@ -73,6 +76,7 @@ public final class BoostAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable protected String scope;
     @Nullable protected Long seconds;
     @Nullable protected Boolean standing;
+    @Nullable protected Reusable reusable;
     @Nullable protected Stack stack;
     @Nullable protected String effect;
     @Nullable protected GateSpec requires;
@@ -102,7 +106,8 @@ public final class BoostAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
             .documentation("What the boost is called (TitleKey) in the line a player reads when it starts and "
                     + "on a reward, as a localization key in your own lang file. Without a TitleKey it is named by "
-                    + "what it lifts and by how much.").add()
+                    + "what it lifts and by how much. FlavorKey words what it lifts (every skill) in place of the "
+                    + "first track or category it names; a start that names one track reads as that track.").add()
             .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
             .metadata(EditorSchema.assetRef(Item.class))
@@ -135,6 +140,13 @@ public final class BoostAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     + "every gain on its tracks for every player whenever it is switched on, in season and its "
                     + "Requires passes (a bonus weekend, with a Season), and it shows no tile. It counts as a "
                     + "server boost whatever its Scope says. Unauthored means false.").add()
+            .appendInherited(new KeyedCodec<>("Reusable", Reusable.CODEC, false),
+                    (a, v) -> a.reusable = v, a -> a.reusable, (a, p) -> a.reusable = p.reusable)
+            .documentation("Lets a player start this timed boost themselves, as often as its Stack.Cooldown allows: "
+                    + "a mod's boosts page lists it, with a button that starts it, for every player who meets "
+                    + "Reusable.Requires (a permission, say), asked only when they start it, so a server boost one "
+                    + "player starts still lifts everyone. Leave it out and only an item, a reward or a command "
+                    + "starts it.").add()
             .appendInherited(new KeyedCodec<>("Stack", Stack.CODEC, false),
                     (a, v) -> a.stack = v, a -> a.stack, (a, p) -> a.stack = p.stack)
             .documentation("How this boost stacks with itself: how many may run at once and how long a player "
@@ -180,6 +192,12 @@ public final class BoostAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return text == null ? null : blankToNull(text.getTitleKey());
     }
 
+    /** The localization key wording what the boost lifts ({@code Text.FlavorKey}), or null when the file names none. */
+    @Nullable
+    public String liftsKey() {
+        return text == null ? null : blankToNull(text.getFlavorKey());
+    }
+
     /** The item standing for it, or null. */
     @Nullable
     public String icon() {
@@ -205,6 +223,20 @@ public final class BoostAsset implements JsonAssetWithMap<String, DefaultAssetMa
     /** Is this a standing boost (never started, on while present)? */
     public boolean isStanding() {
         return Boolean.TRUE.equals(standing);
+    }
+
+    /** May a player start this boost themselves, from a page that lists it ({@code Reusable})? Never a standing one. */
+    public boolean isReusable() {
+        return reusable != null && !isStanding();
+    }
+
+    /**
+     * Who may start it themselves ({@code Reusable.Requires}), asked only at such a start; null when anyone may, or it
+     * is not reusable.
+     */
+    @Nullable
+    public GateSpec reusableRequires() {
+        return reusable == null ? null : reusable.requires;
     }
 
     /** How many of it may run at once for one owner; 0 for no limit of its own. */
@@ -347,6 +379,23 @@ public final class BoostAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .build();
 
         public Tracks() {
+        }
+    }
+
+    /** The Reusable group: a player may start the boost themselves, and who may. */
+    public static final class Reusable {
+
+        @Nullable protected GateSpec requires;
+
+        public static final BuilderCodec<Reusable> CODEC = BuilderCodec.builder(Reusable.class, Reusable::new)
+                .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
+                        (o, v) -> o.requires = v, o -> o.requires, (o, p) -> o.requires = p.requires)
+                .documentation("Who may start it themselves, in the shared Requires grammar (a Permission node, a "
+                        + "level), asked only when a player starts it from a page: never at a gain, and never of "
+                        + "the players a server boost lifts. Leave it out for anyone.").add()
+                .build();
+
+        public Reusable() {
         }
     }
 

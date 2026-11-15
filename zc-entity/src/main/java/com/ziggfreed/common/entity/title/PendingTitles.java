@@ -14,6 +14,9 @@ import java.util.concurrent.Executor;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.gson.JsonObject;
+import com.ziggfreed.common.util.RecordFile;
+
 /**
  * The queue of title changes owed to players who were not online when they were made: per player, one
  * ordered list of grants and revokes, paid in that order through zc-objectives' title write path at
@@ -47,24 +50,26 @@ public final class PendingTitles {
     /** Each player's queued changes, oldest first, as an unmodifiable list; a player with none has no row. */
     private static final Map<UUID, List<Change>> BY_PLAYER = new ConcurrentHashMap<>();
 
-    private static final RecordFile FILE = new RecordFile("the queued title changes",
-            "a restart may lose a title change queued for an offline player", new RecordFile.Body() {
+    private static final RecordFile FILE = RecordFile.builder("title", "the queued title changes",
+            new RecordFile.Body() {
                 @Override
                 @Nonnull
-                public String write() {
+                public JsonObject write() {
                     return writeDoc();
                 }
 
                 @Override
-                public void read(@Nonnull String text) {
-                    readDoc(text);
+                public void read(@Nonnull JsonObject doc, int version) {
+                    readDoc(doc);
                 }
 
                 @Override
                 public void forget() {
                     BY_PLAYER.clear();
                 }
-            });
+            })
+            .lostWrite("a restart may lose a title change queued for an offline player")
+            .build();
 
     /** On-disk shape: a player's id to their queued changes, oldest first. */
     private static final class Doc {
@@ -143,7 +148,7 @@ public final class PendingTitles {
     }
 
     @Nonnull
-    private static String writeDoc() {
+    private static JsonObject writeDoc() {
         Doc doc = new Doc();
         doc.pending = new TreeMap<>();
         for (Map.Entry<UUID, List<Change>> e : BY_PLAYER.entrySet()) {
@@ -156,11 +161,11 @@ public final class PendingTitles {
             }
             doc.pending.put(e.getKey().toString(), rows);
         }
-        return RecordFile.GSON.toJson(doc);
+        return RecordFile.gson().toJsonTree(doc).getAsJsonObject();
     }
 
-    private static void readDoc(@Nonnull String text) {
-        Doc doc = RecordFile.GSON.fromJson(text, Doc.class);
+    private static void readDoc(@Nonnull JsonObject saved) {
+        Doc doc = RecordFile.gson().fromJson(saved, Doc.class);
         BY_PLAYER.clear();
         if (doc == null || doc.pending == null) {
             return;

@@ -1,0 +1,12 @@
+{
+  "$Comment": "Makes Damage_WhileUnhurt conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while nothing has hurt them for 5 seconds.",
+  "Holder": [
+    {
+      "Id": "NoDamageTaken",
+      "Delay": 5
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

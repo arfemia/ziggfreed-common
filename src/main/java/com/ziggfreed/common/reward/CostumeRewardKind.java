@@ -8,17 +8,22 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.effect.costume.CostumeMessages;
 import com.ziggfreed.common.effect.costume.Costumes;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardParam;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -119,9 +124,18 @@ public final class CostumeRewardKind implements RewardHandler {
         this.warn = warn;
     }
 
-    /** Register the costume kind into {@code kinds}, whose own {@code Lootable} kind pays a fallback. */
+    /**
+     * Register the costume kind into {@code kinds}, whose own {@code Lootable} kind pays a fallback, with the
+     * parameters the Asset Editor shows for it.
+     */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, OWNER, new CostumeRewardKind(CostumeRewardKind::queueOnWorld, kinds, SafeLog::warn));
+        kinds.describe(KIND, RewardParams.of("Puts a costume on the player, which they can take off at any time.",
+                RewardParam.text("Costume", "The costume effect, by id.").asRequired()
+                        .withPick(EditorPick.asset(EntityEffect.class)),
+                RewardParam.text(P_FALLBACK_LOOTABLE, "The loot table rolled instead when the costume cannot go "
+                        + "on, such as when the player already wears one.")
+                        .withPick(EditorPick.list(LootEditorDataSets.LOOTABLES))));
     }
 
     @Override

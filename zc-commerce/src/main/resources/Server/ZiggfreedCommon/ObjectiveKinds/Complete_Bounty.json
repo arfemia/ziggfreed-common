@@ -1,0 +1,14 @@
+{
+  "$Comment": "Collecting a board contract. The target is the board that posts it, so a step naming one is drawn with that board's own icon; the qualifier is its grade there. A contract posted on several boards counts once, and once more for a step that names one of its other boards.",
+  "ValueBased": false,
+  "Producible": true,
+  "Pick": { "List": "ziggfreedcommon:boards" },
+  "TargetNames": {
+    "Board": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Objective_Bounty"
+    }
+  }
+}

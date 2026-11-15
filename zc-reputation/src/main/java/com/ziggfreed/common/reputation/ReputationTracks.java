@@ -1,5 +1,6 @@
 package com.ziggfreed.common.reputation;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,9 +12,16 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.playerdata.PlayerRecords;
+import com.ziggfreed.common.playerdata.ZigPlayerRecordsRestoredEvent;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.track.TrackComponent;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackKey;
 import com.ziggfreed.common.track.TrackRecord;
@@ -39,12 +47,12 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>Its {@code Beyond.Every} is the curve's Beyond, so each payout step past the top rank is one level past
  *       the top. A reputation with no Beyond still climbs past its top rank, with no level past it
  *       ({@link #OPEN_TOP}).</li>
- *   <li>The track sits in the {@value #CATEGORY} category and does not prestige (R643): its Prestige group
- *       allows no rank, with {@code Base} one below the top rank's level, so an owner who turns it on in
- *       {@code tracks.json} ({@code "Prestige": { "Ranks": 1 }}) asks the top rank for the first prestige and
- *       one level more for each one after it. A prestiged standing earns nothing on top of a gain
- *       ({@code GainPercent} 0: R642's bonus is a skill's, and a quest's reputation lands as written) unless the
- *       owner writes {@code GainPercent} too.</li>
+ *   <li>The track sits in the {@value #CATEGORY} category and prestiges only where the reputation's own file writes
+ *       a {@code Prestige} group (R852, R643; {@link #prestigeOf}), its {@code Base} one below the top rank's level
+ *       unless written, so the first prestige asks the top rank and each one after it one level more; a file with
+ *       no group gives a track whose Prestige group allows no rank, which an owner may still turn on in
+ *       {@code tracks.json}. A prestiged standing earns nothing on top of a gain (the track's default
+ *       {@code GainPercent} 0, so a quest's reputation lands as written) unless the group writes one.</li>
  * </ul>
  * The tracks and curves are provided to the track stores under {@value #OWNER} ({@link #refresh}), at boot and
  * after every companion fold, so a pack's file and the owner's word still outrank them.
@@ -90,13 +98,16 @@ public final class ReputationTracks {
      * Derive every switched-on reputation's track and curve from what {@code service} reads now and hand them to
      * the track stores, replacing the last set; then read the owner's {@code tracks.json} again, so an entry there
      * (an owner turning prestige on) retunes a reputation's track leaf by leaf. A reputation whose ladder has
-     * fewer than two ranks gets none, and keeps its standing in the engine's own value.
+     * fewer than two ranks gets none, and keeps its standing in the engine's own value. Each track's prestige comes
+     * from its reputation's own file ({@link #prestigeOf}).
      */
     public static void refresh(@Nonnull ReputationService service) {
         Map<String, TrackAsset> tracks = new LinkedHashMap<>();
         Map<String, TrackCurveAsset> curves = new LinkedHashMap<>();
         Set<String> ids = new HashSet<>();
+        List<String> known = new ArrayList<>();
         for (ReputationDef def : service.all()) {
+            known.add(def.id());
             ReputationLadder ladder = service.ladderFor(def);
             if (!ladder.usable() || !TrackAsset.usableId(def.id())) {
                 continue;
@@ -106,6 +117,7 @@ public final class ReputationTracks {
             tracks.put(def.id(), trackOf(def, curveId, ladder));
             ids.add(def.id().trim().toLowerCase(Locale.ROOT));
         }
+        ReputationGain.registerRetiredAliases(known);
         TrackCurveConfig.getInstance().provide(OWNER, curves);
         TrackConfig.getInstance().provide(OWNER, tracks);
         Set<String> before = provided;
@@ -141,6 +153,42 @@ public final class ReputationTracks {
         }
     }
 
+    /**
+     * A store outside the engine's save put this player's climbs in place (a consumer's database at a world entry): the
+     * engine's own copy of each standing on this server was written from the climbs this server held, so every
+     * reputation with a track is marked behind on the player's record ({@link ReputationComponent#markBehind}). The
+     * next change or world entry then writes each copy from the restored climb, never folding the stale one back into
+     * it. On the player's world thread, as the event is fired.
+     */
+    public static void onRecordsRestored(@Nonnull ZigPlayerRecordsRestoredEvent event) {
+        if (!event.restored(TrackComponent.REGISTRY_ID)) {
+            return;
+        }
+        try {
+            Ref<EntityStore> ref = PlayerAccess.liveRef(event.playerId());
+            if (ref == null) {
+                return;
+            }
+            Store<EntityStore> store = ref.getStore();
+            ReputationComponent record = ReputationComponent.of(store, ref);
+            if (record == null) {
+                return;
+            }
+            List<String> ids = new ArrayList<>();
+            for (ReputationDef def : ReputationRuntime.service().all()) {
+                if (track(def) != null) {
+                    ids.add(def.id());
+                }
+            }
+            if (record.markBehind(ids)) {
+                PlayerRecords.changed(store, ref, ReputationComponent.REGISTRY_ID);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the engine's copies could not be marked behind restored climbs: "
+                    + t.getMessage());
+        }
+    }
+
     /** Is {@code trackId} (any case) a reputation's track this module provides now? */
     public static boolean provides(@Nullable String trackId) {
         return trackId != null && provided.contains(trackId.trim().toLowerCase(Locale.ROOT));
@@ -166,16 +214,17 @@ public final class ReputationTracks {
 
     /**
      * The gain factors a reputation's track runs: the world's rules, the boosts, the prestige extra and the rested
-     * pool, never the library's {@code Bonus} (the {@code TrackGain} stats), since {@code ReputationService.change}
-     * already raises a gain by the reputation's own {@code ReputationGain} stats, so a Bonus XP meal speeds skills and
-     * not standing. An owner adds Bonus back in {@code tracks.json}.
+     * pool, never the library's {@code Bonus}, since {@code ReputationService.change} already raises a gain by the
+     * reputation's own gain stats ({@code CategoryGain_Reputation} and {@code TrackGain_<Id>}, {@link ReputationGain})
+     * before the Cap, so a Bonus XP meal (the all-track {@code TrackGain}) speeds skills and not standing. An owner who
+     * adds Bonus back in {@code tracks.json} adds {@code TrackGain} and counts the reputation's own stats a second time.
      */
     public static final List<String> GAIN_FACTORS = List.of(GainFactors.WORLD, GainFactors.BOOST, GainFactors.PRESTIGE,
             GainFactors.RESTED);
 
     /**
-     * {@code def}'s track: its name, picture and place, its curve, the category, prestige off, and
-     * {@link #GAIN_FACTORS}.
+     * {@code def}'s track: its name, picture and place, its curve, the category, {@link #GAIN_FACTORS}, and its
+     * prestige ({@link #prestigeOf}).
      */
     @Nonnull
     static TrackAsset trackOf(@Nonnull ReputationDef def, @Nonnull String curveId, @Nonnull ReputationLadder ladder) {
@@ -184,9 +233,22 @@ public final class ReputationTracks {
         ContentTextAsset text = title == null && flavor == null ? null
                 : ContentTextAsset.of(title == null ? null : ContentKeys.resolved(title),
                         flavor == null ? null : ContentKeys.resolved(flavor), null);
-        return TrackAsset.of(def.id(), text, def.icon(), def.order(), CATEGORY, curveId,
-                TrackAsset.Prestige.of(0, null, Math.max(0, ladder.ranks().size() - 1), null, 0.0))
+        return TrackAsset.of(def.id(), text, def.icon(), def.order(), CATEGORY, curveId, prestigeOf(def, ladder))
                 .withGainFactors(GAIN_FACTORS);
+    }
+
+    /**
+     * {@code def}'s Prestige group as its track carries it (R852, R643): the reputation file's own {@code Prestige}
+     * group, its {@code Base} defaulting to one below the top rank's level so the first prestige asks the top rank;
+     * with no group written, prestige off (no rank allowed), with the same Base, so an owner who turns it on in
+     * {@code tracks.json} asks the top rank too. Every other leaf reads as written, else the track's default (no
+     * extra after a prestige, the Resets defaults).
+     */
+    @Nonnull
+    static TrackAsset.Prestige prestigeOf(@Nonnull ReputationDef def, @Nonnull ReputationLadder ladder) {
+        int base = Math.max(0, ladder.ranks().size() - 1);
+        TrackAsset.Prestige own = def.prestige();
+        return own == null ? TrackAsset.Prestige.of(0, null, base, null) : own.withDefaults(null, base);
     }
 
     /** {@code def}'s ladder as a curve: its floors, its Beyond step, a tier per rank. */

@@ -3,12 +3,16 @@ package com.ziggfreed.common.reward;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardParam;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 
@@ -38,9 +42,14 @@ public final class EffectRewardKind implements RewardHandler {
     private EffectRewardKind() {
     }
 
-    /** Register the effect kind into {@code kinds}. */
+    /** Register the effect kind into {@code kinds}, with the parameters the Asset Editor shows for it. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, OWNER, new EffectRewardKind());
+        kinds.describe(KIND, RewardParams.of("Puts one of the game's effects on the player.",
+                RewardParam.text("Effect", "The effect to apply, by id.").asRequired()
+                        .withPick(EditorPick.asset(EntityEffect.class)),
+                RewardParam.number("DurationSeconds", "How long it lasts, in seconds. Leave it out for the "
+                        + "effect's own duration.")));
     }
 
     @Override

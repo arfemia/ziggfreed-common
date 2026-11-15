@@ -24,18 +24,22 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.StatAliases;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The runtime of conditional stats ({@link ConditionalStatAsset}, R757): each holder's readings, kept a few times a
- * second by {@link ConditionalStatSystem}, and the reads every payout makes of them.
+ * second by {@link ConditionalStatSystems.HolderPass}, and the reads every payout makes of them. A holder is any living
+ * entity: every player, and a creature once it holds one of these stats above 0 (R860).
  *
  * <p><b>A holder's reading</b>, per stat it holds (its value off the stat's maximum, where gear, effects and grants
- * accumulate, never 0): whether its {@code Holder} conditions hold (and have held for {@code HoldSeconds}) and its
- * {@code PerFoe} count. Only a stat the holder holds is asked anything, so a player with none costs one stat read per
- * conditional stat each pass. The readings are transient and single-process, dropped when the holder leaves its store.
+ * accumulate, never 0, unless a bound grant that is off may raise it on a hit, {@link BoundGrants#hitPoints}): whether
+ * its {@code Holder} conditions hold (and have held for {@code HoldSeconds}) and its {@code PerFoe} count. Only a stat
+ * the holder holds is asked anything, so a player with none costs one stat read per conditional stat each pass. A hit
+ * payout adds the bound hit term to the value it reads. The readings are transient and single-process, dropped when
+ * the holder leaves its store.
  *
  * <p><b>The payouts.</b> {@code Onto} is written here, on the pass: one native {@code StaticModifier} keyed
  * {@value #MODIFIER_PREFIX}{@code <stat>} on each named stat, written or removed only when it changes, so whatever
@@ -71,9 +75,29 @@ public final class ConditionalStats {
     /** How often a holder's conditions are read again, in nanoseconds: four times a second. */
     public static final long EVALUATE_EVERY_NANOS = 250_000_000L;
 
+    /**
+     * The library's retired conditional stats, each old id to the plain stat that took its place (R933, R934): a held
+     * copy of a shared stat is that stat granted {@code While} the condition its file named ({@code ZigHolding} with
+     * {@code Tool}, or with {@code Block}), so neither its stat file nor its conditional file ships.
+     */
+    static final Map<String, String> RETIRED = Map.of(
+            "DamageResist_Physical_WhileHeld_Tool", "DamageResist_Physical",
+            "DamageResist_Projectile_WhileHeld_Tool", "DamageResist_Projectile",
+            "KnockbackResist_WhileHeld_Tool", "KnockbackResist",
+            "KnockbackResist_HoldingBlock", "KnockbackResist");
+
+    /**
+     * Register {@link #RETIRED} with zc-core's {@link StatAliases}, so a stack's saved roll naming an old id lands on
+     * its successor (R925); a roll carries no condition, so it counts there whatever is in hand. Called once at setup
+     * by {@link ConditionBootstrap#install}.
+     */
+    static void registerRetiredAliases() {
+        RETIRED.forEach((retired, successor) -> StatAliases.register(retired, successor));
+    }
+
     /** One live file, its payouts resolved. */
     record Def(@Nonnull String fileId, @Nonnull String statId, @Nonnull ConditionalStatAsset asset,
-            @Nonnull List<String> onto, @Nullable ConditionalStatAsset.Damage damage, boolean healing) {
+            @Nonnull List<String> onto, @Nullable ConditionalStatAsset.Damage damage, boolean healing, boolean crit) {
 
         @Nonnull
         String key() {
@@ -139,7 +163,7 @@ public final class ConditionalStats {
             ConditionalStatAsset.Pays pays = asset.pays();
             List<String> onto = pays == null || asset.asksOfTarget() ? List.of() : List.copyOf(pays.onto());
             Def def = new Def(entry.getKey(), statId, asset, onto, pays == null ? null : pays.damage(),
-                    pays != null && pays.healing());
+                    pays != null && pays.healing(), pays != null && pays.critChance());
             byStat.putIfAbsent(def.key(), def);
         }
         defs = new Defs(List.copyOf(byStat.values()), Map.copyOf(byStat));
@@ -165,12 +189,18 @@ public final class ConditionalStats {
 
     /**
      * Read the holder at {@code ref} again when its time has come (or the files moved): its value for every live
-     * conditional stat, each held one's conditions and count, and the {@code Onto} modifiers that changed. World
-     * thread; never throws.
+     * conditional stat, each held one's conditions and count, and the {@code Onto} modifiers that changed. {@code keep}
+     * says whether the entity is kept as a holder whatever it holds (a player, whose first pass sweeps what an earlier
+     * session saved); otherwise (a creature) it is kept only once it holds a live conditional stat above 0, so a
+     * creature holding none costs one read per live stat and keeps nothing. World thread; never throws.
      */
     static void evaluate(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
-            @Nonnull EntityStatMap stats, @Nonnull Instant now, long nanos) {
+            @Nonnull EntityStatMap stats, @Nonnull Instant now, long nanos, boolean keep) {
         try {
+            // A creature is kept once it holds a live stat above 0, or a bound grant a hit may raise one by (R945).
+            if (!keep && !HOLDERS.containsKey(ref) && !holdsAny(stats) && !BoundGrants.hasHitTerms(ref)) {
+                return;
+            }
             HolderState state = HOLDERS.computeIfAbsent(ref, r -> new HolderState());
             if (!state.swept) {
                 sweep(stats);
@@ -187,7 +217,9 @@ public final class ConditionalStats {
             Map<OntoKey, Float> wanted = new HashMap<>();
             for (Def def : defs.all()) {
                 double value = readMax(stats, def.statId());
-                if (value == 0.0) {
+                // A stat reading 0 is still read when a bound grant may raise it on a hit (R945), so the hit finds its
+                // holder conditions and count ready.
+                if (value == 0.0 && !BoundGrants.mayPayOnHit(ref, def.statId())) {
                     continue;
                 }
                 Reading reading = previous.get(def.key());
@@ -196,7 +228,7 @@ public final class ConditionalStats {
                 }
                 read(accessor, ref, reading, value, now, nanos);
                 next.put(def.key(), reading);
-                if (!def.onto().isEmpty() && reading.holds && reading.factor > 0.0) {
+                if (value != 0.0 && !def.onto().isEmpty() && reading.holds && reading.factor > 0.0) {
                     float amount = (float) paid(reading);
                     String key = MODIFIER_PREFIX + def.key();
                     for (String onto : def.onto()) {
@@ -282,6 +314,21 @@ public final class ConditionalStats {
         }
     }
 
+    /** Does the entity hold any live conditional stat above 0 (so a pass has anything to read)? */
+    static boolean holdsAny(@Nonnull EntityStatMap stats) {
+        for (Def def : defs.all()) {
+            if (readMax(stats, def.statId()) != 0.0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Is the entity at {@code ref} a holder this runtime keeps readings for (a player, or a creature holding one)? */
+    public static boolean isHolder(@Nullable Ref<EntityStore> ref) {
+        return ref != null && HOLDERS.containsKey(ref);
+    }
+
     /** Forget the holder at {@code ref} (it left its store). */
     public static void forget(@Nonnull Ref<EntityStore> ref) {
         HOLDERS.remove(ref);
@@ -314,7 +361,7 @@ public final class ConditionalStats {
                 if (like != null && !TypedDamageBonuses.countsOn(accessor, attacker, damage, causeId, like)) {
                     continue;
                 }
-                sum += paid(reading);
+                sum += paidOnHit(accessor, attacker, damage, reading);
             }
             return sum;
         } catch (Throwable t) {
@@ -357,6 +404,31 @@ public final class ConditionalStats {
     }
 
     /**
+     * The crit step's term: the summed critical chance, whole percent points, of every {@code CritChance} stat
+     * {@code attacker} holds that counts on this hit (its holder conditions holding, its target and hit reads met), each
+     * times its {@code PerFoe} count and held to its {@code Max}. 0 for a holder with none. Never throws.
+     */
+    public static double critPoints(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nullable Ref<EntityStore> target, @Nonnull Damage damage) {
+        HolderState state = HOLDERS.get(attacker);
+        if (state == null || state.readings.isEmpty()) {
+            return 0.0;
+        }
+        try {
+            double sum = 0.0;
+            for (Reading reading : state.readings.values()) {
+                if (reading.def.crit() && reading.holds && reading.factor > 0.0
+                        && countsOnHit(accessor, attacker, target, damage, reading.def)) {
+                    sum += paidOnHit(accessor, attacker, damage, reading);
+                }
+            }
+            return sum;
+        } catch (Throwable t) {
+            return 0.0;
+        }
+    }
+
+    /**
      * What {@code statId} pays {@code attacker} on this hit, for a consumer that reads a conditional stat itself (a
      * crit chance on a frozen foe): its value times its count, held to its {@code Max}, when its holder conditions
      * hold and its target and hit reads are met, else 0. Its types and {@code Like} are not asked. Never throws.
@@ -370,7 +442,8 @@ public final class ConditionalStats {
             return 0.0;
         }
         try {
-            return countsOnHit(accessor, attacker, target, damage, reading.def) ? paid(reading) : 0.0;
+            return countsOnHit(accessor, attacker, target, damage, reading.def)
+                    ? paidOnHit(accessor, attacker, damage, reading) : 0.0;
         } catch (Throwable t) {
             return 0.0;
         }
@@ -382,7 +455,28 @@ public final class ConditionalStats {
      * every payout holds it here.
      */
     private static double paid(@Nonnull Reading reading) {
-        return Math.min(reading.value * reading.factor, reading.def.asset().max());
+        return paidAt(reading, reading.value);
+    }
+
+    /**
+     * What a reading pays on this hit: {@link #paid}, its value raised by the off bound grants on its stat that hold on
+     * the hit ({@link BoundGrants#hitPoints}, R945). 0 for a value of 0.
+     */
+    private static double paidOnHit(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage, @Nonnull Reading reading) {
+        if (!BoundGrants.hasHitTerms(attacker)) {
+            return paid(reading);
+        }
+        // The stat read live, not the reading's cached value: a swap flips a bound modifier between two reads, and the
+        // hit term pays only an off one, so a cached value still holding it would pay it twice.
+        EntityStatMap stats = accessor.getComponent(attacker, EntityStatMap.getComponentType());
+        double value = stats == null ? reading.value : readMax(stats, reading.def.statId());
+        return paidAt(reading, value + BoundGrants.hitPoints(accessor, attacker, reading.def.statId(), damage));
+    }
+
+    /** {@code value} times the reading's count, held to its file's {@code Max}; 0 for a value of 0. */
+    private static double paidAt(@Nonnull Reading reading, double value) {
+        return value == 0.0 ? 0.0 : Math.min(value * reading.factor, reading.def.asset().max());
     }
 
     /** Do a file's target conditions and hit reads all hold on this hit? */

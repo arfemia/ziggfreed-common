@@ -20,7 +20,8 @@ import com.ziggfreed.common.track.gain.GainPlans;
 /**
  * The {@code defaults < pack < owner} fold of every {@link BoostAsset}. A file may gate on a mod through its
  * top-level {@code Requires} (the mod gate): the store's fold and its owner reader count what they leave out under
- * {@link #MOD_GATE_STORE}. Every merge builds the standing boosts' list again and what a calendar change can show or
+ * {@link #MOD_GATE_STORE}. Every merge builds the standing and the reusable boosts' lists again and what a calendar
+ * change can show or
  * hide on the buff bar ({@link #tilesFollow}), moves every compiled gain plan (a
  * boost's percent, tracks or switch may have changed) and re-syncs every online player's tiles (a running boost
  * may have been switched off).
@@ -35,6 +36,10 @@ public final class BoostConfig extends AbstractKeyedAssetConfig<BoostAsset> {
     /** The switched-on standing boosts, in id order; rebuilt on every fold, read lock-free. */
     @Nonnull
     private volatile List<BoostAsset> standing = List.of();
+
+    /** The switched-on boosts a player may start themselves ({@code Reusable}), in id order; rebuilt on every fold. */
+    @Nonnull
+    private volatile List<BoostAsset> reusable = List.of();
 
     /** What a calendar change can move on the buff bar; rebuilt on every fold, read lock-free. */
     @Nonnull
@@ -90,6 +95,15 @@ public final class BoostConfig extends AbstractKeyedAssetConfig<BoostAsset> {
     }
 
     /**
+     * Every switched-on boost a player may start themselves ({@code Reusable}), in id order: what a boosts page
+     * offers, each still reading its own season, Requires and wait at the start.
+     */
+    @Nonnull
+    public List<BoostAsset> reusable() {
+        return reusable;
+    }
+
+    /**
      * Can a change to any of the calendar events {@code eventIds} (any case) show or hide a boost tile: does a
      * switched-on timed boost name one of them as its {@code Season}, or ask a {@code Requires} of the player? False
      * at once when no timed boost carries either. Any thread.
@@ -112,6 +126,7 @@ public final class BoostConfig extends AbstractKeyedAssetConfig<BoostAsset> {
 
     private void folded() {
         List<BoostAsset> kept = new ArrayList<>();
+        List<BoostAsset> offered = new ArrayList<>();
         List<String> widened = new ArrayList<>();
         Set<String> seasons = new TreeSet<>();
         boolean requires = false;
@@ -122,6 +137,9 @@ public final class BoostConfig extends AbstractKeyedAssetConfig<BoostAsset> {
             }
             if (boost.isEnabled() && boost.isStanding()) {
                 kept.add(boost);
+            }
+            if (boost.isEnabled() && boost.isReusable()) {
+                offered.add(boost);
             }
             if (boost.liveRequires() != null) {
                 widened.add(entry.getKey());
@@ -134,7 +152,9 @@ public final class BoostConfig extends AbstractKeyedAssetConfig<BoostAsset> {
             }
         }
         kept.sort(Comparator.comparing(BoostAsset::getId, String.CASE_INSENSITIVE_ORDER));
+        offered.sort(Comparator.comparing(BoostAsset::getId, String.CASE_INSENSITIVE_ORDER));
         standing = List.copyOf(kept);
+        reusable = List.copyOf(offered);
         calendarTiles = new CalendarTiles(Set.copyOf(seasons), requires);
         StoreGates.reportWidened(MOD_GATE_STORE, widened);
         GainPlans.invalidateAll();

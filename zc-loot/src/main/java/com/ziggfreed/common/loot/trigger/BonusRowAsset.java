@@ -1,5 +1,7 @@
 package com.ziggfreed.common.loot.trigger;
 
+import java.util.Locale;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -36,13 +38,21 @@ import com.ziggfreed.common.season.SeasonGate;
  * }</pre>
  *
  * <p>A row fires on every matching moment with no other gate: any block a player breaks that they
- * did not place, any kill credited to a player, any item a player harvests by hand. Where several
- * rows match one name the one pinning down the most characters wins; a calendar event's run is the
+ * did not place, any kill credited to a player, any item a player harvests by hand. {@code Match} is
+ * a name pattern or a set the thing's own files put it in ({@code ItemTag:Type=Ore},
+ * {@code BlockFamily:Ore}, {@code NpcGroup:Goblin}; zc-core's {@code match.MatchKey}). Where several
+ * rows match one name the exact name wins, then the pattern pinning down the most characters, then a
+ * set key, then {@code *}; a calendar event's run is the
  * row's own {@code Season}; anything else more selective than a name (a skill, a held tool) belongs in
  * a roll's own {@code Conditions}. A row with no {@code Loot} is a deliberate hole that stops a
  * broader pattern covering the name; {@code Enabled: false} takes the row out entirely, and so does
  * its {@code Season} while that event is not running. A server owner retunes or switches off a row
  * by id in {@code mods/ziggfreedcommon/bonus-rows.json} ({@link BonusRowOwnerLayers}).
+ *
+ * <p>A row's {@code Group} says which rows it competes with: rows of one group give one answer for a
+ * name, and each group answers on its own, so a mod's rows in a group of their own pay beside every
+ * other mod's and a narrower row elsewhere never takes their place. {@code AddsYield: false} keeps a
+ * written {@code Chance} exactly as written, with no moment yield added.
  */
 public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, BonusRowAsset>> {
 
@@ -58,6 +68,8 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable private Boolean enabled;
     @Nullable private String season;
     @Nullable private GateSpec requires;
+    @Nullable private String group;
+    @Nullable private Boolean addsYield;
     /** The live part of {@link #requires}, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
 
@@ -90,9 +102,10 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
                         (o, v) -> o.match = v, o -> o.match, (o, p) -> o.match = p.match)
                 .documentation("Which block, mob or item, as a name pattern: \"Rock_Stone\" exactly, "
                         + "\"Rock_*\" starting with, \"*_Cracked\" ending with, \"*Geode*\" anywhere in the "
-                        + "name, \"*\" everything. Case is ignored, and where several rows match one name "
-                        + "the one pinning down the most characters wins. Omit it to cover everything in "
-                        + "the moment.").add()
+                        + "name, \"*\" everything. "
+                        + com.ziggfreed.common.match.When.MATCH_FORMS // FQN-OK: this nested class is also named When
+                        + " Where several pattern rows match one name the one pinning down the most "
+                        + "characters wins. Omit it to cover everything in the moment.").add()
                 .build();
 
         public When() {
@@ -135,7 +148,7 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
             return kind == null ? "" : kind.trim();
         }
 
-        /** The name pattern, trimmed; blank means everything in the moment. */
+        /** The key (a name pattern or a set key), trimmed; blank means everything in the moment. */
         @Nonnull
         public String match() {
             return match == null ? "" : match.trim();
@@ -153,19 +166,24 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
             .appendInherited(new KeyedCodec<>("When", When.CODEC, false),
                     (a, v) -> a.when = v, a -> a.when, (a, p) -> a.when = p.when)
             .documentation("Which moments this row answers for: the Kind of moment, and the name pattern "
-                    + "within it. A row that names no moment never fires.").add()
+                    + "or the ItemTag, BlockFamily or NpcGroup key within it. A row that names no moment never "
+                    + "fires.").add()
             .appendInherited(new KeyedCodec<>("Chance", FactorFormula.codec(EditorDataSets.FACTORS), false),
                     (a, v) -> a.chance = v, a -> a.chance, (a, p) -> a.chance = p.chance)
             .documentation("How likely the row is, as a PERCENT: Base plus each factor's value * Weight, "
-                    + "held inside Clamp, so 5 is five percent, not 0.05. Omit it and the row always "
-                    + "fires, leaving the odds to the rolls in its Loot.").add()
+                    + "held inside Clamp, so 5 is five percent, not 0.05. The moment's yield (a break's or "
+                    + "a harvest's gathering yield, a kill's kill yield) adds to it unless AddsYield is "
+                    + "false, so {\"Base\": 0} is as likely as the player's own yield. Omit it and the row "
+                    + "always fires, leaving the odds to the rolls in its Loot.").add()
             .appendInherited(new KeyedCodec<>("Loot", LootRef.CODEC, false),
                     (a, v) -> a.loot = v, a -> a.loot, (a, p) -> a.loot = p.loot)
             .documentation("What the moment hands over: shared Lootables by id (a named table's Pool "
                     + "draws too), Rolls written here, or both. A Moment_Item reward hands over another of "
-                    + "the harvested stack, in a PickupItem row only. A Cue on a roll names the "
-                    + "FeedbackMoment that announces the find. A row granting nothing is a deliberate hole "
-                    + "that stops a broader pattern covering the same name.").add()
+                    + "the harvested stack in a PickupItem row, and another of what the broken block drops "
+                    + "(its own breaking item) in a BreakBlock row. A Cue on a roll names the "
+                    + "FeedbackMoment that announces the find; a find with no Cue is announced by the "
+                    + "library's own note. A row granting nothing is a deliberate hole that stops a broader "
+                    + "pattern covering the same name.").add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
             .metadata(EditorSchema.defaultValue(true))
@@ -174,7 +192,19 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
                     + "on and write no Loot.").add()
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
-            .documentation(StoreGates.DOCUMENTATION).add(),
+            .documentation(StoreGates.DOCUMENTATION).add()
+            .appendInherited(new KeyedCodec<>("Group", Codec.STRING, false),
+                    (a, v) -> a.group = v, a -> a.group, (a, p) -> a.group = p.group)
+            .documentation("The rows this row competes with. Rows in one Group give one answer for a name, the "
+                    + "most specific; each Group answers on its own, so a row in a Group of its own pays beside "
+                    + "the best row of every other Group, and a narrower row elsewhere never takes its place. Leave "
+                    + "it out for the shared Group every row joins by default. Case is ignored.").add()
+            .appendInherited(new KeyedCodec<>("AddsYield", Codec.BOOLEAN, false),
+                    (a, v) -> a.addsYield = v, a -> a.addsYield, (a, p) -> a.addsYield = p.addsYield)
+            .metadata(EditorSchema.defaultValue(true))
+            .documentation("Whether the moment's yield adds to the Chance this row writes: a break's or a hand "
+                    + "harvest's gathering yield, a kill's kill yield. Set false to keep the Chance exactly as "
+                    + "written. A row writing no Chance always fires either way.").add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
 
@@ -210,7 +240,7 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
         return when == null ? null : when.moment();
     }
 
-    /** The name pattern; blank means everything in its moment. */
+    /** The key (a name pattern or a set key); blank means everything in its moment. */
     @Nonnull
     public String match() {
         return when == null ? "" : when.match();
@@ -230,6 +260,17 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     /** True unless the row was switched off. */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /** The group this row competes in, trimmed and lower-cased; blank for the shared group. */
+    @Nonnull
+    public String getGroup() {
+        return group == null ? "" : group.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** Whether the moment's yield adds to a {@code Chance} this row writes; true unless set false. */
+    public boolean addsYield() {
+        return addsYield == null || addsYield;
     }
 
     /**

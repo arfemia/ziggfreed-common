@@ -14,6 +14,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.icon.IconSpec;
@@ -36,8 +37,8 @@ import com.ziggfreed.common.icon.IconSpec;
  * }</pre>
  *
  * <p>This is the ONE place a kind is described. What it counts and how, what its target names, the
- * sentence it reads as and the picture beside it all live here, so a kind cannot be half-described
- * in one file and half in another.
+ * sentence it reads as, the picture beside it and the picker the Asset Editor offers its target through
+ * ({@code Pick}) all live here, so a kind cannot be half-described in one file and half in another.
  *
  * <p><b>Every leaf is optional and merges over what code registered.</b> A mod registering a kind in
  * Java states the defaults; a file states only what it changes. So a file adding nothing but a
@@ -203,6 +204,7 @@ public final class ObjectiveKindAsset
     @Nullable private Boolean producible;
     @Nullable private TargetNames targetNames;
     @Nullable private Presentation presentation;
+    @Nullable private EditorPick pick;
 
     public static final AssetBuilderCodec<String, ObjectiveKindAsset> CODEC = AssetBuilderCodec.builder(
                     ObjectiveKindAsset.class,
@@ -239,9 +241,22 @@ public final class ObjectiveKindAsset
                     (a, v) -> a.presentation = v, a -> a.presentation,
                     (a, p) -> a.presentation = p.presentation)
             .documentation("How a step of this kind reads and looks.").add()
+            .appendInherited(new KeyedCodec<>("Pick", EditorPick.CODEC, false),
+                    (a, v) -> a.pick = v, a -> a.pick, (a, p) -> a.pick = p.pick)
+            .documentation("How the Asset Editor offers a step's Target and Targets, and a moment table's Match, "
+                    + "for this kind. A target is matched as a name pattern, so give it a List, offered as "
+                    + "suggestions that leave a pattern typeable: ziggfreedcommon:ids/BlockType for a block, "
+                    + "ziggfreedcommon:ids/Item for an item, ziggfreedcommon:ids/NPCRole for a creature, or any pick "
+                    + "list this server serves. Omit for a plain text box. It changes nothing a step counts.").add()
             .build();
 
     public ObjectiveKindAsset() {
+    }
+
+    /** How the Asset Editor offers what this kind targets ({@link ObjectiveKindPicks}), or null for a plain text box. */
+    @Nullable
+    public EditorPick getPick() {
+        return pick == null || pick.isEmpty() ? null : pick;
     }
 
     /** The kind id this file describes, exactly as the filename spells it. */

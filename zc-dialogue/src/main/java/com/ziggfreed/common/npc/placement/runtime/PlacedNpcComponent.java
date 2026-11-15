@@ -45,9 +45,14 @@ public final class PlacedNpcComponent implements Component<EntityStore> {
     /** The registration id (namespaced, stable - it is persisted in every saved world). */
     public static final String REGISTRY_ID = "ZiggfreedCommon:PlacedNpc";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     @Nonnull
     public static final BuilderCodec<PlacedNpcComponent> CODEC = BuilderCodec
             .builder(PlacedNpcComponent.class, PlacedNpcComponent::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("PlacementId", Codec.STRING),
                     (c, v) -> c.placementId = v, c -> c.placementId).add()
             .append(new KeyedCodec<>("Namespace", Codec.STRING),

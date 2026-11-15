@@ -14,9 +14,11 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.ziggfreed.common.almanac.AlmanacBootstrap;
+import com.ziggfreed.common.authoring.AuthoringBootstrap;
 import com.ziggfreed.common.almanac.asset.AlmanacValidator;
 import com.ziggfreed.common.asset.AssetStoreWriter;
 import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.EditorSchemaAudit;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.asset.PackRangeAudit;
 import com.ziggfreed.common.board.asset.BoardConfig;
@@ -33,10 +35,14 @@ import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
 import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.commerce.page.CommerceStepIcons;
+import com.ziggfreed.common.content.ServerContentBootstrap;
 import com.ziggfreed.common.progress.gate.GateBootstrap;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.damage.onhit.Crits;
+import com.ziggfreed.common.damage.onhit.OnHitBootstrap;
 import com.ziggfreed.common.damage.weakspot.WeakSpotBootstrap;
+import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.control.ControlBootstrap;
@@ -45,6 +51,7 @@ import com.ziggfreed.common.effect.duration.DurationBootstrap;
 import com.ziggfreed.common.effect.movement.MovementBootstrap;
 import com.ziggfreed.common.effect.outgoing.OutgoingBootstrap;
 import com.ziggfreed.common.effect.resist.ResistBootstrap;
+import com.ziggfreed.common.effect.sync.StatSyncBootstrap;
 import com.ziggfreed.common.health.HealCreditBootstrap;
 import com.ziggfreed.common.health.RegenBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
@@ -77,11 +84,15 @@ import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.StackStatsStamper;
 import com.ziggfreed.common.loot.stamp.StampFactors;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
+import com.ziggfreed.common.match.MatchBootstrap;
 import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
+import com.ziggfreed.common.objectives.authoring.AchievementEditorBootstrap;
+import com.ziggfreed.common.objectives.authoring.QuestEditorBootstrap;
 import com.ziggfreed.common.objectives.bonus.BonusRowBootstrap;
 import com.ziggfreed.common.objectives.book.ObjectiveBookBootstrap;
 import com.ziggfreed.common.objectives.calendar.CalendarSweepBootstrap;
@@ -108,6 +119,7 @@ import com.ziggfreed.common.reward.CostumeRewardKind;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.settings.PlayerSettings;
+import com.ziggfreed.common.settings.page.CombatSettings;
 import com.ziggfreed.common.settings.page.SettingsBootstrap;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
@@ -128,7 +140,9 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
+import com.ziggfreed.common.util.RetiredLibrarySettings;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.world.BlockRulesBootstrap;
 import com.ziggfreed.common.world.gather.GatherBootstrap;
@@ -150,8 +164,8 @@ import com.ziggfreed.common.world.temp.TempBlocksBootstrap;
  *
  * <p>The static primitives register nothing (a consumer calls them directly), and the library's own
  * registrations live in per-module bootstraps this class calls in one authoritative order:
- * {@code GateBootstrap} (zc-core), {@code LootDropsBootstrap} (zc-loot), {@code EntityBootstrap} (zc-entity),
- * {@code NpcBootstrap} (zc-dialogue),
+ * {@code GateBootstrap} + {@code MatchBootstrap} (zc-core), {@code LootDropsBootstrap} (zc-loot),
+ * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} + {@code BlockRulesBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} + {@code TrainerBootstrap} (zc-objectives), and
@@ -227,6 +241,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        // The family's scheduler thread first, so every setup phase and every consumer after it can schedule.
+        ZigScheduler.start();
+        // Settings this release no longer reads come out of the owner's files once, before anything reads one.
+        RetiredLibrarySettings.run();
+
         // Seed the shared destination vocabulary before the stores whose assets embed it, so no
         // read can reach a half-built vocabulary.
         registerDestinations();
@@ -240,6 +259,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // The gate epochs a kept requirement verdict is checked against: the boot that starts keeping, a
         // departing player, every permission change.
         GateBootstrap.install(this);
+        // The shared matcher's ItemTag: and NpcGroup: keys: an item, NPC group or role load moves their answers, so a
+        // track source or bonus row reads the assets as they stand.
+        MatchBootstrap.install(this);
         registerLootVocabulary();
         // Our loot tables inside native drop lists: the ZigLootable container Type, before any drop list decodes.
         LootDropsBootstrap.install(this);
@@ -280,10 +302,17 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // and the ZigGrounded condition that ends Zig_Airborne on landing, before any asset decodes; it orders itself
         // after the use gate and the route step above.
         WeakSpotBootstrap.install(this);
+        // Crits and lifesteal (R865, R866): the crit step right after the weak spot's, for any attacker raising
+        // CritChance, and the lifesteal step once a hit is applied, for any attacker raising Lifesteal.
+        OnHitBootstrap.install(this);
         // Conditional stats (R757): the library's entity conditions into the engine's condition map, the holder pass,
         // the first-hit record and the damage and healing terms a conditional stat pays through, before any asset
         // decodes and after the route step it adds to.
         ConditionBootstrap.install(this);
+        // The one stat-to-effect pass every carrier takes (players every tick, creatures a few times a second, R860),
+        // ordered after the conditional holder pass registered just above: the outgoing, resistance and movement
+        // families each add their channel to it from their own bootstrap.
+        StatSyncBootstrap.install(this);
         registerGearSetSeams();
         CostumeBootstrap.registerCostumes(this);
         // Crowd control: the ZigStun, ZigTaunt, ZigAggroDrop and ZigAggroSuppress Types before any asset decodes,
@@ -332,6 +361,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         ProgressionBootstrap.registerFeedbackMoments();
         BonusRowBootstrap.registerReactions();
         BonusRowBootstrap.registerDropCredit(this);
+        BonusRowBootstrap.registerFindNotes(this);
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
         DialogueBootstrap.registerDialogueAudit(this);
@@ -356,9 +386,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerHudSettings();
         registerMenu();
         // The Settings tab: its destination, its tab on the rail after Records, and the library's own
-        // Notifications section. zc-objectives fills the quest tracker and title sections from its own
+        // Notifications and Combat sections. zc-objectives fills the quest tracker and title sections from its own
         // bootstrap; a consumer adds its sections with ZigSettings.consumer.
         SettingsBootstrap.registerPage();
+        registerCritWordSeams();
         // The Almanac: its per-player record and connect hook, the owner's switch and its feature, its
         // destination, its moment counter and the /zigalmanac family. Its page store is registered with
         // the other framework stores.
@@ -388,6 +419,20 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // source and the /zigstats family. Its stat file store is registered with the other framework
         // stores.
         StatsBootstrap.install(this);
+        // The server content pack (mods/ServerContent), where every in-game editor saves: found or made here, its
+        // typed words registered before the start's catalogue load, the /zigpack family, and its load order kept
+        // after every other pack at boot. A pack made this session registers at start().
+        ServerContentBootstrap.install(this);
+        // The authoring kit every in-game editor builds on: the ZigAuthoringTool interaction Type the creative
+        // Authoring Tools tab's tools run (registered before any item decodes), the Inspect Tool and its wizard, and
+        // /zigauthor. The tab, the tools and their root interaction are assets zc-presentation ships.
+        AuthoringBootstrap.install(this);
+        // The quest editor on that kit: the Quest wizard and the Quest Tool, which the progression admin page and
+        // /zigauthor open too. Its tool item is an asset zc-objectives ships.
+        QuestEditorBootstrap.install();
+        // The achievement editor on the same kit: the Achievement wizard and the Achievement Tool, which the
+        // progression admin page and /zigauthor open too. Its tool item is an asset zc-objectives ships.
+        AchievementEditorBootstrap.install();
         // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
         // store has folded and every mod has registered its vocabulary by then.
         registerBootChecks();
@@ -432,17 +477,22 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                 LootEditorDataSets::lootableIds);
         EditorDataSets.live(getEventRegistry(), LootEditorDataSets.ROLL_POOLS,
                 LootEditorDataSets::rollPoolIds);
-        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.REWARD_KINDS,
-                LootEditorDataSets::rewardKindIds);
         EditorDataSets.live(getEventRegistry(), EditorDataSets.FACTORS,
                 ZiggfreedCommonPlugin::factorVocabulary);
-        // The quest vocabularies are per-consumer (each mod builds its own registries), so they are
-        // answered from whatever consumers have advertised, plus the engine-generic objective kinds
-        // every engine starts with.
+        // The objective and reward kinds: the one shared vocabulary of each (a kind a mod registers, or a
+        // kind file that folds, is listed with nothing more to do) plus any private registry a consumer
+        // advertises. The reward list is served once, under the one id the loot layer and the progression
+        // rows both name.
         EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.OBJECTIVE_KINDS,
                 ProgressEditorDataSets::objectiveKindIds);
         EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.REWARD_KINDS,
                 ProgressEditorDataSets::rewardKindIds);
+        // The character ids a quest's giver, its hand-in and a talk step name, off every character file and
+        // placement, so an author picks the NPC that offers a quest.
+        EditorDataSets.live(getEventRegistry(), EditorDataSets.NPC_IDS, NpcIdentities::allDeclaredNpcIds);
+        // Every asset type's loaded ids (ziggfreedcommon:ids/<Type>), the suggestions a step's Target offers, where
+        // a name pattern or a set key must stay typeable.
+        EditorDataSets.serveAssetIds(getEventRegistry());
         // The commerce pick lists answer off the folded content itself, so an author picks a wallet,
         // a storefront, a shelf or a board that this server genuinely has - and a pack loaded later
         // simply widens the next answer.
@@ -666,6 +716,20 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
+     * The critical hit word (R896) spans two modules that cannot see each other: the crit step (zc-entity) asks each
+     * attacker's own Settings switch (zc-presentation), and the Settings tab offers that switch only while the owner's
+     * {@code CritText} is on.
+     */
+    private void registerCritWordSeams() {
+        try {
+            Crits.installWordRule(PlayerSettings::critWord);
+            CombatSettings.installOffered(() -> WeakSpotSettingsConfig.getInstance().settings().critTextEnabled());
+        } catch (Throwable t) {
+            SafeLog.warn("[crit] the critical hit word's seams failed", t);
+        }
+    }
+
+    /**
      * What the gear-set engine cannot do alone: put a tier's {@code Effect} on, take it off and look
      * for it on the entity (the native-effect primitive lives in zc-effects, which zc-entity may
      * never import), and turn a tier flip or a piece going on into a notice (the feedback engine
@@ -733,14 +797,32 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(TrainerAudit.LOG_LABEL, TrainerAudit::claimLateFindings),
                     new BootAudit.Pass(ConditionalStatValidator.LOG_LABEL, ConditionalStatValidator::audit),
                     new BootAudit.Pass(StatTypeCeiling.LOG_LABEL, StatTypeCeiling::audit),
-                    new BootAudit.Pass(ProcValidator.LOG_LABEL, ProcValidator::audit))));
+                    new BootAudit.Pass(ProcValidator.LOG_LABEL, ProcValidator::audit),
+                    new BootAudit.Pass(EditorSchemaAudit.LOG_LABEL, () -> EditorSchemaAudit.audit(List.of(
+                            ProgressEditorDataSets.OBJECTIVE_KINDS, ProgressEditorDataSets.REWARD_KINDS,
+                            EditorDataSets.assetIds("BlockType"), EditorDataSets.assetIds("Item"),
+                            EditorDataSets.assetIds("NPCRole")))))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }
     }
 
     @Override
+    protected void start() {
+        // A server content pack made at this setup registers now, after the asset pass, so the Asset Editor lists it.
+        ServerContentBootstrap.start();
+    }
+
+    @Override
     protected void shutdown() {
+        // The scheduler stops first (every consumer has shut down before the library), so a debounced
+        // write one of the steps below asks for finds no thread and writes at once rather than waiting.
+        // The debounces it dropped are written by their owners below: the titles here, the Almanac's
+        // totals and the boards in their own steps.
+        ZigScheduler.shutdown();
+        EntityBootstrap.shutdown();
+        // The text pack's zip is let go on a plugin unload (never on a server stop: the engine closes it then).
+        ServerContentBootstrap.shutdown();
         CalendarBootstrap.shutdown();
         // The Almanac's server totals and the encounter board are written by a 3-second debounce the
         // server may never run before it exits, so the last counts and defeats are written here; every

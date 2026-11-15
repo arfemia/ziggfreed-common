@@ -29,7 +29,7 @@ import com.ziggfreed.common.util.SafeLog;
  * no timer and shows none. A calendar change re-syncs the bar ({@link Boosts#onCalendarChange}), so a tile leaves
  * with the season or the calendar-read {@code Requires} its boost needs and comes back with it.
  */
-public final class BoostTiles implements TimedBuffSource {
+final class BoostTiles implements TimedBuffSource {
 
     public static final BoostTiles INSTANCE = new BoostTiles();
 

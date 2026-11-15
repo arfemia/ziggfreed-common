@@ -1,0 +1,13 @@
+{
+  "$Comment": "A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while nothing has hurt them for 5 seconds. Any item's StatModifiers, an effect's RawStatModifiers or a pick's grant raise it like any stat (a weapon talent's grant bound While its weapon is held). Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false,
+  "Tags": {
+    "ZigGrantFamily": [
+      "Combat"
+    ]
+  }
+}

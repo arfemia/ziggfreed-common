@@ -167,14 +167,13 @@ import com.ziggfreed.common.track.asset.TrackCategoryConfig;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.asset.TrackCurveConfig;
+import com.ziggfreed.common.track.asset.TrackCurveOwnerLayers;
 import com.ziggfreed.common.track.asset.TrackOwnerLayers;
 import com.ziggfreed.common.track.boost.BoostAsset;
 import com.ziggfreed.common.track.boost.BoostConfig;
 import com.ziggfreed.common.track.boost.BoostOwnerLayers;
 import com.ziggfreed.common.track.boost.BoostSettingsAsset;
 import com.ziggfreed.common.track.boost.BoostSettingsConfig;
-import com.ziggfreed.common.track.pick.PickDeckAsset;
-import com.ziggfreed.common.track.pick.PickDeckConfig;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.PickOptionConfig;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
@@ -203,6 +202,8 @@ import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
 import com.ziggfreed.common.world.gather.BlockFamilyAsset;
 import com.ziggfreed.common.world.gather.BlockFamilyConfig;
 import com.ziggfreed.common.world.gather.BlockFamilyOwnerLayers;
+import com.ziggfreed.common.world.gather.GatherRulesAsset;
+import com.ziggfreed.common.world.gather.GatherRulesConfig;
 import com.ziggfreed.common.world.gather.GatherShapeAsset;
 import com.ziggfreed.common.world.gather.GatherShapeConfig;
 import com.ziggfreed.common.world.gather.GatherShapeOwnerLayers;
@@ -464,6 +465,18 @@ public final class FrameworkAssetRegistrar {
                     GatherShapeConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(GatherShapeConfig.MOD_GATE_STORE,
                             ev.getAssetMap(), s -> GateSpec.missingMod(s.requires())));
                     GatherShapeOwnerLayers.reload();
+                });
+
+        // --- Gather rules (Pattern A) - the gather steps' own numbers no stat carries: when a tree is tall, the
+        //     break chain's window and step cap, the shaped-placement flow. The library ships Default.json. Owner
+        //     file mods/ziggfreedcommon/gather-rules.json, re-read on this same event. No top-level Requires. ---
+        AssetStoreRegistrar.registerStore(GatherRulesAsset.class,
+                new DefaultAssetMap<String, GatherRulesAsset>(), GatherRulesAsset.TYPE_ROOT,
+                GatherRulesAsset::getId, GatherRulesAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, GatherRulesAsset.class,
+                (LoadedAssetsEvent<String, GatherRulesAsset, DefaultAssetMap<String, GatherRulesAsset>> ev) -> {
+                    GatherRulesConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    GatherRulesConfig.reloadOwner();
                 });
 
         // --- Gateways: where the way into another world stands, so a tracked quest whose character
@@ -1100,14 +1113,17 @@ public final class FrameworkAssetRegistrar {
                 });
 
         // --- Track curves (Pattern A) - one level curve per file, which tracks share by id: its pieces, what lies
-        //     past the top, its tier names. The library ships Skill_Hybrid (and the sample track's curve). No
-        //     owner file; every fold drops the tabulated curves (TrackCurveConfig). ---
+        //     past the top, its tier names. The library ships Skill_Hybrid (and the sample track's curve). Owner
+        //     file mods/ziggfreedcommon/track-curves.json, re-read on this same event; every fold drops the
+        //     tabulated curves (TrackCurveConfig). ---
         AssetStoreRegistrar.registerStore(TrackCurveAsset.class,
                 new DefaultAssetMap<String, TrackCurveAsset>(), TrackCurveAsset.TYPE_ROOT,
                 TrackCurveAsset::getId, TrackCurveAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackCurveAsset.class,
-                (LoadedAssetsEvent<String, TrackCurveAsset, DefaultAssetMap<String, TrackCurveAsset>> ev) ->
-                        TrackCurveConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, TrackCurveAsset, DefaultAssetMap<String, TrackCurveAsset>> ev) -> {
+                    TrackCurveConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackCurveOwnerLayers.reload();
+                });
 
         // --- Track categories (Pattern A) - one category tracks file under per file: the shared category leaves
         //     and the prestige build its tracks default to. The library ships Combat, Gathering and Crafting. No
@@ -1166,7 +1182,7 @@ public final class FrameworkAssetRegistrar {
         //     offer and prestige perk is: its track, its choice groups or its cost and repeat, its Requires,
         //     prerequisites, spend cap, Where and grants. A file may gate on a mod through its top-level Requires.
         //     The library ships the sample track's one pick. Owner file mods/ziggfreedcommon/track-picks.json,
-        //     re-read on this same event. No loadsAfter: a pick names its track, options and deck by id and the
+        //     re-read on this same event. No loadsAfter: a pick names its track and options by id and the
         //     picks fold at first ask. ---
         AssetStoreRegistrar.registerStore(TrackPickAsset.class,
                 new DefaultAssetMap<String, TrackPickAsset>(), TrackPickAsset.TYPE_ROOT,
@@ -1193,9 +1209,9 @@ public final class FrameworkAssetRegistrar {
                 });
 
         // --- Track pick options (Pattern A) - one option a choice may offer per file, shared by every pick naming
-        //     it: its name, the part of an offer it fills, how often a deck brings it round, its levels and its
-        //     grants as a template the naming pick's Vars fill. The library ships the sample pick's three. Owner
-        //     file mods/ziggfreedcommon/track-pick-options.json, re-read on this same event. ---
+        //     it: its name, the levels it is offered at and its grants as a template the naming pick's Vars fill.
+        //     The library ships the sample pick's three. Owner file mods/ziggfreedcommon/track-pick-options.json,
+        //     re-read on this same event. ---
         AssetStoreRegistrar.registerStore(PickOptionAsset.class,
                 new DefaultAssetMap<String, PickOptionAsset>(), PickOptionAsset.TYPE_ROOT,
                 PickOptionAsset::getId, PickOptionAsset.CODEC, null);
@@ -1204,16 +1220,6 @@ public final class FrameworkAssetRegistrar {
                     PickOptionConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     TrackPickOwnerLayers.reloadOptions();
                 });
-
-        // --- Track pick decks (Pattern A) - how a choice group's offers are drawn per file, shared by every group
-        //     naming it: offer sizes by level, reserved room, the bag and its no-drought rule, the foe levels. The
-        //     library ships the sample pick's deck. No owner file. ---
-        AssetStoreRegistrar.registerStore(PickDeckAsset.class,
-                new DefaultAssetMap<String, PickDeckAsset>(), PickDeckAsset.TYPE_ROOT,
-                PickDeckAsset::getId, PickDeckAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PickDeckAsset.class,
-                (LoadedAssetsEvent<String, PickDeckAsset, DefaultAssetMap<String, PickDeckAsset>> ev) ->
-                        PickDeckConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Boosts (Pattern A, gated) - one boost per file: the tracks it lifts (by id, by category, or All),
         //     its percent, whose it is, how long a start runs or that it stands, how it stacks with itself, its
@@ -1394,15 +1400,17 @@ public final class FrameworkAssetRegistrar {
                         + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), "
                         + "UseGates (owner file mods/ziggfreedcommon/use-gates.json), "
                         + "Titles (owner file mods/ziggfreedcommon/titles.json), "
-                        + "Reputations (owner file mods/ziggfreedcommon/reputation.json), TrackCurves, TrackCategories, "
+                        + "Reputations (owner file mods/ziggfreedcommon/reputation.json), "
+                        + "TrackCurves (owner file mods/ziggfreedcommon/track-curves.json), TrackCategories, "
                         + "Tracks (owner file mods/ziggfreedcommon/tracks.json), "
                         + "TrackSources (owner file mods/ziggfreedcommon/track-sources.json), "
                         + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
                         + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), TrackPickGenerators, "
-                        + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), TrackPickDecks, "
+                        + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), "
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
                         + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
+                        + "GatherRules (owner file mods/ziggfreedcommon/gather-rules.json), "
                         + "EffectFamilies (owner file mods/ziggfreedcommon/effect-families.json), "
                         + "ConditionalStats (owner file mods/ziggfreedcommon/conditional-stats.json), "
                         + "Procs (owner file mods/ziggfreedcommon/procs.json), "

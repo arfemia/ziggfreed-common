@@ -18,7 +18,11 @@ import com.ziggfreed.common.match.NamePattern.Kind;
  *   <li><b>band 2</b> - {@link #PARTIAL_BAND}: prefix / suffix / contains. The LONGER literal core
  *       wins; only on an equal core length does the more anchored kind win
  *       (prefix &gt; suffix &gt; contains).</li>
- *   <li><b>band 3</b> - {@link #ANY_BAND}: the bare {@code *} catch-all.</li>
+ *   <li><b>band 3</b> - {@link #SET_BAND}: a set the id's own asset puts it in (an item tag, a block
+ *       family, an NPC group; {@link MatchKey}). A set names many things, so every pattern that pins
+ *       down characters of the name beats it, and it beats only the catch-all. Nothing here matches
+ *       a set; {@link #ofSet()} scores one a caller has matched.</li>
+ *   <li><b>band 4</b> - {@link #ANY_BAND}: the bare {@code *} catch-all.</li>
  * </ol>
  *
  * <p><b>Why core length dominates kind inside band 2.</b> The literal core is how much of the name
@@ -42,7 +46,7 @@ import com.ziggfreed.common.match.NamePattern.Kind;
  * nothing left to say, authoring order decides, and a server owner can read the winner off the
  * files rather than off map iteration order.
  *
- * @param band          the ladder band, ascending = more specific (0..3)
+ * @param band          the ladder band, lower = more specific (0..4)
  * @param coreLength    the matched pattern's literal core length ({@link #PARTIAL_BAND} only, else 0)
  * @param anchorOrdinal the matched {@link Kind}'s ordinal, the anchoring tie-break
  *                      ({@link #PARTIAL_BAND} only, else 0)
@@ -56,8 +60,10 @@ public record NameMatchRank(int band, int coreLength, int anchorOrdinal)
     public static final int EXACT_BAND = 1;
     /** A prefix / suffix / contains pattern, ordered by literal core length. */
     public static final int PARTIAL_BAND = 2;
+    /** A set the id's own asset puts it in: an item tag, a block family, an NPC group ({@link MatchKey}). */
+    public static final int SET_BAND = 3;
     /** The bare {@code *} catch-all. */
-    public static final int ANY_BAND = 3;
+    public static final int ANY_BAND = 4;
 
     /**
      * The rank of a consumer's OWN axis, above every name pattern. Use it for an identifier that
@@ -82,6 +88,18 @@ public record NameMatchRank(int band, int coreLength, int anchorOrdinal)
             case ALL -> new NameMatchRank(ANY_BAND, 0, 0);
         };
     }
+
+    /**
+     * The rank of a set key that has already been established to MATCH (an item tag, a block family, an NPC
+     * group): under every pattern naming characters of the id, over the catch-all, and equal to any other set.
+     */
+    @Nonnull
+    public static NameMatchRank ofSet() {
+        return SET;
+    }
+
+    /** Every set key's rank; sets carry no tie-breaker of their own. */
+    private static final NameMatchRank SET = new NameMatchRank(SET_BAND, 0, 0);
 
     /**
      * Fold a candidate into the current best: returns {@code candidate} only when it is STRICTLY

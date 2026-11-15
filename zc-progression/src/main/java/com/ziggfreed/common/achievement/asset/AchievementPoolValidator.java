@@ -17,6 +17,7 @@ import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.ConventionKeys;
+import com.ziggfreed.common.progress.LocationTarget;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
@@ -211,6 +212,13 @@ public final class AchievementPoolValidator {
                         where + " listens for " + ObjectiveKindRegistry.STAT_THRESHOLD + " but names no "
                                 + "Target, so there is no stat channel to measure; give it the channel id "
                                 + "the threshold is about", id));
+            }
+            if (LocationTarget.KIND.equalsIgnoreCase(kind.trim())
+                    && LocationTarget.parse(criterion.target()) == null) {
+                out.add(Finding.warning(DOMAIN, "BAD_LOCATION_TARGET",
+                        where + " listens for " + LocationTarget.KIND + " but its Target '" + criterion.target()
+                                + "' names no place, so it can never be reached; write x,y,z or x,y,z,radius, "
+                                + "with world: in front to name the world", id));
             }
             if (objectiveKinds == null) {
                 continue;

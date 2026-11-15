@@ -6,36 +6,34 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
-import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.ResistanceModifier;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.grid.EffectBodies;
 import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
+import com.ziggfreed.common.effect.sync.StatEffectChannel;
 import com.ziggfreed.common.stats.damage.DamageResistances;
 import com.ziggfreed.common.stats.damage.NativeResistance;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Keeps the ENGINE's damage resistance in step with the {@code DamageResist_<Type>} stats
  * ({@link DamageResistances}): one authority (the stat), one applier (the engine), one path.
  *
  * <p>The engine reads resistance only from worn armor and active effects, never from a stat, and an
- * item's {@code StatModifiers} can only move a stat. So every player carries, per type whose reading is
- * above zero, one hidden infinite {@code EntityEffect} whose {@code DamageResistance} is that reading in
- * percent, and the engine sums it with worn armor and any other resistance effect. The reading is the
- * type's stat plus every source a consumer registered ({@link DamageResistances#pointsFor}). Whatever
+ * item's {@code StatModifiers} can only move a stat. So every carrier, a creature as much as a player (R860),
+ * wears, per resistance type whose reading is above zero, one hidden infinite {@code EntityEffect} whose
+ * {@code DamageResistance} is that reading in percent, and the engine sums it with worn armor and any other
+ * resistance effect. The reading is the type's stat, the every-type {@code DamageResist} for a damage type, and
+ * every source a consumer registered ({@link DamageResistances#pointsFor}). Whatever
  * raises the stat (a held item's or the utility slot's {@code Utility.StatModifiers}, worn armor, a stamped
  * roll, an effect's own {@code StatModifiers}, a consumer's keyed modifier) resists through this, and two
  * sources add up because their modifiers do.
@@ -52,13 +50,13 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>State lives on the entity.</b> What an entity carries is read off its own
  * {@code EffectControllerComponent} and compared with its stats, never remembered here, so nothing goes
  * stale on a disconnect, a world change, a death (the engine clears every effect) or an effect someone
- * else removed. {@link DamageResistSyncSystem} makes that comparison every tick for every living player,
- * right after the engine recomputes item and effect stat modifiers, which is the only moment the stat is
- * known to be current: the engine applies a worn or utility-slot item's stats in its own ticking pass, so
- * an equip event's listener can read the stat a tick early. A tick in step costs a dozen stat reads, plus,
- * only for a player with some reading above zero, one read of the engine's armor and effect table for the
- * headroom; only a difference reconciles. {@link #sync} is the same pass for a consumer that has just
- * written a stat and wants it to count before the next tick.
+ * else removed. zc-effects' {@code StatEffectSync} makes that comparison through this family's {@link #CHANNEL}
+ * for every carrier (a player every tick, a creature a few times a second), right after the engine recomputes
+ * item and effect stat modifiers, which is the only moment the stat is known to be current: the engine applies a
+ * worn or utility-slot item's stats in its own ticking pass, so an equip event's listener can read the stat a
+ * tick early. A pass in step costs a stat read or two per type, plus, only for a carrier with some reading above
+ * zero, one read of the engine's armor and effect table for the headroom; only a difference reconciles.
+ * {@link #sync} is the same pass for a consumer that has just written a stat and wants it to count at once.
  *
  * <p><b>Rules.</b> {@link DamageResistances#installGate} switches every resistance off for an entity (a
  * consumer's world rule), which takes this family's effects off; {@link DamageResistances#installCeiling}
@@ -86,8 +84,17 @@ public final class DamageResistReconciler {
     private static final RuntimeEffectGrid GRID = new RuntimeEffectGrid(EFFECT_PREFIX, PACK_KEY,
             bucket -> body(bucket.channel(), bucket.value()));
 
-    /** One line per process for a pass that throws, which would otherwise repeat every tick. */
-    private static final AtomicBoolean PASS_FAILURE_WARNED = new AtomicBoolean();
+    /** This family on the one stat-to-effect pass. */
+    @Nonnull
+    public static final StatEffectChannel CHANNEL = new StatEffectChannel("[resist]",
+            "a carrier's damage resistance", GRID) {
+        @Nonnull
+        @Override
+        protected List<RuntimeEffectGrid.Bucket> wanted(@Nonnull ComponentAccessor<EntityStore> accessor,
+                @Nonnull Ref<EntityStore> ref, @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
+            return DamageResistReconciler.wanted(accessor, ref, stats, ctrl);
+        }
+    };
 
     // ==================== Pure bucket math and planning (testable, no engine) ====================
 
@@ -134,26 +141,14 @@ public final class DamageResistReconciler {
         return GRID.effectId(new RuntimeEffectGrid.Bucket(type, percent));
     }
 
-    /** The whole-percent bucket per type, in {@link DamageResistances#TYPE_IDS} order, of raw readings by type. */
+    /** The buckets raw readings by type ask for, held to {@code ceiling}: one per type above zero, in map order. */
     @Nonnull
-    static int[] percents(@Nonnull Map<String, Double> rawPointsByType, int ceiling) {
-        List<String> types = DamageResistances.TYPE_IDS;
-        int[] out = new int[types.size()];
-        for (int i = 0; i < out.length; i++) {
-            Double raw = rawPointsByType.get(types.get(i));
-            out[i] = percentFor(raw == null ? 0.0 : raw, ceiling);
-        }
-        return out;
-    }
-
-    /** The buckets {@code percents} (in type order) asks for: one per type above zero. */
-    @Nonnull
-    static List<RuntimeEffectGrid.Bucket> desired(@Nonnull int[] percents) {
-        List<String> types = DamageResistances.TYPE_IDS;
+    static List<RuntimeEffectGrid.Bucket> desired(@Nonnull Map<String, Double> rawPointsByType, int ceiling) {
         List<RuntimeEffectGrid.Bucket> out = new ArrayList<>();
-        for (int i = 0; i < percents.length && i < types.size(); i++) {
-            if (percents[i] > 0) {
-                out.add(new RuntimeEffectGrid.Bucket(types.get(i), percents[i]));
+        for (Map.Entry<String, Double> e : rawPointsByType.entrySet()) {
+            int percent = percentFor(e.getValue() == null ? 0.0 : e.getValue(), ceiling);
+            if (percent > 0) {
+                out.add(new RuntimeEffectGrid.Bucket(e.getKey(), percent));
             }
         }
         return out;
@@ -167,7 +162,7 @@ public final class DamageResistReconciler {
     @Nonnull
     static RuntimeEffectGrid.Plan plan(@Nonnull Collection<String> activeEffectIds,
             @Nonnull Map<String, Double> rawPointsByType, int ceiling) {
-        return GRID.plan(activeEffectIds, desired(percents(rawPointsByType, ceiling)));
+        return GRID.plan(activeEffectIds, desired(rawPointsByType, ceiling));
     }
 
     /**
@@ -238,47 +233,16 @@ public final class DamageResistReconciler {
     /**
      * Bring {@code ref}'s resistance effects into line with its stats now: the public entry point for a
      * consumer that has just written a {@code DamageResist_<Type>} stat or the ceiling
-     * ({@link DamageResistances#affectsResistance}) and wants it counted before the next tick, when
-     * {@link DamageResistSyncSystem} would. Nothing for a dead or effect-less entity. World thread only;
-     * idempotent; never throws.
+     * ({@link DamageResistances#affectsResistance}) and wants it counted before the next pass of
+     * {@link #CHANNEL}. Nothing for a dead or effect-less entity. World thread only; idempotent; never throws.
      */
     public static void sync(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> ref) {
-        try {
-            if (ref == null || !ref.isValid() || accessor.getComponent(ref, DeathComponent.getComponentType()) != null) {
-                return;
-            }
-            EntityStatMap stats = accessor.getComponent(ref, EntityStatMap.getComponentType());
-            EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
-            if (stats != null && ctrl != null) {
-                keepInStep(accessor, ref, stats, ctrl);
-            }
-        } catch (Throwable t) {
-            warnPassFailedOnce(t);
-        }
-    }
-
-    /**
-     * The per-tick pass: a dozen stat reads, the engine's armor and effect table only when a reading is
-     * above zero (for the headroom), a look at the entity's active effects, and a reconcile only when the
-     * two differ. A bucket still being written applies on a later tick. Never throws.
-     */
-    static void keepInStep(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
-            @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
-        try {
-            int[] wanted = wantedPercents(accessor, ref, stats, ctrl);
-            if (!inStep(ctrl, wanted)) {
-                GRID.reconcile(accessor, ref, desired(wanted), null);
-            }
-        } catch (Throwable t) {
-            warnPassFailedOnce(t);
-        }
+        CHANNEL.sync(accessor, ref);
     }
 
     /** Take every effect of this family off the entity (a full teardown). World thread only; never throws. */
     public static void removeAll(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> ref) {
-        if (ref != null) {
-            GRID.removeAll(accessor, ref);
-        }
+        CHANNEL.removeAll(accessor, ref);
     }
 
     /**
@@ -300,23 +264,29 @@ public final class DamageResistReconciler {
     }
 
     /**
-     * What the entity should carry, per type in order: nothing at all while the consumer's rule says no;
-     * else each type's reading (its stat and sources) held to its key's headroom under the ceiling, read
-     * off the engine's own table, this family's current share taken back out of it first.
+     * What the entity should carry: nothing at all while the consumer's rule says no; else, for each resistance
+     * type the loaded files name ({@link DamageResistances#types}), its reading (its stat, the every-type stat for
+     * a damage type, and their sources) held to its key's headroom under the ceiling, read off the engine's own
+     * table, this family's current share taken back out of it first. A type reading 0 asks no table read.
      */
     @Nonnull
-    private static int[] wantedPercents(@Nonnull ComponentAccessor<EntityStore> accessor,
+    private static List<RuntimeEffectGrid.Bucket> wanted(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull Ref<EntityStore> ref, @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
-        List<String> types = DamageResistances.TYPE_IDS;
-        int[] out = new int[types.size()];
         if (!DamageResistances.allows(accessor, ref)) {
-            return out;
+            return List.of();
         }
-        int ceiling = ceilingBucket(DamageResistances.ceilingPercent(accessor, ref, stats));
+        List<RuntimeEffectGrid.Bucket> out = null;
+        int ceiling = -1;
         Map<String, Double> engine = null;
         Map<String, Double> ours = null;
-        for (int i = 0; i < out.length; i++) {
-            double raw = DamageResistances.pointsFor(stats, types.get(i));
+        for (String type : DamageResistances.types()) {
+            double raw = DamageResistances.pointsFor(stats, type);
+            if (!(raw > 0.0)) {
+                continue;
+            }
+            if (ceiling < 0) {
+                ceiling = ceilingBucket(DamageResistances.ceilingPercent(accessor, ref, stats));
+            }
             if (percentFor(raw, ceiling) <= 0) {
                 continue;
             }
@@ -324,36 +294,17 @@ public final class DamageResistReconciler {
                 engine = NativeResistance.percentsByKey(accessor, ref);
                 ours = oursByKey(ctrl);
             }
-            String key = types.get(i).toLowerCase(Locale.ROOT);
+            String key = type.toLowerCase(Locale.ROOT);
             double others = engine.getOrDefault(key, 0.0) - ours.getOrDefault(key, 0.0);
-            out[i] = percentFor(raw, ceiling, others * 100.0);
-        }
-        return out;
-    }
-
-    /** Whether exactly the wanted buckets of this family are on the entity, and no other. */
-    private static boolean inStep(@Nonnull EffectControllerComponent ctrl, @Nonnull int[] wanted) {
-        var active = ctrl.getActiveEffects();
-        List<String> types = DamageResistances.TYPE_IDS;
-        int wantedCount = 0;
-        for (int i = 0; i < wanted.length; i++) {
-            if (wanted[i] <= 0) {
-                continue;
-            }
-            wantedCount++;
-            int idx = EntityEffect.getAssetMap().getIndex(effectIdFor(types.get(i), wanted[i]));
-            if (idx == AssetMapWithIndexes.NOT_FOUND || !active.containsKey(idx)) {
-                return false;
+            int percent = percentFor(raw, ceiling, others * 100.0);
+            if (percent > 0) {
+                if (out == null) {
+                    out = new ArrayList<>();
+                }
+                out.add(new RuntimeEffectGrid.Bucket(type, percent));
             }
         }
-        int owned = 0;
-        for (int idx : active.keySet()) {
-            EntityEffect effect = EntityEffect.getAssetMap().getAsset(idx);
-            if (effect != null && GRID.owns(effect.getId())) {
-                owned++;
-            }
-        }
-        return owned == wantedCount;
+        return out == null ? List.of() : out;
     }
 
     /** One bucket's body: exactly the type's own loaded cause. */
@@ -369,14 +320,6 @@ public final class DamageResistReconciler {
             return keyedCauses(type, new ArrayList<>(DamageCause.getAssetMap().getAssetMap().keySet()));
         } catch (Throwable t) {
             return List.of(type);
-        }
-    }
-
-    private static void warnPassFailedOnce(@Nonnull Throwable t) {
-        if (PASS_FAILURE_WARNED.compareAndSet(false, true)) {
-            SafeLog.warn("[resist] keeping a player's damage resistance in step failed (named once): " + t);
-        } else {
-            SafeLog.fine("[resist] resistance pass failed: " + t.getMessage());
         }
     }
 }

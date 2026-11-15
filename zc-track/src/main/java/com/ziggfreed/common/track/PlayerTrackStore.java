@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.track.boost.HeldBoosts;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -22,6 +23,7 @@ import com.ziggfreed.common.util.SafeLog;
  * with the player. A live player is read and written on their world thread; an offline one is read from the
  * engine's own player storage (the saved player file), which a write never touches: a climb moves only while
  * its player is here. A player's own boosts ride the same record ({@link #boosts}), read and written live only.
+ * Every write that lands says so ({@code PlayerRecords.changed}), so a consumer keeping the record elsewhere saves it.
  */
 public final class PlayerTrackStore implements TrackStore {
 
@@ -45,6 +47,7 @@ public final class PlayerTrackStore implements TrackStore {
             return false;
         }
         held.put(key, record);
+        PlayerRecords.changed(key.playerId(), TrackComponent.REGISTRY_ID);
         return true;
     }
 
@@ -102,6 +105,7 @@ public final class PlayerTrackStore implements TrackStore {
             return false;
         }
         held.boosts(boosts);
+        PlayerRecords.changed(subject.playerId(), TrackComponent.REGISTRY_ID);
         return true;
     }
 

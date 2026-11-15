@@ -7,6 +7,7 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.counter.CounterMap;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.progress.runtime.Moment;
 import com.ziggfreed.common.progress.runtime.MomentListener;
 
@@ -37,7 +38,9 @@ public final class AlmanacMomentListener implements MomentListener {
         if (record == null) {
             return;
         }
-        count(record.tallies, server, calendar, moment.kindId(), moment.target());
+        if (count(record.tallies, server, calendar, moment.kindId(), moment.target())) {
+            PlayerRecords.changed(moment.store(), moment.ref(), AlmanacComponent.REGISTRY_ID);
+        }
     }
 
     /** Is there anything to count for {@code kindId} at all? Only the calendar's attendance, while switched on. */
@@ -48,12 +51,14 @@ public final class AlmanacMomentListener implements MomentListener {
     /**
      * Count one moment into one player's {@code tallies}, then add exactly what the record gained to the
      * server's totals: attendance once per player per season (the record marks it once, so the server sees it
-     * once), and each run attended.
+     * once), and each run attended. True when the record gained anything.
      */
-    static void count(@Nonnull CounterMap tallies, @Nonnull ServerTallies server, @Nonnull AlmanacCalendar calendar,
+    static boolean count(@Nonnull CounterMap tallies, @Nonnull ServerTallies server, @Nonnull AlmanacCalendar calendar,
             @Nonnull String kindId, @Nonnull String target) {
         Map<String, Long> before = tallies.all();
         AlmanacCounter.count(tallies, calendar, kindId, target);
-        server.addGrowth(before, tallies.all());
+        Map<String, Long> after = tallies.all();
+        server.addGrowth(before, after);
+        return !before.equals(after);
     }
 }

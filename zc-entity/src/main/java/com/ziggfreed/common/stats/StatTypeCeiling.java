@@ -12,7 +12,9 @@ import com.ziggfreed.common.validation.Finding;
  * The ceiling on how many entity stat types a server loads (R759): every living entity holds a slot for every stat
  * type, and the engine loops all of them on every entity every tick (R758), so the family keeps its count bounded.
  * zc's boot audit names the count once a boot (INFO) and warns past {@value #CEILING}; the count is the asset map's
- * next index, since a removed stat keeps its slot.
+ * next index, since a removed stat keeps its slot. The family's build holds the shipped count under it too (the MMO
+ * build's {@code StatTypeCeilingTest}, which counts every family repo's and pack's stat files and the per-skill
+ * families, and fails past it).
  */
 public final class StatTypeCeiling {
 

@@ -29,6 +29,7 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
+import com.ziggfreed.common.asset.KindSelectorCodec;
 import com.ziggfreed.common.codec.JsonTreeCodec;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
@@ -394,6 +395,10 @@ public final class SchemaDocWriter {
 
         /** Classify one field's child codec into {@code {type, nestedType?, ref?, of?, values?, fields?, cyclic?}}. */
         private Map<String, Object> classify(Codec<?> codec, Deque<Class<?>> stack) {
+            if (codec instanceof KindSelectorCodec<?> row) {
+                // A row whose Kind picks its form in the Asset Editor reads exactly as its own object codec.
+                return classify(row.inner(), stack);
+            }
             Map<String, Object> out = new LinkedHashMap<>();
 
             if (codec instanceof BuilderCodec<?> bc) {

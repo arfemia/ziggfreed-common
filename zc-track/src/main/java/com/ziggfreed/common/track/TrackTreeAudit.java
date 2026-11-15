@@ -94,8 +94,13 @@ public final class TrackTreeAudit {
     public static List<Finding> audit(@Nonnull Collection<TrackAsset> tracks,
             @Nonnull Collection<TrackPicks.PickDef> picks) {
         Map<String, List<TrackPicks.PickDef>> byTrack = new TreeMap<>();
+        // How many picks, on any track, name each either-or group: a group one pick alone names is no choice.
+        Map<String, Integer> faceCounts = new HashMap<>();
         for (TrackPicks.PickDef pick : picks) {
             byTrack.computeIfAbsent(pick.trackId(), k -> new ArrayList<>()).add(pick);
+            for (String node : pick.asset().nodes()) {
+                faceCounts.merge(node, 1, Integer::sum);
+            }
         }
         List<Finding> out = new ArrayList<>();
         for (TrackAsset track : tracks) {
@@ -104,13 +109,14 @@ public final class TrackTreeAudit {
             }
             String trackId = TrackKey.normalize(track.getId());
             List<TrackPicks.PickDef> onTrack = byTrack.getOrDefault(trackId, List.of());
-            auditTree(track, trackId, onTrack, out);
+            auditTree(track, trackId, onTrack, faceCounts, out);
         }
         return out;
     }
 
     private static void auditTree(@Nonnull TrackAsset track, @Nonnull String trackId,
-            @Nonnull List<TrackPicks.PickDef> onTrack, @Nonnull List<Finding> out) {
+            @Nonnull List<TrackPicks.PickDef> onTrack, @Nonnull Map<String, Integer> faceCounts,
+            @Nonnull List<Finding> out) {
         String id = track.getId();
         TrackAsset.Tree template = track.tree();
         List<TrackPicks.PickDef> bought = new ArrayList<>();
@@ -145,7 +151,7 @@ public final class TrackTreeAudit {
                 }
             });
         }
-        auditNodes(id, trackId, bought, out);
+        auditNodes(id, trackId, bought, faceCounts, out);
         auditStarter(track, trackId, bought, out);
         if (template != null) {
             auditCeilings(track, bought, template.ceilings(), out);
@@ -287,19 +293,35 @@ public final class TrackTreeAudit {
 
     // ==================== nodes ====================
 
+    /**
+     * The nodes of one track's tree: a group no other pick on any track names ({@link #NODE_ONE_FACE}, read off
+     * {@code faceCounts}), and the faces of a row's own choice (each pick's first {@code Node}) that cost, rank, open or
+     * keep differently ({@link #NODE_FACES_UNEVEN}). A further group a pick names (two picks of different rows ruling
+     * each other out) joins no row, so it is held to no evenness.
+     */
     private static void auditNodes(@Nonnull String id, @Nonnull String trackId,
-            @Nonnull List<TrackPicks.PickDef> bought, @Nonnull List<Finding> out) {
+            @Nonnull List<TrackPicks.PickDef> bought, @Nonnull Map<String, Integer> faceCounts,
+            @Nonnull List<Finding> out) {
         Map<String, List<TrackPicks.PickDef>> byNode = new TreeMap<>();
+        Map<String, TrackPicks.PickDef> named = new TreeMap<>();
         for (TrackPicks.PickDef pick : bought) {
             String node = pick.asset().node();
             if (node != null) {
                 byNode.computeIfAbsent(node, k -> new ArrayList<>()).add(pick);
             }
+            for (String group : pick.asset().nodes()) {
+                named.putIfAbsent(group, pick);
+            }
         }
+        named.forEach((node, pick) -> {
+            // A group whose other faces sit on other tracks (R859) is a choice all the same.
+            if (faceCounts.getOrDefault(node, 0) < 2) {
+                out.add(Finding.warning(DOMAIN, NODE_ONE_FACE, "track '" + id + "' has the choice node '" + node
+                        + "' with one face ('" + pick.asset().getId() + "'), so it is no choice", id));
+            }
+        });
         byNode.forEach((node, faces) -> {
             if (faces.size() < 2) {
-                out.add(Finding.warning(DOMAIN, NODE_ONE_FACE, "track '" + id + "' has the choice node '" + node
-                        + "' with one face ('" + faces.get(0).asset().getId() + "'), so it is no choice", id));
                 return;
             }
             TrackPickAsset first = faces.get(0).asset();
@@ -310,7 +332,7 @@ public final class TrackTreeAudit {
                 note(uneven, "ranks", first.repeatMax() != other.repeatMax());
                 note(uneven, "level", levelGate(first, trackId) != levelGate(other, trackId));
                 note(uneven, "row", ownGate(first, trackId) != ownGate(other, trackId));
-                note(uneven, "prestige", first.keptThroughPrestige() != other.keptThroughPrestige());
+                note(uneven, "prestige", first.resetsAs() != other.resetsAs());
             }
             if (!uneven.isEmpty()) {
                 List<String> ids = new ArrayList<>();

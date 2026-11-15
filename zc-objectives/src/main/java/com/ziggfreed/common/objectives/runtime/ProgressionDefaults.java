@@ -42,10 +42,14 @@ import com.ziggfreed.common.objectives.marker.QuestMarkers;
 import com.ziggfreed.common.objectives.producer.EncounterQuestAxes;
 import com.ziggfreed.common.objectives.producer.RankAchievementGatedContent;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
+import com.ziggfreed.common.objectives.producer.ZigBountyProducer;
 import com.ziggfreed.common.objectives.producer.ZigCalendarProducer;
+import com.ziggfreed.common.objectives.producer.ZigConsumeItemProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
+import com.ziggfreed.common.objectives.producer.ZigCurrencyProducer;
 import com.ziggfreed.common.objectives.producer.ZigDamageProducer;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
+import com.ziggfreed.common.objectives.producer.ZigFallDamageProducer;
 import com.ziggfreed.common.objectives.producer.ZigGearSetProducer;
 import com.ziggfreed.common.objectives.producer.ZigHealProducer;
 import com.ziggfreed.common.objectives.producer.ZigInstanceRoundProducer;
@@ -53,10 +57,13 @@ import com.ziggfreed.common.objectives.producer.ZigLootReceivedProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
 import com.ziggfreed.common.objectives.producer.ZigPickupProducer;
 import com.ziggfreed.common.objectives.producer.ZigPlaceBlockProducer;
+import com.ziggfreed.common.objectives.producer.ZigPlayerDeathProducer;
 import com.ziggfreed.common.objectives.producer.ZigQuestCompletionProducer;
+import com.ziggfreed.common.objectives.producer.ZigReachLocationProducer;
 import com.ziggfreed.common.objectives.producer.ZigReputationProducer;
 import com.ziggfreed.common.objectives.producer.ZigTrackProducer;
 import com.ziggfreed.common.objectives.producer.ZigTalkProducer;
+import com.ziggfreed.common.objectives.producer.ZigTravelDistanceProducer;
 import com.ziggfreed.common.objectives.store.ProgressHandle;
 import com.ziggfreed.common.objectives.store.ProgressSubjects;
 import com.ziggfreed.common.objectives.store.ZigAchievementStore;
@@ -202,11 +209,14 @@ public final class ProgressionDefaults {
 
     /**
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
-     * listeners, the five producer systems plus the eight producers that are event-bus listeners
+     * listeners, the five producer systems, the five that read what happens to a player on their own
+     * (a death, a fall that hurts, a meal, ground covered at a sprint or swimming, a place a step names
+     * reached), plus the ten producers that are event-bus listeners
      * (a finished instance round, a boss fight's beat, a calendar attendance, the items a reward
-     * payout handed over, a collected quest, the ranks a reputation check credited, a gear-set
-     * tier coming on and a heal given are announced about players rather than happening to an
-     * entity, so each arrives on the shared bus), the
+     * payout handed over, a collected quest, a collected board contract, a wallet paid into or out
+     * of, the ranks a reputation check credited, a gear-set tier coming on and a heal given are
+     * announced about players rather than happening to an entity, so each arrives on the shared
+     * bus), the
      * library's talk-credit sink (a conversation is credited by an authored beat through
      * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
      * registers), the moment listener that meets a dungeon's {@code Complete.Objective}
@@ -234,6 +244,13 @@ public final class ProgressionDefaults {
         plugin.getEntityStoreRegistry().registerSystem(new ZigCraftProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
+        // What happens to a player on their own: dying, a fall that hurts, eating or drinking, ground covered at a
+        // sprint or swimming, and walking into a place a step names.
+        plugin.getEntityStoreRegistry().registerSystem(new ZigPlayerDeathProducer());
+        plugin.getEntityStoreRegistry().registerSystem(new ZigFallDamageProducer());
+        ZigConsumeItemProducer.install(plugin);
+        ZigTravelDistanceProducer.install(plugin);
+        ZigReachLocationProducer.install(plugin);
         ZigInstanceRoundProducer.install(plugin);
         // A dungeon's Complete.Objective is met off the same moments, which the instance module cannot see.
         ProgressionRuntime.defaults(OWNER).momentListener(DungeonObjectives.INSTANCE);
@@ -245,6 +262,9 @@ public final class ProgressionDefaults {
         ZigCalendarProducer.install(plugin);
         ZigLootReceivedProducer.install(plugin);
         ZigQuestCompletionProducer.install(plugin);
+        // A board contract collected and the run of days with one; a wallet paid into or out of.
+        ZigBountyProducer.install(plugin);
+        ZigCurrencyProducer.install(plugin);
         ZigReputationProducer.install(plugin);
         ZigGearSetProducer.install(plugin);
         ZigTrackProducer.install(plugin);
@@ -276,7 +296,10 @@ public final class ProgressionDefaults {
                 ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigGearSetProducer.KIND,
                 TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND, ZigDamageProducer.KIND,
-                ZigHealProducer.KIND);
+                ZigHealProducer.KIND, ZigPlayerDeathProducer.KIND, ZigFallDamageProducer.KIND,
+                ZigConsumeItemProducer.KIND, ZigTravelDistanceProducer.KIND_SPRINT,
+                ZigTravelDistanceProducer.KIND_SWIM, ZigReachLocationProducer.KIND, ZigBountyProducer.KIND,
+                ZigBountyProducer.KIND_STREAK, ZigCurrencyProducer.KIND_EARN, ZigCurrencyProducer.KIND_SPEND);
     }
 
     // ==================== persistence notifications ====================

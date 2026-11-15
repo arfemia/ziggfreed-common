@@ -11,7 +11,6 @@ import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.track.command.ZigBoostCommand;
 import com.ziggfreed.common.track.gain.GainFactors;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the boosts at library setup, from the track module's bootstrap: the {@code Boost} gain factor over the
@@ -26,29 +25,23 @@ public final class BoostBootstrap {
     private BoostBootstrap() {
     }
 
-    /** Everything the boosts register, in order. */
+    /**
+     * Everything the boosts register, in order. Not guarded: a failed registration throws here, at setup, rather
+     * than as a boost that never lifts a gain later.
+     */
     public static void install(@Nonnull JavaPlugin plugin) {
         registerNativeInteraction(plugin);
         registerNativeReward(plugin);
-        try {
-            GainFactors.register(GainFactors.BOOST, BoostFactor.INSTANCE);
-            TimedBuffs.register(BoostTiles.INSTANCE);
-            plugin.getEventRegistry().register(BootEvent.class, ServerBoosts::onBoot);
-            plugin.getCommandRegistry().registerCommand(new ZigBoostCommand());
-        } catch (Throwable t) {
-            SafeLog.warn("[boost] could not hang the boost factor, its tiles, the server boosts' boot read or "
-                    + "/zigboost", t);
-        }
+        GainFactors.register(GainFactors.BOOST, BoostFactor.INSTANCE);
+        TimedBuffs.register(BoostTiles.INSTANCE);
+        plugin.getEventRegistry().register(BootEvent.class, ServerBoosts::onBoot);
+        plugin.getCommandRegistry().registerCommand(new ZigBoostCommand());
     }
 
-    /** The plugin-free half: the Boost reward kind and how it reads. */
+    /** The plugin-free half: the Boost reward kind and how it reads. Not guarded, as {@link #install} is not. */
     public static void registerVocabulary() {
-        try {
-            BoostRewardKind.registerInto(RewardKinds.shared());
-            RewardChips.contribute(BoostRewardKind.chips());
-        } catch (Throwable t) {
-            SafeLog.warn("[boost] could not declare the Boost reward kind", t);
-        }
+        BoostRewardKind.registerInto(RewardKinds.shared());
+        RewardChips.contribute(BoostRewardKind.chips());
     }
 
     /**

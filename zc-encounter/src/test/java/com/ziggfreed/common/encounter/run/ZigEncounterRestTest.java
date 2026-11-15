@@ -2,22 +2,17 @@ package com.ziggfreed.common.encounter.run;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 
-import com.hypixel.hytale.codec.ExtraInfo;
-import com.hypixel.hytale.codec.util.RawJsonReader;
-
 /**
  * The three answers a {@code ZigRested} sensor gives, on the pure question behind it (the engine's
- * sensor types cannot be stood up in a unit JVM), and the component's codec round trip, the way the
- * chunk save carries it. Exercised through the {@code BuilderCodec} directly, never a live store.
+ * sensor types cannot be stood up in a unit JVM), and a copy keeping the rest. The component's save
+ * (its version leaf, a save from before it, a newer one refused) is the root's {@code SavedRecordVersionTest}.
  */
 class ZigEncounterRestTest {
 
@@ -45,23 +40,6 @@ class ZigEncounterRestTest {
         assertTrue(rest.isRested(NOW), "at the instant itself");
         assertTrue(ZigEncounterRest.rested(rest, NOW.plusSeconds(1)), "and after it");
         assertEquals(0L, rest.secondsLeft(NOW.plusSeconds(1)));
-    }
-
-    @Test
-    void theCodecRoundTripsTheInstantAndCarriesNothingForAnEmptyOne() throws IOException {
-        Instant until = Instant.parse("2000-01-03T12:30:00Z");
-        ExtraInfo info = new ExtraInfo();
-        var bson = ZigEncounterRest.CODEC.encode(ZigEncounterRest.until(until), info);
-        ZigEncounterRest decoded = ZigEncounterRest.CODEC.decode(bson, info);
-        assertEquals(until, decoded.restUntil());
-
-        var empty = ZigEncounterRest.CODEC.encode(new ZigEncounterRest(), info);
-        assertTrue(empty.isEmpty(), "an unstamped rest writes no key");
-        assertNull(ZigEncounterRest.CODEC.decode(empty, info).restUntil());
-
-        ZigEncounterRest fromJson = ZigEncounterRest.CODEC.decodeJson(
-                RawJsonReader.fromJsonString("{\"RestUntil\": \"2000-01-03T12:30:00Z\"}"), new ExtraInfo());
-        assertEquals(until, fromJson.restUntil());
     }
 
     @Test

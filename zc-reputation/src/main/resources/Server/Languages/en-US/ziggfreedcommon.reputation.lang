@@ -100,3 +100,86 @@ menu.tab = Reputation
 
 # A Records column ranking standing, for a reputation that names itself nothing.
 stat.standing = Standing
+
+# The reputation editor, the in-game wizard an admin makes or changes a reputation in (the Reputation Tool and
+# /zigauthor open Reputation open it). Its title, steps, fields and hints.
+author.title = Reputation Editor
+author.step.which = Which reputation
+author.step.name = Name and picture
+author.step.earn = How it's earned
+author.step.ranks = Ranks
+author.step.beyond = Past the top rank
+author.step.members = Who belongs
+author.note.which = Pick a reputation made here to change it, or leave this blank to make a new one. A reputation that comes with a mod or pack is changed in its own files or in the Asset Editor.
+author.field.edit = Reputation to change
+author.field.name = Name
+author.hint.name = What players see, typed in English. Its id is made from this name the first time you save, and never changes after.
+author.field.description = Description
+author.field.icon = Picture
+author.hint.icon = The item whose picture shows beside it on the Reputation page.
+author.note.earn = Defeating a creature in a group can earn standing here, or cost it with a number below zero. Quests, achievements and conversations pay it through a Reputation reward that names it.
+author.field.kill.1 = First creature group
+author.field.kill.2 = Second creature group
+author.field.kill.3 = Third creature group
+author.field.amount = Standing per kill
+author.header.lines = How to earn
+author.note.lines = Up to three lines for the How to earn part of the Reputation page, such as: Finish the guild's quests.
+author.field.earn.1 = First line
+author.field.earn.2 = Second line
+author.field.earn.3 = Third line
+author.note.ranks = Every reputation shares the seven ranks from Hated to Exalted. You can add up to three ranks of its own above Exalted, each starting at the standing you set. A new rank shows on the Reputation page as soon as you save.
+author.field.rank.1 = First rank above Exalted
+author.field.rank.2 = Second rank above Exalted
+author.field.rank.3 = Third rank above Exalted
+author.field.from = Starts at
+author.note.beyond = Past its top rank, a reward waits on the Reputation page each time a player earns this much more standing. Leave it at 0 for no rewards.
+author.field.every = Standing per reward
+author.field.item.1 = First item
+author.field.item.2 = Second item
+author.field.count = How many
+author.field.loot = Loot table
+author.note.members = Characters in it treat players by their standing here. A character already in the world follows it from its next spawn. Pick a character below, or point the Reputation Tool at one.
+author.field.add = Add a character
+author.field.remove = Take out a character
+
+# The editor's preview. {0} the typed name.
+author.preview.name = {0}
+author.preview.unnamed = A reputation with no name yet
+author.preview.new = Saving makes a new reputation.
+# {0} the reputation's id.
+author.preview.id = Saved as {0}
+# {0} the characters' roles, listed.
+author.preview.members = Characters: {0}
+author.preview.members.none = No characters yet, so nobody's attitude follows it.
+# {0} the creature group, {1} the standing each kill moves.
+author.preview.kill.gain = Defeating {0}: +{1, number}
+author.preview.kill.loss = Defeating {0}: {1, number}
+# {0} the rank's name, {1} the standing it starts at.
+author.preview.rank = {0} from {1, number}
+# {0} the standing each reward takes, {1} how many rewards each one pays.
+author.preview.beyond = Past the top rank, every {0, number}: {1, number} {1, plural, one {reward} other {rewards}}
+# {0} how many rows, lines and ranks the editor doesn't show.
+author.preview.kept = {0, number} more {0, plural, one {setting} other {settings}} from its files stay as they are.
+# {0} the NPC groups its file names that this server hasn't loaded, listed.
+author.preview.dropped = Saving leaves out {0}: this server hasn't loaded them, and a reputation naming a missing group stops characters from spawning.
+
+# Why a step can't go on. {0} what was typed or picked.
+author.check.edit = {0} isn't a reputation made here.
+author.check.name = Give it a name.
+author.check.backslash = Typed words can't hold a backslash.
+author.check.whole = Use whole numbers, such as 5 or -10.
+author.check.item = {0} isn't an item on this server.
+author.check.kill.group = Pick a creature group for each standing per kill.
+author.check.kill.amount = Set the standing per kill for {0}.
+author.check.kill.unknown = {0} isn't a creature group on this server.
+author.check.rank.from = Set where {0} starts.
+author.check.rank.name = Name the rank that starts at {0, number}.
+# {1} the standing the shared top rank starts at, {2} where standing ends.
+author.check.rank.range = {0} has to start above {1, number} and below {2, number}.
+author.check.rank.same = Two ranks start at {0, number}.
+author.check.every = Set how much standing each reward past the top rank takes.
+author.check.count = Give each item a count of at least 1.
+author.check.loot = {0} isn't a loot table on this server.
+author.check.role = {0} isn't a character on this server.
+# {1} the reputation that already holds it.
+author.check.role.taken = {0} already belongs to {1}. A character follows one reputation, so take it out there first.

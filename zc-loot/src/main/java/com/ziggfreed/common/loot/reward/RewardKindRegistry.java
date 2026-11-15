@@ -1,5 +1,6 @@
 package com.ziggfreed.common.loot.reward;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,6 +37,10 @@ import com.ziggfreed.common.registry.RegistryLedger;
  *
  * <p>The authoring facet is optional and independent. A kind only ever written as a structured
  * object needs none; a token that expands into another kind entirely registers only that.
+ *
+ * <p>So is the third, the DESCRIPTION ({@link #describe}): the parameters a reward of the kind may name,
+ * which the in-game Asset Editor shows as a reward row's form. Keyed by the same id, so a kind's
+ * handler, its token and its form can never belong to two different tables.
  */
 public final class RewardKindRegistry {
 
@@ -44,6 +49,13 @@ public final class RewardKindRegistry {
 
     @Nonnull
     private final Map<String, RewardAuthoring> authoring = new ConcurrentHashMap<>();
+
+    @Nonnull
+    private final Map<String, RewardParams> described = new ConcurrentHashMap<>();
+
+    /** Each registered id's spelling as its owner wrote it, keyed by the normalized id. */
+    @Nonnull
+    private final Map<String, String> spellings = new ConcurrentHashMap<>();
 
     /** A registry logging under a generic prefix. */
     public RewardKindRegistry() {
@@ -63,6 +75,7 @@ public final class RewardKindRegistry {
     /** As {@link #register(String, RewardHandler)}, attributing the claim to {@code owner}. */
     public void register(@Nullable String kindId, @Nullable String owner, @Nullable RewardHandler handler) {
         ledger.put(kindId, owner, handler);
+        rememberSpelling(kindId, handler);
     }
 
     /**
@@ -77,6 +90,45 @@ public final class RewardKindRegistry {
     public void registerQuietly(@Nullable String kindId, @Nullable String owner,
             @Nullable RewardHandler handler) {
         ledger.putQuietly(kindId, owner, handler);
+        rememberSpelling(kindId, handler);
+    }
+
+    /**
+     * Keep the spelling an id was registered under, so a list an author picks from writes it the way the
+     * kind's owner does ({@code Item}, {@code Mmo_Xp}); a later all-lower-case registration of the same id
+     * keeps the cased one.
+     */
+    private void rememberSpelling(@Nullable String kindId, @Nullable RewardHandler handler) {
+        if (kindId == null || kindId.isBlank() || handler == null) {
+            return;
+        }
+        String given = kindId.trim();
+        spellings.merge(RegistryLedger.normalize(given), given,
+                (kept, now) -> now.equals(now.toLowerCase(Locale.ROOT)) ? kept : now);
+    }
+
+    /**
+     * {@code kindId} spelled the way its owner writes it: an authored file's own spelling for a kind a file
+     * pays out, else the spelling it was registered under, else the id lower-cased.
+     */
+    @Nonnull
+    public String spelling(@Nonnull String kindId) {
+        if (handler(kindId) instanceof CommandRewardKind authored) {
+            return authored.kind().authoredId();
+        }
+        String key = RegistryLedger.normalize(kindId);
+        return spellings.getOrDefault(key, key);
+    }
+
+    /** Every registered kind spelled the way its owner writes it ({@link #spelling}), sorted without regard to case. */
+    @Nonnull
+    public List<String> spelledIds() {
+        List<String> out = new ArrayList<>();
+        for (String id : ledger.ids()) {
+            out.add(spelling(id));
+        }
+        out.sort(String.CASE_INSENSITIVE_ORDER);
+        return List.copyOf(out);
     }
 
     /** The handler for {@code kindId} (case-insensitive), or null when nothing is registered. */
@@ -162,9 +214,47 @@ public final class RewardKindRegistry {
         return authoring.keySet().stream().sorted().toList();
     }
 
-    /** Drop every registration, both facets. */
+    // ==================== the description facet ====================
+
+    /**
+     * Describe the parameters {@code kindId}'s rewards may name, for the in-game Asset Editor: a reward
+     * row of the kind then shows a form, one box per parameter with its picker, instead of an open map.
+     * Register it beside the handler, at setup; registering again replaces, and null forgets it. A blank
+     * id is ignored. Description only: nothing here changes what a reward may write or how it pays.
+     */
+    public void describe(@Nullable String kindId, @Nullable RewardParams params) {
+        if (kindId == null || kindId.isBlank()) {
+            return;
+        }
+        String key = kindId.trim().toLowerCase(Locale.ROOT);
+        if (params == null) {
+            described.remove(key);
+        } else {
+            described.put(key, params);
+        }
+    }
+
+    /**
+     * What {@code kindId}'s rewards may name, or null when nothing describes the kind. A kind an authored
+     * file pays out ({@link CommandRewardKind}) is described by that file's own declared {@code Params};
+     * any other by what its owner registered through {@link #describe}.
+     */
+    @Nullable
+    public RewardParams described(@Nullable String kindId) {
+        if (kindId == null || kindId.isBlank()) {
+            return null;
+        }
+        if (handler(kindId) instanceof CommandRewardKind authored) {
+            return RewardParams.of(authored.kind());
+        }
+        return described.get(kindId.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /** Drop every registration, every facet. */
     public void clear() {
         ledger.clear();
         authoring.clear();
+        described.clear();
+        spellings.clear();
     }
 }

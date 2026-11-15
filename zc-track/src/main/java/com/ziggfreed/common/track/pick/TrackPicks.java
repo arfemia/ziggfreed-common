@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -30,27 +31,25 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.validation.Finding;
 
 /**
- * Every pick folded once per load, per track: each choice group's slots and road ({@link PickRoad}), the options
- * it offers with their grants filled from the pick's {@code Vars} through zc-progression's {@link GeneratorCore}
- * (the library's one substitution contract), and what the fold found wrong. Built on the first ask after a pick,
- * option, deck or track fold ({@link #invalidate}), in sorted id order.
+ * Every pick folded once per load, per track: each choice group's slots and the options it offers, their grants
+ * filled from the pick's {@code Vars} through zc-progression's {@link GeneratorCore} (the library's one substitution
+ * contract), the faces of every choice node across the tracks, and what the fold found wrong. Built on the first
+ * ask after a pick, option or track fold ({@link #invalidate}), in sorted id order.
  *
  * <p><b>One line of authoring, never 199 groups.</b> A group's slots are derived from its own {@code From},
- * {@code Every}, {@code To}, {@code At} and {@code Skip} the way an unlock row's levels are, and each slot's offer is
- * read off the group's one road; no slot is ever written out as its own group or file. An option shared by many
- * picks is folded once per group naming it, its {@code {Name}}s filled from that pick's (and group's) {@code Vars}.
+ * {@code Every}, {@code To}, {@code At} and {@code Skip} the way an unlock row's levels are, and each slot offers every
+ * option of the group open at its level (the option's own {@code From} and {@code To}), in the group's order; no slot
+ * is ever written out as its own group or file. An option shared by many picks is folded once per group naming it,
+ * its {@code {Name}}s filled from that pick's (and group's) {@code Vars}. The offers read the files alone, never a
+ * seed (R724), so every server offers the same options at every level.
  *
- * <p><b>The same files, the same road</b> (R724): a road reads the files alone, never a seed, so two folds of the
- * same files offer the same options at every level on every server. A pick's {@code Offers} pin a level: in place of
- * the draw, each group with a slot there that lists at least one of the pinned options live (switched on and read)
- * offers its core and those options; a group that lists none keeps its drawn offer, and an empty list unpins the
- * level.
+ * <p><b>A choice node</b> ({@code Node}) is one either-or wherever its faces sit (R859): the picks writing the same
+ * Node, on one track or several, each know the others ({@link PickDef#otherFaces}), so one face taken locks the rest.
  *
  * <p>An option whose grants still hold a {@code {Name}} after filling, or whose grants do not read (an unknown
- * {@code Kind} among them), is left out of that group and reported; a deck, core or option nobody ships is
- * reported and passed over, and so is an {@code Offers} level no group opens a slot at. A pick on a track that is
- * not switched on is nowhere, and so is a skeleton ({@code Abstract}) and every pick under a pick switched off in its
- * {@code Parent} chain ({@link #lineageLive}).
+ * {@code Kind} among them), is left out of that group and reported; an option nobody ships is reported and passed
+ * over. A pick on a track that is not switched on is nowhere, and so is a skeleton ({@code Abstract}) and every pick
+ * under a pick switched off in its {@code Parent} chain ({@link #lineageLive}).
  */
 public final class TrackPicks {
 
@@ -60,12 +59,10 @@ public final class TrackPicks {
     public static final String UNKNOWN_PICK_TRACK = "UNKNOWN_PICK_TRACK";
     public static final String PICK_WITHOUT_TRACK = "PICK_WITHOUT_TRACK";
     public static final String UNKNOWN_PICK_OPTION = "UNKNOWN_PICK_OPTION";
-    public static final String UNKNOWN_PICK_DECK = "UNKNOWN_PICK_DECK";
     public static final String GROUP_WITHOUT_LEVEL = "GROUP_WITHOUT_LEVEL";
     public static final String GROUP_WITHOUT_OPTIONS = "GROUP_WITHOUT_OPTIONS";
     public static final String UNRESOLVED_PICK_TOKEN = "UNRESOLVED_PICK_TOKEN";
     public static final String UNREADABLE_PICK_GRANTS = "UNREADABLE_PICK_GRANTS";
-    public static final String OFFER_WITHOUT_SLOT = "OFFER_WITHOUT_SLOT";
 
     /** One option as one group offers it: its file and what it grants there, every {@code {Name}} filled. */
     public record OptionDef(@Nonnull String id, @Nonnull PickOptionAsset asset, @Nonnull List<Grant> grants) {
@@ -75,7 +72,7 @@ public final class TrackPicks {
         }
     }
 
-    /** One choice group of one pick, folded: its key, its slots, its options and its road. */
+    /** One choice group of one pick, folded: its key, its slots and its options. */
     public static final class GroupDef {
 
         @Nonnull private final String key;
@@ -83,16 +80,14 @@ public final class TrackPicks {
         private final int opensAt;
         private final int choose;
         @Nonnull private final Map<String, OptionDef> options;
-        @Nonnull private final PickRoad road;
 
         GroupDef(@Nonnull String key, @Nonnull TrackPickAsset.Group group, int opensAt, int choose,
-                @Nonnull Map<String, OptionDef> options, @Nonnull PickRoad road) {
+                @Nonnull Map<String, OptionDef> options) {
             this.key = key;
             this.group = group;
             this.opensAt = opensAt;
             this.choose = choose;
             this.options = Collections.unmodifiableMap(new LinkedHashMap<>(options));
-            this.road = road;
         }
 
         /** What this group's slots are filed under in a player's record. */
@@ -118,12 +113,22 @@ public final class TrackPicks {
         }
 
         /**
-         * The offer at {@code level}, the core first: a function of the files alone, the same for every player on
-         * every server (R724). Empty off the road.
+         * The offer at {@code level}: every option of this group open there (its own {@code From} to {@code To}), in
+         * the group's order, a function of the files alone, the same for every player on every server (R724). Empty
+         * where the group opens no slot.
          */
         @Nonnull
         public List<String> offerAt(int level) {
-            return road.offerAt(level);
+            if (!opensAt(level)) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>();
+            for (OptionDef option : options.values()) {
+                if (option.asset().openAt(level)) {
+                    out.add(option.id());
+                }
+            }
+            return List.copyOf(out);
         }
 
         /** The options this group offers, by id (lower-cased), in authored order. */
@@ -147,7 +152,7 @@ public final class TrackPicks {
         @Nonnull private final String trackId;
         @Nullable private final String categoryId;
         @Nonnull private final List<GroupDef> groups;
-        /** The other faces of this pick's choice node on its track, set once by the fold before it is published. */
+        /** The other faces of this pick's choice node on any track, set once by the fold before it is published. */
         @Nonnull private List<String> otherFaces = List.of();
 
         PickDef(@Nonnull TrackPickAsset asset, @Nonnull String id, @Nonnull String trackId,
@@ -160,8 +165,9 @@ public final class TrackPicks {
         }
 
         /**
-         * The other picks on this pick's track that write its {@code Node}, by id: one of them taken locks this one.
-         * Empty for a pick in no node.
+         * The other picks that write this pick's {@code Node}, by id, on its own track first and then on the others
+         * (each track by id, its picks by Order then id): one of them taken locks this one. Empty for a pick in no
+         * node.
          */
         @Nonnull
         public List<String> otherFaces() {
@@ -292,7 +298,6 @@ public final class TrackPicks {
                     TrackPickConfig config = TrackPickConfig.getInstance();
                     local = foldAuthored(config.all(),
                             id -> PickOptionConfig.getInstance().resolve(id),
-                            id -> PickDeckConfig.getInstance().resolve(id),
                             id -> TrackConfig.getInstance().live(id),
                             id -> {
                                 TrackPickAsset file = config.resolveBelowOwner(id);
@@ -306,7 +311,7 @@ public final class TrackPicks {
     }
 
     /**
-     * A pick, option, deck or track folded: the next ask folds again, the gate server epoch moves (a branch's
+     * A pick, option or track folded: the next ask folds again, the gate server epoch moves (a branch's
      * points, {@code ziggfreedcommon:track_branch_spent}, read the picks' {@code Branch} and {@code Cost}, so no
      * verdict kept over the old files outlives them), and every online player's grants are rebuilt on their own
      * world thread, so a pick switched off takes its grants off and a retuned option pays its new amount.
@@ -346,7 +351,6 @@ public final class TrackPicks {
                 if (local == null) {
                     local = fold(TrackPickConfig.getInstance().all(),
                             id -> PickOptionConfig.getInstance().resolve(id),
-                            id -> PickDeckConfig.getInstance().resolve(id),
                             id -> TrackConfig.getInstance().live(id));
                     folded = local;
                 }
@@ -360,14 +364,12 @@ public final class TrackPicks {
      * a switched-on track, in sorted id order.
      *
      * @param options the option files by id (null for none)
-     * @param decks   the deck files by id (null for none)
      * @param tracks  the switched-on track {@code id} names, or null
      */
     @Nonnull
     public static Folded fold(@Nonnull Map<String, TrackPickAsset> picks,
-            @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, PickDeckAsset> decks,
-            @Nonnull Function<String, TrackAsset> tracks) {
-        return fold(picks, options, decks, tracks, id -> false);
+            @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, TrackAsset> tracks) {
+        return fold(picks, options, tracks, id -> false);
     }
 
     /**
@@ -377,15 +379,15 @@ public final class TrackPicks {
      */
     @Nonnull
     public static Folded foldAuthored(@Nonnull Map<String, TrackPickAsset> picks,
-            @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, PickDeckAsset> decks,
-            @Nonnull Function<String, TrackAsset> tracks, @Nonnull Predicate<String> offInOwnFile) {
-        return fold(picks, options, decks, tracks, offInOwnFile);
+            @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, TrackAsset> tracks,
+            @Nonnull Predicate<String> offInOwnFile) {
+        return fold(picks, options, tracks, offInOwnFile);
     }
 
     @Nonnull
     private static Folded fold(@Nonnull Map<String, TrackPickAsset> picks,
-            @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, PickDeckAsset> decks,
-            @Nonnull Function<String, TrackAsset> tracks, @Nonnull Predicate<String> offInOwnFile) {
+            @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, TrackAsset> tracks,
+            @Nonnull Predicate<String> offInOwnFile) {
         List<String> ids = new ArrayList<>(picks.keySet());
         Collections.sort(ids);
         List<Finding> issues = new ArrayList<>();
@@ -415,23 +417,22 @@ public final class TrackPicks {
             String trackKey = TrackKey.normalize(track.getId());
             List<GroupDef> groups = new ArrayList<>();
             for (TrackPickAsset.Group group : asset.groups()) {
-                GroupDef def = group(asset, rawId, group, options, decks, issues);
+                GroupDef def = group(asset, rawId, group, options, issues);
                 if (def != null) {
                     groups.add(def);
                 }
             }
-            pinnedFindings(asset, rawId, groups, options, issues);
             PickDef def = new PickDef(asset, id, trackKey, track.category(), groups);
             byId.put(id, def);
             byTrack.computeIfAbsent(trackKey, k -> new ArrayList<>()).add(def);
         }
         Map<String, List<PickDef>> frozen = new LinkedHashMap<>();
-        byTrack.forEach((track, list) -> {
+        new TreeMap<>(byTrack).forEach((track, list) -> {
             list.sort((a, b) -> a.asset().order() != b.asset().order()
                     ? Integer.compare(a.asset().order(), b.asset().order()) : a.id().compareTo(b.id()));
-            linkFaces(list);
             frozen.put(track, List.copyOf(list));
         });
+        linkFaces(frozen);
         return new Folded(Collections.unmodifiableMap(frozen), Collections.unmodifiableMap(byId), List.copyOf(issues));
     }
 
@@ -456,23 +457,39 @@ public final class TrackPicks {
         return true;
     }
 
-    /** Point each pick on one track at the other faces of its choice node (the picks writing the same Node). */
-    private static void linkFaces(@Nonnull List<PickDef> onTrack) {
-        Map<String, List<String>> byNode = new LinkedHashMap<>();
-        for (PickDef pick : onTrack) {
-            String node = pick.asset().node();
-            if (node != null) {
-                byNode.computeIfAbsent(node, k -> new ArrayList<>()).add(pick.id());
+    /**
+     * Point each pick at the other faces of every either-or group it names (the picks writing one of its {@code Node}
+     * ids, on any track, R859, R895), each once: those on its own track first, then the others', tracks by id and each
+     * track's picks in its order.
+     */
+    private static void linkFaces(@Nonnull Map<String, List<PickDef>> byTrack) {
+        Map<String, List<PickDef>> byNode = new LinkedHashMap<>();
+        List<PickDef> inOrder = new ArrayList<>();
+        byTrack.values().forEach(list -> {
+            for (PickDef pick : list) {
+                inOrder.add(pick);
+                for (String node : pick.asset().nodes()) {
+                    byNode.computeIfAbsent(node, k -> new ArrayList<>()).add(pick);
+                }
             }
-        }
-        for (PickDef pick : onTrack) {
-            String node = pick.asset().node();
-            if (node == null) {
+        });
+        for (PickDef pick : inOrder) {
+            Set<PickDef> faces = new HashSet<>();
+            for (String node : pick.asset().nodes()) {
+                faces.addAll(byNode.get(node));
+            }
+            if (faces.isEmpty()) {
                 continue;
             }
-            List<String> others = new ArrayList<>(byNode.get(node));
-            others.remove(pick.id());
-            pick.otherFaces = List.copyOf(others);
+            List<String> own = new ArrayList<>();
+            List<String> elsewhere = new ArrayList<>();
+            for (PickDef face : inOrder) {
+                if (face != pick && faces.contains(face)) {
+                    (face.trackId().equals(pick.trackId()) ? own : elsewhere).add(face.id());
+                }
+            }
+            own.addAll(elsewhere);
+            pick.otherFaces = List.copyOf(own);
         }
     }
 
@@ -522,7 +539,7 @@ public final class TrackPicks {
     @Nullable
     private static GroupDef group(@Nonnull TrackPickAsset pick, @Nonnull String rawId,
             @Nonnull TrackPickAsset.Group group, @Nonnull Function<String, PickOptionAsset> options,
-            @Nonnull Function<String, PickDeckAsset> decks, @Nonnull List<Finding> issues) {
+            @Nonnull List<Finding> issues) {
         String key = group.key();
         String where = "track pick '" + rawId + "' group '" + key + "'";
         if (!group.namesALevel()) {
@@ -533,13 +550,8 @@ public final class TrackPicks {
         Map<String, JsonPrimitive> vars = new LinkedHashMap<>();
         bindings(pick.vars(), vars);
         bindings(group.vars(), vars);
-        List<String> wanted = new ArrayList<>(group.options());
-        String core = group.core();
-        if (core != null && !wanted.contains(core)) {
-            wanted.add(0, core);
-        }
         Map<String, OptionDef> folded = new LinkedHashMap<>();
-        for (String optionId : wanted) {
+        for (String optionId : group.options()) {
             PickOptionAsset option = options.apply(optionId);
             if (option == null) {
                 issues.add(Finding.warning(DOMAIN, UNKNOWN_PICK_OPTION, where + " offers the option '" + optionId
@@ -558,79 +570,7 @@ public final class TrackPicks {
             issues.add(Finding.warning(DOMAIN, GROUP_WITHOUT_OPTIONS, where + " has no option to offer, so its slots "
                     + "offer nothing", rawId));
         }
-        PickRoad.Deck deck = null;
-        String deckId = group.deck();
-        if (deckId != null) {
-            PickDeckAsset asset = decks.apply(deckId);
-            if (asset == null) {
-                issues.add(Finding.warning(DOMAIN, UNKNOWN_PICK_DECK, where + " draws with the deck '" + deckId
-                        + "', which no loaded TrackPickDecks file defines, so every option is offered at every slot",
-                        rawId));
-            } else {
-                deck = asset.rules();
-            }
-        }
-        List<PickRoad.Candidate> pool = new ArrayList<>();
-        for (OptionDef option : folded.values()) {
-            PickOptionAsset asset = option.asset();
-            pool.add(new PickRoad.Candidate(option.id(), asset.draw(), asset.bag(), asset.from(), asset.to(),
-                    asset.turn()));
-        }
-        int opensAt = pick.opensAt();
-        String roadCore = core != null && folded.containsKey(core) ? core : null;
-        // A level whose pinned options this group lists none of live goes in empty: the road keeps its drawn offer.
-        Map<Integer, List<String>> pinned = new LinkedHashMap<>();
-        pick.offers().forEach((level, ids) -> {
-            if (level >= opensAt && group.levels(level, level).contains(level)) {
-                List<String> listed = new ArrayList<>();
-                for (String id : ids) {
-                    if (folded.containsKey(id)) {
-                        listed.add(id);
-                    }
-                }
-                pinned.put(level, listed);
-            }
-        });
-        PickRoad road = new PickRoad(pool, roadCore, deck, pinned,
-                (from, to) -> group.levels(Math.max(opensAt, from), to));
-        return new GroupDef(key, group, opensAt, group.choose(pick.choose()), folded, road);
-    }
-
-    /**
-     * Report what {@code pick}'s {@code Offers} pin to no effect: a key that is no level or a level none of its
-     * {@code groups} opens a slot at, and an option none of them lists (a switched-off option passed over quietly).
-     */
-    private static void pinnedFindings(@Nonnull TrackPickAsset pick, @Nonnull String rawId,
-            @Nonnull List<GroupDef> groups, @Nonnull Function<String, PickOptionAsset> options,
-            @Nonnull List<Finding> issues) {
-        String where = "track pick '" + rawId + "'";
-        for (String key : pick.unreadOfferLevels()) {
-            issues.add(Finding.warning(DOMAIN, OFFER_WITHOUT_SLOT, where + " writes Offers at '" + key + "', which "
-                    + "is no level, so it pins nothing", rawId));
-        }
-        pick.offers().forEach((level, ids) -> {
-            boolean opens = false;
-            for (GroupDef group : groups) {
-                opens |= group.opensAt(level);
-            }
-            if (!opens) {
-                issues.add(Finding.warning(DOMAIN, OFFER_WITHOUT_SLOT, where + " writes Offers at level " + level
-                        + ", where none of its groups opens a slot, so it pins nothing", rawId));
-                return;
-            }
-            for (String id : ids) {
-                boolean listed = false;
-                for (GroupDef group : groups) {
-                    listed |= group.options().containsKey(id);
-                }
-                PickOptionAsset option = listed ? null : options.apply(id);
-                if (!listed && (option == null || option.isEnabled())) {
-                    issues.add(Finding.warning(DOMAIN, UNKNOWN_PICK_OPTION, where + " writes Offers at level "
-                            + level + " naming the option '" + id + "', which none of its groups offers, so it is "
-                            + "left out", rawId));
-                }
-            }
-        });
+        return new GroupDef(key, group, pick.opensAt(), group.choose(pick.choose()), folded);
     }
 
     /** Add {@code vars}' primitive values to {@code into}, a later call's winning. */

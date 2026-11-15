@@ -9,10 +9,12 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Rotation3f;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemDropList;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.subject.Subject;
 
@@ -89,9 +91,16 @@ public final class DroplistRewardKind implements RewardHandler {
     private DroplistRewardKind() {
     }
 
-    /** Register the droplist kind into {@code kinds}. */
+    /** Register the droplist kind into {@code kinds}, with the parameters the Asset Editor shows for it. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, OWNER, new DroplistRewardKind());
+        kinds.describe(KIND, RewardParams.of("Rolls one of the game's own drop lists and drops what it lands on "
+                        + "the ground.",
+                RewardParam.text("Droplist", "The drop list to roll, by id.").asRequired()
+                        .withPick(EditorPick.asset(ItemDropList.class)),
+                RewardParam.integer("Rolls", "How many times the whole list is rolled.").withDefault("1"),
+                RewardParam.text("Position", "Where the drop lands, as x,y,z. Leave it out for the player's "
+                        + "feet.")));
     }
 
     @Override

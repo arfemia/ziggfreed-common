@@ -127,14 +127,15 @@ public final class RollEvaluator {
 
     /**
      * The chance {@code chance} actually carries right now, in percent and already held inside
-     * {@code 0..100}. Public because a UI that wants to SHOW the odds must show the same number the
-     * roll uses, not a second derivation of it.
+     * {@code 0..100}: the formula's value plus the moment's {@link FactorLookup#chanceBonusPercent}
+     * (a gathering moment's yield). Public because a UI that wants to SHOW the odds must show the same
+     * number the roll uses, not a second derivation of it.
      */
     public static double effectiveChancePercent(@Nullable FactorFormula chance, @Nonnull FactorLookup lookup) {
         if (chance == null) {
             return Roll.MAX_CHANCE_PERCENT;
         }
-        double value = chance.evaluate(lookup.asFunction());
+        double value = chance.evaluate(lookup.asFunction()) + lookup.chanceBonusPercent();
         if (!Double.isFinite(value)) {
             return Roll.MIN_CHANCE_PERCENT;
         }

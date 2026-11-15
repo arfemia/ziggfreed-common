@@ -17,12 +17,15 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The gain stats (R734): how much more a player earns on a track from what they wear, eat or picked, read as native
- * entity stats the way a reputation's {@code ReputationGain} is. Three stats, each in whole percent points (10 is
- * +10%) and added together: {@value #GLOBAL_STAT} for every track, {@code TrackGain_<Category>} for the tracks of one
- * category and {@code TrackGain_<Track>} for one track ({@link #statFor}, spelled as the category and the track file
- * are named). The library ships {@value #GLOBAL_STAT} and the ceiling {@value #CEILING_STAT} (zc-entity's
- * {@code Server/Entity/Stats/}); a pack that wants gear to favour a category or a track ships that stat in the same
- * shape, and one nobody ships counts nothing.
+ * entity stats. Three stats, each in whole percent points (10 is
+ * +10%) and added together: {@value #GLOBAL_STAT} for every track, {@code CategoryGain_<Category>} for the tracks of
+ * one category ({@link #categoryStatFor}) and {@code TrackGain_<Track>} for one track ({@link #statFor}), spelled as
+ * the category and the track file are named. A category's line has its own prefix so a track named like its category
+ * (a Crafting track in the Crafting category) never shares a stat with every other track there. The library ships
+ * {@value #GLOBAL_STAT} and the ceiling {@value #CEILING_STAT} (zc-entity's {@code Server/Entity/Stats/}); a pack that
+ * wants gear to favour a category or a track ships that stat in the same shape, and one nobody ships counts nothing.
+ * A reputation's standing reads its own two of this kind ({@code CategoryGain_Reputation} and {@code TrackGain_<Id>})
+ * at zc-reputation's writer, never through this factor.
  *
  * <p>A consumer whose older stats already meant "more XP on these tracks" names them as sources
  * ({@link #registerSource}), so its items keep working: their totals add to the same sum, under the same ceiling.
@@ -35,8 +38,11 @@ public final class TrackGainStats {
     /** The stat every track's gain reads: whole percent points. */
     public static final String GLOBAL_STAT = "TrackGain";
 
-    /** The per-category and per-track stat id prefix: {@code TrackGain_<Id>}. */
+    /** The per-track stat id prefix: {@code TrackGain_<Track>}. */
     public static final String STAT_PREFIX = "TrackGain_";
+
+    /** The per-category stat id prefix: {@code CategoryGain_<Category>}. */
+    public static final String CATEGORY_PREFIX = "CategoryGain_";
 
     /** The ceiling stat: the most the summed gain stats lift a gain, whole percent points. */
     public static final String CEILING_STAT = "TrackGainMax";
@@ -54,10 +60,16 @@ public final class TrackGainStats {
     private TrackGainStats() {
     }
 
-    /** The per-category or per-track stat for {@code id}: {@code TrackGain_<Id>}. */
+    /** The per-track stat for track {@code id}: {@code TrackGain_<Id>}. */
     @Nonnull
     public static String statFor(@Nonnull String id) {
         return STAT_PREFIX + id.trim();
+    }
+
+    /** The per-category stat for category {@code id}: {@code CategoryGain_<Id>}. */
+    @Nonnull
+    public static String categoryStatFor(@Nonnull String id) {
+        return CATEGORY_PREFIX + id.trim();
     }
 
     /**
@@ -85,7 +97,7 @@ public final class TrackGainStats {
         ids.add(GLOBAL_STAT);
         String category = scope.categoryId();
         if (category != null && !category.isBlank()) {
-            ids.add(statFor(category));
+            ids.add(categoryStatFor(category));
         }
         String track = scope.def().asset().getId();
         if (track != null && !track.isBlank()) {

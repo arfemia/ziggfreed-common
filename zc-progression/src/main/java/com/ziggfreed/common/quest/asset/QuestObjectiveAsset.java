@@ -6,6 +6,8 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.quest.QuestItemDrop;
@@ -54,6 +56,7 @@ public final class QuestObjectiveAsset extends ObjectiveLeafAsset {
                             + "no constraint, and a quest that authors none of them can still use Flow.Sequential.").add()
                     .appendInherited(new KeyedCodec<>("TurnInNpcId", Codec.STRING, false),
                             (o, v) -> o.turnInNpcId = v, o -> o.turnInNpcId, (o, p) -> o.turnInNpcId = p.turnInNpcId)
+                    .metadata(EditorSchema.suggest(EditorDataSets.NPC_IDS))
                     .documentation("For a TURN_IN step: the one place it may be handed in at. The literal 'giver' "
                             + "means the quest's own Npc.ViewId, so a moved quest giver needs no objective edit. "
                             + "Unauthored means any hand-in surface will do.").add()

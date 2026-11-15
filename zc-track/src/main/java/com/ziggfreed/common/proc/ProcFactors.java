@@ -12,7 +12,7 @@ import com.ziggfreed.common.factor.FactorContributions;
  * {@code PerTarget} counter, the stacks about the context's target), 0 for none, null with no player. It moves
  * outside every moment (an add, a decay), so no gate keeps a verdict over it.
  */
-public final class ProcFactors {
+final class ProcFactors {
 
     /** {@code ziggfreedcommon:counter_stacks}: the asking player's stacks of the counter Param names. */
     public static final String COUNTER_STACKS = "ziggfreedcommon:counter_stacks";

@@ -1,0 +1,22 @@
+{
+  "$Comment": "The Inspect Tool, in the creative library's Authoring Tools tab: click a block, a creature or an item lying on the ground to open the Inspect page on it, which shows the ids and the block families, NPC groups and item tags an author writes in a quest step, a track source or a bonus row (BlockFamily:<id>, NpcGroup:<id>, ItemTag:<tag>). It needs creative mode and the ziggfreedcommon.author.inspect permission, checked on the server at each click. The ZigAuthorTool tag names the tool; everything else comes from its Parent, Zig_Author_Tool.",
+  "Parent": "Zig_Author_Tool",
+  "TranslationProperties": {
+    "Name": "items.Zig_Author_Inspect.name",
+    "Description": "items.Zig_Author_Inspect.description"
+  },
+  "Icon": "Icons/Items/EditorTools/Hitbox.png",
+  "Categories": [
+    "Zig_Authoring.Tools"
+  ],
+  "SubCategory": "Inspect",
+  "Quality": "Tool",
+  "Tags": {
+    "ZigAuthorTool": [
+      "Inspect"
+    ],
+    "Family": [
+      "ZiggfreedCommon"
+    ]
+  }
+}
