@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.CooldownHa
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.SimpleInstantInteraction;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.util.InteractionTarget;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.interaction.type.InteractionCtx;
 import com.ziggfreed.common.interaction.type.InteractionOutcome;
 
@@ -22,13 +23,16 @@ import com.ziggfreed.common.interaction.type.InteractionOutcome;
  *
  * <pre>{@code
  * { "Type": "ZigStun", "Entity": "Target", "Duration": 1.5 }
+ * { "Type": "ZigStun", "Entity": "Target", "Duration": 1.5, "Diminish": true }
  * }</pre>
  *
  * <p>Written where vanilla's bomb writes its {@code EffectCondition} + {@code ChangeStat Immunity} +
  * {@code Interrupt} + {@code ApplyEffect Stun} run, it is that whole run in one node, plus what no asset can say: a
  * creature's current combat action ends and its attacks hold for the stun. An {@code Immune} target is passed over;
  * a landed stun adds {@code ImmunityRamp} to the target's {@code Immunity}, so repeated stuns earn a window of
- * immunity. On a player the hold is their own game's ({@link StunControl}).
+ * immunity. {@code Diminish} (off unless written) also shrinks each stun by the Immunity the target already carries
+ * ({@link StunControl#immunityShare}, read before this landing ramps it, then {@link StunControl#diminished}), so a
+ * target stunned again soon is stunned less each time. On a player the hold is their own game's ({@link StunControl}).
  *
  * <p>Always resolves Finished, a target that was not stunned included, so the chain carries on either way.
  */
@@ -48,6 +52,8 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
     protected Boolean stagger;
     @Nullable
     protected Double immunityRamp;
+    @Nullable
+    protected Boolean diminish;
 
     /** Lazy holder: an eager codec would class-init {@code Interaction}, which throws outside a live server. */
     private static final class Holder {
@@ -75,6 +81,13 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
                 .documentation("How much a landed stun adds to the entity's Immunity stat, which gives it the Immune"
                         + " effect once it fills, as the game's own bombs do. 25 when unauthored; 0 adds none.")
                 .add()
+                .appendInherited(new KeyedCodec<>("Diminish", Codec.BOOLEAN),
+                        (i, v) -> i.diminish = v, i -> i.diminish, (i, p) -> i.diminish = p.diminish)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: the stun lasts its Duration times 1 less the share of Immunity the entity"
+                        + " already carries, so an entity stunned again soon is stunned less each time until it turns"
+                        + " Immune. False when unauthored: the stun lasts its full Duration.")
+                .add()
                 .build();
     }
 
@@ -101,6 +114,11 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
         return ControlTargets.orDefault(immunityRamp, DEFAULT_IMMUNITY_RAMP);
     }
 
+    /** Does the stun shrink by the Immunity the entity already carries? False unless written true. */
+    boolean diminishes() {
+        return Boolean.TRUE.equals(diminish);
+    }
+
     /** Only the server stuns; a simulated pass would stun twice. */
     @Override
     protected void simulateFirstRun(@Nonnull InteractionType interactionType, @Nonnull InteractionContext ctx,
@@ -120,7 +138,13 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
             if (target == null || StunControl.isImmune(buffer, target)) {
                 return true;
             }
-            float seconds = (float) duration();
+            // Diminish: the share is read before this landing ramps it, the one formula every shrinking control keeps.
+            float seconds = diminishes()
+                    ? StunControl.diminished((float) duration(), StunControl.immunityShare(buffer, target))
+                    : (float) duration();
+            if (!(seconds > 0f)) {
+                return true;
+            }
             Ref<EntityStore> source = InteractionCtx.owner(ctx);
             boolean landed = isStagger()
                     ? StunControl.stagger(buffer, target, seconds, source)

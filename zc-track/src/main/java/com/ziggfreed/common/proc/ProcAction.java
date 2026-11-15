@@ -509,8 +509,8 @@ public final class ProcAction {
                         + "DamageCalculator), a formula, times the proc's strength. 1 when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Control", Control.CODEC, false),
                         (o, v) -> o.control = v, o -> o.control, (o, p) -> o.control = p.control)
-                .documentation("Present: the effect holds a foe back (a slow, a root) and waits per foe the way a "
-                        + "stun does. A target wearing the game's Immune is passed over; the effect lasts less the "
+                .documentation("Present: the effect holds a foe back (a slow, a root, a freeze, a stun) and waits "
+                        + "per foe the way ZigStun does. A target wearing the game's Immune is passed over; the effect lasts less the "
                         + "more Immunity the target already carries (Diminish); each landing adds Ramp to that "
                         + "Immunity, so a foe held over and over turns Immune for a while; and a boss or an elite "
                         + "takes it with no owner, so nothing the holder's stats add to an effect's length reaches "

@@ -29,11 +29,12 @@ class ControlTypeCodecTest {
     @Test
     void aStunReadsItsLeaves() throws IOException {
         ZigStunInteraction stun = decode(ZigStunInteraction.getCODEC(),
-                "{ \"Entity\": \"Owner\", \"Duration\": 1.5, \"Stagger\": true, \"ImmunityRamp\": 0 }");
+                "{ \"Entity\": \"Owner\", \"Duration\": 1.5, \"Stagger\": true, \"ImmunityRamp\": 0, \"Diminish\": true }");
         assertEquals(InteractionTarget.OWNER, stun.entity());
         assertEquals(1.5, stun.duration());
         assertTrue(stun.isStagger());
         assertEquals(0.0, stun.immunityRamp());
+        assertTrue(stun.diminishes());
     }
 
     @Tag("engine-items")
@@ -44,6 +45,7 @@ class ControlTypeCodecTest {
         assertEquals(ZigStunInteraction.DEFAULT_DURATION, stun.duration());
         assertFalse(stun.isStagger());
         assertEquals(ZigStunInteraction.DEFAULT_IMMUNITY_RAMP, stun.immunityRamp());
+        assertFalse(stun.diminishes(), "an unauthored stun keeps its full length, as every consumer's does today");
     }
 
     @Tag("engine-items")
