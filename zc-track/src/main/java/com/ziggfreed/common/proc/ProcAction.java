@@ -479,6 +479,7 @@ public final class ProcAction {
         @Nullable protected FactorFormula duration;
         @Nullable protected String overlap;
         @Nullable protected FactorFormula damageMultiplier;
+        @Nullable protected Control control;
 
         public static final BuilderCodec<ApplyEffect> CODEC = BuilderCodec.builder(ApplyEffect.class, ApplyEffect::new)
                 .appendInherited(new KeyedCodec<>("Effect", Codec.STRING, false),
@@ -506,9 +507,24 @@ public final class ProcAction {
                         (o, p) -> o.damageMultiplier = p.damageMultiplier)
                 .documentation("What this application's damage is multiplied by (an effect with a "
                         + "DamageCalculator), a formula, times the proc's strength. 1 when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Control", Control.CODEC, false),
+                        (o, v) -> o.control = v, o -> o.control, (o, p) -> o.control = p.control)
+                .documentation("Present: the effect holds a foe back (a slow, a root) and waits per foe the way a "
+                        + "stun does. A target wearing the game's Immune is passed over; the effect lasts less the "
+                        + "more Immunity the target already carries (Diminish); each landing adds Ramp to that "
+                        + "Immunity, so a foe held over and over turns Immune for a while; and a boss or an elite "
+                        + "takes it with no owner, so nothing the holder's stats add to an effect's length reaches "
+                        + "one. It changes nothing on the holder (OnSelf) or a timeless effect. A plain effect when "
+                        + "unauthored.").add()
                 .build();
 
         public ApplyEffect() {
+        }
+
+        /** The Control group, or null for a plain effect. */
+        @Nullable
+        public Control control() {
+            return control;
         }
 
         @Nullable
@@ -539,6 +555,47 @@ public final class ProcAction {
         @Nullable
         public FactorFormula damageMultiplier() {
             return damageMultiplier;
+        }
+    }
+
+    /**
+     * An ApplyEffect's Control group: the wait per foe a control keeps (zc-effects' {@code StunControl}, the game's
+     * stun bomb shape), so a foe a proc slows or roots over and over is held less each time and then not at all for a
+     * while. Never scaled by the proc's strength.
+     */
+    public static final class Control {
+
+        /** The Immunity a landing adds unless written: the game's stun bomb step. */
+        public static final double DEFAULT_RAMP = 25.0;
+
+        @Nullable protected Double ramp;
+        @Nullable protected Boolean diminish;
+
+        public static final BuilderCodec<Control> CODEC = BuilderCodec.builder(Control.class, Control::new)
+                .appendInherited(new KeyedCodec<>("Ramp", Codec.DOUBLE, false),
+                        (o, v) -> o.ramp = v, o -> o.ramp, (o, p) -> o.ramp = p.ramp)
+                .metadata(EditorSchema.defaultValue(DEFAULT_RAMP))
+                .documentation("The Immunity each landing adds to the target (the stat's Max, 100, puts the game's "
+                        + "Immune on, for 20 seconds); 0 adds none. 25 when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Diminish", Codec.BOOLEAN, false),
+                        (o, v) -> o.diminish = v, o -> o.diminish, (o, p) -> o.diminish = p.diminish)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("True: the effect lasts its time times 1 less the share of Immunity the target "
+                        + "already carries, so it is shorter each time on a foe held again soon. True when "
+                        + "unauthored.").add()
+                .build();
+
+        public Control() {
+        }
+
+        /** The Immunity a landing adds, never below 0. */
+        public double ramp() {
+            return ramp == null || !Double.isFinite(ramp) ? DEFAULT_RAMP : Math.max(0.0, ramp);
+        }
+
+        /** Does the effect last less the more Immunity the target carries? True unless written false. */
+        public boolean diminish() {
+            return diminish == null || diminish;
         }
     }
 
