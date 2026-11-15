@@ -13,6 +13,7 @@ import javax.annotation.Nullable;
 
 import org.joml.Vector3i;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.asset.EditorDataSets;
@@ -20,6 +21,7 @@ import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.authoring.Pickers;
 import com.ziggfreed.common.authoring.WorldPick;
 import com.ziggfreed.common.npc.NpcIdentities;
+import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.progress.LocationTarget;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ObjectiveKindPicks;
@@ -201,6 +203,24 @@ final class QuestEditorPicks {
     /** True for a place step whose target is a spot, {@code x,y,z} (no list of places to pick from). */
     static boolean namesSpot(@Nonnull String kind) {
         return namesPlace(kind) && targetPick(kind) == null;
+    }
+
+    /** True for an entity that is a character (a placed one, or one a character file names), not a creature. */
+    static boolean isCharacter(@Nonnull WorldPick pick) {
+        Ref<EntityStore> entity = pick.entity();
+        if (entity == null || !entity.isValid()) {
+            return false;
+        }
+        try {
+            ComponentType<EntityStore, PlacedNpcComponent> placed = PlacedNpcComponent.getComponentType();
+            if (placed != null && entity.getStore().getComponent(entity, placed) != null) {
+                return true;
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[quest-editor] the picked entity's placement could not be read: " + t.getMessage());
+        }
+        String id = characterOf(pick);
+        return id != null && NpcIdentities.allDeclaredNpcIds().stream().anyMatch(id::equalsIgnoreCase);
     }
 
     /** Who the picked entity is, the id a quest names a character by; null for no character. World thread. */
