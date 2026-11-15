@@ -26,7 +26,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>Each player's own switch is {@code Notifications.BonusFinds} on the Settings tab ({@link PlayerSettings#bonusFinds},
  * the {@link BonusFindSettings} card): on unless they turn it off. A burst batches per player and moment: the first
  * find speaks at once, finds within {@link #BATCH_MS} of it add up silently, and the next find after the window speaks
- * with the running total ({@code find.stacked}). Each moment speaks on its own feed line (a tag), so a burst rewrites
+ * with the running total ({@code find.stacked}); a burst no find extends for {@link #BATCH_MS} ends, and what it held
+ * unspoken ends with it. Each moment speaks on its own feed line (a tag), so a burst rewrites
  * one line. The wording is {@code ziggfreedcommon.bonus.lang}'s, gold for a kill and yellow for a break or a harvest;
  * a caller may author its own headline, second line, colour and picture ({@link #announce(PlayerRef, BonusMoment, int,
  * Message, Message, String, String)}), and an authored headline binds no count.
@@ -57,6 +58,7 @@ public final class BonusFindNotes {
     /** One player's burst for one moment. */
     private static final class Batch {
         long lastSpokeMs = Long.MIN_VALUE;
+        long lastFindMs = Long.MIN_VALUE;
         long held;
     }
 
@@ -103,12 +105,18 @@ public final class BonusFindNotes {
 
     /**
      * Add {@code count} to {@code player}'s burst for {@code moment}: the total to speak now (the first find, or
-     * the first after the window, with every find held since), or 0 while the burst is adding up.
+     * the first after the window, with every find held since), or 0 while the burst is adding up. A burst ends
+     * when no find came for {@link #BATCH_MS}: what it held unspoken goes with it, so a later find never speaks
+     * an old burst's count.
      */
     static long gather(@Nonnull UUID player, @Nonnull BonusMoment moment, long count, long nowMs) {
         Batch batch = BATCHES.computeIfAbsent(player, key -> new ConcurrentHashMap<>())
                 .computeIfAbsent(moment, key -> new Batch());
         synchronized (batch) {
+            if (batch.lastFindMs != Long.MIN_VALUE && nowMs - batch.lastFindMs >= BATCH_MS) {
+                batch.held = 0L;
+            }
+            batch.lastFindMs = nowMs;
             batch.held += count;
             if (batch.lastSpokeMs != Long.MIN_VALUE && nowMs - batch.lastSpokeMs < BATCH_MS) {
                 return 0L;

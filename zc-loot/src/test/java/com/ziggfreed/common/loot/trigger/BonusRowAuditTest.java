@@ -43,6 +43,11 @@ class BonusRowAuditTest {
                 LootGrants.of(null, null, new String[] {"say found"}, null), null)});
     }
 
+    private static LootRef momentItem() {
+        return LootRef.of(null, new Roll[] {Roll.of(null, null, null, null, LootGrants.of(null, null, null,
+                new LootGrants.Reward[] {LootGrants.Reward.of(MomentItems.KIND, null)}), null)});
+    }
+
     private List<Finding> audit(Map<String, BonusRowAsset> rows) {
         BonusRowConfig.getInstance().mergePackLayer(rows);
         return BonusRowAudit.auditAll(kinds, new FactorRegistry("bonus-row-audit-test"));
@@ -98,6 +103,15 @@ class BonusRowAuditTest {
                 "fixture_a", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Ore_Test", null, commanding(), null),
                 "fixture_b", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "*Ore_Test*", null, commanding(), null))),
                 BonusRowAudit.OVERLAPPING_PATTERN, "fixture_b"));
+    }
+
+    @Test
+    void aMomentItemInAKillRowIsWarned() {
+        List<Finding> findings = audit(Map.of(
+                "fixture_kill", BonusRowAsset.of(BonusMoment.KILL_MOB, "*Test_Name*", null, momentItem(), null)));
+
+        assertTrue(findings.stream().anyMatch(f -> LootableValidator.PASS_ONLY_REWARD_KIND.equals(f.code())
+                && f.sourceId().startsWith("fixture_kill")), findings::toString);
     }
 
     @Test
