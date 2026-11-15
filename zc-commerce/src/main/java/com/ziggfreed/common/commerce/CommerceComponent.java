@@ -2,6 +2,7 @@ package com.ziggfreed.common.commerce;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,6 +17,7 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.board.BoardStreak;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -93,7 +95,15 @@ public final class CommerceComponent implements Component<EntityStore> {
             .append(new KeyedCodec<>("Migrations", Codec.STRING),
                     (c, v) -> c.migrations = CommerceBlob.deserializeSet(v),
                     c -> CommerceBlob.serializeSet(c.migrations)).add()
+            .append(new KeyedCodec<>("BoardStreak", Codec.STRING),
+                    (c, v) -> c.boardStreak = unpackStreak(v),
+                    c -> packStreak(c.boardStreak)).add()
             .build();
+
+    /** The three numbers of the board streak's leaf. */
+    private static final String STREAK_CURRENT = "Current";
+    private static final String STREAK_BEST = "Best";
+    private static final String STREAK_DAY = "Day";
 
     /** currencyId -> this player's counter balance. An item-backed wallet never appears here. */
     @Nonnull
@@ -130,6 +140,10 @@ public final class CommerceComponent implements Component<EntityStore> {
     /** Every one-time migration already claimed for this player. */
     @Nonnull
     private Set<String> migrations = new HashSet<>();
+
+    /** This player's run of days with a board contract collected. */
+    @Nonnull
+    private volatile BoardStreak boardStreak = BoardStreak.NONE;
 
     public CommerceComponent() {
     }
@@ -476,6 +490,42 @@ public final class CommerceComponent implements Component<EntityStore> {
         return migrations.contains(migrationId);
     }
 
+    // ==================== the board streak ====================
+
+    /** This player's run of days with a board contract collected; {@link BoardStreak#NONE} before the first. */
+    @Nonnull
+    public BoardStreak boardStreak() {
+        return boardStreak;
+    }
+
+    /** Write the board streak outright. */
+    public void setBoardStreak(@Nonnull BoardStreak streak) {
+        boardStreak = streak;
+    }
+
+    @Nonnull
+    private static String packStreak(@Nonnull BoardStreak streak) {
+        if (streak.isEmpty()) {
+            return "";
+        }
+        Map<String, Long> packed = new LinkedHashMap<>();
+        packed.put(STREAK_CURRENT, Long.valueOf(streak.current()));
+        packed.put(STREAK_BEST, Long.valueOf(streak.best()));
+        packed.put(STREAK_DAY, Long.valueOf(streak.lastEpochDay()));
+        return CommerceBlob.serializeLongs(packed);
+    }
+
+    @Nonnull
+    private static BoardStreak unpackStreak(@Nullable String blob) {
+        Map<String, Long> packed = CommerceBlob.deserializeLongs(blob);
+        if (packed.isEmpty()) {
+            return BoardStreak.NONE;
+        }
+        return new BoardStreak(packed.getOrDefault(STREAK_CURRENT, Long.valueOf(0L)).longValue(),
+                packed.getOrDefault(STREAK_BEST, Long.valueOf(0L)).longValue(),
+                packed.getOrDefault(STREAK_DAY, Long.valueOf(0L)).longValue());
+    }
+
     @Override
     @SuppressWarnings("CloneDeclaresCloneNotSupported")
     public CommerceComponent clone() {
@@ -489,6 +539,7 @@ public final class CommerceComponent implements Component<EntityStore> {
         c.rerollCounts = CommerceBlob.copy(this.rerollCounts);
         c.rerollSeen = CommerceBlob.copy(this.rerollSeen);
         c.migrations = new HashSet<>(this.migrations);
+        c.boardStreak = this.boardStreak;
         return c;
     }
 }

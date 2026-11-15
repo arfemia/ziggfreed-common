@@ -42,9 +42,11 @@ import com.ziggfreed.common.objectives.marker.QuestMarkers;
 import com.ziggfreed.common.objectives.producer.EncounterQuestAxes;
 import com.ziggfreed.common.objectives.producer.RankAchievementGatedContent;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
+import com.ziggfreed.common.objectives.producer.ZigBountyProducer;
 import com.ziggfreed.common.objectives.producer.ZigCalendarProducer;
 import com.ziggfreed.common.objectives.producer.ZigConsumeItemProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
+import com.ziggfreed.common.objectives.producer.ZigCurrencyProducer;
 import com.ziggfreed.common.objectives.producer.ZigDamageProducer;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
 import com.ziggfreed.common.objectives.producer.ZigFallDamageProducer;
@@ -209,11 +211,12 @@ public final class ProgressionDefaults {
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
      * listeners, the five producer systems, the five that read what happens to a player on their own
      * (a death, a fall that hurts, a meal, ground covered at a sprint or swimming, a place a step names
-     * reached), plus the eight producers that are event-bus listeners
+     * reached), plus the ten producers that are event-bus listeners
      * (a finished instance round, a boss fight's beat, a calendar attendance, the items a reward
-     * payout handed over, a collected quest, the ranks a reputation check credited, a gear-set
-     * tier coming on and a heal given are announced about players rather than happening to an
-     * entity, so each arrives on the shared bus), the
+     * payout handed over, a collected quest, a collected board contract, a wallet paid into or out
+     * of, the ranks a reputation check credited, a gear-set tier coming on and a heal given are
+     * announced about players rather than happening to an entity, so each arrives on the shared
+     * bus), the
      * library's talk-credit sink (a conversation is credited by an authored beat through
      * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
      * registers), the moment listener that meets a dungeon's {@code Complete.Objective}
@@ -259,6 +262,9 @@ public final class ProgressionDefaults {
         ZigCalendarProducer.install(plugin);
         ZigLootReceivedProducer.install(plugin);
         ZigQuestCompletionProducer.install(plugin);
+        // A board contract collected and the run of days with one; a wallet paid into or out of.
+        ZigBountyProducer.install(plugin);
+        ZigCurrencyProducer.install(plugin);
         ZigReputationProducer.install(plugin);
         ZigGearSetProducer.install(plugin);
         ZigTrackProducer.install(plugin);
@@ -292,7 +298,8 @@ public final class ProgressionDefaults {
                 TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND, ZigDamageProducer.KIND,
                 ZigHealProducer.KIND, ZigPlayerDeathProducer.KIND, ZigFallDamageProducer.KIND,
                 ZigConsumeItemProducer.KIND, ZigTravelDistanceProducer.KIND_SPRINT,
-                ZigTravelDistanceProducer.KIND_SWIM, ZigReachLocationProducer.KIND);
+                ZigTravelDistanceProducer.KIND_SWIM, ZigReachLocationProducer.KIND, ZigBountyProducer.KIND,
+                ZigBountyProducer.KIND_STREAK, ZigCurrencyProducer.KIND_EARN, ZigCurrencyProducer.KIND_SPEND);
     }
 
     // ==================== persistence notifications ====================

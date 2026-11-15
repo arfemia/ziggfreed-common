@@ -1,6 +1,5 @@
 package com.ziggfreed.common.objectives.producer;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -116,22 +115,47 @@ public final class ZigReachLocationProducer extends DelayedEntitySystem<EntitySt
 
     /**
      * The distinct targets the kind is authored with, quests first, read off the shared engines' indexes. Empty
-     * before the shared runtime is built (a player's ready builds it), so a tick never builds it early.
+     * before the shared runtime is built (a player's ready builds it), so a tick never builds it early. Kept until
+     * either index is replaced (an index is immutable and swapped whole on a content change), so the per-player
+     * check reads one list rather than building one.
      */
     @Nonnull
     static List<String> targets() {
         if (!ProgressionRuntime.isBuilt()) {
             return List.of();
         }
-        List<ObjectiveIndex.Entry> quests = ProgressionRuntime.quests().index().forKind(KIND);
-        List<ObjectiveIndex.Entry> achievements = ProgressionRuntime.achievements().index().forKind(KIND);
+        ObjectiveIndex quests = ProgressionRuntime.quests().index();
+        ObjectiveIndex achievements = ProgressionRuntime.achievements().index();
+        Targets held = lastRead;
+        if (held != null && held.quests() == quests && held.achievements() == achievements) {
+            return held.list();
+        }
+        Targets read = new Targets(quests, achievements, distinctTargets(quests, achievements));
+        lastRead = read;
+        return read.list();
+    }
+
+    /** The targets read off one pair of indexes. */
+    private record Targets(@Nonnull ObjectiveIndex quests, @Nonnull ObjectiveIndex achievements,
+            @Nonnull List<String> list) {
+    }
+
+    /** The last pair of indexes read, and what they held. */
+    @Nullable
+    private static volatile Targets lastRead;
+
+    @Nonnull
+    private static List<String> distinctTargets(@Nonnull ObjectiveIndex questIndex,
+            @Nonnull ObjectiveIndex achievementIndex) {
+        List<ObjectiveIndex.Entry> quests = questIndex.forKind(KIND);
+        List<ObjectiveIndex.Entry> achievements = achievementIndex.forKind(KIND);
         if (quests.isEmpty() && achievements.isEmpty()) {
             return List.of();
         }
         Set<String> distinct = new LinkedHashSet<>();
         addTargets(quests, distinct);
         addTargets(achievements, distinct);
-        return new ArrayList<>(distinct);
+        return List.copyOf(distinct);
     }
 
     private static void addTargets(@Nonnull List<ObjectiveIndex.Entry> entries, @Nonnull Set<String> out) {

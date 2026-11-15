@@ -1,0 +1,8 @@
+{
+  "$Comment": "Whole blocks a player has covered swimming.",
+  "NameKey": "ziggfreedcommon.stats.swim_distance",
+  "Kind": "Sum",
+  "Format": "Distance",
+  "From": [ { "Kind": "SWIM_DISTANCE" } ],
+  "Breakdown": "None"
+}
