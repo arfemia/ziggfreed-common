@@ -1,5 +1,7 @@
 package com.ziggfreed.common.instance.dungeon.gen;
 
+import com.ziggfreed.common.instance.dungeon.layout.RoomSpec;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -15,11 +17,12 @@ final class RoomOverlays {
     }
 
     /**
-     * The overlay prefab room {@code roomId} names, in dot form, or null for none. Every room reads none until room
-     * files carry the {@code Overlay} leaf.
+     * The overlay prefab {@code room} names in its room file's {@code Overlay} leaf ({@link RoomSpec#overlay}), in dot
+     * form, or null for none. The catalogue audit's {@code OVERLAY_POOL} already refuses an overlay that names a pool or
+     * sits over one, so a name here is one prefab.
      */
     @Nullable
-    static String overlayOf(@Nonnull String roomId) {
-        return null;
+    static String overlayOf(@Nonnull RoomSpec room) {
+        return room.overlay();
     }
 }

@@ -210,20 +210,20 @@ public final class GeneratedRuns {
         IPrefabBuffer base = PrefabBufferUtil.getCached(paths.get(variant));
         PrefabRotation rotation = PrefabRotation.VALUES[QuarterTurns.normalize(placed.rotation())];
         return new DungeonRun.Room(placed.index(), placed.roomId(), keys.get(variant), frame.plus(placed.origin()),
-                rotation, placed.box().shifted(frame), base, overlayOf(placed.roomId(), pools),
+                rotation, placed.box().shifted(frame), base, overlayOf(spec, pools),
                 fillOf(placed.fill(), placed.roomId()), spec.keepContainers());
     }
 
     /** The room's overlay prefab, loaded, when it names one ({@link RoomOverlays}); null for none or none shipped. */
     @Nullable
-    private static IPrefabBuffer overlayOf(@Nonnull String roomId, @Nonnull PrefabPoolIndex pools) {
-        String overlay = RoomOverlays.overlayOf(roomId);
+    private static IPrefabBuffer overlayOf(@Nonnull RoomSpec spec, @Nonnull PrefabPoolIndex pools) {
+        String overlay = RoomOverlays.overlayOf(spec);
         if (overlay == null) {
             return null;
         }
         List<Path> paths = pools.paths(overlay);
         if (paths.isEmpty()) {
-            warnOnce("overlay:" + overlay, LOG + "the room " + roomId + " names the overlay " + overlay
+            warnOnce("overlay:" + overlay, LOG + "the room " + spec.id() + " names the overlay " + overlay
                     + ", which no loaded pack ships under Server/Prefabs/; the room is painted without it");
             return null;
         }
