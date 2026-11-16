@@ -165,6 +165,60 @@ public final class EffectDurations {
     }
 
     /**
+     * Put the timed effect {@code effectId} on {@code target} for {@code seconds} (before the Duration rules) under
+     * {@code overlap}, owned by {@code owner}, so the families' rules read the owner's stats as it lands (your roots
+     * hold longer) and the carrier's cut: {@link #lengthAsLanded}, times {@code scale} (0 to 1, what a control that
+     * shrinks on repeat keeps of it, so the owner's added seconds shrink with the rest), then {@link #markLanded}, as
+     * {@code DamageOverTime} lands one. A null owner, or the target itself, leaves it unowned: none of anyone's stats
+     * lengthens it (a step that spares a boss or an elite passes none). World thread; never throws.
+     *
+     * @return true when it landed; false for an unknown or infinite effect, a target with no effect controller, a
+     *         refusal by the effect's own {@code ApplyConditions} (an immunity), a non-positive length, or a throw
+     */
+    public static boolean landOwned(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> target, @Nullable String effectId, float seconds,
+            @Nonnull OverlapBehavior overlap, @Nullable Ref<EntityStore> owner, float scale) {
+        try {
+            if (effectId == null || effectId.isBlank() || !target.isValid() || !(seconds > 0f)) {
+                return false;
+            }
+            int index = EntityEffect.getAssetMap().getIndex(effectId);
+            EntityEffect effect = index == Integer.MIN_VALUE ? null : EntityEffect.getAssetMap().getAsset(index);
+            if (effect == null || effect.isInfinite()) {
+                return false;
+            }
+            EffectControllerComponent ctrl = accessor.getComponent(target, EffectControllerComponent.getComponentType());
+            if (ctrl == null) {
+                return false;
+            }
+            Ref<EntityStore> credit = owner != null && owner.isValid() && !owner.equals(target) ? owner : null;
+            float kept = Math.max(0f, Math.min(1f, scale));
+            float lasting = lengthAsLanded(accessor, target, index, credit, seconds) * kept;
+            if (!(lasting > 0f) || !ctrl.addEffect(target, index, effect, lasting, overlap, accessor, credit)) {
+                return false;
+            }
+            ActiveEntityEffect active = ctrl.getActiveEffects().get(index);
+            if (active != null) {
+                markLanded(active, active.getRemainingDuration());
+            }
+            return true;
+        } catch (Throwable t) {
+            if (!failureWarned) {
+                failureWarned = true;
+                SafeLog.warn("[duration] landing an owned effect failed (named once): " + t);
+            }
+            return false;
+        }
+    }
+
+    /** {@link #landOwned(ComponentAccessor, Ref, String, float, OverlapBehavior, Ref, float)} kept whole. */
+    public static boolean landOwned(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> target, @Nullable String effectId, float seconds,
+            @Nonnull OverlapBehavior overlap, @Nullable Ref<EntityStore> owner) {
+        return landOwned(accessor, target, effectId, seconds, overlap, owner, 1f);
+    }
+
+    /**
      * The remaining time after the stats: {@code remaining} plus {@code seconds}, then less {@code cutPercent}
      * (held to [0, {@code cap}]) of that, never below a tenth of a second. Pure.
      */
