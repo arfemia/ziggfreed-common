@@ -57,7 +57,8 @@ import com.ziggfreed.common.world.TickingSections;
 /**
  * One generated run's room logic: the trigger volumes, groups, points and entities (encounters, and the markers its
  * room files keep) its rooms' prefabs hold, which the painter never places. They are placed room by room as the party
- * nears them and removed together when the run ends.
+ * nears them and removed together when its party leaves (R1000: the logic outlasts a clear, a wipe or the time limit,
+ * so a party may still go back for a skill-locked secret or a treasure room after the last boss falls).
  *
  * <p><b>Prepared off the world thread</b> ({@link #prepare}, on a painter thread as the run is laid out): each room's
  * entities are read ({@link RoomEntities}), kept as its room file says ({@link #kept}), filtered by the run's variant
@@ -73,10 +74,16 @@ import com.ziggfreed.common.world.TickingSections;
  * entities added once their chunk section ticks ({@code TickingSections}). Each room's placement is timed for the
  * run's {@code [dungeon]} line ({@link #summary}).
  *
- * <p><b>Removed at the run's end</b>: {@link #close} stops every placement still to come, and {@link #remove}, on the
- * world thread, cancels each volume's delayed effects, unregisters it and tells the viewers, drops the groups and
- * points the same way, and removes the entities (one parked in a sleeping section is woken first); off the world
- * thread (the copy has closed) it only forgets them, since everything went with the world.
+ * <p><b>Removed when its party leaves</b> (the area members' ticker, as the run's lane frees; an older copy's run met
+ * under the same name, {@code DungeonRuns}): {@link #close} stops every placement still to come, and {@link #remove},
+ * on the world thread ({@link #removeOn} posts it), cancels each volume's delayed effects, unregisters it and tells
+ * the viewers, drops the groups and points the same way, and removes the entities (one parked in a sleeping section
+ * is woken first); off the world thread (the copy has closed) it only forgets them, since everything went with the
+ * world, as {@link #forget} does for a closing copy.
+ *
+ * <p>Two known limits: the NPCs a placed spawn marker raised are not removed with it (each run stands on fresh
+ * ground, whose chunks unload once the party has gone), and an entity in a chunk that unloads while the run goes on is
+ * gone with it, never placed again in the run, since a copy saves nothing.
  */
 public final class RunLogic {
 
@@ -471,7 +478,7 @@ public final class RunLogic {
 
     /**
      * A member stands in room {@code room}: place its logic and that of every room one door from it, each the first
-     * time it is asked for in the run, on {@code world}'s thread. From any thread; nothing once the run has ended.
+     * time it is asked for in the run, on {@code world}'s thread. From any thread; nothing once its party has left.
      */
     public void activate(@Nonnull World world, int room) {
         Room here = roomOf(room);
@@ -503,7 +510,7 @@ public final class RunLogic {
         }
     }
 
-    /** On the world thread: place each room of {@code due}, timed, unless the run has ended meanwhile. */
+    /** On the world thread: place each room of {@code due}, timed, unless its party has left meanwhile. */
     private void place(@Nonnull World world, @Nonnull List<Integer> due) {
         for (int index : due) {
             if (ended.get()) {
@@ -609,7 +616,7 @@ public final class RunLogic {
         }
     }
 
-    /** On the world thread, its section ticking: add one entity, unless the run ended while it waited. */
+    /** On the world thread, its section ticking: add one entity, unless its party left while it waited. */
     private void add(@Nonnull World world, @Nonnull EntityPiece piece) {
         if (ended.get()) {
             return;
@@ -625,19 +632,37 @@ public final class RunLogic {
         }
     }
 
-    // ==================== removing (the run's end) ====================
+    // ==================== removing (its party left) ====================
 
-    /** Whether the run has ended: nothing more is placed. */
+    /** Whether the run's logic is closed (its party left, or its copy closed): nothing more is placed. */
     public boolean ended() {
         return ended.get();
     }
 
     /**
-     * The run ended: nothing more is placed from now on, whatever is still queued. True the first time, when the
-     * caller then hands {@link #remove} to the copy's world thread. Lock-free, so a caller may hold its own lock.
+     * The run's party left: nothing more is placed from now on, whatever is still queued. True the first time, when
+     * the caller then has everything removed ({@link #removeOn}, or {@link #remove} on the copy's world thread).
+     * Lock-free, so a caller may hold its own lock.
      */
     public boolean close() {
         return ended.compareAndSet(false, true);
+    }
+
+    /**
+     * Close the run's logic and post its removal ({@link #remove}) to {@code world}'s thread; a copy that has closed
+     * or takes no more tasks has it forgotten instead. From any thread, outside the caller's locks; never throws.
+     */
+    public void removeOn(@Nullable World world) {
+        close();
+        if (world == null || !world.isAlive()) {
+            forget();
+            return;
+        }
+        try {
+            world.execute(() -> remove(world));
+        } catch (Throwable refused) {
+            forget();
+        }
     }
 
     /**

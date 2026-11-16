@@ -46,7 +46,8 @@ import com.ziggfreed.common.util.SafeLog;
  * run's {@code [dungeon]} measurement line, {@code GeneratedRuns.finish}, and its next party gets a fresh run
  * further along it). In a generated dungeon it also learns which room of the run each member stands in
  * ({@link #roomOf}), and has that room's logic and its neighbours' placed ({@code room/RunLogic}, on the copy's world
- * thread). The ticker touches no store and
+ * thread); the run's logic lasts until its party leaves, through a clear (R1000), and is removed when its lane frees,
+ * the removal posted once this list's lock is let go. The ticker touches no store and
  * no entity, so nothing it settles needs the world thread; after each pass it hands the runs their own tick
  * ({@link DungeonRuns#tick}: time limits, wipe checks, the round moments), outside this list's lock.
  *
@@ -302,6 +303,8 @@ public final class AreaMembers {
         String runLine = null;
         AreaLayout arrivedIn = null;
         World arrivedWorld = null;
+        RunLogic freedLogic = null;
+        World freedWorld = null;
         synchronized (this) {
             if (members.get(member.player) != member) {
                 return;
@@ -334,9 +337,16 @@ public final class AreaMembers {
                             + (now - member.arrivedAtMs) + " ms inside";
                 }
                 if (nobodyIn(member.area)) {
-                    Areas.shared().released(worldOf(member), member.area);
+                    freedWorld = worldOf(member);
+                    Areas.shared().released(freedWorld, member.area);
                     DungeonRuns.shared().freed(member.area, now);
-                    runLine = GeneratedRuns.finish(worldOf(member), member.area);
+                    runLine = GeneratedRuns.finish(freedWorld, member.area);
+                    // A generated run's room logic lasts until its party leaves (R1000): it places nothing more from
+                    // now, and what it placed is removed once outside this lock.
+                    freedLogic = GeneratedRuns.logicOf(freedWorld, member.area.area());
+                    if (freedLogic != null && !freedLogic.close()) {
+                        freedLogic = null;
+                    }
                     line += runLine == null
                             ? "; the area is free, and the next party there finds it cleared and pasted afresh"
                             : "; the lane is free, and its next party gets a fresh run further along it";
@@ -346,6 +356,9 @@ public final class AreaMembers {
         SafeLog.info(LOG + line);
         if (runLine != null) {
             SafeLog.info(runLine);
+        }
+        if (freedLogic != null) {
+            freedLogic.removeOn(freedWorld);
         }
         // The area's camera intro, outside the lock: played on arrival, its view handed back on any way out.
         if (verdict == Verdict.ARRIVED) {

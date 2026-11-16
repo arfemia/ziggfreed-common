@@ -103,12 +103,14 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code dungeon:<id>} and lets a payout name the run.
  *
  * <p><b>The room kit.</b> A trigger volume's {@code ZigCheckpoint} and {@code ZigRunMilestone} effects
- * ({@code dungeon/kit/}) find the run they act for through {@link #liveRun}. A milestone counts once per run for each
- * id and placement ({@link #milestone}) and raises {@link DungeonMilestoneEvent}; a member's death counts through
- * {@link #died} ({@link RunDeaths}). A clear's results screen lists the run's deaths, and its rooms, puzzles and
- * secrets when it counted any. The run's checkpoint ({@link RunCheckpoints}) goes however the run ends, and so does a
- * generated run's room logic ({@code room/RunLogic}): it places nothing more, and what it placed is removed on the
- * copy's world thread.
+ * ({@code dungeon/kit/}) find the run they act for through {@link #liveRun}, which answers from the run's first arrival
+ * until its party leaves (its area frees), through and after a clear (R1000), so a party may still go back for a
+ * skill-locked secret or a treasure room once the last boss has fallen. A milestone counts once per run for each id
+ * and placement ({@link #milestone}) and raises {@link DungeonMilestoneEvent}, after the run ended too; a member's
+ * death counts through {@link #died} ({@link RunDeaths}) while it is going. A clear's results screen lists the run's
+ * deaths, and its rooms, puzzles and secrets when it counted any, as they stood at the clear. The run's checkpoint
+ * ({@link RunCheckpoints}) answers until its party leaves, and goes when its area frees; a generated run's room logic
+ * ({@code room/RunLogic}) lasts as long and is removed then ({@link AreaMembers}).
  *
  * <p><b>Threads and locks.</b> {@link AreaMembers} calls {@link #arrived}, {@link #left} and {@link #freed}
  * under its own lock and {@link #tick} after it, on its 1 Hz ticker thread; a boss defeat, the run-tag question
@@ -268,9 +270,10 @@ public final class DungeonRuns {
     }
 
     /**
-     * A run still going, as the room kit's trigger-volume effects see it ({@code dungeon/kit/}): its area, which run it
-     * is, its dungeon and {@code Difficulty} label (empty for normal), and every member in the area when it was asked,
-     * in the order they came in. A snapshot: the run may end, and members come and go, after it is taken.
+     * A run its party still holds, going or ended (R1000), as the room kit's trigger-volume effects see it
+     * ({@code dungeon/kit/}): its area, which run it is, its dungeon and {@code Difficulty} label (empty for normal),
+     * and every member in the area when it was asked, in the order they came in. A snapshot: the run may end, its party
+     * leave, and members come and go, after it is taken.
      */
     public record LiveRun(@Nonnull CopyKey area, @Nonnull UUID runId, @Nonnull String dungeonId,
                           @Nonnull String difficulty, @Nonnull List<UUID> members) {
@@ -313,8 +316,10 @@ public final class DungeonRuns {
         synchronized (this) {
             Run run = runs.get(area);
             if (run != null && run.world != world) {
-                // A run still filed under this name belongs to an older copy that closed with it unsettled.
+                // A run still filed under this name belongs to an older copy that closed with it unsettled: its
+                // checkpoint and its room logic go with it, as when an area frees.
                 runs.remove(area);
+                letGo(run);
                 if (!run.ended) {
                     end(run, Ending.ALL_LEFT, nowMs, null);
                 }
@@ -393,6 +398,15 @@ public final class DungeonRuns {
     }
 
     /**
+     * Is {@code runId} the run {@code area} still holds, going or ended (its party has not all left)? A checkpoint
+     * answers while it is ({@link RunCheckpoints#respawnAt}); the area's next run is another run.
+     */
+    synchronized boolean held(@Nonnull CopyKey area, @Nonnull UUID runId) {
+        Run run = runs.get(area);
+        return run != null && run.runId.equals(runId);
+    }
+
+    /**
      * {@code player} left {@code area}; they stay a participant of its run. In an endless run still going their part
      * ends here: what they banked is paid now (queued, as every payout is), and nothing more banks for them, even
      * should they come back. Under AreaMembers' lock, which calls {@link #freed} next when nobody is left in the area
@@ -413,14 +427,33 @@ public final class DungeonRuns {
     }
 
     /**
-     * {@code area} is free: every member has left it, and nobody is on the way. Its run is forgotten, and one
-     * still going fails. Under AreaMembers' lock; the end moment is queued, never fired here.
+     * {@code area} is free: every member has left it, and nobody is on the way. Its run is forgotten, its checkpoint
+     * let go, and one still going fails. Under AreaMembers' lock, which removes a generated run's room logic next;
+     * the end moment is queued, never fired here.
      */
     synchronized void freed(@Nonnull CopyKey area, long nowMs) {
         Run run = runs.remove(area);
-        if (run != null && !run.ended) {
+        if (run == null) {
+            return;
+        }
+        RunCheckpoints.shared().clear(run.area, run.runId);
+        if (!run.ended) {
             run.members.clearPresent();
             end(run, Ending.ALL_LEFT, nowMs, null);
+        }
+    }
+
+    /**
+     * A run its area no longer holds (an older copy's, met under the same name): its checkpoint let go, and its room
+     * logic closed and removed on its copy's thread (forgotten there, the copy having closed). Under this list's lock;
+     * the removal is queued.
+     */
+    private void letGo(@Nonnull Run run) {
+        RunCheckpoints.shared().clear(run.area, run.runId);
+        RunLogic logic = GeneratedRuns.logicOf(run.world, run.area.area());
+        if (logic != null && logic.close()) {
+            World world = run.world;
+            outbox.add(new Fire(world, () -> logic.remove(world)));
         }
     }
 
@@ -814,9 +847,11 @@ public final class DungeonRuns {
 
     /**
      * The run a trigger volume of the room kit acts for: with {@code player} (the one who stepped in), the run of the
-     * area they stand in; with none (a signal, a mob), the run of the area holding the spot {@code at}. Null when that
-     * run is over, belongs to a world other than {@code worldUuid}, or there is none, as for a player in no area (an
-     * admin who came in on their own). AreaMembers is asked before this list's lock is taken.
+     * area they stand in; with none (a signal, a mob), the run of the area holding the spot {@code at}. It answers
+     * until the run's party leaves (its area frees), after a clear, a wipe or its time limit too (R1000), so a room's
+     * checkpoint and milestones keep working for a party still inside. Null when that run's area has freed, it belongs
+     * to a world other than {@code worldUuid}, or there is none, as for a player in no area (an admin who came in on
+     * their own). AreaMembers is asked before this list's lock is taken.
      */
     @Nullable
     public LiveRun liveRun(@Nullable UUID player, @Nullable UUID worldUuid, @Nullable Vector3d at) {
@@ -827,7 +862,7 @@ public final class DungeonRuns {
         synchronized (this) {
             Run run = player != null ? (area == null ? null : runs.get(area))
                     : (at == null ? null : runAt(worldUuid, at));
-            if (run == null || run.ended || !worldUuid.equals(run.worldId)) {
+            if (run == null || !worldUuid.equals(run.worldId)) {
                 return null;
             }
             return new LiveRun(run.area, run.runId, run.dungeon, run.knobs.mode, run.members.present());
@@ -837,8 +872,11 @@ public final class DungeonRuns {
     /**
      * {@code run} reached milestone {@code milestoneId} (matched without regard to case) at {@code placement}, stepped
      * in by {@code player} (null for a volume that fired with no player): counted once per run for each id and
-     * placement, it raises {@link DungeonMilestoneEvent} on this thread once this list's lock is let go. True when it
-     * counted now; false for one the run already counted, a blank id, or a run that is over or no longer its area's.
+     * placement, it raises {@link DungeonMilestoneEvent} on this thread once this list's lock is let go. That holds
+     * until the run's party leaves, after the run ended too (R1000: a skill lock opened after the last boss still pays
+     * its XP from the event); one reached after the end is left out of the run's tally, so the results already shown
+     * stay as they were. True when it counted now; false for one the run already counted, a blank id, or a run whose
+     * area has freed or holds another run.
      */
     public boolean milestone(@Nonnull LiveRun run, @Nonnull String milestoneId, @Nonnull String placement,
             @Nullable UUID player) {
@@ -850,11 +888,14 @@ public final class DungeonRuns {
         DungeonMilestoneEvent event;
         synchronized (this) {
             Run live = runs.get(run.area());
-            if (live == null || live.ended || !live.runId.equals(run.runId())
+            if (live == null || !live.runId.equals(run.runId())
                     || !live.reached.add(folded + '\n' + placement.trim().toLowerCase(Locale.ROOT))) {
                 return false;
             }
-            live.milestones.merge(folded, 1, Integer::sum);
+            if (!live.ended) {
+                // The tally a clear's results read; the results already built carry their own copy of it.
+                live.milestones.merge(folded, 1, Integer::sum);
+            }
             event = new DungeonMilestoneEvent(live.dungeon, live.knobs.mode, live.runId.toString(), id, player,
                     live.members.present());
         }
@@ -985,15 +1026,7 @@ public final class DungeonRuns {
      * still in the area why. {@code why} names what cleared it, for the log.
      */
     private void end(@Nonnull Run run, @Nonnull Ending ending, long nowMs, @Nullable String why) {
-        // However it ends, its checkpoint is let go; one it still holds answers nothing once the run is over.
-        RunCheckpoints.shared().clear(run.area, run.runId);
-        // However it ends, a generated run's room logic places nothing more, and what it placed is removed on the
-        // copy's world thread (forgotten where the copy has closed).
-        RunLogic logic = GeneratedRuns.logicOf(run.world, run.area.area());
-        if (logic != null && logic.close()) {
-            World world = run.world;
-            outbox.add(new Fire(world, () -> logic.remove(world)));
-        }
+        // Its checkpoint and a generated run's room logic outlast the end: both go when its area frees (R1000).
         if (run.knobs.endless != null) {
             endEndless(run, ending, nowMs);
             return;
@@ -1029,7 +1062,7 @@ public final class DungeonRuns {
     }
 
     /**
-     * End endless {@code run} (under this list's lock; {@link #end} has let its checkpoint go): however it ends
+     * End endless {@code run} (under this list's lock; its checkpoint goes when its area frees): however it ends
      * (every member down at once, its time limit, or everyone gone) it is no failure. Each member still in the area
      * whose part has not ended is paid what they banked, from one chest stood where they came in; the round's winners
      * are every participant who banked a wave (those who left before it ended were paid as they went), a win when

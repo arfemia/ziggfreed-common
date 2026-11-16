@@ -24,12 +24,13 @@ import com.ziggfreed.common.instance.world.CopyKey;
  * in the run, the current one or a retired one, takes nothing again, so walking back through an earlier statue
  * never moves the respawn back. An override another run left in the area (an older run of a copy name that came
  * back) is replaced by the new run's first checkpoint, and never answers meanwhile: {@link #respawnAt} hands one out
- * only while its run is still going ({@code DungeonRuns.live}).
+ * only while the area still holds its run ({@code DungeonRuns.held}), checked against the run, never the area alone.
  *
- * <p><b>When the run ends</b> (however it ends: a clear, a failure, everyone gone), its override stops answering,
- * since {@link #respawnAt} checks the run is still going each time it is asked, so a member still there after a clear
- * respawns where the area lands them; the area's next run replaces it with its own first checkpoint.
- * {@code DungeonRuns.end} also asks {@link #clear} to let it go, but nothing here relies on that.
+ * <p><b>It lasts until the party leaves</b> (R1000): through a clear, a failure or the time limit, a member still in
+ * the area respawns at the run's checkpoint, and a checkpoint reached after the end still moves it, so a party going
+ * back for a secret after the last boss keeps its place. Once every member has left (the area frees) its override
+ * stops answering, since {@link #respawnAt} asks each time; {@code DungeonRuns.freed} also asks {@link #clear} to let
+ * it go, but nothing here relies on that, and the area's next run, another run, never sees it.
  *
  * <p>Thread-safe without a lock of its own: one {@link ConcurrentHashMap} whose entries are immutable and replaced
  * whole, so the run list may clear an override under its leaf lock and the spawn provider may read one from any
@@ -84,8 +85,9 @@ public final class RunCheckpoints {
 
     /**
      * Where a member of {@code area} respawns in {@code world} while their run holds a checkpoint: a copy of that
-     * spot, or null when the area holds none, the override belongs to a run that is over, or {@code area} is no
-     * area of {@code world}. The spawn provider's one question, asked before the area's own landing spot.
+     * spot, or null when the area holds none, the override belongs to a run the area no longer holds (its party left,
+     * or it is an older run's), or {@code area} is no area of {@code world}. The spawn provider's one question, asked
+     * before the area's own landing spot.
      */
     @Nullable
     public Transform respawnAt(@Nullable CopyKey area, @Nonnull World world) {
@@ -93,15 +95,15 @@ public final class RunCheckpoints {
             return null;
         }
         Held now = held.get(area);
-        if (now == null || !DungeonRuns.shared().live(area, now.runId())) {
+        if (now == null || !DungeonRuns.shared().held(area, now.runId())) {
             return null;
         }
         return new Transform(now.at());
     }
 
     /**
-     * Run {@code runId} of {@code area} ended: let its override go if it still holds the area. A take racing the end
-     * can file one again; {@link #respawnAt} never answers it, and the next run's first take replaces it.
+     * Run {@code runId}'s area freed (its party left): let its override go if it still holds the area. A take racing
+     * the freeing can file one again; {@link #respawnAt} never answers it, and the next run's first take replaces it.
      */
     void clear(@Nonnull CopyKey area, @Nonnull UUID runId) {
         held.computeIfPresent(area, (key, now) -> now.runId().equals(runId) ? null : now);

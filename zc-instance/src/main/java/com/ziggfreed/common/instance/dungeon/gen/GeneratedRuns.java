@@ -57,7 +57,8 @@ import com.ziggfreed.common.world.Facing;
  * door that leads on.
  *
  * <p><b>Its rooms' logic</b> is prepared with it, on the same painter thread ({@code room/RunLogic}), and handed out by
- * {@link #logicOf}: the area members' ticker places a room's as a member nears it, the run's end removes it all, and a
+ * {@link #logicOf}: the area members' ticker places a room's as a member nears it and removes it all when the party
+ * leaves (the lane frees, after a clear too), and a
  * copy closing forgets it ({@link #copyClosed}).
  */
 public final class GeneratedRuns {
@@ -160,7 +161,7 @@ public final class GeneratedRuns {
 
     /**
      * The room logic of lane {@code area}'s latest run in {@code world} ({@link RunLogic}: where a member stands, what
-     * is placed as they near it, what the run's end removes); null when the copy generates nothing or the lane has no
+     * is placed as they near it, what the party's leaving removes); null when the copy generates nothing or the lane has no
      * run registered. A map read, safe from any thread.
      */
     @Nullable
