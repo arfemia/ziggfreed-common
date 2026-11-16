@@ -26,6 +26,7 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.entity.knockback.KnockbackComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
@@ -51,10 +52,13 @@ import com.ziggfreed.common.stats.condition.ZigFoeFamilyCondition;
  * owner (so its damage and a kill it lands credit them) and this application's damage multiplier; effects taken off
  * by id or effect family; a stat's current value moved (the engine holds it between its bounds); a heal through
  * CommonLib's one heal, the holder its giver; a coming hit lowered before it lands (its amount, or its cancel); a
- * block's stamina cost cut through the engine's own drain multiplier; a counter changed; a push or pull through the
- * engine's velocity; a creature taunted onto the holder (zc-effects' {@code AggroControl}); a guard broken; a
+ * block's stamina cost cut through the engine's own drain multiplier; a projectile's coming hit turned back at its
+ * shooter through the engine's own damage; a counter changed; a push or pull through the
+ * engine's velocity (a creature pushed is watched for its landing, {@link ThrownLandings}); a creature taunted onto the
+ * holder (zc-effects' {@code AggroControl}); a guard broken; a
  * RootInteraction queued on the holder or the target as a server chain. An entry's {@code Area} aims its target groups
- * at each one reached in turn. World thread; each action is guarded on its own, so one that fails costs only itself.
+ * at each one reached in turn (with an {@code Arc}, those ahead of the holder only). World thread; each action is
+ * guarded on its own, so one that fails costs only itself.
  */
 final class ProcActions {
 
@@ -81,6 +85,9 @@ final class ProcActions {
             }
             if (action.guardCost() != null) {
                 guarded("GuardCost", () -> guardCost(moment, action.guardCost(), context));
+            }
+            if (action.reflect() != null) {
+                guarded("Reflect", () -> reflect(moment, action.reflect(), strength, context));
             }
             List<Ref<EntityStore>> aims = aims(moment, action.area());
             runSelf(action, moment, strength, context, healSource);
@@ -194,15 +201,22 @@ final class ProcActions {
                 return List.of();
             }
             Instant now = ConditionalStats.now(accessor);
-            // One more than Max, so leaving the moment's own target out still reaches Max others.
-            int ask = area.max() + (area.skipTarget() ? 1 : 0);
+            // One more than Max, so leaving the moment's own target out still reaches Max others; an arc ahead asks
+            // every one in reach, since those behind are left out after.
+            int ask = area.ahead() ? ProcAction.Area.MAX_CAP : area.max() + (area.skipTarget() ? 1 : 0);
             // The allies are zc-core's one rule (R859), read through the one walk.
             List<Ref<EntityStore>> found = area.allies()
                     ? Nearby.alliesAround(accessor, holder, centre, area.radius(), area.conditions(), now, ask)
                     : Nearby.foesAround(accessor, holder, centre, area.radius(), area.conditions(), now, ask);
+            double[] look = area.ahead() ? levelLook(accessor, holder) : null;
+            Vector3d from = look == null ? null : Nearby.positionOf(accessor, holder);
             List<Ref<EntityStore>> out = new ArrayList<>(found.size());
             for (Ref<EntityStore> one : found) {
                 if (area.skipTarget() && Nearby.same(one, target)) {
+                    continue;
+                }
+                if (area.ahead() && (look == null || from == null
+                        || !withinArc(look, from, Nearby.positionOf(accessor, one), area.arc()))) {
                     continue;
                 }
                 if (out.size() < area.max()) {
@@ -214,6 +228,23 @@ final class ProcActions {
             Procs.failed("finding an area's targets", t);
             return List.of();
         }
+    }
+
+    /**
+     * Is {@code at} within {@code arcDegrees} across of the level look {@code look} (a unit {x, z}) from {@code from}?
+     * One standing on {@code from} itself counts. False for no position. Pure.
+     */
+    static boolean withinArc(@Nonnull double[] look, @Nonnull Vector3d from, @Nullable Vector3d at,
+            double arcDegrees) {
+        if (at == null) {
+            return false;
+        }
+        double[] toward = level(at.x - from.x, at.z - from.z);
+        if (toward == null) {
+            return true;
+        }
+        double cos = look[0] * toward[0] + look[1] * toward[1];
+        return cos >= Math.cos(Math.toRadians(Math.min(360.0, arcDegrees) / 2.0)) - 1e-9;
     }
 
     // ==================== The groups ====================
@@ -513,7 +544,7 @@ final class ProcActions {
             return;
         }
         double add = counterAdd(change.add() == null ? 0.0 : Procs.evaluate(change.add(), context), change.byAmount(),
-                moment.amount());
+                moment.amount()) * (change.byCost() ? moment.cost() : 1.0);
         double consume = change.consume() == null ? 0.0 : Procs.evaluate(change.consume(), context);
         Counters.change(moment, def, add, consume, change.clear(), context);
     }
@@ -580,7 +611,50 @@ final class ProcActions {
         Velocity velocity = accessor.getComponent(on, Velocity.getComponentType());
         if (velocity != null) {
             velocity.addInstruction(new Vector3d(dx, up, dz), null, ChangeVelocityType.Add);
+            if (!Nearby.same(on, moment.holder())) {
+                ThrownLandings.launched(moment.holder(), on, System.nanoTime());
+            }
         }
+    }
+
+    /**
+     * Turn a projectile's coming hit on the holder back at its shooter: the shooter takes the {@code Share} of it
+     * (times the proc's strength), of the hit's own damage type, as the holder's hit, marked a proc's own
+     * ({@link #CHAIN_TYPE}) so no proc or counter answers it; with {@code Stop} the coming hit is stopped. A hit no
+     * projectile dealt, or one whose shooter is gone (the engine then names the projectile itself), is left alone.
+     */
+    private static void reflect(@Nonnull ProcMoment moment, @Nonnull ProcAction.Reflect reflect, double strength,
+            @Nonnull FactorContext context) {
+        Damage damage = moment.damage();
+        CommandBuffer<EntityStore> buffer = moment.commandBuffer();
+        if (moment.trigger() != ProcTrigger.HIT_INCOMING || damage == null || damage.isCancelled() || buffer == null
+                || !(damage.getSource() instanceof Damage.ProjectileSource source)) {
+            return;
+        }
+        Ref<EntityStore> holder = moment.holder();
+        Ref<EntityStore> shooter = source.getRef();
+        if (shooter == null || !shooter.isValid() || Nearby.same(shooter, holder)
+                || Nearby.same(shooter, source.getProjectile())) {
+            return;
+        }
+        double share = reflect.share() == null ? 1.0 : Math.max(0.0, Procs.evaluate(reflect.share(), context));
+        double amount = reflectedAmount(damage.getAmount(), share, strength);
+        if (reflect.stop()) {
+            damage.setCancelled(true);
+            dropKnockback(moment, damage, holder);
+        }
+        if (!(amount > 0.0)) {
+            return;
+        }
+        Damage back = new Damage(new Damage.EntitySource(holder), damage.getDamageCauseIndex(), (float) amount);
+        back.putMetaObject(Damage.INTERACTION_TYPE, CHAIN_TYPE);
+        DamageSystems.executeDamage(shooter, buffer, back);
+    }
+
+    /** What a reflected hit deals: the coming hit times the share times the proc's strength, never below 0. Pure. */
+    static double reflectedAmount(double hit, double share, double strength) {
+        double amount = hit * share * strength;
+        return Double.isFinite(amount) ? Math.max(0.0, amount) : 0.0;
     }
 
     /**

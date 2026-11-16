@@ -41,13 +41,22 @@ final class WeakSpotWindows {
     /** A window for the effect's owner alone. */
     static final byte OWNER = 2;
 
+    /** The window bits ({@link #ANYONE} or {@link #OWNER}). */
+    static final byte WINDOW_BITS = ANYONE | OWNER;
+
+    /** Beside a window: it is spent by the hit it pays ({@value WeakSpots#ONCE}). */
+    static final byte ONCE = 4;
+
+    /** On the attacker: their next hit is a weak spot, spent by it ({@value WeakSpots#TAG_NEXT}). */
+    static final byte NEXT = 8;
+
     private static final Object LOCK = new Object();
 
     private static final AtomicBoolean BUILD_FAILURE_LOGGED = new AtomicBoolean();
 
-    /** The table and the ids it classified (lower-cased), for the load and removal checks. */
-    private record Table(@Nonnull byte[] kinds, @Nonnull Set<String> ids) {
-        static final Table EMPTY = new Table(new byte[0], Set.of());
+    /** The table, the ids it classified (lower-cased), for the load and removal checks, and whether any is NEXT. */
+    private record Table(@Nonnull byte[] kinds, @Nonnull Set<String> ids, boolean anyNext) {
+        static final Table EMPTY = new Table(new byte[0], Set.of(), false);
     }
 
     @Nonnull
@@ -102,48 +111,110 @@ final class WeakSpotWindows {
      */
     static boolean openFor(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> target,
             @Nonnull Ref<EntityStore> attacker) {
+        return windowOn(accessor, target, attacker) != NO_EFFECT;
+    }
+
+    /** No effect answers. */
+    static final int NO_EFFECT = -1;
+
+    /**
+     * The effect index of a window open on {@code target} for {@code attacker}, one that stays open preferred over
+     * one a paid hit spends ({@link #ONCE}), so a lasting window never spends a strike's own; {@link #NO_EFFECT} when
+     * none is. Never throws.
+     */
+    static int windowOn(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> target,
+            @Nonnull Ref<EntityStore> attacker) {
         EffectControllerComponent ctrl = accessor.getComponent(target, EffectControllerComponent.getComponentType());
         if (ctrl == null || ctrl.getActiveEffects().isEmpty()) {
-            return false;
+            return NO_EFFECT;
         }
         byte[] kinds = current().kinds();
         if (kinds.length == 0) {
-            return false;
+            return NO_EFFECT;
         }
+        int spent = NO_EFFECT;
         for (ActiveEntityEffect active : ctrl.getActiveEffects().values()) {
             int index = active.getEntityEffectIndex();
             byte kind = index >= 0 && index < kinds.length ? kinds[index] : NONE;
-            if (kind == ANYONE) {
-                return true;
+            byte window = (byte) (kind & WINDOW_BITS);
+            boolean open = window == ANYONE || (window == OWNER && attacker.equals(active.getOwner()));
+            if (!open) {
+                continue;
             }
-            if (kind == OWNER && attacker.equals(active.getOwner())) {
-                return true;
+            if ((kind & ONCE) == 0) {
+                return index;
             }
+            spent = index;
         }
-        return false;
+        return spent;
+    }
+
+    /** Is the effect at {@code index} a window a paid hit spends ({@value WeakSpots#ONCE})? */
+    static boolean spentByHit(int index) {
+        byte[] kinds = current().kinds();
+        return index >= 0 && index < kinds.length && (kinds[index] & ONCE) != 0;
+    }
+
+    /**
+     * The effect index of an effect on {@code attacker} that makes their next hit a weak spot
+     * ({@value WeakSpots#TAG_NEXT}), or {@link #NO_EFFECT}. One look at a flag first, so a server with no such effect
+     * reads no attacker's effects. Never throws.
+     */
+    static int nextOn(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker) {
+        Table now = current();
+        if (!now.anyNext()) {
+            return NO_EFFECT;
+        }
+        try {
+            EffectControllerComponent ctrl =
+                    accessor.getComponent(attacker, EffectControllerComponent.getComponentType());
+            if (ctrl == null || ctrl.getActiveEffects().isEmpty()) {
+                return NO_EFFECT;
+            }
+            byte[] kinds = now.kinds();
+            for (ActiveEntityEffect active : ctrl.getActiveEffects().values()) {
+                int index = active.getEntityEffectIndex();
+                if (index >= 0 && index < kinds.length && (kinds[index] & NEXT) != 0) {
+                    return index;
+                }
+            }
+        } catch (Throwable ignored) {
+            // An attacker whose effects cannot be read wears none.
+        }
+        return NO_EFFECT;
     }
 
     /**
      * The window an effect opens: {@link #OWNER} when its tag names {@value WeakSpots#OWNER_ONLY}, {@link #ANYONE}
-     * when it carries the tag otherwise or is listed, else {@link #NONE}. Pure over the effect's raw tags.
+     * when it carries the tag otherwise or is listed, else {@link #NONE}; with {@link #ONCE} beside it when the tag
+     * names {@value WeakSpots#ONCE}, and {@link #NEXT} when it carries {@value WeakSpots#TAG_NEXT}. Pure over the
+     * effect's raw tags.
      */
     static byte kindOf(@Nullable Map<String, String[]> rawTags, boolean listed) {
-        String[] values = rawTags == null ? null : tagValues(rawTags);
+        String[] values = rawTags == null ? null : tagValues(rawTags, WeakSpots.TAG);
+        byte next = rawTags != null && tagValues(rawTags, WeakSpots.TAG_NEXT) != null ? NEXT : NONE;
         if (values != null) {
+            byte window = ANYONE;
+            byte once = NONE;
             for (String value : values) {
-                if (value != null && value.trim().equalsIgnoreCase(WeakSpots.OWNER_ONLY)) {
-                    return OWNER;
+                if (value == null) {
+                    continue;
+                }
+                if (value.trim().equalsIgnoreCase(WeakSpots.OWNER_ONLY)) {
+                    window = OWNER;
+                } else if (value.trim().equalsIgnoreCase(WeakSpots.ONCE)) {
+                    once = ONCE;
                 }
             }
-            return ANYONE;
+            return (byte) (window | once | next);
         }
-        return listed ? ANYONE : NONE;
+        return (byte) ((listed ? ANYONE : NONE) | next);
     }
 
     @Nullable
-    private static String[] tagValues(@Nonnull Map<String, String[]> rawTags) {
+    private static String[] tagValues(@Nonnull Map<String, String[]> rawTags, @Nonnull String key) {
         for (Map.Entry<String, String[]> entry : rawTags.entrySet()) {
-            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(WeakSpots.TAG)) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
                 return entry.getValue() == null ? new String[0] : entry.getValue();
             }
         }
@@ -192,6 +263,7 @@ final class WeakSpotWindows {
         int end = map.getNextIndex();
         byte[] kinds = new byte[Math.max(0, end)];
         Set<String> ids = new HashSet<>();
+        boolean anyNext = false;
         for (int index = 0; index < end; index++) {
             EntityEffect effect = map.getAsset(index);
             if (effect == null || effect.getId() == null) {
@@ -202,8 +274,9 @@ final class WeakSpotWindows {
             if (kind != NONE) {
                 kinds[index] = kind;
                 ids.add(id);
+                anyNext |= (kind & NEXT) != 0;
             }
         }
-        return new Table(kinds, Set.copyOf(ids));
+        return new Table(kinds, Set.copyOf(ids), anyNext);
     }
 }

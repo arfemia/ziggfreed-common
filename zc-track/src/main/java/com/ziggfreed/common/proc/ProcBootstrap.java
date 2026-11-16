@@ -11,7 +11,8 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the proc runtime at library setup, called once from the wiring root's {@code setup()}: the systems behind
- * the triggers the family had no moment for, the holder pass and the forgetting of an entity that left; the reaction
+ * the triggers the family had no moment for (a jump, a projectile's miss, the health a killing blow took), the holder
+ * pass and the forgetting of an entity that left; the reaction
  * on the library's own moments (hit, kill, break, harvest) at library-default rank, on zc-core's heal given and on
  * zc-entity's critical hit; the
  * counters' reading; and a departing player's waits forgotten. The three stores (procs, counters, held effects) are registered with the other
@@ -29,6 +30,9 @@ public final class ProcBootstrap {
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Incoming());
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.ChainStarts());
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Landing());
+        plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Jump());
+        plugin.getEntityStoreRegistry().registerSystem(new KillBlows.Stamp());
+        plugin.getEntityStoreRegistry().registerSystem(new ProjectileMisses.Left());
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.HolderPass());
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Left());
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Died());

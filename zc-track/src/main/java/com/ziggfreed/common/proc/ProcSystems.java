@@ -39,6 +39,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems;
 import com.hypixel.hytale.server.core.modules.entity.player.PlayerInput;
+import com.hypixel.hytale.server.core.modules.entity.player.PlayerSystems;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
@@ -56,7 +57,8 @@ import com.ziggfreed.common.stats.condition.Nearby;
  * The systems behind the triggers the family had no moment for, registered once by {@link ProcBootstrap} (the system
  * registry is class-keyed): a hit taken, a hit blocked and a hit dodged ({@link Taken}), a hit about to land on a
  * player or their ally ({@link Incoming}), the holder's own dodge and cast started and every chain's root
- * ({@link ChainStarts}), a landing ({@link Landing}), the holder pass ({@link HolderPass}, which proves the dodges and
+ * ({@link ChainStarts}), a landing ({@link Landing}), a jump ({@link Jump}), the holder pass ({@link HolderPass}, which
+ * proves the dodges and
  * casts, reads a guard going up and a foe's guard broken, the watched effects and a crouch held still), a player's
  * death emptying their counters ({@link Died}), and the forgetting of an entity that left its store ({@link Left}). Hit, Kill, BlockBreak and Harvest ride the library's own moments ({@link ProcMoments}), Crit
  * zc-entity's crit step's event ({@link Procs#crit}); a consumer's own Cast is the consumer's ({@link Procs#cast}).
@@ -113,6 +115,10 @@ final class ProcSystems {
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
                 @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
             try {
+                // A projectile that reached a creature, hurt or not, never misses after (ProjectileMiss).
+                if (Procs.listens(ProcTrigger.PROJECTILE_MISS)) {
+                    ProjectileMisses.struck(damage);
+                }
                 boolean player = chunk.getComponent(index, PlayerRef.getComponentType()) != null;
                 if (!player && !Procs.listens(ProcTrigger.GUARD_BROKE)) {
                     return;
@@ -493,6 +499,86 @@ final class ProcSystems {
                         return true;
                     }
                     onGround = next;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
+     * A player starting a jump: a movement update that sets them jumping from not, read before the engine applies
+     * the player's queued input ({@code PlayerSystems.ProcessPlayerInput}), so their movement states still hold what
+     * the last tick left (their crouch among them, which a proc's {@code ZigCrouching} Holder reads). Ticks only while
+     * a Jump proc listens.
+     */
+    public static final class Jump extends EntityTickingSystem<EntityStore> {
+
+        @Nonnull
+        private final Query<EntityStore> query = Query.and(Player.getComponentType(), PlayerInput.getComponentType(),
+                MovementStatesComponent.getComponentType());
+
+        @Nonnull
+        private final Set<Dependency<EntityStore>> dependencies = Set.of(
+                new SystemDependency<>(Order.BEFORE, PlayerSystems.ProcessPlayerInput.class));
+
+        @Nonnull
+        @Override
+        public Query<EntityStore> getQuery() {
+            return query;
+        }
+
+        @Nonnull
+        @Override
+        public Set<Dependency<EntityStore>> getDependencies() {
+            return dependencies;
+        }
+
+        @Override
+        public boolean isParallel(int archetypeChunkSize, int taskCount) {
+            return false;
+        }
+
+        @Override
+        public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
+            if (!Procs.listens(ProcTrigger.JUMP)) {
+                return;
+            }
+            super.tick(dt, systemIndex, store);
+        }
+
+        @Override
+        public void tick(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> chunk,
+                @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+            try {
+                PlayerInput input = chunk.getComponent(index, PlayerInput.getComponentType());
+                MovementStatesComponent states = chunk.getComponent(index, MovementStatesComponent.getComponentType());
+                MovementStates before = states == null ? null : states.getMovementStates();
+                if (input == null || !jumpsIn(before != null && before.jumping, input.getMovementUpdateQueue())) {
+                    return;
+                }
+                Procs.fire(new ProcMoment(ProcTrigger.JUMP, store, commandBuffer, chunk.getReferenceTo(index), null,
+                        null, 1.0, null));
+            } catch (Throwable t) {
+                Procs.failed("a jump", t);
+            }
+        }
+
+        /**
+         * Does the queue hold a movement update that sets the player jumping from not? {@code jumping} is where the
+         * last tick left them. Pure over the queue.
+         */
+        static boolean jumpsIn(boolean jumping, @Nullable List<?> queue) {
+            if (queue == null) {
+                return false;
+            }
+            boolean now = jumping;
+            for (Object update : queue) {
+                if (update instanceof PlayerInput.SetMovementStates set && set.movementStates() != null) {
+                    boolean next = set.movementStates().jumping;
+                    if (next && !now) {
+                        return true;
+                    }
+                    now = next;
                 }
             }
             return false;

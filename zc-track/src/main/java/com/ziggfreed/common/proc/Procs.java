@@ -254,11 +254,64 @@ public final class Procs {
      */
     public static void cast(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> holder, @Nullable String ability) {
+        cast(store, commandBuffer, holder, ability, 0.0);
+    }
+
+    /**
+     * {@link #cast(Store, CommandBuffer, Ref, String)} naming the stamina the cast spent ({@code cost}, after every
+     * cut; 0 when it cost nothing or another pool paid it): the moment's cost, as a block's is, which a
+     * {@code ChangeStat} with {@code ByCost} gives back a share of (a talent that makes a cast free), so a refund only
+     * ever gives back stamina that was spent.
+     */
+    public static void cast(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> holder, @Nullable String ability, double cost) {
         if (!listens(ProcTrigger.CAST)) {
             return;
         }
         fire(new ProcMoment(ProcTrigger.CAST, store, commandBuffer, holder, null, null, 1.0, null, null,
-                ability == null || ability.isBlank() ? null : ability.trim(), null));
+                ability == null || ability.isBlank() ? null : ability.trim(), null,
+                Double.isFinite(cost) && cost > 0.0 ? cost : 0.0));
+    }
+
+    /**
+     * The seam a consumer with a dodge of its own calls as one of the player {@code holder}'s dodges goes off (past
+     * its cost and its checks, as a cast does): a Dodge moment, the same one the game's own dodge answers once its
+     * effect lands. The consumer has proven the dodge itself, so nothing waits for an effect: the moment fires now,
+     * and any Dodged moment one of its dodge's foes' hits makes arrives after it. World thread; pass the command buffer
+     * when there is one.
+     */
+    public static void dodge(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> holder) {
+        dodge(store, commandBuffer, holder, 0.0);
+    }
+
+    /**
+     * {@link #dodge(Store, CommandBuffer, Ref)} naming the stamina the dodge spent ({@code cost}, after every cut; 0
+     * when it cost nothing or another pool paid it): the moment's cost, as a block's is, which a {@code ChangeStat} or
+     * a {@code Counter} with {@code ByCost} reads, so a knack can give back the dodge's own cost (or a share of it) and
+     * a counter can keep it for a later moment.
+     */
+    public static void dodge(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> holder, double cost) {
+        if (!listens(ProcTrigger.DODGE)) {
+            return;
+        }
+        fire(new ProcMoment(ProcTrigger.DODGE, store, commandBuffer, holder, null, null, 1.0, null, null, null, null,
+                Double.isFinite(cost) && cost > 0.0 ? cost : 0.0));
+    }
+
+    /**
+     * The seam a consumer that throws a creature through means of its own (a grab and toss, a lift) calls as the
+     * player {@code holder} lets {@code target} fly: it is watched for its landing as a creature their hit or a proc's
+     * push sent up is, and its landing is the holder's ThrownLanding. A hit of theirs already counts, so a throw that
+     * strikes needs no call. World thread.
+     */
+    public static void thrown(@Nonnull Ref<EntityStore> holder, @Nonnull Ref<EntityStore> target) {
+        try {
+            ThrownLandings.launched(holder, target, System.nanoTime());
+        } catch (Throwable t) {
+            failed("a creature thrown", t);
+        }
     }
 
     /**
@@ -302,7 +355,8 @@ public final class Procs {
             return;
         }
         if (!effectPasses(proc, moment) || !hitPasses(proc, moment, accessor) || !movePasses(proc, moment, accessor)
-                || !comingPasses(proc, moment, accessor) || !blockPasses(proc, moment, accessor)) {
+                || !comingPasses(proc, moment, accessor) || !blockPasses(proc, moment, accessor)
+                || !thrownPasses(proc, moment, accessor) || !projectilePasses(proc, moment)) {
             return;
         }
         Instant now = ConditionalStats.now(accessor);
@@ -486,6 +540,40 @@ public final class Procs {
     }
 
     /**
+     * Does a ThrownLanding pass the proc's {@code Thrown} group: the creature that landed (the moment's target) in
+     * water or not, on another creature or not, read where it lands? Every other moment passes; a proc asking it of
+     * another moment never runs.
+     */
+    private static boolean thrownPasses(@Nonnull ProcAsset proc, @Nonnull ProcMoment moment,
+            @Nonnull ComponentAccessor<EntityStore> accessor) {
+        ProcAsset.Thrown thrown = proc.thrown();
+        if (thrown == null) {
+            return true;
+        }
+        Ref<EntityStore> landed = moment.target();
+        if (moment.trigger() != ProcTrigger.THROWN_LANDING || landed == null || !landed.isValid()) {
+            return false;
+        }
+        if (thrown.inWater() != null && thrown.inWater() != ThrownLandings.inWater(accessor, landed)) {
+            return false;
+        }
+        return thrown.onCreature() == null
+                || thrown.onCreature() == ThrownLandings.onCreature(accessor, moment.holder(), landed);
+    }
+
+    /**
+     * Does a ProjectileMiss pass the proc's {@code Projectiles}: the projectile it is about one of those named? Every
+     * other moment passes; a proc naming projectiles on another moment never runs.
+     */
+    private static boolean projectilePasses(@Nonnull ProcAsset proc, @Nonnull ProcMoment moment) {
+        List<String> wanted = proc.projectiles();
+        if (wanted.isEmpty()) {
+            return true;
+        }
+        return moment.trigger() == ProcTrigger.PROJECTILE_MISS && ProcAsset.namesId(wanted, moment.projectile());
+    }
+
+    /**
      * Does an effect moment's effect pass the proc's {@code Effect} group (on the same side, named by id or family)?
      * Every other moment passes. An effect proc naming no effect never runs.
      */
@@ -537,7 +625,8 @@ public final class Procs {
 
     /**
      * The holder pass, every tick for every living player: the moves waiting for their proof and a guard going up
-     * ({@link MoveProofs}) and the holder's own watched effects ({@link EffectWatch}) each tick; then, a few times a
+     * ({@link MoveProofs}), the creatures they threw into the air ({@link ThrownLandings}) and the holder's own
+     * watched effects ({@link EffectWatch}) each tick; then, a few times a
      * second ({@value #PASS_EVERY_NANOS} ns), the counters' sweep and decay, the held effects, the watched effects on
      * the foes they struck, and the crouch a {@code CrouchStill} proc answers (its amount the seconds held). World
      * thread; never throws.
@@ -548,6 +637,7 @@ public final class Procs {
             long nanos = System.nanoTime();
             MoveProofs.check(store, commandBuffer, holder, nanos);
             GuardBreaks.check(store, commandBuffer, holder, nanos);
+            ThrownLandings.check(store, commandBuffer, holder, nanos);
             EffectWatch.checkOwn(store, commandBuffer, holder);
             PassState state = PASSES.computeIfAbsent(holder, r -> new PassState());
             if (nanos < state.nextNanos) {
@@ -599,6 +689,7 @@ public final class Procs {
         EffectWatch.forget(ref);
         HeldEffects.forget(ref);
         GuardBreaks.forget(ref);
+        ThrownLandings.forget(ref);
     }
 
     // ==================== The reads every part shares ====================

@@ -225,6 +225,8 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
         @Nullable protected Boolean overTime;
         @Nullable protected Boolean onSelf;
         @Nullable protected Boolean headshot;
+        @Nullable protected Boolean weakSpot;
+        @Nullable protected Boolean laterTarget;
 
         public static final BuilderCodec<Hit> CODEC = BuilderCodec.builder(Hit.class, Hit::new)
                 .appendInherited(new KeyedCodec<>("FirstHit", Codec.BOOLEAN, false),
@@ -272,6 +274,17 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
                 .documentation("True: only a hit that took its weapon's own Head branch (the interaction's "
                         + "TargetedDamage Head entry: in vanilla, a shortbow's full-draw arrow to the head). False: "
                         + "only one that did not. Either when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("WeakSpot", Codec.BOOLEAN, false),
+                        (o, v) -> o.weakSpot = v, o -> o.weakSpot, (o, p) -> o.weakSpot = p.weakSpot)
+                .documentation("True: only a hit the weak-spot step paid as a weak spot. False: only one it did not. "
+                        + "Either when unauthored. The step runs after the damage bonuses, so a damage payout never "
+                        + "sees it: ask it of a proc's hit, a crit or a lifesteal.").add()
+                .appendInherited(new KeyedCodec<>("LaterTarget", Codec.BOOLEAN, false),
+                        (o, v) -> o.laterTarget = v, o -> o.laterTarget, (o, p) -> o.laterTarget = p.laterTarget)
+                .documentation("True: only a hit on a foe past the first one swing struck (the second foe a sweep "
+                        + "reaches, and every one after it). False: only the first foe a swing struck. Either when "
+                        + "unauthored. A hit with no swing behind it (a projectile's, a damage-over-time tick, an "
+                        + "effect's) reads as a first.").add()
                 .build();
 
         public Hit() {
@@ -281,7 +294,8 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
         public boolean isEmpty() {
             return firstHit == null && notTargeted == null && minDistance == null && maxDistance == null
                     && minHeightAbove == null && (classes == null || classes.length == 0) && projectile == null
-                    && overTime == null && onSelf == null && headshot == null;
+                    && overTime == null && onSelf == null && headshot == null && weakSpot == null
+                    && laterTarget == null;
         }
 
         @Nullable public Boolean firstHit() { return firstHit; }
@@ -293,6 +307,8 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
         @Nullable public Boolean overTime() { return overTime; }
         @Nullable public Boolean onSelf() { return onSelf; }
         @Nullable public Boolean headshot() { return headshot; }
+        @Nullable public Boolean weakSpot() { return weakSpot; }
+        @Nullable public Boolean laterTarget() { return laterTarget; }
 
         /** The classes as written, lower-cased, blanks dropped. */
         @Nonnull

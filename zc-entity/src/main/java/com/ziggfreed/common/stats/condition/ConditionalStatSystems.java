@@ -31,8 +31,9 @@ import com.ziggfreed.common.stats.StatCarriers;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The three systems behind {@link ConditionalStats}, registered once by {@link ConditionBootstrap} (the system
- * registry is class-keyed): the holder pass, the first-hit record and the forgetting of an entity that left its store.
+ * The four systems behind {@link ConditionalStats}, registered once by {@link ConditionBootstrap} (the system
+ * registry is class-keyed): the holder pass, the first-hit record, the swing-order note and the forgetting of an entity
+ * that left its store.
  */
 public final class ConditionalStatSystems {
 
@@ -128,6 +129,32 @@ public final class ConditionalStatSystems {
             } catch (Throwable t) {
                 SafeLog.fine("[condition] recording a hit failed: " + t.getMessage());
             }
+        }
+    }
+
+    /**
+     * Notes each hit's place in its swing ({@link HitReads#stampSwingOrder}) in the Filter damage group, which runs
+     * before the engine counts the hit into its swing, so a read of {@code Hit.LaterTarget} in a later group (a proc's
+     * hit, an Inspect step) sees the same answer a Filter step does.
+     */
+    public static final class SwingOrderStamp extends DamageEventSystem {
+
+        @Nonnull
+        @Override
+        public SystemGroup<EntityStore> getGroup() {
+            return DamageModule.get().getFilterDamageGroup();
+        }
+
+        @Nullable
+        @Override
+        public Query<EntityStore> getQuery() {
+            return Query.any();
+        }
+
+        @Override
+        public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
+            HitReads.stampSwingOrder(damage);
         }
     }
 

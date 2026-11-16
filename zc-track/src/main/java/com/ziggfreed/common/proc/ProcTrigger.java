@@ -7,17 +7,20 @@ import javax.annotation.Nullable;
 
 /**
  * The moments a proc ({@link ProcAsset}) answers, a closed vocabulary: each is produced in one place, for players
- * only ({@link ProcSystems}, {@link ProcMoments}, {@link GuardBreaks}, and {@link Procs#crit} and
- * {@link Procs#finisher} for the two a consumer decides).
+ * only ({@link ProcSystems}, {@link ProcMoments}, {@link GuardBreaks}, {@link ThrownLandings},
+ * {@link ProjectileMisses}, and {@link Procs#crit}, {@link Procs#finisher} and {@link Procs#dodge} for the ones a
+ * consumer decides).
  */
 public enum ProcTrigger {
 
     HIT("Hit", "A direct hit the holder lands on a creature (zc's DEAL_DAMAGE moment)", true, false),
     CRIT("Crit", "A hit the holder lands that a mod decided was critical (never on a server with no crit roll)",
             true, false),
-    KILL("Kill", "A creature the holder is credited with killing", false, false),
+    KILL("Kill", "A creature the holder is credited with killing (the moment's amount is the overkill: how much "
+            + "more the killing blow dealt than the health it took)", false, false),
     DODGE("Dodge", "The holder's own dodge once it went through (a dodge effect landed after their dodge key: a "
-            + "refused dodge, or a forward or back press, never counts)", false, false),
+            + "refused dodge, or a forward or back press, never counts; or a mod's own dodge as it goes off)", false,
+            false),
     GUARD_START("GuardStart", "The holder's guard goes up (they start wielding a block)", false, false),
     BLOCKED("Blocked", "A hit on the holder that their guard blocked", true, true),
     HIT_TAKEN("HitTaken", "A hit a foe lands on the holder", true, true),
@@ -49,7 +52,14 @@ public enum ProcTrigger {
             + "engine's guard break landed on it soon after), or a proc of theirs broke it (the foe is the moment's "
             + "target)", false, false),
     FINISHER("Finisher", "A hit the holder lands that a mod decided closed a combo, the last swing of a chain (never "
-            + "on a server with no mod deciding combos)", true, false);
+            + "on a server with no mod deciding combos)", true, false),
+    JUMP("Jump", "The holder jumps (ask ZigCrouching in Holder for a jump made crouching, or with Inverse for one "
+            + "made standing)", false, false),
+    THROWN_LANDING("ThrownLanding", "A creature the holder struck or pushed into the air lands again (the moment's "
+            + "target is that creature, its amount the blocks it dropped; Thrown reads where it landed)", false,
+            false),
+    PROJECTILE_MISS("ProjectileMiss", "A projectile the holder launched ends without striking a creature (it came "
+            + "to rest or was spent on the ground; Projectiles names which count)", false, false);
 
     @Nonnull private final String id;
     @Nonnull private final String meaning;

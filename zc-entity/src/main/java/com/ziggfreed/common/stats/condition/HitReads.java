@@ -11,6 +11,7 @@ import org.joml.Vector3d;
 
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.meta.MetaKey;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCalculatorSystems;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSourceType;
@@ -21,10 +22,12 @@ import com.ziggfreed.common.damage.weakspot.WeakSpots;
 
 /**
  * The reads a conditional stat's {@code Hit} group asks of one hit ({@link ConditionalStatAsset.Hit}): the first hit,
- * the target's lock, distance and height, the hit's class, projectile, damage-over-time and the weapon's own head
- * branch ({@link WeakSpots#headBranch}). A proc's {@code Hit} group (zc-track's {@code proc/}) asks the same reads.
- * All but the class and the
- * first hit read the entities as they stand; those two are decided ONCE per hit, on its first damage (the one the
+ * the target's lock, distance and height, the hit's class, projectile, damage-over-time, the weapon's own head
+ * branch ({@link WeakSpots#headBranch}), whether the weak-spot step paid it ({@link WeakSpots#isWeakSpot}) and whether
+ * its swing struck a foe before this one (the engine's own count of a swing's hits, noted before the engine counts
+ * this one, {@link #stampSwingOrder}). A proc's {@code Hit} group (zc-track's {@code proc/}) asks the same reads.
+ * All but the class, the swing's order and the
+ * first hit read the entities as they stand; those three are decided ONCE per hit, on its first damage (the one the
  * engine puts the interaction's calculator on), and every later damage of the same strike (another cause, the same
  * source object and target) takes the same answer, as the weak-spot step decides vanilla's branch.
  */
@@ -35,12 +38,55 @@ public final class HitReads {
         @Nullable Damage.Source source;
         @Nullable Ref<EntityStore> target;
         boolean first;
+        boolean later;
         @Nullable String damageClass;
     }
 
     private static final ThreadLocal<LastHit> LAST = ThreadLocal.withInitial(LastHit::new);
 
+    /**
+     * The hit's place in its swing, put on the hit's first damage before the engine counts that hit into its swing
+     * (its sequence step runs after the Filter group): how many foes the swing struck before this one.
+     */
+    private static final class Meta {
+        static final MetaKey<Integer> SWING_ORDER = Damage.META_REGISTRY.registerMetaObject();
+    }
+
     private HitReads() {
+    }
+
+    /**
+     * Note the hit's place in its swing on {@code damage}, once, while the engine's count still names the foes struck
+     * before it: every read of a later step takes this note ({@link #laterInSwing}). A damage with no swing behind it
+     * is left alone. Never throws.
+     */
+    public static void stampSwingOrder(@Nonnull Damage damage) {
+        try {
+            if (damage.getIfPresentMetaObject(Meta.SWING_ORDER) != null) {
+                return;
+            }
+            DamageCalculatorSystems.DamageSequence sequence =
+                    damage.getIfPresentMetaObject(DamageCalculatorSystems.DAMAGE_SEQUENCE);
+            if (sequence != null) {
+                damage.putMetaObject(Meta.SWING_ORDER, sequence.getSequentialHits());
+            }
+        } catch (Throwable ignored) {
+            // A meta store that cannot be read or written: the hit reads as a swing's first.
+        }
+    }
+
+    /**
+     * Is {@code damage} on a foe past the first its swing struck? Read off the note {@link #stampSwingOrder} put on it
+     * (stamped here when no step has yet); false for a damage with no swing behind it. Never throws.
+     */
+    static boolean laterInSwing(@Nonnull Damage damage) {
+        stampSwingOrder(damage);
+        try {
+            Integer order = damage.getIfPresentMetaObject(Meta.SWING_ORDER);
+            return order != null && order > 0;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /**
@@ -59,6 +105,12 @@ public final class HitReads {
             return false;
         }
         if (hit.onSelf() != null && hit.onSelf() != (target != null && Nearby.Targets.same(holder, target))) {
+            return false;
+        }
+        if (hit.weakSpot() != null && hit.weakSpot() != WeakSpots.isWeakSpot(damage)) {
+            return false;
+        }
+        if (hit.laterTarget() != null && hit.laterTarget() != decide(accessor, damage, target).later) {
             return false;
         }
         Set<String> classes = hit.classes();
@@ -128,6 +180,7 @@ public final class HitReads {
         last.source = damage.getSource();
         last.target = target;
         last.damageClass = classOf(sequence);
+        last.later = sequence != null && laterInSwing(damage);
         // An attacker with no id is never noted, so it never reads as a first hit (it would on every hit).
         UUID attacker = target != null && damage.getSource() instanceof Damage.EntitySource entity
                 && entity.getRef() != null ? FirstHits.idOf(accessor, entity.getRef()) : null;

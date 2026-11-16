@@ -88,10 +88,21 @@ final class VanillaWeakSpots {
                 last.paid = paid;
                 return paid;
             }
-            return last.source == damage.getSource() && target.equals(last.target) ? last.paid : null;
+            return laterDamageOf(last.source, last.target, damage, target) ? last.paid : null;
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /**
+     * Is {@code damage} on {@code target} a later damage (another cause) of the hit noted by its {@code source} object
+     * and its {@code noted} target? Every damage of one hit shares its source object, and only a hit's first carries
+     * the engine's damage sequence, so a damage carrying one always starts a hit of its own.
+     */
+    static boolean laterDamageOf(@Nullable Damage.Source source, @Nullable Ref<EntityStore> noted,
+            @Nonnull Damage damage, @Nonnull Ref<EntityStore> target) {
+        return source != null && source == damage.getSource() && target.equals(noted)
+                && damage.getIfPresentMetaObject(DamageCalculatorSystems.DAMAGE_SEQUENCE) == null;
     }
 
     /**
