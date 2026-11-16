@@ -745,8 +745,8 @@ public final class ProcAction {
                         (o, v) -> o.byCost = v, o -> o.byCost, (o, p) -> o.byCost = p.byCost)
                 .metadata(EditorSchema.defaultValue(false))
                 .documentation("True: Amount is multiplied by what the moment costs the holder (on Blocked, the "
-                        + "stamina their guard pays for the block), so 0.5 is half of it. False when "
-                        + "unauthored.").add()
+                        + "stamina their guard pays for the block; on a mod's own Cast or Dodge, what it cost), so 0.5 "
+                        + "is half of it. False when unauthored.").add()
                 .build();
 
         public ChangeStat() {
@@ -783,6 +783,7 @@ public final class ProcAction {
         @Nullable protected String of;
         @Nullable protected FactorFormula add;
         @Nullable protected Boolean byAmount;
+        @Nullable protected Boolean byCost;
         @Nullable protected FactorFormula consume;
         @Nullable protected Boolean clear;
 
@@ -801,6 +802,12 @@ public final class ProcAction {
                 .metadata(EditorSchema.defaultValue(false))
                 .documentation("True: Add is multiplied by the moment's amount (the damage of a hit dealt or "
                         + "taken), so 0.25 stores a quarter of it. False when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("ByCost", Codec.BOOLEAN, false),
+                        (o, v) -> o.byCost = v, o -> o.byCost, (o, p) -> o.byCost = p.byCost)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: Add is multiplied by what the moment costs the holder (a block's stamina, a "
+                        + "mod's own cast or dodge's cost), so 1 keeps that cost for a later moment to give back. "
+                        + "False when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Consume", FactorFormula.codec(EditorDataSets.FACTORS), false),
                         (o, v) -> o.consume = v, o -> o.consume, (o, p) -> o.consume = p.consume)
                 .documentation("Stacks taken away, a formula. Nothing taken when unauthored.").add()
@@ -825,6 +832,11 @@ public final class ProcAction {
 
         public boolean byAmount() {
             return Boolean.TRUE.equals(byAmount);
+        }
+
+        /** Is Add multiplied by the moment's cost? */
+        public boolean byCost() {
+            return Boolean.TRUE.equals(byCost);
         }
 
         @Nullable

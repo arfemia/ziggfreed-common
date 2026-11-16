@@ -544,7 +544,7 @@ final class ProcActions {
             return;
         }
         double add = counterAdd(change.add() == null ? 0.0 : Procs.evaluate(change.add(), context), change.byAmount(),
-                moment.amount());
+                moment.amount()) * (change.byCost() ? moment.cost() : 1.0);
         double consume = change.consume() == null ? 0.0 : Procs.evaluate(change.consume(), context);
         Counters.change(moment, def, add, consume, change.clear(), context);
     }

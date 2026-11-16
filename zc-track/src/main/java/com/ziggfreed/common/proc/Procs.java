@@ -281,10 +281,22 @@ public final class Procs {
      */
     public static void dodge(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> holder) {
+        dodge(store, commandBuffer, holder, 0.0);
+    }
+
+    /**
+     * {@link #dodge(Store, CommandBuffer, Ref)} naming what the dodge cost the holder ({@code cost}, in its pool's
+     * points, after every cut): the moment's cost, which a {@code ChangeStat} or a {@code Counter} with {@code ByCost}
+     * reads, so a knack can give back the dodge's own cost (or a share of it) and a counter can keep it for a later
+     * moment. 0 when it cost nothing.
+     */
+    public static void dodge(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> holder, double cost) {
         if (!listens(ProcTrigger.DODGE)) {
             return;
         }
-        fire(new ProcMoment(ProcTrigger.DODGE, store, commandBuffer, holder, null, null, 1.0, null));
+        fire(new ProcMoment(ProcTrigger.DODGE, store, commandBuffer, holder, null, null, 1.0, null, null, null, null,
+                Double.isFinite(cost) && cost > 0.0 ? cost : 0.0));
     }
 
     /**
