@@ -18,7 +18,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * block a break was about, what names the move behind it: the RootInteraction a cast's chain started from
  * ({@code root}) and the ability a consumer names for its own cast ({@code ability}), the effect an effect moment is
  * about ({@code effect}), what the moment costs the holder ({@code cost}: on Blocked, the stamina their guard is
- * about to pay for the block; on a consumer's Cast or Dodge, what it cost; 0 on every other moment), and what a
+ * about to pay for the block; on a consumer's Cast or Dodge, the stamina it spent, 0 when another pool paid it; 0 on
+ * every other moment), and what a
  * ProjectileMiss is about ({@code projectile}, the projectile's asset id). World thread; the command buffer is the
  * producing system's, null outside one.
  */

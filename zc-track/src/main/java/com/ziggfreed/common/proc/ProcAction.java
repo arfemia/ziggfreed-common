@@ -745,8 +745,8 @@ public final class ProcAction {
                         (o, v) -> o.byCost = v, o -> o.byCost, (o, p) -> o.byCost = p.byCost)
                 .metadata(EditorSchema.defaultValue(false))
                 .documentation("True: Amount is multiplied by what the moment costs the holder (on Blocked, the "
-                        + "stamina their guard pays for the block; on a mod's own Cast or Dodge, what it cost), so 0.5 "
-                        + "is half of it. False when unauthored.").add()
+                        + "stamina their guard pays for the block; on a mod's own Cast or Dodge, the stamina it spent, "
+                        + "0 when another pool paid it), so 0.5 is half of it. False when unauthored.").add()
                 .build();
 
         public ChangeStat() {
@@ -805,9 +805,9 @@ public final class ProcAction {
                 .appendInherited(new KeyedCodec<>("ByCost", Codec.BOOLEAN, false),
                         (o, v) -> o.byCost = v, o -> o.byCost, (o, p) -> o.byCost = p.byCost)
                 .metadata(EditorSchema.defaultValue(false))
-                .documentation("True: Add is multiplied by what the moment costs the holder (a block's stamina, a "
-                        + "mod's own cast or dodge's cost), so 1 keeps that cost for a later moment to give back. "
-                        + "False when unauthored.").add()
+                .documentation("True: Add is multiplied by what the moment costs the holder (a block's stamina, the "
+                        + "stamina a mod's own cast or dodge spent), so 1 keeps that cost for a later moment to give "
+                        + "back. False when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Consume", FactorFormula.codec(EditorDataSets.FACTORS), false),
                         (o, v) -> o.consume = v, o -> o.consume, (o, p) -> o.consume = p.consume)
                 .documentation("Stacks taken away, a formula. Nothing taken when unauthored.").add()

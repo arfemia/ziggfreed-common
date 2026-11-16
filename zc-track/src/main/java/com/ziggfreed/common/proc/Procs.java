@@ -258,9 +258,10 @@ public final class Procs {
     }
 
     /**
-     * {@link #cast(Store, CommandBuffer, Ref, String)} naming what the cast cost the holder ({@code cost}, in its
-     * pool's points, after every cut): the moment's cost, which a {@code ChangeStat} with {@code ByCost} gives back a
-     * share of (a talent that makes a cast free). 0 when it cost nothing.
+     * {@link #cast(Store, CommandBuffer, Ref, String)} naming the stamina the cast spent ({@code cost}, after every
+     * cut; 0 when it cost nothing or another pool paid it): the moment's cost, as a block's is, which a
+     * {@code ChangeStat} with {@code ByCost} gives back a share of (a talent that makes a cast free), so a refund only
+     * ever gives back stamina that was spent.
      */
     public static void cast(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> holder, @Nullable String ability, double cost) {
@@ -285,10 +286,10 @@ public final class Procs {
     }
 
     /**
-     * {@link #dodge(Store, CommandBuffer, Ref)} naming what the dodge cost the holder ({@code cost}, in its pool's
-     * points, after every cut): the moment's cost, which a {@code ChangeStat} or a {@code Counter} with {@code ByCost}
-     * reads, so a knack can give back the dodge's own cost (or a share of it) and a counter can keep it for a later
-     * moment. 0 when it cost nothing.
+     * {@link #dodge(Store, CommandBuffer, Ref)} naming the stamina the dodge spent ({@code cost}, after every cut; 0
+     * when it cost nothing or another pool paid it): the moment's cost, as a block's is, which a {@code ChangeStat} or
+     * a {@code Counter} with {@code ByCost} reads, so a knack can give back the dodge's own cost (or a share of it) and
+     * a counter can keep it for a later moment.
      */
     public static void dodge(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> holder, double cost) {
