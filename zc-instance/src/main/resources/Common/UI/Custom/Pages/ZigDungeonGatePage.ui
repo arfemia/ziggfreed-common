@@ -1,0 +1,56 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+
+// A dungeon's gate (com.ziggfreed.common.instance.dungeon.tier.DungeonGatePage): the ways into a dungeon that has
+// tiers or a daily, a centred column on the decorated frame.
+//
+//   #Title          the dungeon's name
+//   #TitleRule      the rule under it
+//   #Lead           the dungeon's own description, else the library's line on picking a tier
+//   #GateList       where the kit's LedgerPainter appends its sections of Pages/ZigLedgerRow.ui rows: the tiers the
+//                   party may pick, the daily, then this week's omens (read only)
+//   #Hint           which dungeon to clear to open the next tier, or that nothing is open; hidden with nothing to say
+//
+// The frame owns the size, the padding and the close button (#CloseButton). Every word is set from Java on
+// .TextSpans, so nothing here is a literal. Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in game.
+
+$C.@PageOverlay {}
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 600, Height: 680);
+
+  #Content {
+    Label #Title {
+      Anchor: (Bottom: $ZK.@ZigSpace2);
+      Text: "";
+      Style: (...$ZX.@ZigTitleStyle, HorizontalAlignment: Center, RenderUppercase: true);
+    }
+
+    Group #TitleRule {
+      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace3);
+      Background: (Color: $ZK.@ZigDivider);
+    }
+
+    Label #Lead {
+      Anchor: (Bottom: $ZK.@ZigSpace3);
+      Text: "";
+      Style: (...$ZX.@ZigLeadStyle, HorizontalAlignment: Center);
+    }
+
+    Group #GateList {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 8);
+    }
+
+    Label #Hint {
+      Anchor: (Top: $ZK.@ZigSpace2);
+      Text: "";
+      Visible: false;
+      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+  }
+}

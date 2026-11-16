@@ -9,7 +9,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -27,6 +26,7 @@ import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.instance.dungeon.AreaLayout;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.RunLanes;
+import com.ziggfreed.common.instance.dungeon.RunSeeds;
 import com.ziggfreed.common.instance.dungeon.layout.Cell;
 import com.ziggfreed.common.instance.dungeon.layout.Layout;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutGenerator;
@@ -49,7 +49,8 @@ import com.ziggfreed.common.world.Facing;
  * known), {@link #arrival} is where its players land and respawn, and {@link #finish} is its measurement line once
  * its lane frees.
  *
- * <p><b>A run.</b> The dungeon's layout plan, the copy's room catalogue and a fresh random seed make a layout
+ * <p><b>A run.</b> The dungeon's layout plan, the copy's room catalogue and the run's seed ({@link RunSeeds}, taken
+ * as the party sets off: the day's for a dungeon with {@code Seed.Daily}, else a fresh random one) make a layout
  * ({@code LayoutGenerator}); it is placed in the run's region of its lane ({@link RunLanes#frameOrigin}), each room's
  * variant resolved to its prefab file ({@link PrefabPoolIndex#paths}) and loaded, all on a painter thread, never the
  * world thread. Its players arrive at the entry room's anchor plus the dungeon's {@code Area.EntryOffset}, turned with
@@ -88,11 +89,13 @@ public final class GeneratedRuns {
                     + " does not generate with " + ZigDungeonWorldGenProvider.TYPE + ", so its rooms cannot be painted"));
         }
         String worldName = world.getName();
+        // Taken now, as the party sets off: a daily run started a moment before midnight keeps that day's layout.
+        long seed = RunSeeds.seedFor(dungeon, System.currentTimeMillis());
         return copy.open(area.area(), run, () -> {
             CompletableFuture<DungeonRun> made = new CompletableFuture<>();
             DungeonPainters.run(() -> {
                 try {
-                    made.complete(build(copy, worldName, area.area(), run, layout, dungeon));
+                    made.complete(build(copy, worldName, area.area(), run, layout, dungeon, seed));
                 } catch (Throwable t) {
                     made.completeExceptionally(t);
                 }
@@ -119,6 +122,17 @@ public final class GeneratedRuns {
                 task.run();
             }
         };
+    }
+
+    /**
+     * The seed lane {@code area}'s latest run in {@code world} was laid out from, or null when the copy generates nothing
+     * or the lane has no run registered. A map read, safe from any thread: the run's start reads its omens' seed here.
+     */
+    @Nullable
+    public static Long seedOf(@Nullable World world, int area) {
+        ZigDungeonWorldGenProvider copy = ZigDungeonWorldGenProvider.of(world);
+        DungeonRun run = copy == null ? null : copy.current(area);
+        return run == null ? null : run.seed;
     }
 
     /** Where a player of lane {@code area}'s run in {@code world} lands; null when the lane has no run registered. */
@@ -192,7 +206,7 @@ public final class GeneratedRuns {
 
     @Nonnull
     private static DungeonRun build(@Nonnull ZigDungeonWorldGenProvider copy, @Nonnull String worldName, int area,
-            int run, @Nonnull AreaLayout lanes, @Nonnull DungeonAsset dungeon) {
+            int run, @Nonnull AreaLayout lanes, @Nonnull DungeonAsset dungeon, long seed) {
         String planId = dungeon.layoutId();
         LayoutPlan plan = dungeon.layoutPlan();
         if (plan == null) {
@@ -200,7 +214,6 @@ public final class GeneratedRuns {
                     + ", which no loaded file defines under Server/ZiggfreedCommon/DungeonLayouts/");
         }
         RoomCatalogue catalogue = copy.catalogue();
-        long seed = ThreadLocalRandom.current().nextLong();
         long start = System.nanoTime();
         LayoutResult result = LayoutGenerator.generate(plan, catalogue, seed);
         long generated = System.nanoTime();

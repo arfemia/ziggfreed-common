@@ -22,7 +22,8 @@ import com.ziggfreed.common.occurrence.OccurrenceSource;
  * in, which window its tab reads, and which buckets are its old windows.
  *
  * <p>A bucket is named by the period: {@code all_time} for the one that never ends,
- * {@code <id>@<window>} for a week or a month ({@code weekly@2026-W42}, {@code monthly@2026-10}),
+ * {@code <id>@<window>} for a day, a week or a month ({@code daily@2026-11-15}, {@code weekly@2026-W42},
+ * {@code monthly@2026-10}),
  * {@code <id>@<event>:<run>} for a season's run ({@code season@hallows_eve:2026}, {@code 2026#09} for a
  * year's run 9) and {@code range@<id>} for a range. A new window's key is the reset: nothing is cleared,
  * the board simply starts writing and reading a bucket nobody has written yet, and keeps the last
@@ -31,9 +32,9 @@ import com.ziggfreed.common.occurrence.OccurrenceSource;
  * @param id       the period's file id, lower-cased
  * @param nameKey  the tab's name, a translation key; null shows the id
  * @param order    where the tab sits, lowest first
- * @param zone     the clock a week, a month or a range is read on
+ * @param zone     the clock a day, a week, a month or a range is read on
  * @param startsOn the day a week starts on
- * @param keep     how many windows of a week or a month the board keeps, the running one included, and how
+ * @param keep     how many windows of a day, a week or a month the board keeps, the running one included, and how
  *                 many runs of each event a season keeps
  * @param from     a range's first moment, on {@code zone}'s clock; null for open
  * @param to       the moment a range ends (left out), on {@code zone}'s clock; null for open
@@ -73,6 +74,7 @@ public record StatPeriod(@Nonnull String id, @Nonnull PeriodKind kind, @Nullable
     public String writeKey(@Nonnull Instant now) {
         return switch (kind) {
             case ALL_TIME -> ALL_TIME;
+            case DAILY -> id + AT + PeriodWindows.dayKey(now, zone);
             case WEEKLY -> id + AT + PeriodWindows.weekKey(now, zone, startsOn);
             case MONTHLY -> id + AT + PeriodWindows.monthKey(now, zone);
             case RANGE -> PeriodWindows.within(now, zone, from, to) ? rangeKey() : null;
@@ -94,12 +96,12 @@ public record StatPeriod(@Nonnull String id, @Nonnull PeriodKind kind, @Nullable
     }
 
     /**
-     * What every window of a week or a month starts with, so the old ones can be dropped; null for a period
+     * What every window of a day, a week or a month starts with, so the old ones can be dropped; null for a period
      * of one window, and for a season, whose runs are dropped per event ({@link #runPrefix}).
      */
     @Nullable
     public String windowPrefix() {
-        return kind == PeriodKind.WEEKLY || kind == PeriodKind.MONTHLY ? id + AT : null;
+        return kind == PeriodKind.DAILY || kind == PeriodKind.WEEKLY || kind == PeriodKind.MONTHLY ? id + AT : null;
     }
 
     /**

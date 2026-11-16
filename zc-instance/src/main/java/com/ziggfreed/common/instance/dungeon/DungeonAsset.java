@@ -27,6 +27,7 @@ import com.ziggfreed.common.instance.dungeon.layout.Cell;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutConfig;
+import com.ziggfreed.common.instance.dungeon.omen.DungeonOmenAsset;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.season.SeasonGate;
@@ -50,6 +51,9 @@ import com.ziggfreed.common.season.SeasonGate;
  *                  "HintKey": "mypack.dungeon.crypt.key_hint" },
  *   "Copy": { "EmptyCloseSeconds": 60 },
  *   "Difficulty": "",
+ *   "Tier": { "Rank": 2, "Opens": "MyPack_Crypt_T1" },
+ *   "Omens": { "Count": 1, "Pool": ["MyPack_Bolstering", "MyPack_Blight"], "PerWeek": 2 },
+ *   "Seed": { "Daily": false },
  *   "Season": "Hallows_Eve",
  *   "Text": { "NameKey": "mypack.dungeon.crypt.name", "DescriptionKey": "mypack.dungeon.crypt.description",
  *             "GoalKey": "mypack.dungeon.crypt.goal" }
@@ -75,6 +79,11 @@ import com.ziggfreed.common.season.SeasonGate;
  * <p>{@code EntryCost} prices the way in ({@link DungeonEntryCost}): the player who opens an area for their party
  * pays it, a partymate who follows into that area pays nothing, a refused entry spends nothing, and the admin's
  * {@code /zigdungeon enter} never pays. A key ({@code EntryCost.Keys}) the opener holds pays it without being spent.
+ *
+ * <p>{@code Tier}, {@code Omens} and {@code Seed} are the replay hooks ({@code tier/}, {@code omen/}, {@link RunSeeds}):
+ * a tier is a child file of the tier below with its own rank and the dungeon whose clear opens it, so each tier keeps
+ * its own runs, daily rewards and Records line; a week's omens are drawn from a pool and each run meets
+ * {@code Omens.Count} of them; and a daily is a child file whose runs all share the day's seed.
  */
 public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, DungeonAsset>> {
 
@@ -108,6 +117,9 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     /** The folder a prefab path is written under; a path that starts with it reads the same without it. */
     public static final String PREFABS_ROOT = "Server/Prefabs/";
 
+    /** How many omens make a week's set when a file says nothing (lead's call). */
+    public static final int DEFAULT_OMENS_PER_WEEK = 4;
+
     private String id;
     private AssetExtraInfo.Data data;
 
@@ -121,6 +133,9 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private EntryCost entryCost;
     @Nullable private Copy copy;
     @Nullable private String difficulty;
+    @Nullable private Tier tier;
+    @Nullable private Omens omens;
+    @Nullable private Seed seed;
     @Nullable private String season;
     @Nullable private Text text;
 
@@ -180,6 +195,21 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
             .metadata(EditorSchema.defaultValue(""))
             .documentation("A label for a harder version of a dungeon, such as Hard, which its runs are counted "
                     + "under. Unauthored or empty means normal.").add()
+            .appendInherited(new KeyedCodec<>("Tier", Tier.CODEC, false),
+                    (a, v) -> a.tier = v, a -> a.tier, (a, p) -> a.tier = p.tier)
+            .documentation("Makes this file one tier of a dungeon: a file that names the tier below as its Parent "
+                    + "and sets its own Difficulty, layout plan, loot and Omens.Count, so each tier keeps its own "
+                    + "runs, daily rewards and Records line. A gate naming any tier shows a party the tiers it may "
+                    + "pick. Unauthored, the dungeon is a tier of rank 1 that is always open.").add()
+            .appendInherited(new KeyedCodec<>("Omens", Omens.CODEC, false),
+                    (a, v) -> a.omens = v, a -> a.omens, (a, p) -> a.omens = p.omens)
+            .documentation("The omens a run meets: each week a set is drawn from the pool, the same for every tier "
+                    + "sharing it, and each run draws Count of that set by its seed. The gate shows the week's set "
+                    + "and a player arriving reads the run's. Unauthored, runs meet no omens.").add()
+            .appendInherited(new KeyedCodec<>("Seed", Seed.CODEC, false),
+                    (a, v) -> a.seed = v, a -> a.seed, (a, p) -> a.seed = p.seed)
+            .documentation("Where a run's seed comes from, which picks its rooms, their variants and its omens. "
+                    + "Unauthored, every run takes a fresh random seed.").add()
             .appendInherited(new KeyedCodec<>("Text", Text.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
             .documentation("What players read the dungeon as, and what they are told to do there, by "
@@ -514,6 +544,70 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nonnull
     public String difficulty() {
         return difficulty == null ? "" : difficulty.trim();
+    }
+
+    /** Whether the file writes {@code Tier}, itself or through its {@code Parent}: it is one tier of a ladder. */
+    public boolean isTier() {
+        return tier != null;
+    }
+
+    /** {@code Tier.Rank}, at least 1; 1 for a dungeon that writes no {@code Tier}. */
+    public int tierRank() {
+        Integer v = tier == null ? null : tier.rank;
+        return v == null ? 1 : Math.max(1, v);
+    }
+
+    /**
+     * {@code Tier.Opens}, trimmed: the dungeon whose clear opens this tier; null when it names none, and then the tier
+     * is open to everyone.
+     */
+    @Nullable
+    public String tierOpens() {
+        return blankToNull(tier == null ? null : tier.opens);
+    }
+
+    /** {@code Omens.Count}: how many of the week's set a run draws, zero or more; zero unauthored. */
+    public int omenCount() {
+        Integer v = omens == null ? null : omens.count;
+        return v == null ? 0 : Math.max(0, v);
+    }
+
+    /**
+     * {@code Omens.Pool}: the omen ids the week's set is drawn from, trimmed, blanks and repeats dropped, in the order
+     * written; empty when the file names none, and then every loaded omen is in the pool.
+     */
+    @Nonnull
+    public List<String> omenPool() {
+        String[] raw = omens == null ? null : omens.pool;
+        if (raw == null || raw.length == 0) {
+            return List.of();
+        }
+        Set<String> out = new LinkedHashSet<>();
+        for (String omen : raw) {
+            String id = blankToNull(omen);
+            if (id != null) {
+                out.add(id);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** {@code Omens.PerWeek}: how many omens make the week's set; {@link #DEFAULT_OMENS_PER_WEEK} unauthored. */
+    public int omensPerWeek() {
+        Integer v = omens == null ? null : omens.perWeek;
+        return v == null ? DEFAULT_OMENS_PER_WEEK : Math.max(1, v);
+    }
+
+    /** {@code Seed.Daily}, unauthored false: every run that day shares one seed ({@link RunSeeds#daily}). */
+    public boolean seedDaily() {
+        return seed != null && Boolean.TRUE.equals(seed.daily);
+    }
+
+    /** The id this file names as its {@code Parent}, trimmed, or null when it names none or it cannot be read. */
+    @Nullable
+    public String parentId() {
+        Object key = data == null ? null : data.getParentKey();
+        return key == null ? null : blankToNull(key.toString());
     }
 
     /** {@code Text.NameKey}, trimmed, or null when the file names none. */
@@ -937,6 +1031,88 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .build();
 
         public Copy() {
+        }
+    }
+
+    // ==================== Tier ====================
+
+    /** Which tier of a dungeon this file is, and what opens it. */
+    public static final class Tier {
+
+        @Nullable protected Integer rank;
+        @Nullable protected String opens;
+
+        public static final BuilderCodec<Tier> CODEC = BuilderCodec.builder(Tier.class, Tier::new)
+                .appendInherited(new KeyedCodec<>("Rank", Codec.INTEGER, false),
+                        (o, v) -> o.rank = v, o -> o.rank, (o, p) -> o.rank = p.rank)
+                .metadata(EditorSchema.defaultValue(1L))
+                .documentation("Which tier this is, from 1, the gate listing tiers from the lowest. A party may pick "
+                        + "every tier up to the lowest rank any member standing with them has opened. Unauthored, or "
+                        + "less than 1, means 1.").add()
+                .appendInherited(new KeyedCodec<>("Opens", Codec.STRING, false),
+                        (o, v) -> o.opens = v, o -> o.opens, (o, p) -> o.opens = p.opens)
+                .metadata(EditorSchema.assetRef(DungeonAsset.class))
+                .documentation("The dungeon whose clear opens this tier, by its id (a file under "
+                        + "Server/ZiggfreedCommon/Dungeons/), as a rule the tier below. A player who has cleared it once "
+                        + "has this tier open for good, read from their Dungeon_Runs_Completed record. Unauthored, the "
+                        + "tier is open to everyone.").add()
+                .build();
+
+        public Tier() {
+        }
+    }
+
+    // ==================== Omens ====================
+
+    /** The omens a run meets. */
+    public static final class Omens {
+
+        @Nullable protected Integer count;
+        @Nullable protected String[] pool;
+        @Nullable protected Integer perWeek;
+
+        public static final BuilderCodec<Omens> CODEC = BuilderCodec.builder(Omens.class, Omens::new)
+                .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
+                        (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
+                .metadata(EditorSchema.defaultValue(0L))
+                .documentation("How many of the week's omens each run meets, drawn by the run's seed, so a higher tier "
+                        + "can meet more. Unauthored, or 0, means none.").add()
+                .appendInherited(new KeyedCodec<>("Pool", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.pool = v, o -> o.pool, (o, p) -> o.pool = p.pool)
+                .metadata(EditorSchema.assetRef(DungeonOmenAsset.class))
+                .documentation("The omens the week's set is drawn from, by id (files under "
+                        + "Server/ZiggfreedCommon/DungeonOmens/). Tiers sharing a pool share the week's set. This is ONE "
+                        + "leaf: authoring it replaces an inherited list whole. Unauthored, every loaded omen.").add()
+                .appendInherited(new KeyedCodec<>("PerWeek", Codec.INTEGER, false),
+                        (o, v) -> o.perWeek = v, o -> o.perWeek, (o, p) -> o.perWeek = p.perWeek)
+                .metadata(EditorSchema.defaultValue((long) DEFAULT_OMENS_PER_WEEK))
+                .documentation("How many omens make the week's set, drawn afresh every Monday at 00:00 UTC. Unauthored "
+                        + "means 4; a pool no bigger than this is the whole set every week.").add()
+                .build();
+
+        public Omens() {
+        }
+    }
+
+    // ==================== Seed ====================
+
+    /** Where a run's seed comes from. */
+    public static final class Seed {
+
+        @Nullable protected Boolean daily;
+
+        public static final BuilderCodec<Seed> CODEC = BuilderCodec.builder(Seed.class, Seed::new)
+                .appendInherited(new KeyedCodec<>("Daily", Codec.BOOLEAN, false),
+                        (o, v) -> o.daily = v, o -> o.daily, (o, p) -> o.daily = p.daily)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Whether every run that day shares one seed, made from the date and this file's id, so "
+                        + "every party gets the same rooms in the same order and the same omens, and a new layout "
+                        + "comes at midnight UTC. Write it on a child file of the normal dungeon (the daily), so its "
+                        + "runs, rewards and Records line are its own and its clear times rank on Records' Today tab. "
+                        + "Unauthored means false: every run takes a fresh random seed.").add()
+                .build();
+
+        public Seed() {
         }
     }
 

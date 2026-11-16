@@ -88,7 +88,8 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       checks are skipped; and the engine walk runs the room catalogue's own audit
  *       ({@code layout/RoomCatalogueAudit}) once over every plan an enabled dungeon names, then the room logic's
  *       ({@code room/RoomLogicAudit}: ERROR {@code LOGIC_WORLD_ABSOLUTE}, WARNING {@code LOGIC_WORLD_WIDE}) over every
- *       room such a plan may place, its findings filed under the same domain.</li>
+ *       room such a plan may place, its findings filed under the same domain;</li>
+ *   <li>the engine walk then runs the tiers and omens pass ({@link DungeonReplayAudit}, WARNINGs only).</li>
  * </ul>
  */
 public final class DungeonValidator {
@@ -198,6 +199,7 @@ public final class DungeonValidator {
                     TextKeyAudit.liveCatalogue(),
                     plan -> DungeonLayoutConfig.getInstance().plan(plan)));
             out.addAll(catalogueAudit(dungeons));
+            out.addAll(DungeonReplayAudit.audit());
             return out;
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the dungeon audit failed: " + t.getMessage(), t);

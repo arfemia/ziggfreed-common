@@ -21,6 +21,8 @@ since.days = {0, number} {0, plural, one {day} other {days}} ago
 
 # The period tabs (Server/ZiggfreedCommon/StatPeriods).
 period.all_time = All Time
+# Today's tab, the daily board: a daily dungeon's clear times rank here, and it starts empty at midnight.
+period.daily = Today
 period.weekly = This Week
 period.monthly = This Month
 # A season tab, one per run of a calendar event: {0} is the event's name, {1} the year the run

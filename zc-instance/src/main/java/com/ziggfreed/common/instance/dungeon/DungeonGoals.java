@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.instance.dungeon.omen.RunOmens;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.ui.toast.ToastDelivery;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -37,7 +38,8 @@ import com.ziggfreed.common.util.ZigScheduler;
  *       it under {@code FailOnWipe}.</li>
  * </ul>
  * An endless run ({@code Run.Endless}) says instead to last as long as they can, each wave cleared adding to their
- * chest, then how its run ends and that they keep their chest however it does.
+ * chest, then how its run ends and that they keep their chest however it does. Under the rules either way: that the
+ * run is the day's shared layout ({@code Seed.Daily}), and each omen the run drew, by name.
  * A dungeon with nothing to say (no goal line, nothing in {@code Complete}, no rule) shows nothing.
  *
  * <p>{@link DungeonRuns} queues it at the arrival, like a round moment, and it shows {@link #DELAY_MS} later, so
@@ -68,10 +70,16 @@ final class DungeonGoals {
      * @param failOnWipe     {@code Run.FailOnWipe}
      * @param endless        whether the run is an endless wave run ({@code Run.Endless}): its goal is to last, and
      *                       its end is how it pays
+     * @param omens          the omens the run drew, by id
+     * @param daily          whether the run is a daily ({@code Seed.Daily}), the same rooms for every party that day
      */
     record Goal(@Nonnull String dungeonId, @Nullable String nameKey, @Nullable String goalKey, int bosses,
                 boolean allBosses, boolean objective, long surviveSeconds, long limitSeconds, boolean failOnWipe,
-                boolean endless) {
+                boolean endless, @Nonnull List<String> omens, boolean daily) {
+
+        Goal {
+            omens = List.copyOf(omens);
+        }
     }
 
     private DungeonGoals() {
@@ -154,6 +162,7 @@ final class DungeonGoals {
                 rows.add(line("goal.endless_limit", duration(goal.limitSeconds())));
             }
             rows.add(line("goal.endless_end"));
+            replayRows(goal, rows);
             return rows;
         }
         if (goal.limitSeconds() > 0) {
@@ -162,7 +171,18 @@ final class DungeonGoals {
         if (goal.failOnWipe()) {
             rows.add(line("goal.wipe"));
         }
+        replayRows(goal, rows);
         return rows;
+    }
+
+    /** Under the rules: that the run is the day's shared layout, then each omen it drew by name. */
+    private static void replayRows(@Nonnull Goal goal, @Nonnull List<ToastLine> rows) {
+        if (goal.daily()) {
+            rows.add(line("goal.daily"));
+        }
+        for (String omen : goal.omens()) {
+            rows.add(line("goal.omen", RunOmens.name(omen)));
+        }
     }
 
     /**

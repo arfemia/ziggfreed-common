@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Sim
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.dungeon.tier.DungeonGate;
 import com.ziggfreed.common.interaction.type.InteractionCtx;
 import com.ziggfreed.common.interaction.type.InteractionOutcome;
 import com.ziggfreed.common.util.SafeLog;
@@ -43,8 +44,9 @@ import com.ziggfreed.common.util.SafeLog;
  * no player owns, and, silently, a player who is dead, still arriving from a teleport (so a walk-in trigger they
  * come back onto does not send them straight back in) or already being teleported, as the engine's own instance
  * teleporter declines them. A dungeon whose entry cost opens its confirm screen ({@link DungeonEntryPrompt}) takes
- * {@code Failed} too, with no line: the player has not gone yet, and the screen's button sends them. Deciding needs
- * the server, hence {@link WaitForDataFrom#Server}.
+ * {@code Failed} too, with no line: the player has not gone yet, and the screen's button sends them. So does a dungeon
+ * with tiers or a daily ({@code tier/DungeonGate}): its gate page opens, and the tier the party picks there sends them.
+ * Deciding needs the server, hence {@link WaitForDataFrom#Server}.
  *
  * <p>The teleport writes components, so the entry gets the chain's command buffer, never the store, which refuses
  * a write while the interaction system runs.
@@ -110,6 +112,11 @@ public final class ZigEnterDungeonInteraction extends SimpleInstantInteraction {
                 return false;
             }
             String id = dungeon == null ? "" : dungeon;
+            if (DungeonGate.offers(id)) {
+                // Tiers or a daily: the gate page asks which, and its pick sends them; nothing to say here.
+                DungeonGate.openSoon(owner, playerRef, world, id.trim());
+                return false;
+            }
             DungeonEntry.Outcome outcome = DungeonEntry.enterWithParty(owner, buffer, playerRef, world, id);
             if (outcome.result() == DungeonEntry.Result.SENT) {
                 return true;

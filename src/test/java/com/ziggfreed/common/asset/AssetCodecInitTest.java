@@ -54,6 +54,7 @@ import com.ziggfreed.common.instance.claims.RewardChestAsset;
 import com.ziggfreed.common.instance.reward.DropRarityAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
+import com.ziggfreed.common.instance.dungeon.omen.DungeonOmenAsset;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
@@ -438,6 +439,12 @@ class AssetCodecInitTest {
         assertNotNull(DungeonAsset.Run.CODEC, "the Run group codec must static-init");
         assertNotNull(DungeonAsset.Copy.CODEC, "the Copy group codec must static-init");
         assertNotNull(DungeonAsset.Text.CODEC, "the Text group codec must static-init");
+        assertNotNull(DungeonAsset.Tier.CODEC, "the Tier group codec must static-init");
+        assertNotNull(DungeonAsset.Omens.CODEC, "the Omens group codec must static-init");
+        assertNotNull(DungeonAsset.Seed.CODEC, "the Seed group codec must static-init");
+        assertNotNull(DungeonOmenAsset.CODEC, "DungeonOmenAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(DungeonOmenAsset.Effects.CODEC, "the Mobs and Players group codec must static-init");
+        assertNotNull(DungeonOmenAsset.Text.CODEC, "the omen's Text group codec must static-init");
     }
 
     @Test

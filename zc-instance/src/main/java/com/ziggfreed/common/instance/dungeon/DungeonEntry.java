@@ -25,6 +25,7 @@ import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
 import com.ziggfreed.common.instance.dungeon.gen.ZigDungeonWorldGenProvider;
 import com.ziggfreed.common.instance.dungeon.layout.Cell;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
+import com.ziggfreed.common.instance.dungeon.tier.DungeonTiers;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.instance.world.InstanceWorlds;
 import com.ziggfreed.common.party.Party;
@@ -42,6 +43,8 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>the dungeon is loaded and open (switched on, in season), its prefab is shipped (a generated dungeon's
  *       layout plan loaded instead), and its audit finds no ERROR ({@link DungeonValidator#entryErrors});</li>
  *   <li>the player is in no area and on the way into none;</li>
+ *   <li>on a player's way in, a tier ({@code Tier}) is open to their party: every member standing in their world has
+ *       cleared the tier it rests on ({@code tier/DungeonTiers}), else {@link Result#TIER_LOCKED};</li>
  *   <li>a player who would open an area for their party holds one of the cost's keys
  *       ({@link DungeonEntryCost#heldKey}), which pays it with nothing spent, or can pay the dungeon's
  *       {@code EntryCost} ({@link DungeonEntryCost#lacking}); one following into the area their party holds is not
@@ -112,12 +115,19 @@ public final class DungeonEntry {
          * enters ({@link Outcome#unpaid()} names the item they hold too few of, if any). Not a refusal: nothing to
          * tell the player.
          */
-        PROMPTED
+        PROMPTED,
+        /**
+         * The dungeon is a tier the player's party has not opened: some member standing with them has not cleared the
+         * tier it rests on ({@code tier/DungeonTiers}; {@link Outcome#prefab()} names the dungeon to clear next).
+         * Nothing was reserved or spent.
+         */
+        TIER_LOCKED
     }
 
     /**
      * An attempt's answer: what came of it, the dungeon and its prefab id when known (for
-     * {@link Result#MISSING_LAYOUT}, the layout plan's id), the area reserved when sent,
+     * {@link Result#MISSING_LAYOUT}, the layout plan's id; for {@link Result#TIER_LOCKED}, the dungeon the party must
+     * clear next), the area reserved when sent,
      * and for {@link Result#CANNOT_PAY} the item the player holds too few of, with the count the dungeon asks for.
      */
     public record Outcome(@Nonnull Result result, @Nullable DungeonAsset dungeon, @Nullable String prefab,
@@ -242,6 +252,14 @@ public final class DungeonEntry {
         }
         if (standing == AreaMembers.Standing.PRESENT) {
             return new Outcome(Result.INSIDE, dungeon, prefabId, null);
+        }
+        // A tier the party has not opened: every member standing here must have cleared the tier it rests on. The
+        // admin's way in (no charge) is never asked.
+        if (charge) {
+            String behind = DungeonTiers.lockedBehind(id, dungeon, ref, ref.getStore(), uuid);
+            if (behind != null) {
+                return new Outcome(Result.TIER_LOCKED, dungeon, behind, null);
+            }
         }
         // The cost, asked up front of a player who would open an area for their party, so one who cannot pay is
         // refused with nothing reserved; a key they hold pays it with nothing spent. With the dungeon's confirm

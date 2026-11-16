@@ -93,6 +93,14 @@ public final class PeriodWindows {
         return true;
     }
 
+    /** The day {@code now} falls in, in {@code zone}, as {@code 2026-11-15}. */
+    @Nonnull
+    public static String dayKey(@Nonnull Instant now, @Nonnull ZoneId zone) {
+        LocalDate date = now.atZone(zone).toLocalDate();
+        return String.format(Locale.ROOT, "%04d-%02d-%02d", date.getYear(), date.getMonthValue(),
+                date.getDayOfMonth());
+    }
+
     /** The week {@code now} falls in, in {@code zone}, as {@code 2026-W42}. */
     @Nonnull
     public static String weekKey(@Nonnull Instant now, @Nonnull ZoneId zone, @Nonnull DayOfWeek startsOn) {

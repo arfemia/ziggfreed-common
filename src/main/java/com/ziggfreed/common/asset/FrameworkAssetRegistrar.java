@@ -55,6 +55,8 @@ import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutConfig;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomAsset;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomConfig;
+import com.ziggfreed.common.instance.dungeon.omen.DungeonOmenAsset;
+import com.ziggfreed.common.instance.dungeon.omen.DungeonOmenConfig;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
@@ -587,6 +589,16 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, DungeonLayoutAsset.class,
                 (LoadedAssetsEvent<String, DungeonLayoutAsset, DefaultAssetMap<String, DungeonLayoutAsset>> ev) ->
                         DungeonLayoutConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Dungeon omens (Pattern A) - a run modifier per file: the game's own effects on a run's creatures or
+        //     players, and a switch a room's logic reads (ziggfreedcommon:dungeon_omen). A dungeon's Omens draws a
+        //     weekly set from them. The library ships none. No owner layer, no top-level Requires. ---
+        AssetStoreRegistrar.registerStore(DungeonOmenAsset.class,
+                new DefaultAssetMap<String, DungeonOmenAsset>(), DungeonOmenAsset.TYPE_ROOT,
+                DungeonOmenAsset::getId, DungeonOmenAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DungeonOmenAsset.class,
+                (LoadedAssetsEvent<String, DungeonOmenAsset, DefaultAssetMap<String, DungeonOmenAsset>> ev) ->
+                        DungeonOmenConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Reward chests (Pattern A) - what a chest a reward source stands is: its look, who opens it, what it
         //     holds of its own, how it shows it, its banner, its words and when it goes. The library ships

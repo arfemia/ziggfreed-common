@@ -39,6 +39,8 @@ import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
 import com.ziggfreed.common.instance.dungeon.gen.ZigDungeonWorldGenProvider;
 import com.ziggfreed.common.instance.dungeon.kit.ZigCheckpointEffect;
 import com.ziggfreed.common.instance.dungeon.kit.ZigRunMilestoneEffect;
+import com.ziggfreed.common.instance.dungeon.omen.OmenMobs;
+import com.ziggfreed.common.instance.dungeon.omen.RunOmens;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
 import com.ziggfreed.common.instance.leaderboard.command.ZigLeaderboardCommand;
@@ -221,9 +223,10 @@ public final class InstanceBootstrap {
      * placement naming either fails to load otherwise); the runs' ear for a boss defeat, which may clear the
      * run of each participant's area; the encounter module's run-tag seam, filled from the runs, so a fight
      * inside an area is filed under the area's run; and an endless run's two ties to its fight, the ear for a wave
-     * clear that banks it and the wave seam the fight reads its rules through; and a closing copy's eviction, which
-     * forgets its generated runs' room logic. Their store registers with the other framework stores.
-     * Registration only.
+     * clear that banks it and the wave seam the fight reads its rules through; a closing copy's eviction, which
+     * forgets its generated runs' room logic; and the omens' factor ({@code ziggfreedcommon:dungeon_omen}) with the
+     * system that puts a run's omens on each creature it raises. Their stores register with the other framework
+     * stores. Registration only.
      */
     public static void registerDungeons(@Nonnull JavaPlugin plugin) {
         try {
@@ -276,6 +279,12 @@ public final class InstanceBootstrap {
             EncounterSeams.fillWaveSource(DungeonRuns.shared()::rulesAt);
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the endless runs could not be wired, so an endless dungeon raises no wave", t);
+        }
+        try {
+            RunOmens.contribute();
+            plugin.getEntityStoreRegistry().registerSystem(new OmenMobs());
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the omens could not be wired, so no room reads an omen and no creature takes one", t);
         }
     }
 

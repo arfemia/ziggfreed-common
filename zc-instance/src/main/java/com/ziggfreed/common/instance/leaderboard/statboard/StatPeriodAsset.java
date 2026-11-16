@@ -24,13 +24,14 @@ import com.ziggfreed.common.asset.EditorSchema;
  *
  * <pre>{@code
  * {"Kind":"AllTime","NameKey":"ziggfreedcommon.statboard.period.all_time","Order":0}
+ * {"Kind":"Daily","NameKey":"ziggfreedcommon.statboard.period.daily","Zone":"UTC","Keep":2,"Order":5}
  * {"Kind":"Weekly","NameKey":"ziggfreedcommon.statboard.period.weekly","StartsOn":"Monday","Zone":"UTC","Keep":2,"Order":10}
  * {"Kind":"Monthly","NameKey":"ziggfreedcommon.statboard.period.monthly","Zone":"UTC","Keep":2,"Order":20}
  * {"Kind":"SeasonRun","Event":"*","NameKey":"ziggfreedcommon.statboard.period.season","Keep":2,"Order":30}
  * {"Kind":"Range","NameKey":"myserver.stats.period.launch","From":"2026-10-12T00:00","To":"2026-10-19T00:00","Order":40}
  * }</pre>
  *
- * <p>The library ships All_Time, Weekly, Monthly and Season. A server owner retunes one, or adds a range, in
+ * <p>The library ships All_Time, Daily, Weekly, Monthly and Season. A server owner retunes one, or adds a range, in
  * {@code mods/ziggfreedcommon/stats.json}: each top-level entry there is a period id and the leaves it
  * should read differently ({@link StatPeriodOwnerLayers}). A file that cannot run (an unknown kind, a zone
  * or a date that does not read) shows no tab and counts nothing, and says so once in the log.
@@ -71,6 +72,7 @@ public final class StatPeriodAsset implements JsonAssetWithMap<String, DefaultAs
                     (a, v) -> a.kind = v, a -> a.kind, (a, parent) -> a.kind = parent.kind)
             .metadata(EditorSchema.oneOfDocumented(
                     PeriodKind.ALL_TIME.authored(), "One window that never ends",
+                    PeriodKind.DAILY.authored(), "A calendar day, from midnight, in Zone",
                     PeriodKind.WEEKLY.authored(), "A calendar week, from StartsOn, in Zone",
                     PeriodKind.MONTHLY.authored(), "A calendar month, in Zone",
                     PeriodKind.SEASON_RUN.authored(), "One window per run of a calendar event (Event), readable "
@@ -98,12 +100,12 @@ public final class StatPeriodAsset implements JsonAssetWithMap<String, DefaultAs
             .appendInherited(new KeyedCodec<>("Zone", Codec.STRING, false),
                     (a, v) -> a.zone = v, a -> a.zone, (a, parent) -> a.zone = parent.zone)
             .metadata(EditorSchema.defaultValue("UTC"))
-            .documentation("The clock a week, a month or a range is read on, as a time-zone id such as UTC "
+            .documentation("The clock a day, a week, a month or a range is read on, as a time-zone id such as UTC "
                     + "or America/New_York. Unauthored means UTC.").add()
             .appendInherited(new KeyedCodec<>("Keep", Codec.INTEGER, false),
                     (a, v) -> a.keep = v, a -> a.keep, (a, parent) -> a.keep = parent.keep)
             .metadata(EditorSchema.defaultValue((long) DEFAULT_KEEP))
-            .documentation("How many windows of a Weekly or Monthly period the board keeps, the running one "
+            .documentation("How many windows of a Daily, Weekly or Monthly period the board keeps, the running one "
                     + "included, and how many runs of each event a SeasonRun keeps; older ones are dropped. "
                     + "Unauthored means 2, and less than 1 means 1.").add()
             .appendInherited(new KeyedCodec<>("From", Codec.STRING, false),
@@ -147,7 +149,7 @@ public final class StatPeriodAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable
     public String problem() {
         if (PeriodKind.fromAuthored(kind) == null) {
-            return "its Kind '" + kind + "' is none of AllTime, Weekly, Monthly, SeasonRun or Range";
+            return "its Kind '" + kind + "' is none of AllTime, Daily, Weekly, Monthly, SeasonRun or Range";
         }
         String followed = followedEvent();
         if (followed != null && !PeriodWindows.usableEvent(followed)) {

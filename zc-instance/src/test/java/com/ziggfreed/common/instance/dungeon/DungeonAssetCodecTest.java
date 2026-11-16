@@ -173,6 +173,45 @@ class DungeonAssetCodecTest {
                 "each key offers the Asset Editor's item picker");
     }
 
+    @Test
+    void tierOmensAndSeedReadAndATierInheritsTheTierBelow() throws IOException {
+        DungeonAsset bare = decode("Bare", "{}", null);
+        assertFalse(bare.isTier());
+        assertEquals(1, bare.tierRank(), "a dungeon with no Tier is rank 1");
+        assertNull(bare.tierOpens(), "and open to everyone");
+        assertEquals(0, bare.omenCount(), "no Omens meets none");
+        assertTrue(bare.omenPool().isEmpty());
+        assertEquals(DungeonAsset.DEFAULT_OMENS_PER_WEEK, bare.omensPerWeek());
+        assertFalse(bare.seedDaily(), "a run takes a random seed unless Seed.Daily says otherwise");
+
+        DungeonAsset first = decode("MyPack_Deep_T1", """
+                { "Tier": { "Rank": 1 }, "Omens": { "Count": 1, "Pool": [" Bolstering ", "", "Blight"], "PerWeek": 2 } }
+                """, null);
+        DungeonAsset second = decode("MyPack_Deep_T2", """
+                { "Tier": { "Rank": 2, "Opens": " MyPack_Deep_T1 " }, "Omens": { "Count": 2 } }
+                """, first);
+        assertTrue(second.isTier());
+        assertEquals(2, second.tierRank());
+        assertEquals("MyPack_Deep_T1", second.tierOpens(), "Opens reads trimmed");
+        assertEquals(2, second.omenCount(), "the restated leaf is the tier's own");
+        assertEquals(List.of("Bolstering", "Blight"), second.omenPool(), "the pool is inherited, blanks dropped");
+        assertEquals(2, second.omensPerWeek());
+
+        DungeonAsset daily = decode("MyPack_Deep_T2_Daily", "{ \"Seed\": { \"Daily\": true } }", second);
+        assertTrue(daily.seedDaily());
+        assertEquals(2, daily.tierRank(), "a daily of a tier stands at that tier's rank");
+        DungeonAsset whole = decode("MyPack_Deep_Daily", """
+                { "Tier": { "Rank": 2, "Opens": "MyPack_Deep_T1" }, "Omens": { "Count": 1 }, "Seed": { "Daily": true } }
+                """, null);
+        DungeonAsset again = decode("MyPack_Deep_Daily", DungeonAsset.CODEC.encode(whole, new ExtraInfo()).toJson(),
+                null);
+        assertTrue(again.seedDaily(), "the groups are written back and read the same");
+        assertEquals("MyPack_Deep_T1", again.tierOpens());
+        assertEquals(1, again.omenCount());
+        assertNotNull(DungeonAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Tier"),
+                "the schema the Asset Editor loads declares the group");
+    }
+
     private static void assertCrypt(@Nonnull DungeonAsset crypt) {
         assertEquals("MyPack_Crypt", crypt.getId());
         assertEquals("MyPack_Crypt", crypt.templateId());

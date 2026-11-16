@@ -87,6 +87,8 @@ entry.copy_gone = {0} closed just as you got there. Try again.
 entry.unavailable = {0} cannot be entered right now.
 entry.unavailable.unnamed = That dungeon cannot be entered right now.
 entry.cost = You need {1} x{2, number} to go into {0}.
+# A tier the party has not opened: {0} is the tier, {1} the dungeon every member standing with them must clear first.
+entry.tier_locked = {0} is not open to your party yet. Everyone with you needs to clear {1} first.
 # The title of the Claim that gives a dungeon's entry cost back when its area fails to open after the loading
 # screen began; {0} is the dungeon's name.
 entry.refund.title = Your entry cost for {0}
@@ -135,6 +137,28 @@ goal.time.minutes_seconds = {0, number} {0, plural, one {minute} other {minutes}
 goal.endless = Hold out as long as you can. Every wave you clear adds to your chest.
 goal.endless_limit = The run ends after {0}.
 goal.endless_end = The run ends when everyone is down at once, and you keep your chest. You can also leave between waves and take it with you.
+# Under the rules: goal.daily on a daily run, then goal.omen once for each omen the run drew, {0} its name.
+goal.daily = Today's daily: every party walks these same rooms.
+goal.omen = Omen: {0}
+
+# A tier's name wherever one is listed or named: {0} is the dungeon's name, {1} the tier's rank.
+tier.named = {0}: Tier {1, number}
+
+# A dungeon's gate, when it has tiers or a daily: the tiers the party may pick, the daily, then this week's omens.
+# gate.lead shows when the dungeon names no description of its own. In gate.tier.omens, {0} is how many of the
+# week's omens a run of that tier meets. In gate.next, {0} is the dungeon to clear and {1} the tier it opens.
+gate.lead = Pick how deep your party goes. You can pick any tier everyone with you has opened.
+gate.tiers = Tiers
+gate.daily = Today's daily
+gate.omens = This week's omens
+gate.tier.omens = Meets {0, number} of this week's omens
+gate.tier.no_omens = No omens
+gate.daily.meta = The same rooms and omens for every party today. A new layout comes at midnight UTC.
+gate.next = Clear {0} to open {1}.
+gate.none = No tier is open to your party here yet.
+
+# The omen reading's name on a requirement line (ziggfreedcommon:dungeon_omen).
+factor.dungeon_omen = an omen of this run
 
 # An endless run's waves. The toast after each cleared wave: {0} in endless.breather.title is the wave that fell, {0}
 # in endless.breather the next one to rise.

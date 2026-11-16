@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.entity.entities.player.pages.PageManager;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.dungeon.tier.DungeonGate;
+import com.ziggfreed.common.instance.dungeon.tier.DungeonGatePage;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.DestinationType;
@@ -31,7 +33,8 @@ import com.ziggfreed.common.util.SafeLog;
  * over no screen there and then and answers false, as the {@link Destinations} contract asks, and a conversation
  * carries on until the entry answers: a player sent in has any page they have open closed as the loading screen
  * takes them, a refused one hears why where they are looking, and for one asked to pay first the dungeon's confirm
- * screen ({@link DungeonEntryPrompt}) takes the conversation's place.
+ * screen ({@link DungeonEntryPrompt}) takes the conversation's place. A dungeon with tiers or a daily opens its gate
+ * page there instead ({@code tier/DungeonGate}), whose pick sends the party in.
  */
 public final class DungeonDestinations {
 
@@ -67,6 +70,11 @@ public final class DungeonDestinations {
             }
             PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
             if (playerRef == null) {
+                return;
+            }
+            if (DungeonGate.offers(dungeonId)) {
+                // Tiers or a daily: the gate page takes the conversation's place, and its pick sends them.
+                DungeonGatePage.open(ref, store, playerRef, dungeonId.trim());
                 return;
             }
             DungeonEntry.Outcome outcome = DungeonEntry.enterWithParty(ref, store, playerRef, world, dungeonId);

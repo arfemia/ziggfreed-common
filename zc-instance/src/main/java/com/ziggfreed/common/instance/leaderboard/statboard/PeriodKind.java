@@ -11,6 +11,8 @@ public enum PeriodKind {
 
     /** One window that never ends: the bucket {@code all_time}. */
     ALL_TIME("AllTime"),
+    /** A calendar day in {@code Zone}: {@code <id>@2026-11-15}. A daily dungeon's clear times rank here. */
+    DAILY("Daily"),
     /** A calendar week from {@code StartsOn}, in {@code Zone}: {@code <id>@2026-W42}. */
     WEEKLY("Weekly"),
     /** A calendar month in {@code Zone}: {@code <id>@2026-10}. */

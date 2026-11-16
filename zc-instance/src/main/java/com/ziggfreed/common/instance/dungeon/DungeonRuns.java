@@ -35,6 +35,7 @@ import com.ziggfreed.common.encounter.seam.RunTag;
 import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
+import com.ziggfreed.common.instance.dungeon.omen.RunOmens;
 import com.ziggfreed.common.instance.dungeon.room.RunLogic;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRoundStartedEvent;
@@ -111,6 +112,13 @@ import com.ziggfreed.common.util.SafeLog;
  * deaths, and its rooms, puzzles and secrets when it counted any, as they stood at the clear. The run's checkpoint
  * ({@link RunCheckpoints}) answers until its party leaves, and goes when its area frees; a generated run's room logic
  * ({@code room/RunLogic}) lasts as long and is removed then ({@link AreaMembers}).
+ *
+ * <p><b>Its seed and omens.</b> A run takes its seed at its start: a generated run's layout seed, else the one
+ * {@link RunSeeds} gives (the day's for a dungeon with {@code Seed.Daily}), and draws its omens from the week's set by
+ * it ({@code omen/RunOmens#draw}), kept on the run. An arrival's goal line names them; while any member stands in the
+ * area, its omens' player effects are renewed once a second on each of them, and taken off a member who leaves; its
+ * creatures' effects go on as each comes into being ({@code omen/OmenMobs}), and the omen factor reads them through
+ * {@link #omensAt}.
  *
  * <p><b>Threads and locks.</b> {@link AreaMembers} calls {@link #arrived}, {@link #left} and {@link #freed}
  * under its own lock and {@link #tick} after it, on its 1 Hz ticker thread; a boss defeat, the run-tag question
@@ -232,8 +240,17 @@ public final class DungeonRuns {
         final Map<String, Integer> milestones = new HashMap<>();
         /** Every milestone id and placement that has fired in the run, lower-cased, so each fires once. */
         final Set<String> reached = new HashSet<>();
+        /** The run's seed: a generated run's layout seed, else the one {@link RunSeeds} gave it at its start. */
+        final long seed;
+        /** Whether the seed is the dungeon's daily one ({@code Seed.Daily}). */
+        final boolean daily;
+        /** The omens the run drew at its start ({@link RunOmens#draw}), by id as their files name them. */
+        final List<String> omens;
+        /** Whether any of its omens holds effects on its players, renewed on the ticker. */
+        final boolean holdsPlayers;
 
-        Run(CopyKey area, World world, String dungeon, Knobs knobs, long startedAtMs) {
+        Run(CopyKey area, World world, String dungeon, Knobs knobs, long startedAtMs, long seed, boolean daily,
+                List<String> omens) {
             this.area = area;
             this.world = world;
             this.worldId = world.getWorldConfig().getUuid();
@@ -241,6 +258,10 @@ public final class DungeonRuns {
             this.knobs = knobs;
             this.startedAtMs = startedAtMs;
             this.layout = AreaLayout.ofCopy(world);
+            this.seed = seed;
+            this.daily = daily;
+            this.omens = List.copyOf(omens);
+            this.holdsPlayers = RunOmens.holdsPlayers(this.omens);
         }
 
         boolean objectiveOpen() {
@@ -256,7 +277,7 @@ public final class DungeonRuns {
         DungeonGoals.Goal goal() {
             return new DungeonGoals.Goal(dungeon, knobs.nameKey, knobs.goalKey, knobs.bosses.size(), knobs.allBosses,
                     knobs.objective != null, knobs.surviveMs / 1000L, knobs.limitMs / 1000L, knobs.failOnWipe,
-                    knobs.endless != null);
+                    knobs.endless != null, omens, daily);
         }
 
         /** Whether {@code at} in world {@code worldUuid} stands in this run's area. */
@@ -369,7 +390,9 @@ public final class DungeonRuns {
                         : "; it has no time limit")
                 + "; " + clearWords(run.knobs)
                 + (run.knobs.failOnWipe && run.knobs.endless == null ? "; a wipe fails it" : "")
-                + (run.knobs.lootable == null ? "" : "; a clear pays " + run.knobs.lootable);
+                + (run.knobs.lootable == null ? "" : "; a clear pays " + run.knobs.lootable)
+                + "; seed " + run.seed + (run.daily ? " (the day's)" : "")
+                + (run.omens.isEmpty() ? "" : "; omens " + run.omens);
     }
 
     /**
@@ -416,6 +439,11 @@ public final class DungeonRuns {
         Run run = runs.get(area);
         if (run != null) {
             run.members.leave(player);
+            if (run.holdsPlayers) {
+                // Its omens' effects come off as they go; each wears off on its own besides, never renewed again.
+                List<String> omens = run.omens;
+                outbox.add(new Fire(run.world, () -> RunOmens.takeOff(player, omens)));
+            }
             if (run.knobs.endless != null && !run.ended) {
                 Bank bank = run.banks.computeIfAbsent(player, k -> new Bank());
                 if (!bank.paid) {
@@ -470,6 +498,13 @@ public final class DungeonRuns {
             List<Run> wipeChecks = new ArrayList<>();
             synchronized (this) {
                 for (Run run : runs.values()) {
+                    if (run.holdsPlayers && run.members.anyPresent()) {
+                        // Held for as long as the party stands in the run, after a clear too (R1000).
+                        World world = run.world;
+                        List<UUID> present = run.members.present();
+                        List<String> omens = run.omens;
+                        outbox.add(new Fire(world, () -> RunOmens.holdOn(world, present, omens)));
+                    }
                     if (run.ended) {
                         continue;
                     }
@@ -860,13 +895,38 @@ public final class DungeonRuns {
         }
         CopyKey area = player == null ? null : AreaMembers.shared().presentArea(player);
         synchronized (this) {
-            Run run = player != null ? (area == null ? null : runs.get(area))
-                    : (at == null ? null : runAt(worldUuid, at));
-            if (run == null || !worldUuid.equals(run.worldId)) {
-                return null;
-            }
-            return new LiveRun(run.area, run.runId, run.dungeon, run.knobs.mode, run.members.present());
+            Run run = heldRun(player, area, worldUuid, at);
+            return run == null ? null
+                    : new LiveRun(run.area, run.runId, run.dungeon, run.knobs.mode, run.members.present());
         }
+    }
+
+    /**
+     * The omens of the run {@link #liveRun} would answer for the same question (by their ids, as their files name them),
+     * empty for a run that drew none; null when that question finds no run. The omen factor and the omens' creature
+     * effects read it ({@code omen/RunOmens}). AreaMembers is asked before this list's lock is taken.
+     */
+    @Nullable
+    public List<String> omensAt(@Nullable UUID player, @Nullable UUID worldUuid, @Nullable Vector3d at) {
+        if (worldUuid == null) {
+            return null;
+        }
+        CopyKey area = player == null ? null : AreaMembers.shared().presentArea(player);
+        synchronized (this) {
+            Run run = heldRun(player, area, worldUuid, at);
+            return run == null ? null : run.omens;
+        }
+    }
+
+    /**
+     * The run {@code player} stands in (their {@code area}), else with no player the run of the area holding {@code at};
+     * null when there is none or it belongs to another world than {@code worldUuid}. Under this list's lock.
+     */
+    @Nullable
+    private Run heldRun(@Nullable UUID player, @Nullable CopyKey area, @Nonnull UUID worldUuid,
+            @Nullable Vector3d at) {
+        Run run = player != null ? (area == null ? null : runs.get(area)) : (at == null ? null : runAt(worldUuid, at));
+        return run == null || !worldUuid.equals(run.worldId) ? null : run;
     }
 
     /**
@@ -929,7 +989,12 @@ public final class DungeonRuns {
             @Nullable DungeonAsset dungeon, long nowMs) {
         String preset = dungeon != null && dungeon.getId() != null && !dungeon.getId().isBlank()
                 ? dungeon.getId().trim() : dungeonId == null ? area.world() : dungeonId;
-        return new Run(area, world, preset, dungeon == null ? Knobs.BARE : knobsOf(dungeon), nowMs);
+        // A generated run's layout seed is the run's seed, so its omens follow its rooms (a daily's are the day's).
+        Long laidOut = GeneratedRuns.seedOf(world, area.area());
+        long seed = laidOut != null ? laidOut : RunSeeds.seedFor(dungeon, nowMs);
+        List<String> omens = dungeon == null ? List.of() : RunOmens.draw(dungeon, seed, nowMs);
+        return new Run(area, world, preset, dungeon == null ? Knobs.BARE : knobsOf(dungeon), nowMs, seed,
+                dungeon != null && dungeon.seedDaily(), omens);
     }
 
     /**

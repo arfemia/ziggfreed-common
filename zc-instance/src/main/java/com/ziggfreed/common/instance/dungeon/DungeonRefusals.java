@@ -94,7 +94,29 @@ public final class DungeonRefusals {
             case COPY_GONE -> named("entry.copy_gone", dungeon);
             case NO_PREFAB, MISSING_PREFAB, MISSING_LAYOUT, AUDIT_ERROR, FAILED -> named("entry.unavailable", dungeon);
             case CANNOT_PAY -> cannotPay(dungeon, outcome.unpaid());
+            case TIER_LOCKED -> tierLocked(dungeon, outcome.prefab());
         };
+    }
+
+    /** The tier the party has not opened, and the dungeon every member standing with them must clear first. */
+    @Nonnull
+    private static Message tierLocked(@Nullable DungeonAsset dungeon, @Nullable String behind) {
+        if (dungeon == null || behind == null) {
+            return key("entry.unavailable.unnamed");
+        }
+        DungeonAsset first = DungeonConfig.getInstance().resolve(behind);
+        return key("entry.tier_locked", tierName(dungeon),
+                first == null ? Msg.raw(behind) : tierName(first));
+    }
+
+    /**
+     * A dungeon's name with its tier when it is one ({@code Tier}): the name, then the rank; its name alone otherwise.
+     * The one helper the gate and every refusal name a tier through.
+     */
+    @Nonnull
+    public static Message tierName(@Nonnull DungeonAsset dungeon) {
+        Message name = dungeonName(dungeon);
+        return dungeon.isTier() ? key("tier.named", name, dungeon.tierRank()) : name;
     }
 
     /** The item the player holds too few of, by its own name, and how many the dungeon asks for. */

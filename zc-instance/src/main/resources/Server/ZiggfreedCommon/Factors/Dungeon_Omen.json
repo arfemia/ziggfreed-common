@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:dungeon_omen reading for requirement lines. Param is an omen id (a file under Server/ZiggfreedCommon/DungeonOmens/); the reading is 1 when the dungeon run the subject stands in drew that omen, 0 when it did not, and nothing outside a run. A room's ZigRequires gates on it with Min 1, so a door opens or a wave rises only under that omen.",
+  "Factor": "ziggfreedcommon:dungeon_omen",
+  "Text": { "TitleKey": "ziggfreedcommon.dungeon.factor.dungeon_omen" }
+}
