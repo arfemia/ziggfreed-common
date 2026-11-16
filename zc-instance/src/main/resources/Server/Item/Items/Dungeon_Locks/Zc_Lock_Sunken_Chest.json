@@ -1,0 +1,45 @@
+{
+  "$Comment": "A dungeon skill lock, the sunken chest (Fishing's): the game's small ancient chest (Furniture_Ancient_Chest_Small's model and texture) with no container in it, to sit in water. Using it does nothing on its own, so the use reaches the room's trigger volume, whose ZigRequires opens it for a player with the skill and whose RejectionEffects tell anyone else what opens it (the SkillLock room template, tools/rooms); what it pays is the room's own reward, never this block. It has no Gathering, so no survival player, creature or explosion can break it and it drops nothing; it has no recipe and no category and is a Variant, so the creative library hides it. It needs no support.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.dungeon.lock.sunken_chest.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Furniture_Ancient_Chest_Small.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Block",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Decorative_Sets/Ancient/Chest_Small.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Decorative_Sets/Ancient/Chest_Small_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "HitboxType": "Chest_Small",
+    "VariantRotation": "NESW",
+    "Flags": {},
+    "BlockParticleSetId": "Wood",
+    "BlockSoundSetId": "Wood",
+    "PhysicalMaterialId": "Wood",
+    "ParticleColor": "#4e462c",
+    "TextureComputedColor": "#30291D",
+    "InteractionHint": "server.interactionHints.examine",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "Simple"
+          }
+        ]
+      }
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Dungeon_Lock"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}

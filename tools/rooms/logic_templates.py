@@ -973,13 +973,20 @@ def skill_lock(params, ctx):
     it is told what opens it.
 
     params: Lock {Min, Max}, or a list of them (the lock's cells, fitted round a doorway's shape; the template
-    places them; a usable block), Lock_Slot (palette slot; default Lock), Opened (the slot the cells become; default
+    places them; a usable block); an entry {Door: n} fills that door's whole opening instead, as the builder measured
+    it (a vanilla doorway is rarely a box), so the lock is the room's own way in; Lock_Slot (palette slot; default
+    Lock, a block whose Use does nothing, such as CommonLib's Zc_Lock_* blocks), Opened (the slot the cells become; default
     air), Factor (default hytale:stat), Param (the stat a skill's level reads as, upper case after its prefix, such as
     MMO_Level_MINING), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
     opens it, required), Milestone (default Secret_Found), Signal, OpenSound, OpenVfx.
     Opening swaps each Lock piece on its own, so a block of the lock's kind the room already has beside the lock
     stays put."""
-    pieces = [region(piece) for piece in (params["Lock"] if isinstance(params["Lock"], list) else [params["Lock"]])]
+    pieces = []
+    for piece in params["Lock"] if isinstance(params["Lock"], list) else [params["Lock"]]:
+        if "Door" in piece:
+            pieces.extend(column_runs(ctx["doors"][int(piece["Door"])]["Opening"]))
+        else:
+            pieces.append(region(piece))
     cells = sorted({c for piece in pieces for c in box_cells(*piece)})
     lo = tuple(min(c[i] for c in cells) for i in range(3))
     hi = tuple(max(c[i] for c in cells) for i in range(3))
@@ -1006,6 +1013,24 @@ def skill_lock(params, ctx):
     out = Logic(blocks={c: slot for c in cells})
     out.entities.append(volume_entity(ctx["name"] + "Skill_Lock", lo, box_size(lo, hi), effects, conditions,
                                       {"State": "Locked"}, rejections=[message("BLOCK_USED", params["HintKey"])]))
+    return out
+
+
+def column_runs(cells):
+    """`cells` as boxes (lo, hi), each one column's unbroken run of cells, so an odd shape swaps run by run."""
+    by_column = {}
+    for c in cells:
+        by_column.setdefault((c[0], c[2]), []).append(c[1])
+    out = []
+    for (x, z), ys in sorted(by_column.items()):
+        ys = sorted(ys)
+        start = prev = ys[0]
+        for y in ys[1:] + [None]:
+            if y is None or y != prev + 1:
+                out.append(((x, start, z), (x, prev, z)))
+                start = y
+            if y is not None:
+                prev = y
     return out
 
 

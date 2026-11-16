@@ -12,7 +12,7 @@
   enum values the engine's own codecs read (the release source's builtin TriggerVolumes plugin, read once), and
   CommonLib's own Types the keys their sources declare; a missing source skips the check with the reason.
 - The overlay placer never puts a block on a cell the base fills, and never lets a volume write one there; a door
-  a spec seals is written ExitOnly.
+  a spec seals is written ExitOnly; a door cut into a sealed base writes air only over its declared opening.
 - A rune order puts a wrong rune out at every step, the first included; a room hint is said once per player.
 """
 import filecmp
@@ -355,6 +355,25 @@ class OverlayPlacer(unittest.TestCase):
                 with self.assertRaises(build_room.BuildError):
                     self.build(spec)
 
+    def test_a_cut_door_carves_air_only_in_its_declared_opening(self):
+        south = {"At": {"X": 0, "Y": 0, "Z": 0}, "Facing": "South", "Kind": "Test"}
+        east = {"At": {"X": 3, "Y": 0, "Z": -3}, "Facing": "East", "Kind": "Test", "Width": 1, "Height": 2, "Cut": True}
+        rb = self.build(overlay_spec(Doors=[south, east]))
+        self.assertEqual(rb.problems, [])
+        self.assertEqual(sorted(rb.cuts), [(3, 1, -3), (3, 2, -3)], "the cut is the declared opening and no more")
+        self.assertTrue(all(self.base.solid_at(c) for c in rb.cuts), "the cut opens the base's own wall")
+        free = build_room.BaseGround(self.base).free_cells
+        self.assertEqual(sorted(c for c in rb.slots if c not in free and c not in rb.cuts), [],
+                         "every other overlay block still stands on a free cell")
+        listed = {(b["x"], b["y"], b["z"]): b["name"] for b in rb.prefab()["blocks"]}
+        self.assertEqual([listed[c] for c in sorted(rb.cuts)], [pio.EMPTY_BLOCK] * 2,
+                         "the overlay lists the cut as air, which the painter writes over the base")
+        cut = [d for d in rb.room()["Doors"] if d["Facing"] == "East"]
+        self.assertEqual(len(cut), 1, "the cut door is one of the room's doors")
+        self.assertNotIn("ExitOnly", cut[0], "a cut door is a way in")
+        with self.assertRaises(build_room.BuildError):
+            self.build(overlay_spec(Doors=[south, dict(east, Closed="Bars")]))
+
     def test_a_volume_writing_into_a_filled_cell_is_a_problem(self):
         spec = overlay_spec(Logic=[{"Template": "MemoryClue", "Canvas": {"X": 1, "Y": 2, "Z": -3},
                                     "Variants": [[[0, 0]]]}])
@@ -393,6 +412,18 @@ class PuzzleLogic(unittest.TestCase):
                                    if c.get("Entry", 0) == entry and c.get("TagKey") == "Step"])
             puts_out = [e for e in controller["Effects"] if e.get("Entry", 0) == entry and e["Type"] == "ReplaceBlockType"]
             self.assertEqual(len(puts_out), 3, "a wrong rune at step %d puts every rune out" % k)
+
+    def test_a_door_lock_fills_exactly_its_doorway(self):
+        ctx = self.ctx()
+        opening = [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 1, 0), (1, 2, 0), (-1, 2, 0)]
+        ctx["doors"] = [{"Opening": opening}]
+        made = lt.skill_lock({"Lock": {"Door": 0}, "Param": "MMO_Level_MINING", "Min": 10,
+                              "HintKey": "server.test.lock"}, ctx)
+        self.assertEqual(sorted(made.blocks), sorted(opening), "the lock stands in every doorway cell, no other")
+        tv = made.entities[0]["Components"]["TriggerVolume"]
+        swapped = sorted((e["Offset"]["X"], e["Offset"]["Y"], e["Y"]) for e in tv["Effects"]
+                         if e["Type"] == "ReplaceBlockType")
+        self.assertEqual(len(swapped), 3, "opening it swaps the doorway column by column")
 
     def test_a_room_hint_is_said_once_per_player(self):
         made = lt.room_hint({"HintKey": "server.test.hint"}, self.ctx())

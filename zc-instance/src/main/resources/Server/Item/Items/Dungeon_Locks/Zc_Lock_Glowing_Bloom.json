@@ -1,0 +1,59 @@
+{
+  "$Comment": "A dungeon skill lock, the glowing bloom (Harvesting's): the game's azure fern (Plant_Flower_Orchid_Cyan's model, texture, mana particles and glow), made solid so a bank of blooms closes a nook. Using it does nothing on its own, so the use reaches the room's trigger volume, whose ZigRequires opens it for a player with the skill and whose RejectionEffects tell anyone else what opens it (the SkillLock room template, tools/rooms). It has no Gathering, so no survival player, creature or explosion can break or pick it and it drops nothing; it has no recipe and no category and is a Variant, so the creative library hides it. It needs no soil under it.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.dungeon.lock.glowing_bloom.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Plant_Flower_Orchid_Cyan.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Block",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Foliage/Flowers/Mana_T1_Azure_Fern/Azure_Fern.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Foliage/Flowers/Mana_T1_Azure_Fern/Azure_Fern_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "CustomModelScale": 1.2,
+    "HitboxType": "Plant_Large",
+    "Flags": {},
+    "BlockParticleSetId": "Grass",
+    "BlockSoundSetId": "Plant",
+    "PhysicalMaterialId": "Foliage",
+    "Particles": [
+      {
+        "SystemId": "Plant_Mana_Tier1",
+        "Color": "#9300ff",
+        "PositionOffset": {
+          "X": -0.1,
+          "Z": 0.4
+        },
+        "Scale": 0.8
+      }
+    ],
+    "Light": {
+      "Color": "#9bb"
+    },
+    "ParticleColor": "#449be6",
+    "TextureComputedColor": "#184E7C",
+    "InteractionHint": "server.interactionHints.examine",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "Simple"
+          }
+        ]
+      }
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Dungeon_Lock"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}
