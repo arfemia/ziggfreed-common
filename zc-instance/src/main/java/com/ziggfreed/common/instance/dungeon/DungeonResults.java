@@ -109,11 +109,20 @@ public final class DungeonResults {
      * @param chestFight     with {@code Rewards.InChest}, the boss fight whose fall cleared the run, whose chest takes
      *                       each member's Claim it holds a share for; null for the results screen alone
      * @param chestKey       its {@code Text.ChestKey}, or null for the library's line
+     * @param deaths         how many times a member died in the area during the run
+     * @param milestones     how many times each milestone fired in the run ({@link DungeonMilestoneEvent}), by its id
+     *                       lower-cased
      */
     record Clear(@Nonnull String dungeonId, @Nonnull String runId, @Nonnull String difficulty,
                  @Nullable String nameKey, @Nullable String lootable, @Nullable DiminishSpec diminish, long seconds,
                  @Nonnull List<UUID> winners, @Nonnull Map<UUID, Long> damage, int bossesDefeated,
-                 @Nullable String chestFight, @Nullable String chestKey) {
+                 @Nullable String chestFight, @Nullable String chestKey, int deaths,
+                 @Nonnull Map<String, Integer> milestones) {
+
+        /** How many times milestone {@code id} fired in the run, matched without regard to case. */
+        int reached(@Nonnull String id) {
+            return milestones.getOrDefault(id.trim().toLowerCase(Locale.ROOT), 0);
+        }
     }
 
     /**
@@ -276,14 +285,16 @@ public final class DungeonResults {
 
     /**
      * What {@code viewer}'s results screen shows: the run cleared, its length, every member by the damage they dealt
-     * its bosses (the most marked when more than one dealt any), the viewer's own damage, the boss fights the party
-     * won, and the viewer's Claim as chips. No leaderboard link: Records keeps a dungeon's counts.
+     * its bosses (the most marked when more than one dealt any), the viewer's own damage, the party's run lines (the
+     * boss fights it won, the rooms it cleared, the puzzles it solved and the secrets it found when the run counted
+     * any, and its deaths), and the viewer's Claim as chips. No leaderboard link: Records keeps a dungeon's counts.
      */
     @Nonnull
     static MatchResult result(@Nonnull Clear clear, @Nonnull UUID viewer, @Nullable Claim written) {
         List<UUID> members = new ArrayList<>(clear.winners());
         members.sort(Comparator.comparingLong((UUID member) -> clear.damage().getOrDefault(member, 0L)).reversed());
         UUID top = members.size() > 1 && clear.damage().getOrDefault(members.get(0), 0L) > 0 ? members.get(0) : null;
+        List<ScoreColumn> runLines = runLines(clear);
         long total = 0;
         List<PlayerResultRow> rows = new ArrayList<>();
         for (UUID member : members) {
@@ -292,9 +303,7 @@ public final class DungeonResults {
             boolean isViewer = member.equals(viewer);
             List<ScoreColumn> columns = isViewer
                     ? List.of(ScoreColumn.of(DungeonResultsMessages.LIBRARY.damageLabel(), dealt)) : List.of();
-            List<ScoreColumn> party = isViewer
-                    ? List.of(ScoreColumn.of(DungeonResultsMessages.LIBRARY.bossesLabel(), clear.bossesDefeated()))
-                    : List.of();
+            List<ScoreColumn> party = isViewer ? runLines : List.of();
             rows.add(new PlayerResultRow(member, dealt, columns, party, isViewer, member.equals(top)));
         }
         List<RewardChip> chips = new ArrayList<>();
@@ -305,6 +314,32 @@ public final class DungeonResults {
         }
         return new MatchResult(ResultKind.WIN, (int) Math.min(Integer.MAX_VALUE, clear.seconds()),
                 List.of(TeamResult.single(total, rows)), 0, chips, null);
+    }
+
+    /**
+     * The party's run lines under the run's length: the boss fights it won; the rooms it cleared, the puzzles it
+     * solved and the secrets it found, each only when the run counted one (a dungeon without those rooms shows no
+     * empty line); and its deaths, always.
+     */
+    @Nonnull
+    private static List<ScoreColumn> runLines(@Nonnull Clear clear) {
+        DungeonResultsMessages words = DungeonResultsMessages.LIBRARY;
+        List<ScoreColumn> lines = new ArrayList<>(5);
+        lines.add(ScoreColumn.of(words.bossesLabel(), clear.bossesDefeated()));
+        int rooms = clear.reached(DungeonMilestoneEvent.ROOM_CLEARED);
+        if (rooms > 0) {
+            lines.add(ScoreColumn.of(words.roomsLabel(), rooms));
+        }
+        int puzzles = clear.reached(DungeonMilestoneEvent.PUZZLE_SOLVED);
+        if (puzzles > 0) {
+            lines.add(ScoreColumn.of(words.puzzlesLabel(), puzzles));
+        }
+        int secrets = clear.reached(DungeonMilestoneEvent.SECRET_FOUND);
+        if (secrets > 0) {
+            lines.add(ScoreColumn.of(words.secretsLabel(), secrets));
+        }
+        lines.add(ScoreColumn.of(words.deathsLabel(), clear.deaths()));
+        return List.copyOf(lines);
     }
 
     // ==================== an endless run ====================

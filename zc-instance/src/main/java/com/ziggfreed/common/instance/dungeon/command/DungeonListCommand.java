@@ -14,7 +14,8 @@ import com.ziggfreed.common.instance.dungeon.DungeonConfig;
 
 /**
  * {@code list}: every loaded dungeon, four lines each: its name, whether it is open, its difficulty and
- * season; its template and prefab; how its copies are shared; and its entry, run and close knobs, each as
+ * season; its template and prefab (a generated dungeon's layout plan); how its copies are shared; and its entry,
+ * run and close knobs, each as
  * the effective value (a default where the files say nothing).
  */
 final class DungeonListCommand extends AbstractAsyncCommand {
@@ -50,8 +51,13 @@ final class DungeonListCommand extends AbstractAsyncCommand {
                         : Msg.raw(dungeon.difficulty()),
                 season == null ? DungeonCommandMessages.word("season.all_year") : Msg.raw(season));
         String prefab = dungeon.prefabPath();
-        DungeonCommandMessages.detail(ctx, "list.place", dungeon.templateId(),
-                prefab == null ? DungeonCommandMessages.word("prefab.none") : Msg.raw(prefab));
+        String layout = dungeon.layoutId();
+        if (layout != null) {
+            DungeonCommandMessages.detail(ctx, "list.place.layout", dungeon.templateId(), Msg.raw(layout));
+        } else {
+            DungeonCommandMessages.detail(ctx, "list.place", dungeon.templateId(),
+                    prefab == null ? DungeonCommandMessages.word("prefab.none") : Msg.raw(prefab));
+        }
         DungeonCommandMessages.detail(ctx, "list.share", dungeon.areasPerCopy(), dungeon.spacing(),
                 dungeon.maxPlayers(),
                 DungeonCommandMessages.word(dungeon.partyLocked() ? "share.locked" : "share.open"));

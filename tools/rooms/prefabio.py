@@ -132,6 +132,64 @@ class Prefab:
         return n is not None and n != EMPTY_BLOCK
 
 
+BLOCKING_PREFIXES = ("Rock_", "Soil_", "Wood_", "Ore_")
+OPENING_REACH = 16
+
+
+def lateral_axis(facing):
+    """The axis (0 for X, 2 for Z) a doorway facing `facing` runs across."""
+    return 0 if facing in ("North", "South") else 2
+
+
+def doorway_cells(variant, at, facing):
+    """The open cells of a doorway in its face plane (the plane through At, across the facing), flooded from the cell
+    over At, as ({(sideways step, rise above At)}, whether the flood reached OPENING_REACH). Sideways steps run along
+    the facing's lateral axis. A cell is open when the variant lists it as Empty or as a block that is not rock, soil,
+    wood or ore (a door, bars, a rug, rubble); an unlisted cell is the rock vanilla digs the piece into (Fill at paint
+    time), so it closes the opening. None when the cell over At is closed."""
+    lateral = lateral_axis(facing)
+
+    def is_open(w, dy):
+        c = list(at)
+        c[lateral] += w
+        c[1] += dy
+        b = variant.blocks.get(tuple(c))
+        if b is None:
+            return False
+        name = b.get("name") or ""
+        return name == EMPTY_BLOCK or not name.startswith(BLOCKING_PREFIXES)
+
+    if not is_open(0, 1):
+        return None
+    seen = {(0, 1)}
+    todo = [(0, 1)]
+    reached = False
+    while todo:
+        w, dy = todo.pop()
+        for nw, ndy in ((w + 1, dy), (w - 1, dy), (w, dy + 1), (w, dy - 1)):
+            if (nw, ndy) in seen or ndy < 1:
+                continue
+            if abs(nw) > OPENING_REACH or ndy > OPENING_REACH:
+                reached = True
+                continue
+            if is_open(nw, ndy):
+                seen.add((nw, ndy))
+                todo.append((nw, ndy))
+    return seen, reached
+
+
+def doorway_world_cells(at, facing, steps):
+    """The anchor-relative cells of doorway steps ((sideways step, rise) pairs from doorway_cells)."""
+    lateral = lateral_axis(facing)
+    out = []
+    for w, dy in sorted(steps):
+        c = list(at)
+        c[lateral] += w
+        c[1] += dy
+        out.append(tuple(c))
+    return out
+
+
 def load_json(path):
     with open(path, "r", encoding="utf-8-sig") as f:
         return json.load(f)

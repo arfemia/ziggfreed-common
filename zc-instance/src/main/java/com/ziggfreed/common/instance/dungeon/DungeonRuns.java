@@ -100,6 +100,12 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link #runOf} through its run-tag seam at the defeat, which files the fight's records under
  * {@code dungeon:<id>} and lets a payout name the run.
  *
+ * <p><b>The room kit.</b> A trigger volume's {@code ZigCheckpoint} and {@code ZigRunMilestone} effects
+ * ({@code dungeon/kit/}) find the run they act for through {@link #liveRun}. A milestone counts once per run for each
+ * id and placement ({@link #milestone}) and raises {@link DungeonMilestoneEvent}; a member's death counts through
+ * {@link #died} ({@link RunDeaths}). A clear's results screen lists the run's deaths, and its rooms, puzzles and
+ * secrets when it counted any. The run's checkpoint ({@link RunCheckpoints}) goes however the run ends.
+ *
  * <p><b>Threads and locks.</b> {@link AreaMembers} calls {@link #arrived}, {@link #left} and {@link #freed}
  * under its own lock and {@link #tick} after it, on its 1 Hz ticker thread; a boss defeat, the run-tag question
  * and an objective's moment arrive on the copy's world thread. This list's lock is a leaf: nothing is called
@@ -214,6 +220,12 @@ public final class DungeonRuns {
         final Map<UUID, Bank> banks = new LinkedHashMap<>();
         /** How many waves an endless run has cleared. */
         int reach;
+        /** How many times a member died in the area during the run. */
+        int deaths;
+        /** How many times each milestone fired in the run, by its id lower-cased. */
+        final Map<String, Integer> milestones = new HashMap<>();
+        /** Every milestone id and placement that has fired in the run, lower-cased, so each fires once. */
+        final Set<String> reached = new HashSet<>();
 
         Run(CopyKey area, World world, String dungeon, Knobs knobs, long startedAtMs) {
             this.area = area;
@@ -249,6 +261,19 @@ public final class DungeonRuns {
 
     /** What is waiting to be posted to a copy's world thread: a round moment, a clear's payout, a failure's line. */
     private record Fire(@Nonnull World world, @Nonnull Runnable task) {
+    }
+
+    /**
+     * A run still going, as the room kit's trigger-volume effects see it ({@code dungeon/kit/}): its area, which run it
+     * is, its dungeon and {@code Difficulty} label (empty for normal), and every member in the area when it was asked,
+     * in the order they came in. A snapshot: the run may end, and members come and go, after it is taken.
+     */
+    public record LiveRun(@Nonnull CopyKey area, @Nonnull UUID runId, @Nonnull String dungeonId,
+                          @Nonnull String difficulty, @Nonnull List<UUID> members) {
+
+        public LiveRun {
+            members = List.copyOf(members);
+        }
     }
 
     /** Every run by its area. Guarded by {@code this}. */
@@ -781,6 +806,76 @@ public final class DungeonRuns {
         drain();
     }
 
+    // ==================== the room kit and deaths (the copy's world thread) ====================
+
+    /**
+     * The run a trigger volume of the room kit acts for: with {@code player} (the one who stepped in), the run of the
+     * area they stand in; with none (a signal, a mob), the run of the area holding the spot {@code at}. Null when that
+     * run is over, belongs to a world other than {@code worldUuid}, or there is none, as for a player in no area (an
+     * admin who came in on their own). AreaMembers is asked before this list's lock is taken.
+     */
+    @Nullable
+    public LiveRun liveRun(@Nullable UUID player, @Nullable UUID worldUuid, @Nullable Vector3d at) {
+        if (worldUuid == null) {
+            return null;
+        }
+        CopyKey area = player == null ? null : AreaMembers.shared().presentArea(player);
+        synchronized (this) {
+            Run run = player != null ? (area == null ? null : runs.get(area))
+                    : (at == null ? null : runAt(worldUuid, at));
+            if (run == null || run.ended || !worldUuid.equals(run.worldId)) {
+                return null;
+            }
+            return new LiveRun(run.area, run.runId, run.dungeon, run.knobs.mode, run.members.present());
+        }
+    }
+
+    /**
+     * {@code run} reached milestone {@code milestoneId} (matched without regard to case) at {@code placement}, stepped
+     * in by {@code player} (null for a volume that fired with no player): counted once per run for each id and
+     * placement, it raises {@link DungeonMilestoneEvent} on this thread once this list's lock is let go. True when it
+     * counted now; false for one the run already counted, a blank id, or a run that is over or no longer its area's.
+     */
+    public boolean milestone(@Nonnull LiveRun run, @Nonnull String milestoneId, @Nonnull String placement,
+            @Nullable UUID player) {
+        String id = milestoneId.trim();
+        if (id.isEmpty()) {
+            return false;
+        }
+        String folded = id.toLowerCase(Locale.ROOT);
+        DungeonMilestoneEvent event;
+        synchronized (this) {
+            Run live = runs.get(run.area());
+            if (live == null || live.ended || !live.runId.equals(run.runId())
+                    || !live.reached.add(folded + '\n' + placement.trim().toLowerCase(Locale.ROOT))) {
+                return false;
+            }
+            live.milestones.merge(folded, 1, Integer::sum);
+            event = new DungeonMilestoneEvent(live.dungeon, live.knobs.mode, live.runId.toString(), id, player,
+                    live.members.present());
+        }
+        DungeonMilestoneEvent.fire(event);
+        SafeLog.fine(LOG + "the run " + run.runId() + " reached " + id + " at " + placement);
+        return true;
+    }
+
+    /**
+     * {@code player} died: one more death for the run of the area they stand in, while it is going, which its results
+     * screen counts. From the death system ({@link RunDeaths}); AreaMembers is asked before this list's lock is taken.
+     */
+    void died(@Nonnull UUID player) {
+        CopyKey area = AreaMembers.shared().presentArea(player);
+        if (area == null) {
+            return;
+        }
+        synchronized (this) {
+            Run run = runs.get(area);
+            if (run != null && !run.ended) {
+                run.deaths++;
+            }
+        }
+    }
+
     // ==================== internals ====================
 
     /** A new run of {@code area}, its knobs read off the dungeon now; a dungeon no longer loaded runs bare. */
@@ -886,6 +981,8 @@ public final class DungeonRuns {
      * still in the area why. {@code why} names what cleared it, for the log.
      */
     private void end(@Nonnull Run run, @Nonnull Ending ending, long nowMs, @Nullable String why) {
+        // However it ends, its checkpoint is let go; one it still holds answers nothing once the run is over.
+        RunCheckpoints.shared().clear(run.area, run.runId);
         if (run.knobs.endless != null) {
             endEndless(run, ending, nowMs);
             return;
@@ -907,7 +1004,8 @@ public final class DungeonRuns {
             }
             DungeonResults.Clear clear = new DungeonResults.Clear(run.dungeon, run.runId.toString(), run.knobs.mode,
                     run.knobs.nameKey, run.knobs.lootable, run.knobs.diminish, seconds, winners, Map.copyOf(dealt),
-                    run.bossesDefeated, run.knobs.inChest ? run.clearedBy : null, run.knobs.chestKey);
+                    run.bossesDefeated, run.knobs.inChest ? run.clearedBy : null, run.knobs.chestKey, run.deaths,
+                    Map.copyOf(run.milestones));
             outbox.add(new Fire(run.world, () -> DungeonResults.cleared(clear)));
         } else if (ending.lineKey != null && run.members.anyPresent()) {
             DungeonResults.Failure failure = new DungeonResults.Failure(run.dungeon, run.knobs.nameKey,
@@ -920,10 +1018,11 @@ public final class DungeonRuns {
     }
 
     /**
-     * End endless {@code run} (under this list's lock): however it ends (every member down at once, its time limit,
-     * or everyone gone) it is no failure. Each member still in the area whose part has not ended is paid what they
-     * banked, from one chest stood where they came in; the round's winners are every participant who banked a wave
-     * (those who left before it ended were paid as they went), a win when there is one.
+     * End endless {@code run} (under this list's lock; {@link #end} has let its checkpoint go): however it ends
+     * (every member down at once, its time limit, or everyone gone) it is no failure. Each member still in the area
+     * whose part has not ended is paid what they banked, from one chest stood where they came in; the round's winners
+     * are every participant who banked a wave (those who left before it ended were paid as they went), a win when
+     * there is one.
      */
     private void endEndless(@Nonnull Run run, @Nonnull Ending ending, long nowMs) {
         run.ended = true;

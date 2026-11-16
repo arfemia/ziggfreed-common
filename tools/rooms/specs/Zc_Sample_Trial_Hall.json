@@ -1,0 +1,69 @@
+{
+  "$Comment": [
+    "The sample script room that stamps every puzzle, hazard and kit template build_room.py has not used elsewhere,",
+    "one of each, so test_rooms.py can check their volumes against the engine's codecs. It is a catalogue, not a room",
+    "to play: each corner of the hall holds one template, with the cells and keys it needs.",
+    "Cells are relative to the prefab anchor, the south doorway's floor cell; North is -Z."
+  ],
+  "Id": "Zc_Sample_Trial_Hall",
+  "Label": "Sample trial hall",
+  "Prefab": "ZiggfreedCommon.Samples.Zc_Sample_Trial_Hall",
+  "Room": {
+    "Roles": ["Puzzle", "Room"],
+    "Tags": {"Kit": ["Sample"]}
+  },
+  "Shapes": [
+    {"Op": "Shell", "Min": {"X": -15, "Y": 0, "Z": -40}, "Max": {"X": 15, "Y": 10, "Z": 0}},
+    {"Op": "Fill", "Slot": "Wall", "Min": {"X": -4, "Y": -4, "Z": -31}, "Max": {"X": 4, "Y": -1, "Z": -23}},
+    {"Op": "Carve", "Min": {"X": -3, "Y": -3, "Z": -30}, "Max": {"X": 3, "Y": -1, "Z": -24}}
+  ],
+  "Doors": [
+    {"At": {"X": 0, "Y": 0, "Z": 0}, "Facing": "South", "Kind": "Sample"},
+    {"At": {"X": 0, "Y": 0, "Z": -40}, "Facing": "North", "Kind": "Sample", "Closed": "Bars"},
+    {"At": {"X": 15, "Y": 0, "Z": -20}, "Facing": "East", "Kind": "Sample", "Closed": "Bars"},
+    {"At": {"X": -15, "Y": 0, "Z": -20}, "Facing": "West", "Kind": "Sample"}
+  ],
+  "Logic": [
+    {"Template": "BrazierRelay", "Braziers": [{"X": -12, "Y": 1, "Z": -3}, {"X": 12, "Y": 1, "Z": -3}], "Opens": [1]},
+    {"Template": "CarriedCoreSource", "At": {"X": -12, "Y": 1, "Z": -10}},
+    {"Template": "CarriedCoreSocket", "Region": {"Min": {"X": 10, "Y": 1, "Z": -12}, "Max": {"X": 12, "Y": 3, "Z": -10}},
+     "Socket": {"X": 11, "Y": 2, "Z": -11}, "HintKey": "server.sample.core.hint", "Opens": [2]},
+    {"Template": "PressurePlates", "Plates": [{"X": -4, "Y": 1, "Z": -14}, {"X": 4, "Y": 1, "Z": -14}],
+     "Targets": ["Player", "Npc"], "Weight": "Furniture_Goblin_Pot_Loot", "Signal": "Plates_Done@room"},
+    {"Template": "MemoryFloor", "Tiles": {"Min": {"X": -3, "Y": 0, "Z": -30}, "Max": {"X": 3, "Y": 0, "Z": -24}},
+     "Variants": [[[0, 0], [0, 1], [1, 1], [2, 1], [2, 2], [2, 3], [3, 3], [3, 4], [3, 5], [3, 6]],
+                  [[6, 0], [6, 1], [5, 1], [4, 1], [4, 2], [4, 3], [3, 3], [3, 4], [2, 4], [2, 5], [2, 6]]],
+     "Finish": {"Min": {"X": -3, "Y": 1, "Z": -32}, "Max": {"X": 3, "Y": 3, "Z": -31}}},
+    {"Template": "FallRescue", "Region": {"Min": {"X": -3, "Y": -3, "Z": -30}, "Max": {"X": 3, "Y": -2, "Z": -24}},
+     "Return": {"X": 0, "Y": 1, "Z": -22}, "Yaw": 180},
+    {"Template": "MemoryClue", "Canvas": {"X": -12, "Y": 1, "Z": -18},
+     "Variants": [[[0, 0], [0, 1], [1, 1], [2, 1], [2, 2], [2, 3], [3, 3], [3, 4], [3, 5], [3, 6]],
+                  [[6, 0], [6, 1], [5, 1], [4, 1], [4, 2], [4, 3], [3, 3], [3, 4], [2, 4], [2, 5], [2, 6]]]},
+    {"Template": "RuneOrder", "Runes": [{"X": 8, "Y": 1, "Z": -30}, {"X": 10, "Y": 1, "Z": -30}, {"X": 12, "Y": 1, "Z": -30}],
+     "Glyphs": ["Rune_A", "Rune_B", "Rune_C"], "Lit": ["Rune_A_Lit", "Rune_B_Lit", "Rune_C_Lit"],
+     "Variants": [[0, 1, 2], [2, 0, 1], [1, 2, 0]], "Signal": "Runes_Done@room"},
+    {"Template": "RuneClue", "Canvas": {"X": 8, "Y": 1, "Z": -34}, "Step": {"X": 2, "Y": 0, "Z": 0},
+     "Glyphs": ["Rune_A", "Rune_B", "Rune_C"], "Variants": [[0, 1, 2], [2, 0, 1], [1, 2, 0]]},
+    {"Template": "LeverLogic", "Levers": [
+       {"At": {"X": -12, "Y": 1, "Z": -36}, "Pipe": [{"X": -12, "Y": 3, "Z": -39}, {"X": -11, "Y": 3, "Z": -39}, {"X": -10, "Y": 3, "Z": -39}]},
+       {"At": {"X": -8, "Y": 1, "Z": -36}, "Want": false}],
+     "Signal": "Generator_Done@room"},
+    {"Template": "FlameStair", "Region": {"Min": {"X": -3, "Y": 1, "Z": -9}, "Max": {"X": 3, "Y": 4, "Z": -5}},
+     "Jets": [{"Min": {"X": -2, "Y": 1, "Z": -6}, "Max": {"X": 2, "Y": 3, "Z": -6}},
+              {"Min": {"X": -2, "Y": 1, "Z": -8}, "Max": {"X": 2, "Y": 3, "Z": -8}}],
+     "Push": {"X": 0, "Y": 2, "Z": 6}},
+    {"Template": "FireFloor", "Region": {"Min": {"X": 5, "Y": 1, "Z": -25}, "Max": {"X": 14, "Y": 4, "Z": -16}},
+     "Quadrants": [{"Min": {"X": 6, "Y": 1, "Z": -24}, "Max": {"X": 9, "Y": 2, "Z": -21}},
+                   {"Min": {"X": 10, "Y": 1, "Z": -24}, "Max": {"X": 13, "Y": 2, "Z": -21}},
+                   {"Min": {"X": 10, "Y": 1, "Z": -20}, "Max": {"X": 13, "Y": 2, "Z": -17}},
+                   {"Min": {"X": 6, "Y": 1, "Z": -20}, "Max": {"X": 9, "Y": 2, "Z": -17}}]},
+    {"Template": "GeyserHall", "Region": {"Min": {"X": -14, "Y": 1, "Z": -30}, "Max": {"X": -6, "Y": 4, "Z": -24}},
+     "Geysers": [{"Min": {"X": -12, "Y": 1, "Z": -28}, "Max": {"X": -11, "Y": 2, "Z": -27}},
+                 {"Min": {"X": -9, "Y": 1, "Z": -28}, "Max": {"X": -8, "Y": 2, "Z": -27}}]},
+    {"Template": "Checkpoint", "Region": {"Min": {"X": -2, "Y": 1, "Z": -3}, "Max": {"X": 2, "Y": 3, "Z": -1}},
+     "Respawn": {"X": 0, "Y": 1, "Z": -2}, "Yaw": 180, "TitleKey": "server.sample.checkpoint.title",
+     "SubtitleKey": "server.sample.checkpoint.subtitle", "Statue": {"X": -2, "Y": 1, "Z": -3}},
+    {"Template": "SkillLock", "Lock": {"Min": {"X": -15, "Y": 1, "Z": -21}, "Max": {"X": -15, "Y": 3, "Z": -19}},
+     "Param": "MMO_Level_MINING", "Min": 30, "HintKey": "server.sample.skill_lock.mining"}
+  ]
+}

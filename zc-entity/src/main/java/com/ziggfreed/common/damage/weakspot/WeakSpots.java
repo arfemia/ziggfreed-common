@@ -162,6 +162,18 @@ public final class WeakSpots {
         return want > paid ? (1.0 + want) / (1.0 + paid) : 1.0;
     }
 
+    /**
+     * The whole weak-spot multiplier a paid hit carries, ours ({@code ours}) and vanilla's own headshot share
+     * ({@code vanilla}) together, both fractions: {@code 1 + } the larger of the two, never below 1. What a flat a later
+     * step adds to the hit takes ({@code NativeOutgoing.scaleHit}), so it meets the weak spot as the rest of the hit did.
+     * Pure.
+     */
+    public static double wholeFactor(double ours, double vanilla) {
+        double paid = Double.isFinite(vanilla) ? Math.max(0.0, vanilla) : 0.0;
+        double want = Double.isFinite(ours) ? Math.max(0.0, ours) : 0.0;
+        return 1.0 + Math.max(want, paid);
+    }
+
     /** The attacker's weak-spot bonus in whole points, off the stat's maximum; 0 when it is not on the entity. */
     public static double damagePoints(@Nonnull EntityStatMap stats) {
         return readMax(stats, DAMAGE_STAT, 0.0);

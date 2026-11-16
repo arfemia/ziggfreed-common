@@ -47,6 +47,8 @@ final class DungeonEnterCommand extends AbstractPlayerCommand {
                     DungeonCommandMessages.dungeonName(dungeon));
             case MISSING_PREFAB -> DungeonCommandMessages.refused(ctx, "enter.missing_prefab",
                     DungeonCommandMessages.dungeonName(dungeon), Msg.raw(outcome.prefab()));
+            case MISSING_LAYOUT -> DungeonCommandMessages.refused(ctx, "enter.missing_layout",
+                    DungeonCommandMessages.dungeonName(dungeon), Msg.raw(outcome.prefab()));
             case AUDIT_ERROR -> DungeonCommandMessages.refused(ctx, "enter.audit_error",
                     DungeonCommandMessages.dungeonName(dungeon));
             case ON_THE_WAY -> DungeonCommandMessages.refused(ctx, "enter.on_the_way");

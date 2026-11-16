@@ -21,7 +21,8 @@ import com.ziggfreed.common.validation.Severity;
 /**
  * The catalogue audit flags each way a kit can keep a plan from making layouts (an empty pool, a door facing
  * nowhere, a box that does not hold its doors, a door kind no cap closes, a cap with more than one door, a need no
- * room fills, a plan role no room fills, a plan entry outside its bounds) at its tier, and a clean kit not at all.
+ * room fills, a plan role no room fills, a plan entry outside its bounds, an overlay over a pool or naming one) at its
+ * tier, and a clean kit not at all.
  */
 class RoomCatalogueAuditTest {
 
@@ -55,6 +56,8 @@ class RoomCatalogueAuditTest {
                 List.of(), door(0, 0, -2, Facing.NORTH, "Small"), door(0, 0, 2, Facing.SOUTH, "Small")));
         rooms.add(room("riddle", "Audit.Riddle", box(-2, 0, -2, 2, 3, 2), List.of("Puzzle"), null, 1, 0, 1,
                 List.of("Answer"), door(0, 0, -2, Facing.NORTH, "Small")));
+        rooms.add(overlaid("layered", "Audit.Layered.*", "Audit.Layered_Overlay"));
+        rooms.add(overlaid("spread", "Audit.Spread", "Audit.Spread_Overlay.*"));
         LayoutPlan plan = new LayoutPlan("Audit_Plan", List.of(SyntheticRooms.TAG), List.of(),
                 List.of(new Beat("Entry", Count.ONE, -1), new Beat("Dragon", Count.ONE, -1)), null, List.of(),
                 null, null, 0);
@@ -74,7 +77,18 @@ class RoomCatalogueAuditTest {
         assertFlagged(findings, RoomCatalogueAudit.UNANSWERED_NEED, "riddle", Severity.WARNING);
         assertFlagged(findings, RoomCatalogueAudit.PLAN_ROLE, "audit_plan", Severity.WARNING);
         assertFlagged(findings, RoomCatalogueAudit.ENTRY_BOUNDS, "outside_plan", Severity.ERROR);
-        assertEquals(9, findings.size(), () -> "each fault once, nothing else: " + findings);
+        assertFlagged(findings, RoomCatalogueAudit.OVERLAY_POOL, "layered", Severity.ERROR);
+        assertFlagged(findings, RoomCatalogueAudit.OVERLAY_POOL, "spread", Severity.ERROR);
+        assertEquals(11, findings.size(), () -> "each fault once, nothing else: " + findings);
+    }
+
+    /** A combat room painted as {@code prefab} with {@code overlay} on top. */
+    @Nonnull
+    private static RoomSpec overlaid(@Nonnull String id, @Nonnull String prefab, @Nonnull String overlay) {
+        RoomSpec base = room(id, prefab, box(-2, 0, -2, 2, 3, 2), List.of("Combat"), null, 1, 0, 1, List.of(),
+                door(0, 0, -2, Facing.NORTH, "Small"));
+        return new RoomSpec(base.id(), base.prefab(), base.box(), base.doors(), base.roles(), base.tags(),
+                base.weight(), base.depthMin(), base.depthMax(), base.needs(), false, false, null, overlay);
     }
 
     /** One entry room and its cap: nothing to report. */

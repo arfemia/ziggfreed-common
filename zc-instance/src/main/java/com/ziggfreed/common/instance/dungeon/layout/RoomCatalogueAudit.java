@@ -33,6 +33,8 @@ import com.ziggfreed.common.validation.Finding;
  *       carrying the plan's tags fills.</li>
  *   <li>{@code ENTRY_BOUNDS} (ERROR): a plan's {@code Bounds.Entry} lies outside its {@code Bounds}; it makes no
  *       layout.</li>
+ *   <li>{@code OVERLAY_POOL} (ERROR): a room with an {@code Overlay} whose {@code Prefab} or {@code Overlay} is a pool;
+ *       the overlay's cells were fitted to one piece, so another variant would put them on its walls.</li>
  * </ul>
  *
  * <p>A reference another pack may fill is a WARNING, per the library's rule; a file contradicting itself is an
@@ -51,6 +53,7 @@ public final class RoomCatalogueAudit {
     public static final String UNANSWERED_NEED = "UNANSWERED_NEED";
     public static final String PLAN_ROLE = "PLAN_ROLE";
     public static final String ENTRY_BOUNDS = "ENTRY_BOUNDS";
+    public static final String OVERLAY_POOL = "OVERLAY_POOL";
 
     private RoomCatalogueAudit() {
     }
@@ -91,6 +94,11 @@ public final class RoomCatalogueAudit {
         if (catalogue.variants(id) == 0) {
             out.add(Finding.warning(DOMAIN, EMPTY_POOL, "Prefab '" + room.prefab() + "' names no prefab a loaded "
                     + "pack ships under Server/Prefabs/, so the room is never placed.", id));
+        }
+        if (room.overlay() != null && (room.isPool() || room.overlay().endsWith(RoomSpec.POOL_SUFFIX))) {
+            out.add(Finding.error(DOMAIN, OVERLAY_POOL, "Overlay '" + room.overlay() + "' is laid over Prefab '"
+                    + room.prefab() + "', and both must name one prefab: the overlay's cells were fitted to one "
+                    + "piece, so another variant would put them in its walls.", id));
         }
         Set<String> uncapped = new LinkedHashSet<>();
         int uncappedDoors = 0;

@@ -1,0 +1,33 @@
+{
+  "$Comment": [
+    "A sample overlay for build_room.py: vanilla's Cursed Crypt hall with a brazier relay over it. Four braziers stand",
+    "on the hall's own floor (OnFloor finds it); lighting all four before the first burns out drops the bars the",
+    "overlay puts in the north doorway. The base room file lends the hall's doors, Box, tags and Fill.",
+    "Build it with --base-prefabs pointing at vanilla's Server/Prefabs folder."
+  ],
+  "Id": "Zc_Sample_Brazier_Crypt",
+  "Label": "Sample brazier crypt",
+  "Base": {
+    "Prefab": "Dungeon.Cursed_Crypt.Cursed.Rooms.Hall.Crypt_Cursed_Rooms_Hall_001",
+    "Room": "Zc_Kit_Cursed_Crypt_Cursed_Rooms_Hall"
+  },
+  "Overlay": "ZiggfreedCommon.Samples.Zc_Sample_Brazier_Crypt_Overlay",
+  "Room": {
+    "Roles": ["Puzzle", "Room"],
+    "Tags": {"Puzzle": ["Brazier_Relay"]}
+  },
+  "Closed": {"0": "Bars"},
+  "Logic": [
+    {
+      "Template": "BrazierRelay",
+      "Braziers": [
+        {"X": -18, "Z": -19, "OnFloor": true},
+        {"X": -18, "Z": -3, "OnFloor": true},
+        {"X": 1, "Z": -19, "OnFloor": true},
+        {"X": 1, "Z": -3, "OnFloor": true}
+      ],
+      "Burn": 15,
+      "Opens": [0]
+    }
+  ]
+}

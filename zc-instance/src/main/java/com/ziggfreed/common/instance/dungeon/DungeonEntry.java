@@ -21,6 +21,10 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
+import com.ziggfreed.common.instance.dungeon.gen.ZigDungeonWorldGenProvider;
+import com.ziggfreed.common.instance.dungeon.layout.Cell;
+import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.instance.world.InstanceWorlds;
 import com.ziggfreed.common.party.Party;
@@ -35,8 +39,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>The steps</b>, on the entering player's current world thread:
  * <ol>
- *   <li>the dungeon is loaded and open (switched on, in season), its prefab is shipped, and its audit finds no
- *       ERROR ({@link DungeonValidator#entryErrors});</li>
+ *   <li>the dungeon is loaded and open (switched on, in season), its prefab is shipped (a generated dungeon's
+ *       layout plan loaded instead), and its audit finds no ERROR ({@link DungeonValidator#entryErrors});</li>
  *   <li>the player is in no area and on the way into none;</li>
  *   <li>a player who would open an area for their party holds one of the cost's keys
  *       ({@link DungeonEntryCost#heldKey}), which pays it with nothing spent, or can pay the dungeon's
@@ -54,7 +58,10 @@ import com.ziggfreed.common.util.SafeLog;
  *       fails once the loading screen has begun gives it back as a Claim ({@link DungeonEntryCost#refundAsClaim});</li>
  *   <li>the player goes through the engine's loading teleport with a future that completes once the copy is up
  *       and their area pasted ({@link Areas#prepare}), landing at their area's entry point, with their own
- *       return point where they stood.</li>
+ *       return point where they stood. A generated dungeon's copy is opened with zc's world generator, the
+ *       party's run is laid out and registered with it instead of a paste ({@link GeneratedRuns#open}, the
+ *       router's {@code Placement.run} saying which), and the player lands where the copy's spawn provider says
+ *       once it is ready (the run's entry room).</li>
  * </ol>
  *
  * <p><b>Who pays.</b> Every way a player takes ({@link #enterWithParty}, {@link #enter}) charges the cost;
@@ -80,6 +87,8 @@ public final class DungeonEntry {
         NO_PREFAB,
         /** No loaded pack ships the dungeon's prefab. */
         MISSING_PREFAB,
+        /** The dungeon is generated and no loaded file defines its layout plan ({@code Area.Layout}). */
+        MISSING_LAYOUT,
         /** The dungeon's audit finds an ERROR in it ({@link DungeonValidator#entryErrors}); the log names it. */
         AUDIT_ERROR,
         /** The player is already on the way into an area. */
@@ -107,7 +116,8 @@ public final class DungeonEntry {
     }
 
     /**
-     * An attempt's answer: what came of it, the dungeon and its prefab id when known, the area reserved when sent,
+     * An attempt's answer: what came of it, the dungeon and its prefab id when known (for
+     * {@link Result#MISSING_LAYOUT}, the layout plan's id), the area reserved when sent,
      * and for {@link Result#CANNOT_PAY} the item the player holds too few of, with the count the dungeon asks for.
      */
     public record Outcome(@Nonnull Result result, @Nullable DungeonAsset dungeon, @Nullable String prefab,
@@ -205,14 +215,23 @@ public final class DungeonEntry {
         if (!dungeon.isOpen()) {
             return new Outcome(Result.CLOSED, dungeon, null, null);
         }
-        String prefabId = dungeon.prefabPath();
-        if (prefabId == null) {
-            return new Outcome(Result.NO_PREFAB, dungeon, null, null);
+        // A generated dungeon needs its layout plan, never its prefab (it ignores Area.Prefab).
+        LayoutPlan plan = dungeon.generated() ? dungeon.layoutPlan() : null;
+        String prefabId = dungeon.generated() ? null : dungeon.prefabPath();
+        Path prefab = null;
+        if (dungeon.generated() && plan == null) {
+            return new Outcome(Result.MISSING_LAYOUT, dungeon, dungeon.layoutId(), null);
         }
-        Path prefab = findPrefab(prefabId);
-        if (prefab == null) {
-            return new Outcome(Result.MISSING_PREFAB, dungeon, prefabId, null);
+        if (!dungeon.generated()) {
+            if (prefabId == null) {
+                return new Outcome(Result.NO_PREFAB, dungeon, null, null);
+            }
+            prefab = findPrefab(prefabId);
+            if (prefab == null) {
+                return new Outcome(Result.MISSING_PREFAB, dungeon, prefabId, null);
+            }
         }
+        Cell bounds = plan == null ? LayoutPlan.DEFAULT_BOUNDS : plan.bounds();
         if (!DungeonValidator.entryErrors(id, dungeon).isEmpty()) {
             return new Outcome(Result.AUDIT_ERROR, dungeon, prefabId, null);
         }
@@ -244,10 +263,10 @@ public final class DungeonEntry {
 
         long now = System.currentTimeMillis();
         CompletableFuture<World> ready = new CompletableFuture<>();
-        CopyRouter.Rules rules = dungeon.routerRules(id);
+        CopyRouter.Rules rules = dungeon.routerRules(id, bounds);
         if (emptyArea && !rules.partyLocked()) {
             rules = new CopyRouter.Rules(rules.dungeon(), rules.areasPerCopy(), rules.maxPlayers(), true,
-                    rules.emptyCloseMs());
+                    rules.emptyCloseMs(), rules.maxRunsPerArea());
         }
         CopyRouter.Placement placement = AreaMembers.shared().reserve(partyKey, uuid, rules, now, PROBE, ready);
         if (placement == null) {
@@ -281,7 +300,7 @@ public final class DungeonEntry {
             here = standingAt(ref, store, player);
             CompletableFuture<World> copy;
             if (placement.opensCopy()) {
-                layout = AreaLayout.of(id, dungeon);
+                layout = AreaLayout.of(id, dungeon, bounds);
                 copy = open(dungeon, area.world(), from, here, layout);
             } else {
                 Opening opening = OPENING.get(area.world());
@@ -295,7 +314,9 @@ public final class DungeonEntry {
             }
 
             AreaLayout areas = layout;
-            copy.thenCompose(world -> Areas.shared().prepare(world, area, areas, prefabId, prefab)
+            int run = placement.run();
+            Path pasted = prefab;
+            copy.thenCompose(world -> prepare(world, area, run, areas, dungeon, prefabId, pasted)
                             .thenApply(ignored -> world))
                     .whenComplete((world, error) -> {
                         if (error != null) {
@@ -323,7 +344,9 @@ public final class DungeonEntry {
             return new Outcome(Result.CANNOT_PAY, dungeon, prefabId, null, unpaid != null ? unpaid : cost.get(0));
         }
         try {
-            InstanceWorlds.teleportIn(ref, store, ready, here, layout.arrival(area.area()));
+            // A generated run's arrival is known only once it is laid out: the engine asks the copy's spawn provider
+            // for it when the copy is ready (AreaSpawnProvider, from the run the lane registered).
+            InstanceWorlds.teleportIn(ref, store, ready, here, dungeon.generated() ? null : layout.arrival(area.area()));
         } catch (Throwable t) {
             SafeLog.warn(LOG + player.getUuid() + " could not be sent into " + area.world() + " area " + area.area(), t);
             if (pays) {
@@ -361,12 +384,39 @@ public final class DungeonEntry {
         }
     }
 
-    /** Spawn copy {@code worldName} of {@code dungeon}, its spawn provider over {@code layout}. */
+    /**
+     * Make {@code area} of the copy ready for its arriving party: a generated dungeon's run laid out and registered
+     * ({@link GeneratedRuns#open}), else the area's prefab pasted ({@link Areas#prepare}).
+     */
+    @Nonnull
+    private static CompletableFuture<Void> prepare(@Nonnull World world, @Nonnull CopyKey area, int run,
+            @Nonnull AreaLayout layout, @Nonnull DungeonAsset dungeon, @Nullable String prefabId,
+            @Nullable Path prefab) {
+        if (dungeon.generated()) {
+            return GeneratedRuns.open(world, area, run, layout, dungeon);
+        }
+        if (prefabId == null || prefab == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("the dungeon " + dungeon.getId()
+                    + " has no prefab to paste"));
+        }
+        return Areas.shared().prepare(world, area, layout, prefabId, prefab);
+    }
+
+    /**
+     * Spawn copy {@code worldName} of {@code dungeon}, its spawn provider over {@code layout}, and a generated
+     * dungeon's world generator whatever its template names.
+     */
     @Nonnull
     private static CompletableFuture<World> open(@Nonnull DungeonAsset dungeon, @Nonnull String worldName,
             @Nonnull World from, @Nonnull Transform returnPoint, @Nonnull AreaLayout layout) {
+        boolean generated = dungeon.generated();
         CompletableFuture<World> spawn = InstanceWorlds.spawn(dungeon.templateId(), worldName, from, returnPoint,
-                dungeon.emptyCloseSeconds(), config -> AreaSpawnProvider.install(config, layout));
+                dungeon.emptyCloseSeconds(), config -> {
+                    AreaSpawnProvider.install(config, layout);
+                    if (generated) {
+                        ZigDungeonWorldGenProvider.install(config);
+                    }
+                });
         Opening opening = new Opening(spawn, layout);
         OPENING.put(worldName, opening);
         spawn.whenComplete((world, error) -> OPENING.remove(worldName, opening));

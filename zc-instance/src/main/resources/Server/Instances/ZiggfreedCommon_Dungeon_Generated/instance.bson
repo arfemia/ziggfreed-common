@@ -1,0 +1,30 @@
+{
+  "$Comment": "The generated dungeon template: an empty world that saves nothing, whose chunks the ZigDungeon world generator paints each run's rooms into as they load. A dungeon with an Area.Layout copies it unless its Instance leaf names another, and every copy is spawned under its own name with its removal and delete flags set when it opens, so this template pins no InstanceKey and sets no RemovalConditions. Its gameplay config, ZiggfreedCommon_Dungeon, respawns a player who dies at their run's entry room. A dungeon naming another template still generates with ZigDungeon; keep that one free of an InstanceKey too.",
+  "Version": 4,
+  "GameMode": "Adventure",
+  "WorldGen": {
+    "Type": "ZigDungeon"
+  },
+  "ChunkStorage": {
+    "Type": "Hytale"
+  },
+  "SpawnProvider": {
+    "Id": "Global",
+    "SpawnPoint": {
+      "X": 0.5,
+      "Y": 64.0,
+      "Z": 0.5,
+      "Pitch": 0.0,
+      "Yaw": 0.0,
+      "Roll": 0.0
+    }
+  },
+  "GameplayConfig": "ZiggfreedCommon_Dungeon",
+  "IsPvpEnabled": false,
+  "IsSpawningNPC": true,
+  "IsSpawnMarkersEnabled": true,
+  "IsCompassUpdating": true,
+  "IsSavingChunks": false,
+  "SaveNewChunks": false,
+  "DeleteOnRemove": true
+}

@@ -1,4 +1,4 @@
-"""The room tools' structural gate (card PD6). Run from this folder or with discover:
+"""The room tools' structural gate (cards PD6, PD7a). Run from this folder or with discover:
 
     python -I -m unittest discover -s tools/rooms -t tools/rooms      (from the ziggfreed-common repository root)
 
@@ -8,9 +8,14 @@
 - The importer re-run on unchanged vanilla input writes byte-identical files, the same bytes the repository ships.
   It needs vanilla's assets: HYTALE_ASSETS, or reference/shared-source/release/HytaleAssets in a folder above this one;
   without them that test is skipped.
+- Every logic template's volumes, as the sample specs stamp them, use only trigger-volume Types, keys, event names and
+  enum values the engine's own codecs read (the release source's builtin TriggerVolumes plugin, read once), and
+  CommonLib's own Types the keys their sources declare; a missing source skips the check with the reason.
+- The overlay placer never puts a block on a cell the base fills, and never lets a volume write one there.
 """
 import filecmp
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -18,7 +23,9 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import build_room  # noqa: E402
 import import_kit  # noqa: E402
+import logic_templates as lt  # noqa: E402
 import prefabio as pio  # noqa: E402
 
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
@@ -27,19 +34,28 @@ KITS = os.path.join(REPO, "zc-instance", "src", "main", "resources", "Server", "
 CONFIG = os.path.join(HERE, "kits.json")
 
 
-def find_assets():
-    env = os.environ.get("HYTALE_ASSETS")
-    if env and os.path.isdir(env):
-        return env
+SPECS = os.path.join(HERE, "specs")
+PALETTE = os.path.join(HERE, "palettes", "Crypt_Stone.json")
+
+
+def find_reference(name, probe):
+    """reference/shared-source/release/<name> in a folder above this one, when `probe` exists under it."""
     d = HERE
     while True:
-        cand = os.path.join(d, "reference", "shared-source", "release", "HytaleAssets")
-        if os.path.isdir(os.path.join(cand, "Server", "Prefabs")):
+        cand = os.path.join(d, "reference", "shared-source", "release", name)
+        if os.path.exists(os.path.join(cand, *probe)):
             return cand
         parent = os.path.dirname(d)
         if parent == d:
             return None
         d = parent
+
+
+def find_assets():
+    env = os.environ.get("HYTALE_ASSETS")
+    if env and os.path.isdir(env):
+        return env
+    return find_reference("HytaleAssets", ("Server", "Prefabs"))
 
 
 def kit_rooms(kit):
@@ -157,6 +173,201 @@ class Reimport(unittest.TestCase):
                     with open(os.path.join(KITS, kit, fn), "rb") as f:
                         shipped_bytes = f.read().replace(b"\r\n", b"\n")
                     self.assertEqual(fresh, shipped_bytes, fn + " differs from the shipped file: re-run import_kit.py")
+
+
+def load_spec(name):
+    return pio.load_json(os.path.join(SPECS, name))
+
+
+def sample_specs():
+    return sorted(fn for fn in os.listdir(SPECS) if fn.endswith(".json"))
+
+
+def build_sample(name, palette, assets):
+    """The RoomBuild of one sample spec, or None for an overlay spec when vanilla's prefabs are not here."""
+    spec = load_spec(name)
+    base = base_room = None
+    if "Base" in spec:
+        if assets is None:
+            return None
+        base, base_room = build_room.load_base(spec, os.path.join(assets, "Server", "Prefabs"),
+                                               [build_room.SHIPPED_ROOMS])
+    rb = build_room.RoomBuild(spec, palette, base, base_room)
+    rb.run()
+    return rb
+
+
+class TemplateCodecs(unittest.TestCase):
+    """Every template, as the sample specs stamp it, against the codecs that read its volumes."""
+
+    @classmethod
+    def setUpClass(cls):
+        import engine_codecs
+        cls.ec = engine_codecs
+        server = find_reference("HytaleServer", ("builtin", "TriggerVolumes"))
+        cls.codecs = None if server is None else engine_codecs.EngineCodecs(server, REPO)
+        palette = build_room.Palette(pio.load_json(PALETTE))
+        assets = find_assets()
+        cls.builds = {}
+        for name in sample_specs():
+            rb = build_sample(name, palette, assets)
+            if rb is not None:
+                cls.builds[name] = rb
+
+    def test_every_template_is_stamped_by_a_script_sample(self):
+        used = set()
+        for name in sample_specs():
+            spec = load_spec(name)
+            if "Base" not in spec:
+                used.update(logic["Template"] for logic in spec.get("Logic", []))
+        self.assertEqual(sorted(set(lt.TEMPLATES) - used), [],
+                         "a script sample spec (built with no vanilla files) stamps every template, so the codec "
+                         "check below always covers it")
+
+    def test_samples_stay_in_their_room(self):
+        for name, rb in sorted(self.builds.items()):
+            self.assertEqual(rb.problems, [], name)
+            self.assertEqual(lt.unscoped_keys(rb.entities), [], name + ": every MatchKey ends @room")
+            self.assertEqual(lt.world_absolute_uses(rb.entities), [], name + ": no world-absolute position")
+
+    def test_every_volume_uses_only_what_the_engine_reads(self):
+        if self.codecs is None:
+            self.skipTest("the release shared source (reference/shared-source/release/HytaleServer) is not here")
+        problems, missing = [], {}
+        for name, rb in sorted(self.builds.items()):
+            for _, tv in lt.volumes(rb.entities):
+                where = "%s %s" % (name, tv.get("Name"))
+                self.check_volume(tv, where, problems, missing)
+        for why, where in sorted(missing.items()):
+            with self.subTest(type=why):
+                self.skipTest("%s (first used by %s)" % (why, where))
+        self.assertEqual(problems, [])
+
+    def check_volume(self, tv, where, problems, missing):
+        ec, codecs = self.ec, self.codecs
+        for key, value in tv.items():
+            if key in ("Effects", "RejectionEffects", "Conditions", "Shape", "Tags"):
+                continue
+            ec.check_value(codecs.volume, key, value, where, problems)
+        shape = tv.get("Shape") or {}
+        info = codecs.shapes.get(shape.get("Type"))
+        if info is None:
+            problems.append("%s: no shape Type %r" % (where, shape.get("Type")))
+        else:
+            for key, value in shape.items():
+                if key != "Type":
+                    ec.check_value(info, key, value, where + " shape", problems)
+        for list_key, base in (("Effects", "TriggerEffect"), ("RejectionEffects", "TriggerEffect"),
+                               ("Conditions", "TriggerCondition")):
+            for part in tv.get(list_key) or []:
+                info, why = codecs.type_of(base, part.get("Type"))
+                if info is None:
+                    if why.startswith("CommonLib"):
+                        missing.setdefault(why, where)
+                    else:
+                        problems.append("%s: %s" % (where, why))
+                    continue
+                if part.get("Event") not in codecs.events:
+                    problems.append("%s: %s fires on %r, an event the engine never raises" % (
+                        where, part.get("Type"), part.get("Event")))
+                for key, value in part.items():
+                    if key not in ("Type", "Event"):
+                        ec.check_value(info, key, value, "%s %s" % (where, part.get("Type")), problems)
+
+
+def synthetic_base():
+    """A small vanilla-like piece: a stone floor, walls, a ceiling, a pillar, and a south doorway 3 wide."""
+    blocks = []
+    for x in range(-3, 4):
+        for z in range(-6, 1):
+            for y in range(0, 5):
+                edge = x in (-3, 3) or z in (-6, 0)
+                doorway = z == 0 and -1 <= x <= 1 and 1 <= y <= 3
+                pillar = (x, z) == (1, -3)
+                solid = y in (0, 4) or (edge and not doorway) or pillar
+                blocks.append(((x, y, z), {"name": "Rock_Stone" if solid else pio.EMPTY_BLOCK}))
+    return pio.Prefab("synthetic", pio.prefab_doc((0, 0, 0), blocks))
+
+
+SYNTHETIC_ROOM = {"Box": {"Min": {"X": -3, "Y": 0, "Z": -6}, "Max": {"X": 3, "Y": 4, "Z": 0}},
+                  "Doors": [{"At": {"X": 0, "Y": 0, "Z": 0}, "Facing": "South", "Kind": "Test"}],
+                  "Tags": {"Kit": ["Test"]}, "Fill": "Rock_Stone"}
+
+
+def overlay_spec(**more):
+    spec = {"Id": "Overlay_Test", "Base": {"Prefab": "Test.Base"}, "Overlay": "Test.Overlay", "Room": {"Roles": ["Room"]},
+            "Closed": {"0": "Bars"},
+            "Props": [{"At": {"X": -2, "Z": -5, "OnFloor": True}, "Slot": "Light"}],
+            "Logic": [{"Template": "BrazierRelay", "Opens": [0],
+                       "Braziers": [{"X": 2, "Z": -1, "OnFloor": True}, {"X": -2, "Z": -1, "OnFloor": True}]},
+                      {"Template": "MemoryClue", "Canvas": {"X": -1, "Z": -3, "OnFloor": True},
+                       "Variants": [[[0, 0], [0, 1]]]}]}
+    spec.update(more)
+    return spec
+
+
+class OverlayPlacer(unittest.TestCase):
+    """The overlay never puts a block on a cell the base fills, and never lets a volume write one there."""
+
+    def setUp(self):
+        self.palette = build_room.Palette(pio.load_json(PALETTE))
+        self.base = synthetic_base()
+
+    def build(self, spec):
+        rb = build_room.RoomBuild(spec, self.palette, self.base, SYNTHETIC_ROOM)
+        rb.run()
+        return rb
+
+    def assert_on_free_cells(self, rb, base, what):
+        free = build_room.BaseGround(base).free_cells
+        on_filled = sorted(c for c in rb.slots if c not in free)
+        self.assertEqual(on_filled, [], what + ": overlay blocks on cells the base fills")
+        written = sorted(c for _, c in lt.placed_cells(rb.entities) if c not in free)
+        self.assertEqual(written, [], what + ": volumes writing blocks into cells the base fills")
+
+    def test_an_overlay_fits_on_the_base_s_free_cells(self):
+        rb = self.build(overlay_spec())
+        self.assertEqual(rb.problems, [])
+        self.assert_on_free_cells(rb, self.base, "synthetic")
+        self.assertEqual(rb.slots[(-2, 1, -5)], "Light", "OnFloor puts a prop in the air cell over the floor")
+        self.assertEqual(sorted(c for c, s in rb.slots.items() if s == "Bars"),
+                         sorted((x, y, 0) for y in (1, 2, 3) for x in (-1, 0, 1)),
+                         "a closed doorway fills exactly the doorway's free cells")
+        room = rb.room()
+        self.assertEqual((room["Prefab"], room["Overlay"]), ("Test.Base", "Test.Overlay"))
+        self.assertEqual(room["Fill"], "Rock_Stone", "the base room's Fill carries over")
+
+    def test_a_block_on_a_filled_cell_is_refused(self):
+        cases = {
+            "a prop in a wall": overlay_spec(Props=[{"At": {"X": -3, "Y": 1, "Z": -2}, "Slot": "Light"}]),
+            "a template block in the pillar": overlay_spec(Logic=[{"Template": "BrazierRelay",
+                                                                   "Braziers": [{"X": 1, "Y": 2, "Z": -3}]}]),
+            "a fill over the floor": overlay_spec(Shapes=[{"Op": "Fill", "Slot": "Floor", "Min": {"X": 0, "Y": 0, "Z": -2},
+                                                           "Max": {"X": 0, "Y": 1, "Z": -2}}]),
+            "a carve": overlay_spec(Shapes=[{"Op": "Carve", "Min": {"X": 0, "Y": 1, "Z": -2},
+                                             "Max": {"X": 0, "Y": 1, "Z": -2}}]),
+        }
+        for what, spec in cases.items():
+            with self.subTest(what):
+                with self.assertRaises(build_room.BuildError):
+                    self.build(spec)
+
+    def test_a_volume_writing_into_a_filled_cell_is_a_problem(self):
+        spec = overlay_spec(Logic=[{"Template": "MemoryClue", "Canvas": {"X": 1, "Y": 2, "Z": -3},
+                                    "Variants": [[[0, 0]]]}])
+        rb = self.build(spec)
+        self.assertTrue(any("a cell the base fills" in p for p in rb.problems), rb.problems)
+
+    def test_the_sample_overlays_sit_inside_their_bases(self):
+        assets = find_assets()
+        if assets is None:
+            self.skipTest("vanilla assets not found (set HYTALE_ASSETS)")
+        overlays = [n for n in sample_specs() if "Base" in load_spec(n)]
+        self.assertTrue(overlays, "the samples include an overlay spec")
+        for name in overlays:
+            rb = build_sample(name, self.palette, assets)
+            self.assertEqual(rb.problems, [], name)
+            self.assert_on_free_cells(rb, rb.base, name)
 
 
 if __name__ == "__main__":

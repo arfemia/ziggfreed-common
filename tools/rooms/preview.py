@@ -10,6 +10,11 @@ a column whose floor is lower or higher is tinted blue or orange by how far, and
 under it is hatched. Doors are arrows on their cell, pointing out, labelled with their Kind; the room's Box is the
 dashed outline; trigger volumes are blue outlines with their names; spawn markers are red dots.
 
+A room with an Overlay draws its base piece, then the overlay over it: each overlay block an inset square in its
+block's colour outlined in magenta, or crossed out in red when it sits on a cell the base fills (which build_room.py
+refuses, so a red cross means the overlay prefab was edited by hand or the base piece changed), and the overlay's
+volumes and markers. Pass the folder the overlay prefab was built into as another --prefabs.
+
 `rooms` writes three files per room file: <Id>.svg, <Id>.caps.svg (a Cap room of the door's Kind joined at every door,
 ghosted) and <Id>.joins.svg (another room of the door's Kind joined at every door, ghosted), and index.html showing
 them side by side. Joining follows PD1's rule: door B meets door A when B faces the other way and B's cell is one
@@ -241,8 +246,36 @@ def door_level(room):
     return ys[len(ys) // 2]
 
 
-def draw_room(svg, room, prefab, origin=(0, 0, 0), turns=0, ghost=False, label=None, materials=None):
-    """Draw a room file's plan (from `prefab`, may be None), Box, doors and logic at origin, turned."""
+def overlay_columns(base, overlay):
+    """(x, z) -> (top overlay block name, whether any overlay block in the column sits on a cell the base fills)."""
+    columns = {}
+    for (x, y, z), b in sorted(overlay.blocks.items(), key=lambda kv: kv[0][1]):
+        name = b.get("name")
+        if name == pio.EMPTY_BLOCK:
+            continue
+        under = base.blocks.get((x, y, z)) if base is not None else None
+        clash = base is not None and (under is None or under.get("name") != pio.EMPTY_BLOCK or (x, y, z) in base.fluids)
+        _, before = columns.get((x, z), (None, False))
+        columns[(x, z)] = (name, before or clash)
+    return columns
+
+
+def draw_overlay(svg, base, overlay, origin, turns, materials=None):
+    for (x, z), (name, clash) in sorted(overlay_columns(base, overlay).items()):
+        wx, _, wz = place((x, 0, z), origin, turns)
+        if clash:
+            svg.rect(wx, wz, fill="#ffdddd", stroke="#d62728", width=1.6)
+            svg.line(wx, wz, wx + 1, wz + 1, "#d62728", 1.6)
+            svg.line(wx + 1, wz, wx, wz + 1, "#d62728", 1.6)
+            continue
+        svg.rect(wx + 0.15, wz + 0.15, 0.7, 0.7, fill=hexrgb(colour_of(name)), stroke="#c2185b", width=1.4)
+        if materials is not None:
+            materials[name] = materials.get(name, 0) + 1
+
+
+def draw_room(svg, room, prefab, origin=(0, 0, 0), turns=0, ghost=False, label=None, materials=None, overlay=None):
+    """Draw a room file's plan (from `prefab`, may be None), its overlay (may be None), Box, doors and logic at
+    origin, turned."""
     opacity = 0.35 if ghost else 1.0
     level = door_level(room)
     if prefab is not None:
@@ -255,6 +288,8 @@ def draw_room(svg, room, prefab, origin=(0, 0, 0), turns=0, ghost=False, label=N
             svg.rect(wx, wz, fill=fill, opacity=opacity)
             if materials is not None and kind in ("floor", "wall"):
                 materials[name] = materials.get(name, 0) + 1
+    if overlay is not None and not ghost:
+        draw_overlay(svg, prefab, overlay, origin, turns, materials)
     box = room.get("Box")
     if box:
         a = place(pio.xyz_tuple(box["Min"]), origin, turns)
@@ -270,6 +305,8 @@ def draw_room(svg, room, prefab, origin=(0, 0, 0), turns=0, ghost=False, label=N
         draw_door(svg, at, facing, d.get("Kind", "?"), ghost)
     if prefab is not None and not ghost:
         draw_entities(svg, prefab, origin, turns)
+    if overlay is not None and not ghost:
+        draw_entities(svg, overlay, origin, turns)
 
 
 def draw_door(svg, at, facing, kind, ghost=False):
@@ -329,6 +366,8 @@ STANDARD_KEY = [
     ("#ffffff", "hatched: carved air, no floor"),
     ("#1f5fbf", "trigger volume"),
     ("#d62728", "spawn marker"),
+    ("#c2185b", "overlay block (magenta outline)"),
+    ("#ffdddd", "overlay block on a filled cell (red cross)"),
 ]
 
 
@@ -354,7 +393,13 @@ class Library:
                         self.paths[rid] = os.path.join(dirpath, fn)
 
     def variant(self, room, index=0):
-        pool = room.get("Prefab")
+        return self._load(room.get("Prefab"), index)
+
+    def overlay(self, room):
+        """The room's Overlay prefab (one prefab), or None when it has none or it is not under any --prefabs."""
+        return self._load(room.get("Overlay"), 0)
+
+    def _load(self, pool, index):
         if not pool:
             return None
         key = (pool, index)
@@ -389,7 +434,7 @@ def is_cap(room):
 def render_room(lib, room, title, variant=0):
     svg = Svg()
     mats = {}
-    draw_room(svg, room, lib.variant(room, variant), materials=mats)
+    draw_room(svg, room, lib.variant(room, variant), materials=mats, overlay=lib.overlay(room))
     svg.circle(0.5, 0.5, 0.3, "#000", "#000")
     return svg.render(title, legend_for(mats, STANDARD_KEY))
 
@@ -405,7 +450,7 @@ def render_joined(lib, rid, room, partners, title):
         pid, prow, pdoor = pick
         origin, turns = join_transform((0, 0, 0), 0, d, pdoor)
         draw_room(svg, prow, lib.variant(prow), origin, turns, ghost=True, label=pid)
-    draw_room(svg, room, lib.variant(room), materials=mats)
+    draw_room(svg, room, lib.variant(room), materials=mats, overlay=lib.overlay(room))
     return svg.render(title, legend_for(mats, STANDARD_KEY))
 
 
@@ -461,7 +506,7 @@ def render_layout(lib, layout, title):
         origin = pio.xyz_tuple(row.get("Origin", {"X": 0, "Y": 0, "Z": 0}))
         turns = int(row.get("Rotation", 0)) % 4
         draw_room(svg, room, lib.variant(room, int(row.get("Variant", 0))), origin, turns,
-                  label="%d %s" % (i, rid), materials=mats)
+                  label="%d %s" % (i, rid), materials=mats, overlay=lib.overlay(room))
     return svg.render(title, legend_for(mats, STANDARD_KEY))
 
 

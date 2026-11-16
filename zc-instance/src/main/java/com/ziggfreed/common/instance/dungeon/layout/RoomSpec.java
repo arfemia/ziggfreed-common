@@ -26,11 +26,14 @@ import javax.annotation.Nullable;
  * @param fill           the block the painter fills the cells its prefab leaves unlisted inside {@code box} with, as
  *                       written (a block id is the engine's, never folded); null for its stratum's, else none. The
  *                       generator only passes it on ({@link PlacedRoom#fill()}).
+ * @param overlay        a second prefab painted on top of {@code prefab} with the same anchor and turn, its entities
+ *                       the room's logic, in the engine's dot form (one prefab, never a pool); null for none. The
+ *                       generator never reads it: {@code box} already covers it.
  */
 public record RoomSpec(@Nonnull String id, @Nonnull String prefab, @Nonnull Box box, @Nonnull List<DoorSpec> doors,
                        @Nonnull List<String> roles, @Nonnull List<String> tags, double weight, double depthMin,
                        double depthMax, @Nonnull List<String> needs, boolean keepMarkers, boolean keepContainers,
-                       @Nullable String fill) {
+                       @Nullable String fill, @Nullable String overlay) {
 
     /** The role of a room that closes one open door. */
     public static final String CAP_ROLE = "cap";
@@ -50,6 +53,15 @@ public record RoomSpec(@Nonnull String id, @Nonnull String prefab, @Nonnull Box 
         depthMin = clamp01(depthMin, 0);
         depthMax = clamp01(depthMax, 1);
         fill = Words.trimmed(fill);
+        overlay = Words.trimmed(overlay);
+    }
+
+    /** A room with no overlay: everything it paints is its {@code prefab}. */
+    public RoomSpec(@Nonnull String id, @Nonnull String prefab, @Nonnull Box box, @Nonnull List<DoorSpec> doors,
+            @Nonnull List<String> roles, @Nonnull List<String> tags, double weight, double depthMin, double depthMax,
+            @Nonnull List<String> needs, boolean keepMarkers, boolean keepContainers, @Nullable String fill) {
+        this(id, prefab, box, doors, roles, tags, weight, depthMin, depthMax, needs, keepMarkers, keepContainers, fill,
+                null);
     }
 
     /** Whether its prefab names a pool ({@code Folder.*}) rather than one prefab. */
