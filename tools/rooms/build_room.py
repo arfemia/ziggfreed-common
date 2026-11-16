@@ -22,11 +22,14 @@ The spec (JSON, keys as below; every cell is anchor-relative, the anchor being t
   {"Op": "Carve", Min, Max} (air).
 - Doors: {At, Facing, Kind, Width (odd, default 3), Height (default 3), Depth (wall thickness carved, default 1),
   Closed (a slot filling the opening, such as Bars)}. At is the doorway's floor cell on the room's outer face, the
-  same rule the kit importer follows, so a neighbour's door meets it one step out.
+  same rule the kit importer follows, so a neighbour's door meets it one step out. A Closed door is written ExitOnly
+  in the room file (an overlay's Closed doors too): the layout never enters the room through a door it seals, so the
+  room's logic opening it is always the way on.
 - Props: {At, Slot}. Spawns: {At, Marker} (a manual spawn marker id, woken by the SealedCombat template). A spec
   without an overlay that lists any writes "Keep": {"Markers": true} in its room file, so the room logic places them.
 - Logic: {Template, ...params} from logic_templates.TEMPLATES; a template may place blocks of its own (braziers,
-  plates, runes), which count as props.
+  plates, runes), which count as props. A template is handed the room's doors and its Box (an overlay's: the base
+  room's), the region a room hint covers unless it names its own.
 - Any cell may be written {X, Z, "OnFloor": true} (Y optional, the height to start looking from): the builder puts it
   in the first air cell over a floor in that column, nearest that height, with headroom above.
 The palette: {Id, Slots: {<slot>: block id, {Block, State}, or [{Block, State?, Weight}, ...] picked per cell by a
@@ -310,7 +313,8 @@ class RoomBuild:
             if self.overlay and not self.ground.free(cell):
                 self.problems.append("spawn marker %s at %s stands in a cell the base fills" % (s["Marker"], cell))
             entities.append(spawn_marker_entity(spec["Id"], i, cell, s["Marker"]))
-        ctx = {"doors": self.doors, "slot": self.palette.main_block, "name": spec["Id"] + "_"}
+        ctx = {"doors": self.doors, "slot": self.palette.main_block, "name": spec["Id"] + "_",
+               "box": self.room_box()}
         for i, logic in enumerate(spec.get("Logic", [])):
             template = lt.TEMPLATES.get(logic["Template"])
             if template is None:
@@ -422,7 +426,11 @@ class RoomBuild:
         doors = []
         order = {f: i for i, f in enumerate(pio.FACINGS)}
         for d in sorted(self.doors, key=lambda d: (order[d["Facing"]], d["At"])):
-            doors.append({"At": pio.xyz_dict(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"]})
+            door = {"At": pio.xyz_dict(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"]}
+            if d["Closed"]:
+                # Sealed by the room's logic until it is solved: the layout may leave by it, never enter.
+                door["ExitOnly"] = True
+            doors.append(door)
         label = spec.get("Label", spec["Id"])
         if self.overlay:
             tags = {}
@@ -471,7 +479,7 @@ class RoomBuild:
         for d in self.doors:
             lines.append("  socket %d: %s %s kind %s, opening %s..%s%s" % (
                 d["Index"], d["At"], d["Facing"], d["Kind"], d["OpeningMin"], d["OpeningMax"],
-                ", closed by %s" % d["Closed"] if d["Closed"] else ""))
+                ", closed by %s, exit only" % d["Closed"] if d["Closed"] else ""))
         keys = lt.room_scoped_keys(self.entities)
         lines.append("  room-scoped keys: %s" % (", ".join(keys) or "none"))
         for p in self.problems:

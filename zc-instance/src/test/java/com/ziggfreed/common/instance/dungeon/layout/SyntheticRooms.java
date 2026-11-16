@@ -34,6 +34,15 @@ final class SyntheticRooms {
 
     @Nonnull
     static RoomCatalogue catalogue() {
+        return catalogue(false);
+    }
+
+    /**
+     * The kit; with {@code oneWayPuzzles}, each puzzle's north and east doors are exit-only, so it may be entered by
+     * its south door alone, as a puzzle whose sealed doors are the way on.
+     */
+    @Nonnull
+    static RoomCatalogue catalogue(boolean oneWayPuzzles) {
         List<RoomSpec> rooms = new ArrayList<>();
         for (String stratum : new String[] {"Ruins", "Crypt", "Void"}) {
             String s = stratum.toLowerCase(Locale.ROOT);
@@ -64,8 +73,8 @@ final class SyntheticRooms {
                     door(0, 0, -10, Facing.NORTH, "Large"), door(0, 0, 10, Facing.SOUTH, "Large")), ARENA_FILL));
             rooms.add(room("puzzle_" + s, "Synthetic." + stratum + ".Puzzle.*", box(-5, 0, -5, 5, 6, 5),
                     List.of("Puzzle"), stratum, 1, 0.2, 1, List.of("Clue"),
-                    door(0, 0, -5, Facing.NORTH, "Small"), door(0, 0, 5, Facing.SOUTH, "Small"),
-                    door(5, 0, 0, Facing.EAST, "Small")));
+                    door(0, 0, -5, Facing.NORTH, "Small", oneWayPuzzles), door(0, 0, 5, Facing.SOUTH, "Small"),
+                    door(5, 0, 0, Facing.EAST, "Small", oneWayPuzzles)));
             rooms.add(room("clue_" + s, "Synthetic." + stratum + ".Clue", box(-3, 0, -3, 3, 4, 3),
                     List.of("Clue"), stratum, 1, 0, 1, List.of(),
                     door(0, 0, 3, Facing.SOUTH, "Small")));
@@ -147,5 +156,11 @@ final class SyntheticRooms {
     @Nonnull
     static DoorSpec door(int x, int y, int z, @Nullable Facing facing, @Nonnull String kind) {
         return new DoorSpec(new Cell(x, y, z), facing, kind);
+    }
+
+    /** A door, exit-only when {@code exitOnly}. */
+    @Nonnull
+    static DoorSpec door(int x, int y, int z, @Nullable Facing facing, @Nonnull String kind, boolean exitOnly) {
+        return new DoorSpec(new Cell(x, y, z), facing, kind, exitOnly);
     }
 }

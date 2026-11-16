@@ -7,7 +7,8 @@
 A room is drawn from one variant of its pool (`--variant`, default the first): north is up, one block a square. A
 column whose floor sits at the doors' level is a floor tile, a column with a block at head height is wall (darker),
 a column whose floor is lower or higher is tinted blue or orange by how far, and a column of carved air with nothing
-under it is hatched. Doors are arrows on their cell, pointing out, labelled with their Kind; the room's Box is the
+under it is hatched. Doors are arrows on their cell, pointing out, labelled with their Kind (hollow and marked exit
+when ExitOnly: the layout leaves the room by it, never enters); the room's Box is the
 dashed outline; trigger volumes are blue outlines with their names; spawn markers are red dots.
 
 A room with an Overlay draws its base piece, then the overlay over it: each overlay block an inset square in its
@@ -302,14 +303,15 @@ def draw_room(svg, room, prefab, origin=(0, 0, 0), turns=0, ghost=False, label=N
     for d in room.get("Doors") or []:
         at = place(pio.xyz_tuple(d["At"]), origin, turns)
         facing = pio.rotate_facing(d["Facing"], turns)
-        draw_door(svg, at, facing, d.get("Kind", "?"), ghost)
+        draw_door(svg, at, facing, d.get("Kind", "?"), ghost, bool(d.get("ExitOnly")))
     if prefab is not None and not ghost:
         draw_entities(svg, prefab, origin, turns)
     if overlay is not None and not ghost:
         draw_entities(svg, overlay, origin, turns)
 
 
-def draw_door(svg, at, facing, kind, ghost=False):
+def draw_door(svg, at, facing, kind, ghost=False, exit_only=False):
+    """A door's arrow, pointing out; an exit-only door (one the layout never enters by) is hollow and labelled exit."""
     vx, vz = pio.FACING_VEC[facing]
     cx, cz = at[0] + 0.5, at[2] + 0.5
     px, pz = -vz, vx
@@ -317,9 +319,11 @@ def draw_door(svg, at, facing, kind, ghost=False):
     base1 = (cx - vx * 0.3 + px * 0.7, cz - vz * 0.3 + pz * 0.7)
     base2 = (cx - vx * 0.3 - px * 0.7, cz - vz * 0.3 - pz * 0.7)
     col = hexrgb(kind_colour(kind))
-    svg.poly([tip, base1, base2], col, "#000", opacity=0.45 if ghost else 1.0)
+    svg.poly([tip, base1, base2], "#ffffff" if exit_only else col, col if exit_only else "#000",
+             opacity=0.45 if ghost else 1.0)
     if not ghost:
-        svg.text(cx + vx * 2.2, cz + vz * 2.2 + 0.3, kind, size=8, colour=col, anchor="middle")
+        svg.text(cx + vx * 2.2, cz + vz * 2.2 + 0.3, kind + (" (exit)" if exit_only else ""), size=8, colour=col,
+                 anchor="middle")
 
 
 def draw_entities(svg, prefab, origin, turns):

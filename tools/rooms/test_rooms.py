@@ -11,7 +11,9 @@
 - Every logic template's volumes, as the sample specs stamp them, use only trigger-volume Types, keys, event names and
   enum values the engine's own codecs read (the release source's builtin TriggerVolumes plugin, read once), and
   CommonLib's own Types the keys their sources declare; a missing source skips the check with the reason.
-- The overlay placer never puts a block on a cell the base fills, and never lets a volume write one there.
+- The overlay placer never puts a block on a cell the base fills, and never lets a volume write one there; a door
+  a spec seals is written ExitOnly.
+- A rune order puts a wrong rune out at every step, the first included; a room hint is said once per player.
 """
 import filecmp
 import os
@@ -336,6 +338,7 @@ class OverlayPlacer(unittest.TestCase):
         room = rb.room()
         self.assertEqual((room["Prefab"], room["Overlay"]), ("Test.Base", "Test.Overlay"))
         self.assertEqual(room["Fill"], "Rock_Stone", "the base room's Fill carries over")
+        self.assertIs(room["Doors"][0].get("ExitOnly"), True, "a sealed door is one the layout never enters by")
 
     def test_a_block_on_a_filled_cell_is_refused(self):
         cases = {
@@ -368,6 +371,40 @@ class OverlayPlacer(unittest.TestCase):
             rb = build_sample(name, self.palette, assets)
             self.assertEqual(rb.problems, [], name)
             self.assert_on_free_cells(rb, rb.base, name)
+
+
+class PuzzleLogic(unittest.TestCase):
+    def ctx(self):
+        palette = build_room.Palette(pio.load_json(PALETTE))
+        return {"doors": [], "slot": palette.main_block, "name": "T_", "box": ((-5, 0, -5), (5, 5, 5))}
+
+    def test_a_wrong_first_rune_is_put_out(self):
+        params = {"Runes": [{"X": 0, "Y": 1, "Z": -2}, {"X": 2, "Y": 1, "Z": -2}, {"X": 4, "Y": 1, "Z": -2}],
+                  "Glyphs": ["Rune_A", "Rune_B", "Rune_C"], "Lit": ["Rune_A_Lit", "Rune_B_Lit", "Rune_C_Lit"],
+                  "Variants": [[2, 0, 1]], "Milestone": ""}
+        made = lt.rune_order(params, self.ctx())
+        controller = [tv for _, tv in lt.volumes(made.entities) if tv["Name"].startswith("T_Runes_")][0]
+        for k, rune in enumerate([2, 0, 1]):
+            wrong = [c.get("Entry", 0) for c in controller["Conditions"]
+                     if c.get("TagKey") == "Rune" and c.get("Comparison") == "NotEquals" and c["TagValue"] == str(rune)]
+            self.assertEqual(len(wrong), 1, "step %d has a wrong-rune entry" % k)
+            entry = wrong[0]
+            self.assertIn(str(k), [c["TagValue"] for c in controller["Conditions"]
+                                   if c.get("Entry", 0) == entry and c.get("TagKey") == "Step"])
+            puts_out = [e for e in controller["Effects"] if e.get("Entry", 0) == entry and e["Type"] == "ReplaceBlockType"]
+            self.assertEqual(len(puts_out), 3, "a wrong rune at step %d puts every rune out" % k)
+
+    def test_a_room_hint_is_said_once_per_player(self):
+        made = lt.room_hint({"HintKey": "server.test.hint"}, self.ctx())
+        tv = made.entities[0]["Components"]["TriggerVolume"]
+        self.assertEqual([(e["Event"], e["Type"], e["Message"]) for e in tv["Effects"]],
+                         [("ENTER", "SendMessage", "server.test.hint")])
+        self.assertGreaterEqual(tv["Cooldown"], 3600.0, "a per-player cooldown longer than a run")
+        self.assertNotIn("CooldownMode", tv, "the engine's default cooldown is per entity")
+        plates = lt.pressure_plates({"Plates": [{"X": 0, "Y": 1, "Z": 0}], "HintKey": "server.test.plates"},
+                                    self.ctx())
+        self.assertEqual(sum(1 for _, v in lt.volumes(plates.entities) if v["Name"] == "T_Hint"), 1,
+                         "a puzzle's HintKey stamps the room hint")
 
 
 if __name__ == "__main__":

@@ -35,7 +35,8 @@ import com.ziggfreed.common.instance.dungeon.layout.PlacedRoom.Part;
  * every layout is whole (every room reachable, every need placed before the room needing it, no two rooms sharing a
  * block, all inside the bounds, every door joined or capped face to face with its own kind, the entry on the plan's
  * entry cell, each room's fill its own else its stratum's, every gate before the end it guards, the rooms a tree,
- * every required branch there); a plan too big for its bounds relaxes, optional branches first and then counts; a
+ * every required branch there, no room entered by an exit-only door); a room with exit-only doors is entered only by
+ * its other doors and left by them; a plan too big for its bounds relaxes, optional branches first and then counts; a
  * plan that cannot be met says why; and a door turned four quarter turns comes home, each turn the engine's own
  * prefab turn. Untagged: nothing here builds an engine item.
  */
@@ -98,6 +99,49 @@ public class LayoutGeneratorTest {
                 (double) rooms / Math.max(1, SWEEP - failures), msEach, slowest / 1e6));
         assertEquals(0, failures, () -> "every seed makes a layout: " + problems);
         assertTrue(problems.isEmpty(), () -> "every layout is whole: " + problems);
+    }
+
+    @Test
+    void aRoomIsNeverEnteredThroughAnExitOnlyDoor() {
+        RoomCatalogue catalogue = SyntheticRooms.catalogue(true);
+        LayoutPlan plan = SyntheticRooms.plan();
+        List<String> problems = new ArrayList<>();
+        int puzzles = 0;
+        int leftByAnExit = 0;
+        for (int i = 0; i < 2_000; i++) {
+            long seed = SplitMix64.mix(i + 101L);
+            LayoutResult result = LayoutGenerator.generate(plan, catalogue, seed);
+            if (!result.ok()) {
+                problems.add("seed " + seed + ": no layout: " + result.failure());
+                continue;
+            }
+            for (String problem : problemsOf(result.layout(), plan, catalogue)) {
+                problems.add("seed " + seed + ": " + problem);
+            }
+            for (PlacedRoom room : result.layout().rooms()) {
+                if (!room.roomId().startsWith("puzzle_")) {
+                    continue;
+                }
+                puzzles++;
+                for (DoorLink door : room.doors()) {
+                    RoomSpec spec = catalogue.room(room.roomId());
+                    if (door.room() == room.parent() && spec.doors().get(door.door()).exitOnly()) {
+                        problems.add("seed " + seed + ": puzzle " + room.index() + " entered by exit-only door "
+                                + door.door());
+                    }
+                    if (spec.doors().get(door.door()).exitOnly() && door.room() > room.index()
+                            && result.layout().rooms().get(door.room()).part() != Part.CAP) {
+                        leftByAnExit++;
+                    }
+                }
+            }
+        }
+        assertTrue(problems.isEmpty(), () -> problems.size() + " problems: "
+                + problems.subList(0, Math.min(10, problems.size())));
+        int placed = puzzles;
+        int left = leftByAnExit;
+        assertTrue(placed > 0 && left > 0, () -> "the one-way puzzles are placed (" + placed
+                + ") and left by an exit-only door (" + left + ")");
     }
 
     @Test
@@ -278,6 +322,9 @@ public class LayoutGeneratorTest {
                 if (door.capped() != (room.part() == PlacedRoom.Part.CAP
                         || rooms.get(door.room()).part() == PlacedRoom.Part.CAP)) {
                     out.add("room " + i + " door " + door.door() + " is capped by a room that is no cap");
+                }
+                if (own.exitOnly() && door.room() == room.parent() && room.part() != PlacedRoom.Part.CAP) {
+                    out.add("room " + i + " is entered from its parent through exit-only door " + door.door());
                 }
             }
             for (String need : spec.needs()) {

@@ -12,7 +12,9 @@ Rules every template keeps (procgen-dungeon.md section 3), and test_rooms.py che
 - No position is world-absolute: block writes use `Origin: VolumeOrigin` offsets, a teleport `RelativeToVolume`.
 - A tag fires only on a change, so a state machine walks distinct values, and a reset writes a different value
   before the one it returns to.
-- Text players read is a lang key the caller passes in (HintKey, TitleKey); a template never spells it.
+- Text players read is a lang key the caller passes in (HintKey, TitleKey); a template never spells it. A puzzle
+  template's optional HintKey stamps a RoomHint: the room tells each player that line once, as they come in, so the
+  puzzle is taught where it is played.
 
 Coordinates in and out are anchor-relative block cells; a volume's Transform sits on the corner cell of its box, so
 its Box shape runs from (0, 0, 0) to the box size and every offset below is a whole number of blocks.
@@ -41,6 +43,10 @@ VARIANT_KEY = "ZigVariant"
 REACH = 64.0
 # Seconds between a tag write and the signal that asks another volume to read it, so the read sees the write.
 SETTLE = 0.1
+# A room hint's per-player cooldown, longer than any run: a volume's Cooldown is kept per entity and survives the
+# entity leaving (VolumeEntry.isOnCooldown, clearEntityRuntimeState keeps it), and a run's room logic is placed once
+# and removed at its end, so each player hears the line once per run.
+HINT_ONCE = 86400.0
 
 
 class BlockRef(str):
@@ -283,6 +289,22 @@ def controller_cell(params, fallback):
     return cell_of(params["Controller"]) if params.get("Controller") else fallback
 
 
+def hint_volumes(params, ctx, region_param="HintRegion"):
+    """The room hint a template's HintKey asks for: a volume over params[region_param] {Min, Max}, else the room's
+    Box (ctx["box"]), whose ENTER tells the triggering player the line, once per player per run (HINT_ONCE). [] when
+    there is no HintKey."""
+    key = params.get("HintKey")
+    if not key:
+        return []
+    if params.get(region_param):
+        lo, hi = region(params[region_param])
+    elif ctx.get("box"):
+        lo, hi = ctx["box"]
+    else:
+        raise ValueError("HintKey: give %s, the region the hint is said in (the room has no Box)" % region_param)
+    return [volume_entity(ctx["name"] + "Hint", lo, box_size(lo, hi), [message("ENTER", key)], Cooldown=HINT_ONCE)]
+
+
 def all_at_once(params, ctx, label, cell, key, value, signal_key, member_key, tag, want, also=()):
     """The controller every all-of-them-at-once puzzle shares (braziers, plates, levers): a volume at `cell`, carrying
     `key`, that on a signal carrying `signal_key`, while it is Ready and every volume carrying `member_key` has `tag` at
@@ -477,7 +499,7 @@ def brazier_relay(params, ctx):
     params: Braziers [{X, Y, Z}] (usable brazier cells; the template places them), Burn (seconds; default 15),
     Unlit and Lit (palette slots; default Brazier and Brazier_Lit), Key (the relay's key; default Relay@room),
     BrazierKey (default Brazier@room), Controller {X, Y, Z} (default the cell over the first brazier), and the
-    solved params (Opens, Signal, Milestone), LightSound and LightVfx.
+    solved params (Opens, Signal, Milestone), LightSound and LightVfx, HintKey and HintRegion (a room hint).
     A brazier walks Fuel Burning and Cold: lighting writes Burning, Burn seconds on writes Cold, and Cold puts it out
     unless the relay is solved."""
     braziers = cells_of(params["Braziers"])
@@ -509,6 +531,7 @@ def brazier_relay(params, ctx):
     ctl = controller_cell(params, (braziers[0][0], braziers[0][1] + 1, braziers[0][2]))
     out.entities.append(all_at_once(params, ctx, "Relay", ctl, key, "Relay", "Lit", brazier_key, "Lit", "Yes",
                                     also=[set_tags("SIGNAL_RECEIVED", brazier_key, "Solved", "Yes")]))
+    out.entities.extend(hint_volumes(params, ctx))
     return out
 
 
@@ -518,7 +541,8 @@ def carried_core_source(params, ctx):
     core dropped in a pit or lost on a death is never the end of the run.
 
     params: At {X, Y, Z} (the core's cell; the template places it), Core (palette slot; default Core), Restock
-    (seconds; default 20). The core block must be one a player can carry (vanilla's carryable blocks)."""
+    (seconds; default 20), HintKey and HintRegion (a room hint). The core block must be one a player can carry
+    (vanilla's carryable blocks)."""
     c = cell_of(params["At"])
     core_slot = params.get("Core", "Core")
     core = ctx["slot"](core_slot)
@@ -533,8 +557,8 @@ def carried_core_source(params, ctx):
         tag_is("BLOCK_BROKEN", "Stock", "Full"),
         event_tag_is("TAG_ADDED", "Stock", "Restock", entry=1),
     ]
-    return Logic([cell_volume(ctx["name"] + "Core_Source", c, effects, conditions, {"Stock": "Full"})],
-                 {c: core_slot})
+    return Logic([cell_volume(ctx["name"] + "Core_Source", c, effects, conditions, {"Stock": "Full"})]
+                 + hint_volumes(params, ctx), {c: core_slot})
 
 
 def carried_core_socket(params, ctx):
@@ -543,7 +567,8 @@ def carried_core_socket(params, ctx):
 
     params: Region {Min, Max} (where a carrier must stand), Socket {X, Y, Z} (the cell the core appears in, air
     until then), Core (palette slot; default Core), Item (the carried item's id; default the Core slot's block),
-    HintKey (a lang key said to a player who arrives without it while the socket is still empty; optional), and the
+    HintKey (a lang key said to a player who arrives without it while the socket is still empty; optional: unlike
+    the other puzzles' HintKey, this one is said at the socket, each time, rather than once in the room), and the
     solved params. Entry 0 fills the socket; entry 1, only while it is Empty and the player carries no core, says the
     hint, so nobody is told to fetch a core the socket already holds."""
     lo, hi = region(params["Region"])
@@ -573,7 +598,8 @@ def pressure_plates(params, ctx):
     params: Plates [{X, Y, Z}] (plate cells; the template places them), Targets (["Player"], ["Npc"], ["ItemDrop"],
     or several; default ["Player"]; [] when only a Weight presses), Weight (a block id whose placing on a plate presses
     it), Latch (default false), Plate and Plate_Down (palette slots; Plate_Down optional), Key (default
-    PlateLock@room), PlateKey (default Plate@room), Controller {X, Y, Z}, and the solved params.
+    PlateLock@room), PlateKey (default Plate@room), Controller {X, Y, Z}, the solved params, HintKey and HintRegion
+    (a room hint).
     A plate's volume covers its cell and the two above, where a body or a set-down block stands."""
     plates = cells_of(params["Plates"])
     targets = list(params.get("Targets", ["Player"]))
@@ -628,6 +654,7 @@ def pressure_plates(params, ctx):
                                           {plate_key: "Plate", "Pressed": "No"}, targets=targets or ["Player"]))
     ctl = controller_cell(params, (plates[0][0], plates[0][1] + 3, plates[0][2]))
     out.entities.append(all_at_once(params, ctx, "Plates", ctl, key, "Lock", "Pressed", plate_key, "Pressed", "Yes"))
+    out.entities.extend(hint_volumes(params, ctx))
     return out
 
 
@@ -648,8 +675,8 @@ def memory_floor(params, ctx):
 
     params: Tiles {Min, Max} (one layer of tile cells; the template places them), Variants [[[col, row], ...], ...]
     (each variant's safe tiles, col east from Tiles.Min.X, row north from Tiles.Max.Z), Group (default Memory), Drop
-    (seconds; default 3), Tile (palette slot; default Tile), Finish {Min, Max} (optional: entering it solves), and the
-    solved params. A pit under the floor wants a FallRescue."""
+    (seconds; default 3), Tile (palette slot; default Tile), Finish {Min, Max} (optional: entering it solves), the
+    solved params, HintKey and HintRegion (a room hint). A pit under the floor wants a FallRescue."""
     lo, hi = region(params["Tiles"])
     if lo[1] != hi[1]:
         raise ValueError("MemoryFloor: Tiles must be one layer")
@@ -684,6 +711,7 @@ def memory_floor(params, ctx):
         effects = [set_own_tag("ENTER", "State", "Solved")] + solved(params, ctx, "ENTER", flo)
         out.entities.append(volume_entity(ctx["name"] + "Memory_Finish", flo, box_size(flo, fhi), effects,
                                           [tag_is("ENTER", "State", "Ready")], {"State": "Ready"}))
+    out.entities.extend(hint_volumes(params, ctx))
     return out
 
 
@@ -701,7 +729,8 @@ def memory_clue(params, ctx):
 
     params: Canvas {X, Y, Z} (the air cell tile 0,0 paints to), Variants and Group (the MemoryFloor's), Upright
     (paint on a wall facing south, rows going up; default false: on the floor plane, rows going north), Mark (palette
-    slot; default Mark). Every painted cell must be air: the paint never replaces a block."""
+    slot; default Mark), HintKey and HintRegion (a room hint). Every painted cell must be air: the paint never
+    replaces a block."""
     canvas = cell_of(params["Canvas"])
     variants = params["Variants"]
     check_variants(variants, "MemoryClue")
@@ -714,6 +743,7 @@ def memory_clue(params, ctx):
                    for c, r in sorted((int(c), int(r)) for c, r in path)]
         out.entities.append(cell_volume("%sMemory_Clue_%d" % (ctx["name"], n), canvas, effects,
                                         tags=variant_tag(group, n)))
+    out.entities.extend(hint_volumes(params, ctx))
     return out
 
 
@@ -725,8 +755,9 @@ def rune_order(params, ctx):
     slot, in Runes order; the clue paints the same blocks), Lit (the palette slot a lit rune becomes, or one per rune
     in Runes order, such as each glyph's own On state; default Rune_Lit),
     Variants [[rune index, ...], ...] (each an order over the runes, indices from 0), Group (default Runes), Key
-    (default RuneLock@room), Controller {X, Y, Z}, PressSound, and the solved params.
-    The controller walks Step 0, 1, ... and Done; a wrong rune writes Reset before 0."""
+    (default RuneLock@room), Controller {X, Y, Z}, PressSound, the solved params, HintKey and HintRegion (a room hint).
+    The controller walks Step 0, 1, ... and Done; a wrong rune writes Reset before 0, at any step, the first
+    included: a rune block's own Use lights it whatever the order, so a wrong first press must be put out too."""
     runes = cells_of(params["Runes"])
     glyphs = list(params["Glyphs"])
     if len(glyphs) != len(runes):
@@ -766,8 +797,8 @@ def rune_order(params, ctx):
             else:
                 effects.append(set_own_tag("SIGNAL_RECEIVED", "Step", "Done", entry, delay=SETTLE))
                 effects += solved(params, ctx, "SIGNAL_RECEIVED", ctl, entry)
-        for k in range(1, len(order)):
-            entry = len(order) + k
+        for k in range(len(order)):
+            entry = len(order) + 1 + k
             conditions += [event_tag_is("SIGNAL_RECEIVED", "Rune", str(order[k]), entry, comparison="NotEquals"),
                            tag_is("SIGNAL_RECEIVED", "Step", str(k), entry)]
             effects.append(set_own_tag("SIGNAL_RECEIVED", "Step", "Reset", entry))
@@ -777,6 +808,7 @@ def rune_order(params, ctx):
         tags = {key: "Lock", "Step": "0"}
         tags.update(variant_tag(group, n))
         out.entities.append(cell_volume("%sRunes_%d" % (ctx["name"], n), ctl, effects, conditions, tags))
+    out.entities.extend(hint_volumes(params, ctx))
     return out
 
 
@@ -785,7 +817,7 @@ def rune_clue(params, ctx):
     first to last along Step, when the room's logic is placed; one volume per variant in the RuneOrder's group.
 
     params: Canvas {X, Y, Z} (the air cell the first glyph paints to), Step {X, Y, Z} (from one glyph to the next;
-    default one block east), Glyphs, Variants and Group (the RuneOrder's)."""
+    default one block east), Glyphs, Variants and Group (the RuneOrder's), HintKey and HintRegion (a room hint)."""
     canvas = cell_of(params["Canvas"])
     step = cell_of(params.get("Step", {"X": 1, "Y": 0, "Z": 0}))
     blocks = [ctx["slot"](g) for g in params["Glyphs"]]
@@ -800,6 +832,7 @@ def rune_clue(params, ctx):
             effects.append(place_block("VOLUME_CREATE", canvas, at, blocks[rune]))
         out.entities.append(cell_volume("%sRune_Clue_%d" % (ctx["name"], n), canvas, effects,
                                         tags=variant_tag(group, n)))
+    out.entities.extend(hint_volumes(params, ctx))
     return out
 
 
@@ -810,7 +843,7 @@ def lever_logic(params, ctx):
     params: Levers [{At {X, Y, Z}, Pipe [{X, Y, Z}, ...], Want (true for on, the default; false for a lever that must
     stay off)}] (the template places levers and pipes), Lever, Pipe and Pipe_Lit (palette slots; defaults those
     names), Flow (seconds per pipe cell; default 0.25), Key (default Generator@room), LeverKey (default Lever@room),
-    Controller {X, Y, Z}, PullSound, and the solved params.
+    Controller {X, Y, Z}, PullSound, the solved params, HintKey and HintRegion (a room hint).
     A lever walks On No and Yes, and keeps Correct (Yes when it stands as wanted) for the generator to read."""
     levers = params["Levers"]
     lever_slot, pipe_slot = params.get("Lever", "Lever"), params.get("Pipe", "Pipe")
@@ -845,6 +878,7 @@ def lever_logic(params, ctx):
     ctl = controller_cell(params, (first[0], first[1] + 2, first[2]))
     out.entities.append(all_at_once(params, ctx, "Generator", ctl, key, "Generator", "Lever", lever_key, "Correct",
                                     "Yes"))
+    out.entities.extend(hint_volumes(params, ctx))
     return out
 
 
@@ -975,7 +1009,19 @@ def skill_lock(params, ctx):
     return out
 
 
+def room_hint(params, ctx):
+    """The room hint: a player coming into the room is told one line, once per run (a per-player Cooldown longer than
+    any run, HINT_ONCE), so a room teaches what it asks where it asks it. Every puzzle template stamps one from its own
+    HintKey; a room with no puzzle (a hazard, a checkpoint) names this template itself.
+
+    params: HintKey (the lang key, required), Region {Min, Max} (where coming in counts; default the room's Box)."""
+    if not params.get("HintKey"):
+        raise ValueError("RoomHint: HintKey (the lang key of the line) is required")
+    return Logic(hint_volumes(params, ctx, region_param="Region"))
+
+
 TEMPLATES = {
+    "RoomHint": room_hint,
     "SealedCombat": sealed_combat,
     "LeverDoor": lever_door,
     "FallRescue": fall_rescue,

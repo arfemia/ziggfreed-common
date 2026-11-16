@@ -24,7 +24,8 @@ import com.ziggfreed.common.instance.dungeon.layout.PlacedRoom.Part;
  * <p><b>How a try runs.</b> The seed picks one tag per stratum, then rolls each beat's count and the connectors
  * between beats, which fixes the path's length and so each slot's depth. The path is embedded by socket snapping:
  * the entry's anchor stands on the plan's {@code Bounds.Entry} (the bounds' centre unless the plan says), and each
- * next room is turned so one of its doors
+ * next room is turned so one of its doors (never an exit-only one: a room is entered only by a door it may be entered
+ * by, so a puzzle's sealed way on is always the way out)
  * meets an open door of the previous room of the same kind face to face, and kept only if its turned box stays in
  * the bounds and clears every placed room, and (unless it is the last) it leaves a door open of a kind the next
  * slot's rooms can meet, a gate likewise for its branch's end room. A room on a branch of its own then answers each
@@ -502,7 +503,7 @@ public final class LayoutGenerator {
             int[] doorOrder = indices(doors.size());
             shuffle(doorOrder, rng);
             for (RoomSpec spec : weightedOrder(candidates, rng)) {
-                int[] own = usableDoors(spec);
+                int[] own = enterableDoors(spec);
                 shuffle(own, rng);
                 for (int o : doorOrder) {
                     Open join = doors.get(o);
@@ -866,13 +867,16 @@ public final class LayoutGenerator {
         return out;
     }
 
-    /** The kinds of every usable door of {@code rooms}, each once, in the order met. */
+    /**
+     * The kinds of every door {@code rooms} can be entered by, each once, in the order met: the kinds a room before
+     * them must leave open for one of them to join.
+     */
     @Nonnull
     private static List<String> kindsOf(@Nonnull List<RoomSpec> rooms) {
         List<String> kinds = new ArrayList<>();
         for (RoomSpec room : rooms) {
             for (DoorSpec door : room.doors()) {
-                if (door.usable() && !kinds.contains(door.kind())) {
+                if (door.enterable() && !kinds.contains(door.kind())) {
                     kinds.add(door.kind());
                 }
             }
@@ -880,12 +884,13 @@ public final class LayoutGenerator {
         return kinds;
     }
 
+    /** The doors a room joining onto an open door may meet it by: never an exit-only one. */
     @Nonnull
-    private static int[] usableDoors(@Nonnull RoomSpec spec) {
-        int[] out = new int[spec.usableDoorCount()];
+    private static int[] enterableDoors(@Nonnull RoomSpec spec) {
+        int[] out = new int[spec.enterableDoorCount()];
         int n = 0;
         for (int i = 0; i < spec.doors().size(); i++) {
-            if (spec.doors().get(i).usable()) {
+            if (spec.doors().get(i).enterable()) {
                 out[n++] = i;
             }
         }
