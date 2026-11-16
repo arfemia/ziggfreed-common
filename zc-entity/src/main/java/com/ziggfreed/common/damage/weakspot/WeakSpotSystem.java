@@ -56,8 +56,10 @@ import com.ziggfreed.common.util.SafeLog;
  * attacker's {@code WeakSpot_FoeLow}; once the hit is a weak spot, only a way whose own stat pays more is asked. An
  * attacker wearing a next-hit effect ({@code ZigWeakSpot_Next}, one flag read when no effect carries the tag) makes
  * the hit a weak spot and loses the effect with the first hit that lands; a window tagged {@code Once} comes off the
- * target with the hit it paid. A weak spot puts {@link WeakSpots#hitKey} on the hit and shows the attacker the combat
- * text.
+ * target with the hit it paid. Both are decided once a hit: a hit of several causes is several damages sharing one
+ * source object, and the later ones take the first landing damage's answer ({@code HitNote}, as vanilla's own branch
+ * is answered), so an effect it spent still counts for them. A weak spot puts {@link WeakSpots#hitKey} on the hit and
+ * shows the attacker the combat text.
  */
 public final class WeakSpotSystem extends DamageEventSystem {
 
@@ -118,18 +120,27 @@ public final class WeakSpotSystem extends DamageEventSystem {
             try {
                 Ways ways = Ways.of(stats);
                 boolean bound = BoundGrants.hasHitTerms(attacker);
+                // A later cause of a hit that already landed (the same source object on the same target) takes that
+                // hit's answer: its first landing damage spent the next-hit effect, and a once window it paid, so a
+                // second read would find neither.
+                HitNote note = NOTE.get();
+                boolean later = VanillaWeakSpots.laterDamageOf(note.source, note.target, damage, target);
                 // The attacker's next-hit effect (ZigWeakSpot_Next): its own bonus is on the stats read above, and the
                 // first hit that lands spends it, paying or not.
-                int next = WeakSpotWindows.nextOn(store, attacker);
-                if (!ways.mayPay() && !bound && next == WeakSpotWindows.NO_EFFECT) {
+                int next = later ? WeakSpotWindows.NO_EFFECT : WeakSpotWindows.nextOn(store, attacker);
+                boolean nextOnHit = later ? note.next : next != WeakSpotWindows.NO_EFFECT;
+                if (!ways.mayPay() && !bound && !nextOnHit) {
                     return;
                 }
                 if (damage.isCancelled() || damage.getAmount() <= 0f
                         || target.equals(attacker) || !TypedDamageBonuses.attackerAllowed(store, attacker)) {
                     return;
                 }
-                if (next != WeakSpotWindows.NO_EFFECT) {
-                    spend(commandBuffer, attacker, next);
+                if (!later) {
+                    note.start(damage.getSource(), target, nextOnHit);
+                    if (next != WeakSpotWindows.NO_EFFECT) {
+                        spend(commandBuffer, attacker, next);
+                    }
                 }
                 if (!ways.mayPay() && !bound) {
                     return;
@@ -147,29 +158,36 @@ public final class WeakSpotSystem extends DamageEventSystem {
                 // way, the bonus it already paid counts against ours: one weak-spot bonus a hit, the larger of the two.
                 boolean vanillaHead = vanilla != null && vanilla.head() && settings.headEnabled();
                 boolean vanillaBack = vanilla != null && vanilla.backstab() && settings.backstabEnabled();
-                int[] window = {WeakSpotWindows.NO_EFFECT};
-                int found = waysOf(store, damage, target, attacker, settings, ways,
-                        vanillaHead || vanillaBack || next != WeakSpotWindows.NO_EFFECT, window);
+                // The ways are read once a hit, by its first damage that gets this far; its later causes reuse them.
+                if (!note.decided) {
+                    int[] window = {WeakSpotWindows.NO_EFFECT};
+                    note.found = waysOf(store, damage, target, attacker, settings, ways,
+                            vanillaHead || vanillaBack || nextOnHit, window);
+                    note.window = window[0];
+                    note.decided = true;
+                }
+                int found = note.found;
                 if (vanillaHead) {
                     found |= HEAD;
                 }
                 if (vanillaBack) {
                     found |= BACK;
                 }
-                if (next != WeakSpotWindows.NO_EFFECT) {
+                if (nextOnHit) {
                     found |= NEXT;
                 }
                 if (found == 0) {
                     return;
                 }
-                // A window a paid hit spends (ZigWeakSpot Once) comes off with the hit it opened.
-                if ((found & WINDOW) != 0 && WeakSpotWindows.spentByHit(window[0])) {
-                    spend(commandBuffer, target, window[0]);
-                }
                 double points = base + ((found & HEAD) != 0 ? ways.head() : 0.0)
                         + ((found & BACK) != 0 ? ways.back() : 0.0) + ((found & WINDOW) != 0 ? ways.staggered() : 0.0);
                 if (points <= 0.0) {
                     return;
+                }
+                // A window a paid hit spends (ZigWeakSpot Once) comes off with the hit it paid, once for all its causes.
+                if ((found & WINDOW) != 0 && !note.windowSpent && WeakSpotWindows.spentByHit(note.window)) {
+                    spend(commandBuffer, target, note.window);
+                    note.windowSpent = true;
                 }
                 double ours = WeakSpots.bonusFraction(points, WeakSpots.ceilingPercent(stats));
                 double factor = WeakSpots.factorOver(ours, paid);
@@ -203,6 +221,35 @@ public final class WeakSpotSystem extends DamageEventSystem {
 
     /** The hit is a weak spot through the attacker's next-hit effect ({@code ZigWeakSpot_Next}). */
     static final int NEXT = 16;
+
+    /**
+     * What the hit last decided on this thread left for its later causes: its source object and target (the key, as
+     * {@link VanillaWeakSpots#laterDamageOf} reads it), whether it carried the attacker's next-hit effect (spent by its
+     * first landing damage), the ways found once read ({@code decided}), and the once window among them, spent by the
+     * first of its damages that pays. The engine runs a hit's damages one after the other on the world thread.
+     */
+    private static final class HitNote {
+        @Nullable Damage.Source source;
+        @Nullable Ref<EntityStore> target;
+        boolean next;
+        boolean decided;
+        int found;
+        int window = WeakSpotWindows.NO_EFFECT;
+        boolean windowSpent;
+
+        /** A new hit lands: forget the last one. */
+        void start(@Nullable Damage.Source hitSource, @Nonnull Ref<EntityStore> hitTarget, boolean hitNext) {
+            source = hitSource;
+            target = hitTarget;
+            next = hitNext;
+            decided = false;
+            found = 0;
+            window = WeakSpotWindows.NO_EFFECT;
+            windowSpent = false;
+        }
+    }
+
+    private static final ThreadLocal<HitNote> NOTE = ThreadLocal.withInitial(HitNote::new);
 
     /** Take the effect at {@code index} off {@code ref}: a spent next-hit effect or once window. Never throws. */
     private static void spend(@Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> ref,
