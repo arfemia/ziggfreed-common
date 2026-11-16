@@ -24,7 +24,8 @@ The spec (JSON, keys as below; every cell is anchor-relative, the anchor being t
   Closed (a slot filling the opening, such as Bars)}. At is the doorway's floor cell on the room's outer face, the
   same rule the kit importer follows, so a neighbour's door meets it one step out. A Closed door is written ExitOnly
   in the room file (an overlay's Closed doors too): the layout never enters the room through a door it seals, so the
-  room's logic opening it is always the way on.
+  room's logic opening it is always the way on. "ExitOnly": true marks a door the room's logic seals some other way
+  (an arena's way on, shut by its fight), with no block in it.
 - Props: {At, Slot}. Spawns: {At, Marker} (a manual spawn marker id, woken by the SealedCombat template). A spec
   without an overlay that lists any writes "Keep": {"Markers": true} in its room file, so the room logic places them.
 - Logic: {Template, ...params} from logic_templates.TEMPLATES; a template may place blocks of its own (braziers,
@@ -356,7 +357,8 @@ class RoomBuild:
                 if self.slots.get(c, AIR) == AIR:
                     self.slots[c] = "Floor"
             doors.append({"Index": i, "At": pio.xyz_tuple(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"],
-                          "OpeningMin": olo, "OpeningMax": ohi, "Opening": opening, "Closed": closed})
+                          "OpeningMin": olo, "OpeningMax": ohi, "Opening": opening, "Closed": closed,
+                          "ExitOnly": bool(d.get("ExitOnly"))})
         return doors
 
     def base_doors(self):
@@ -385,7 +387,7 @@ class RoomBuild:
                 for c in opening:
                     self.put(c, closed, "door %d's %s" % (i, closed))
             doors.append({"Index": i, "At": at, "Facing": facing, "Kind": d["Kind"], "OpeningMin": olo,
-                          "OpeningMax": ohi, "Opening": opening, "Closed": closed})
+                          "OpeningMax": ohi, "Opening": opening, "Closed": closed, "ExitOnly": bool(d.get("ExitOnly"))})
         return doors
 
     def cut_door(self, i, d, closed):
@@ -403,7 +405,8 @@ class RoomBuild:
             if self.ground.free(c):
                 self.put(c, "Floor", "door %d's threshold" % i)
         return {"Index": i, "At": pio.xyz_tuple(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"],
-                "OpeningMin": olo, "OpeningMax": ohi, "Opening": opening, "Closed": None, "Cut": True}
+                "OpeningMin": olo, "OpeningMax": ohi, "Opening": opening, "Closed": None, "Cut": True,
+                "ExitOnly": bool(d.get("ExitOnly"))}
 
     def room_box(self):
         if not self.overlay:
@@ -468,7 +471,7 @@ class RoomBuild:
         order = {f: i for i, f in enumerate(pio.FACINGS)}
         for d in sorted(self.doors, key=lambda d: (order[d["Facing"]], d["At"])):
             door = {"At": pio.xyz_dict(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"]}
-            if d["Closed"]:
+            if d["Closed"] or d.get("ExitOnly"):
                 # Sealed by the room's logic until it is solved: the layout may leave by it, never enter.
                 door["ExitOnly"] = True
             doors.append(door)
@@ -521,7 +524,8 @@ class RoomBuild:
         for d in self.doors:
             lines.append("  socket %d: %s %s kind %s, opening %s..%s%s%s" % (
                 d["Index"], d["At"], d["Facing"], d["Kind"], d["OpeningMin"], d["OpeningMax"],
-                ", closed by %s, exit only" % d["Closed"] if d["Closed"] else "",
+                ", closed by %s, exit only" % d["Closed"] if d["Closed"] else
+                (", exit only" if d.get("ExitOnly") else ""),
                 ", cut into the base" if d.get("Cut") else ""))
         keys = lt.room_scoped_keys(self.entities)
         lines.append("  room-scoped keys: %s" % (", ".join(keys) or "none"))
