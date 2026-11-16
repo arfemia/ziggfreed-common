@@ -7,9 +7,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.ComponentAccessor;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.util.HostilityUtil;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -19,6 +23,11 @@ import com.ziggfreed.common.util.SafeLog;
  * ({@link Groups}): zc-instance fills it at setup from the library's own party, and a consumer with groups of its own
  * installs its answer in their place. Unfilled (a unit test, a jar built without zc-instance), every player reads as
  * in no party, which the seam says once.
+ *
+ * <p>The same rule by entity, for a step that reaches whoever stands near (R859): a step that helps reaches only
+ * {@link #areAllies(ComponentAccessor, Ref, Ref, boolean) allies}, a step that harms only a player the caster
+ * {@link #mayHarm may harm} or a creature hostile to the caster ({@link #isFoe}), never an ally and never a player in
+ * a world with PvP off. Only players are allies; a creature's side is its role's attitude.
  */
 public final class Allies {
 
@@ -90,6 +99,72 @@ public final class Allies {
             return world == null || world.getWorldConfig().isPvpEnabled();
         } catch (Throwable t) {
             return true;
+        }
+    }
+
+    /** Is {@code ref} a player? False when it cannot be read. World thread; never throws. */
+    public static boolean isPlayer(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
+        return idOfPlayer(accessor, ref) != null;
+    }
+
+    /**
+     * Is the player at {@code other} an ally of the player at {@code player}, in a world whose PvP is {@code pvpOn}
+     * (a sweep reads it once, {@link #pvpOn(ComponentAccessor)})? False for a creature on either side, for one entity twice and when
+     * either cannot be read. World thread; never throws.
+     */
+    public static boolean areAllies(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> player,
+            @Nonnull Ref<EntityStore> other, boolean pvpOn) {
+        UUID playerId = idOfPlayer(accessor, player);
+        UUID otherId = idOfPlayer(accessor, other);
+        return playerId != null && otherId != null && areAllies(playerId, otherId, pvpOn);
+    }
+
+    /** {@link #areAllies(ComponentAccessor, Ref, Ref, boolean)} in the accessor's own world. */
+    public static boolean areAllies(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> player,
+            @Nonnull Ref<EntityStore> other) {
+        return areAllies(accessor, player, other, pvpOn(accessor));
+    }
+
+    /**
+     * May {@code attacker} harm the player at {@code player}: PvP is on in the world and the rule does not count them
+     * as allies. Fails closed: false for a player who cannot be read, for the attacker themself and for a creature
+     * ({@link #isFoe} reads a creature). World thread; never throws.
+     */
+    public static boolean mayHarm(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nonnull Ref<EntityStore> player) {
+        if (!pvpOn(accessor)) {
+            return false;
+        }
+        UUID attackerId = idOfPlayer(accessor, attacker);
+        UUID playerId = idOfPlayer(accessor, player);
+        return attackerId != null && playerId != null && !attackerId.equals(playerId)
+                && !areAllies(attackerId, playerId, true);
+    }
+
+    /**
+     * Is {@code candidate} a foe of {@code caster}, the one reading a step that harms takes: a player only when
+     * {@code players} and then only one the caster {@link #mayHarm may harm}; a creature hostile toward the caster (its
+     * role's attitude), or any creature when {@code anyCreature}. Never the caster. World thread; never throws.
+     */
+    public static boolean isFoe(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> caster,
+            @Nonnull Ref<EntityStore> candidate, boolean players, boolean anyCreature) {
+        if (candidate.equals(caster)) {
+            return false;
+        }
+        if (isPlayer(store, candidate)) {
+            return players && mayHarm(store, caster, candidate);
+        }
+        return anyCreature || HostilityUtil.isHostileTowards(store, candidate, caster);
+    }
+
+    /** The player's id at {@code ref}, or null for a creature or when it cannot be read. */
+    @Nullable
+    private static UUID idOfPlayer(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
+        try {
+            PlayerRef player = ref.isValid() ? PlayerAccess.playerRef(accessor, ref) : null;
+            return player == null ? null : player.getUuid();
+        } catch (Throwable t) {
+            return null;
         }
     }
 
