@@ -40,6 +40,19 @@ public record TrackDef(@Nonnull TrackAsset asset, @Nonnull CurveTable table) {
         return table.ceiling(asset.cap());
     }
 
+    /**
+     * The highest level a climb reaches on this track, the level {@link #ceiling()} is the start of: its
+     * {@code Cap} (a consumer's owner word included, {@code TrackConfig.ownerCap}), held to the curve's top when the
+     * curve stops there; with no Cap, the curve's top, or {@link Integer#MAX_VALUE} for a curve that runs on.
+     */
+    public int capLevel() {
+        Integer cap = asset.cap();
+        if (cap == null) {
+            return table.every() > 0 ? Integer.MAX_VALUE : table.top();
+        }
+        return table.every() > 0 ? cap : Math.min(cap, table.top());
+    }
+
     /** Where a fresh climb (and a prestiged one) starts: 0, held inside the curve's range. */
     public long start() {
         return Math.min(Math.max(0L, table.minimum()), ceiling());

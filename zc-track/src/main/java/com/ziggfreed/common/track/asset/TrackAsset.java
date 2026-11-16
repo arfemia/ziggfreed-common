@@ -20,6 +20,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.asset.EditorSchema;
@@ -33,6 +34,7 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.track.gain.GainFactors;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * One track, at {@code Server/ZiggfreedCommon/Tracks/<Owner>/<Id>.json}: a named value a player climbs, read
@@ -260,6 +262,23 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         written.factors = factors.toArray(new String[0]);
         gain = written;
         return this;
+    }
+
+    /**
+     * What an owner entry writing {@code "Cap": cap} and nothing else decodes to against this track: the same id,
+     * every other leaf inherited. What a consumer's cap word ({@link TrackConfig#ownerCap}) stands for in the owner
+     * layer. This track itself, with a warning, when the entry cannot be read (never with a whole library jar).
+     */
+    @Nonnull
+    TrackAsset cappedAt(int cap) {
+        try {
+            return CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString("{ \"Cap\": " + cap + " }"), this,
+                    new AssetExtraInfo<>(new AssetExtraInfo.Data(TrackAsset.class, id, id)));
+        } catch (Exception e) {
+            SafeLog.warn("[track] a consumer's Cap for the track '" + id + "' could not be applied, so its own Cap "
+                    + "stands: " + e.getMessage());
+            return this;
+        }
     }
 
     /** The track id, exactly as the filename spells it. */
