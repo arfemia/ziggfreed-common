@@ -23,6 +23,10 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.Vec3;
+import com.ziggfreed.common.instance.dungeon.layout.Cell;
+import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutConfig;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.season.SeasonGate;
@@ -56,6 +60,11 @@ import com.ziggfreed.common.season.SeasonGate;
  * template unless {@code Instance} names another). Several parties share one copy, each in its own area,
  * {@code Area.Spacing} blocks apart, so one world thread serves them all ({@link CopyRouter}).
  *
+ * <p>A dungeon with {@code Area.Layout} is generated instead: each party's run gets a fresh layout of rooms from that
+ * plan and its own seed, painted into the copy's chunks by zc's world generator off the world thread
+ * ({@code dungeon/gen/}), each run on ground of its own along its area's lane ({@code Area.RunStride},
+ * {@code Area.MaxRunsPerLane}, {@link RunLanes}); its {@code Area.Prefab} is never pasted.
+ *
  * <p>Every leaf is nullable: unauthored means the default each getter names, and under native
  * {@code Parent} a child keeps every leaf it does not restate. A server owner retunes a dungeon, or adds
  * one, in {@code mods/ziggfreedcommon/dungeons.json} ({@link DungeonOwnerLayers}). A dungeon is open while it
@@ -74,6 +83,12 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
 
     /** The native instance template a dungeon copies when it names none: zc's own empty void world. */
     public static final String DEFAULT_TEMPLATE = "ZiggfreedCommon_Dungeon_Void";
+
+    /**
+     * The native instance template a generated dungeon ({@code Area.Layout}) copies when it names none: zc's empty
+     * world whose chunks zc's own generator paints the runs' rooms into.
+     */
+    public static final String GENERATED_TEMPLATE = "ZiggfreedCommon_Dungeon_Generated";
 
     /** How many players one area holds when a file says nothing: the size of zc's own party. */
     public static final int DEFAULT_MAX_PLAYERS = 5;
@@ -122,8 +137,9 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
             .metadata(EditorSchema.defaultValue(DEFAULT_TEMPLATE))
             .documentation("The native instance template every copy of this dungeon starts from, by its folder "
                     + "under Server/Instances/. Unauthored means ZiggfreedCommon_Dungeon_Void, an empty world that "
-                    + "saves nothing. A template that pins its world with an InstanceKey cannot be copied, and one "
-                    + "with a portal timer or world events cannot be shared by several parties.").add()
+                    + "saves nothing, or ZiggfreedCommon_Dungeon_Generated for a dungeon with an Area.Layout. A "
+                    + "template that pins its world with an InstanceKey cannot be copied, and one with a portal timer "
+                    + "or world events cannot be shared by several parties.").add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
             .metadata(EditorSchema.defaultValue(true))
@@ -134,8 +150,8 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
             .documentation("Who goes in together, and how many parties one copy holds.").add()
             .appendInherited(new KeyedCodec<>("Area", Area.CODEC, false),
                     (a, v) -> a.area = v, a -> a.area, (a, p) -> a.area = p.area)
-            .documentation("What one party's area is: the prefab pasted there, how far apart areas sit, and "
-                    + "where an arriving player lands.").add()
+            .documentation("What one party's area is: the prefab pasted there or the layout plan its rooms are "
+                    + "generated from, how far apart areas sit, and where an arriving player lands.").add()
             .appendInherited(new KeyedCodec<>("Run", Run.CODEC, false),
                     (a, v) -> a.run = v, a -> a.run, (a, p) -> a.run = p.run)
             .documentation("How a party's run ends besides finishing it.").add()
@@ -179,10 +195,16 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return id;
     }
 
-    /** The instance template every copy starts from, trimmed; zc's void template when unauthored. */
+    /**
+     * The instance template every copy starts from, trimmed; when unauthored, zc's generated template for a dungeon
+     * with an {@code Area.Layout}, else zc's void template.
+     */
     @Nonnull
     public String templateId() {
-        return instance == null || instance.isBlank() ? DEFAULT_TEMPLATE : instance.trim();
+        if (instance != null && !instance.isBlank()) {
+            return instance.trim();
+        }
+        return generated() ? GENERATED_TEMPLATE : DEFAULT_TEMPLATE;
     }
 
     /** {@code Enabled}, unauthored true. */
@@ -220,6 +242,17 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     }
 
     /**
+     * How many areas one copy really holds for a layout plan of size {@code bounds}: {@link #areasPerCopy()}, and for
+     * a generated dungeon no more lanes than fit within the far limit at its lanes' spacing ({@link RunLanes#lanes}).
+     */
+    public int areasPerCopy(@Nonnull Cell bounds) {
+        if (!generated()) {
+            return areasPerCopy();
+        }
+        return RunLanes.lanes(areasPerCopy(), RunLanes.spacing(spacing(), bounds.x()), bounds.x());
+    }
+
+    /**
      * {@code Area.Prefab} as a path under {@code Server/Prefabs/} with its extension, slashes forward and a
      * leading {@code Server/Prefabs/} dropped; null when the file names none.
      */
@@ -245,6 +278,46 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return v == null ? DEFAULT_SPACING : v;
     }
 
+    /**
+     * {@code Area.Layout}, the layout plan ({@code DungeonLayouts}) a run's rooms are generated from, trimmed, or null
+     * when the file names none and the dungeon pastes {@code Area.Prefab}.
+     */
+    @Nullable
+    public String layoutId() {
+        return blankToNull(area == null ? null : area.layout);
+    }
+
+    /** Whether the dungeon is generated: it names a layout plan, so each run's rooms are written by zc's generator. */
+    public boolean generated() {
+        return layoutId() != null;
+    }
+
+    /** The layout plan {@code Area.Layout} names as loaded now, or null when it names none or none is loaded. */
+    @Nullable
+    public LayoutPlan layoutPlan() {
+        String plan = layoutId();
+        return plan == null ? null : DungeonLayoutConfig.getInstance().plan(plan);
+    }
+
+    /** The size of the layout plan as loaded now; the plan's default bounds when it names none loaded. */
+    @Nonnull
+    public Cell layoutBounds() {
+        LayoutPlan plan = layoutPlan();
+        return plan == null ? LayoutPlan.DEFAULT_BOUNDS : plan.bounds();
+    }
+
+    /** {@code Area.RunStride} in blocks, as written; {@link RunLanes#DEFAULT_RUN_STRIDE} when unauthored. */
+    public int runStride() {
+        Integer v = area == null ? null : area.runStride;
+        return v == null ? RunLanes.DEFAULT_RUN_STRIDE : v;
+    }
+
+    /** {@code Area.MaxRunsPerLane}, as written; {@link RunLanes#DEFAULT_MAX_RUNS_PER_LANE} when unauthored. */
+    public int maxRunsPerLane() {
+        Integer v = area == null ? null : area.maxRunsPerLane;
+        return v == null ? RunLanes.DEFAULT_MAX_RUNS_PER_LANE : v;
+    }
+
     /** {@code Area.EntryOffset}: where an arriving player lands, from the area's origin, in blocks; zero unauthored. */
     @Nonnull
     public Vec3 entryOffset() {
@@ -256,6 +329,11 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     public float entryYaw() {
         Float v = area == null ? null : area.entryYaw;
         return v == null ? 0f : v;
+    }
+
+    /** Whether the file writes {@code Area.EntryYaw}; a generated run's arrival faces its first joined door unless it does. */
+    public boolean entryYawAuthored() {
+        return area != null && area.entryYaw != null;
     }
 
     /** {@code Area.IntroCamera}: the camera sequence an arriving player watches, or null for none. */
@@ -468,11 +546,28 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return blankToNull(text == null ? null : text.chestKey);
     }
 
-    /** What the router needs of this dungeon, filed under {@code dungeonId} (the fold's lower-cased id). */
+    /**
+     * What the router needs of this dungeon, filed under {@code dungeonId} (the fold's lower-cased id); a generated
+     * dungeon's lanes are sized for its layout plan as loaded now.
+     */
     @Nonnull
     public CopyRouter.Rules routerRules(@Nonnull String dungeonId) {
-        return new CopyRouter.Rules(dungeonId, areasPerCopy(), maxPlayers(), partyLocked(),
-                emptyCloseSeconds() * 1000L);
+        return routerRules(dungeonId, generated() ? layoutBounds() : LayoutPlan.DEFAULT_BOUNDS);
+    }
+
+    /**
+     * What the router needs of this dungeon, filed under {@code dungeonId}; {@code bounds} is the size of a generated
+     * dungeon's layout plan, which caps how many lanes a copy holds and how many runs one lane serves
+     * ({@link RunLanes#lanes}, {@link RunLanes#maxRuns}). A pasted dungeon's areas serve parties without limit.
+     */
+    @Nonnull
+    public CopyRouter.Rules routerRules(@Nonnull String dungeonId, @Nonnull Cell bounds) {
+        int maxRuns = 0;
+        if (generated()) {
+            maxRuns = RunLanes.maxRuns(maxRunsPerLane(), RunLanes.runStride(runStride(), bounds.z()), bounds.z());
+        }
+        return new CopyRouter.Rules(dungeonId, areasPerCopy(bounds), maxPlayers(), partyLocked(),
+                emptyCloseSeconds() * 1000L, maxRuns);
     }
 
     @Nullable
@@ -506,7 +601,9 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .metadata(EditorSchema.defaultValue((long) DEFAULT_AREAS_PER_COPY))
                 .documentation("How many parties share one copy, each in its own area. A party fills a free "
                         + "area of an open copy before a new copy opens. Unauthored means 4; 1 gives every party "
-                        + "a world of its own.").add()
+                        + "a world of its own. A dungeon with an Area.Layout holds no more areas than fit within "
+                        + "131072 blocks of the world's centre at its spacing, and the audit says when it holds "
+                        + "fewer.").add()
                 .build();
 
         public Share() {
@@ -519,7 +616,10 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     public static final class Area {
 
         @Nullable protected String prefab;
+        @Nullable protected String layout;
         @Nullable protected Integer spacing;
+        @Nullable protected Integer runStride;
+        @Nullable protected Integer maxRunsPerLane;
         @Nullable protected Vec3 entryOffset;
         @Nullable protected Float entryYaw;
         @Nullable protected String introCamera;
@@ -529,23 +629,49 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         (o, v) -> o.prefab = v, o -> o.prefab, (o, p) -> o.prefab = p.prefab)
                 .documentation("The prefab pasted into each area, as its path under Server/Prefabs/ with its "
                         + "extension, such as MyPack/Crypt/Crypt_Main.prefab.json. A path no loaded pack ships "
-                        + "is reported, and the area stays empty.").add()
+                        + "is reported, and the area stays empty. A dungeon with a Layout never pastes it.").add()
+                .appendInherited(new KeyedCodec<>("Layout", Codec.STRING, false),
+                        (o, v) -> o.layout = v, o -> o.layout, (o, p) -> o.layout = p.layout)
+                .metadata(EditorSchema.assetRef(DungeonLayoutAsset.class))
+                .documentation("A layout plan (a file under Server/ZiggfreedCommon/DungeonLayouts/) each run's rooms "
+                        + "are generated from: every party gets a fresh layout from its own seed, its rooms written "
+                        + "into the world as the ground around the party loads. A dungeon with a Layout ignores "
+                        + "Prefab. Its plan's Bounds.Y stands from row 64, so keep it at 256 or less, or its top "
+                        + "rows pass the world's top. Unauthored, the dungeon pastes Prefab.").add()
                 .appendInherited(new KeyedCodec<>("Spacing", Codec.INTEGER, false),
                         (o, v) -> o.spacing = v, o -> o.spacing, (o, p) -> o.spacing = p.spacing)
                 .metadata(EditorSchema.defaultValue((long) DEFAULT_SPACING))
                 .documentation("How far apart two areas of one copy sit, in blocks. It must be at least twice "
                         + "the server's view distance, so no party sees another. Unauthored means 2048, enough "
-                        + "for any view distance.").add()
+                        + "for any view distance. A dungeon with a Layout spaces its areas at least its plan's "
+                        + "width plus 1056 apart.").add()
+                .appendInherited(new KeyedCodec<>("RunStride", Codec.INTEGER, false),
+                        (o, v) -> o.runStride = v, o -> o.runStride, (o, p) -> o.runStride = p.runStride)
+                .metadata(EditorSchema.defaultValue((long) RunLanes.DEFAULT_RUN_STRIDE))
+                .documentation("For a dungeon with a Layout: how far apart, in blocks, two parties' runs in one area "
+                        + "stand, each on fresh ground further along the area. Unauthored means 2048; it is never "
+                        + "less than the plan's depth plus 1056, so no party sees the last one's rooms.").add()
+                .appendInherited(new KeyedCodec<>("MaxRunsPerLane", Codec.INTEGER, false),
+                        (o, v) -> o.maxRunsPerLane = v, o -> o.maxRunsPerLane,
+                        (o, p) -> o.maxRunsPerLane = p.maxRunsPerLane)
+                .metadata(EditorSchema.defaultValue((long) RunLanes.DEFAULT_MAX_RUNS_PER_LANE))
+                .documentation("For a dungeon with a Layout: how many parties one area of a copy serves before it "
+                        + "takes no more, so the copy closes once it empties and a fresh one opens. Unauthored, or "
+                        + "less than 1, means 32; it is capped so the furthest run stays within 131072 blocks of "
+                        + "the world's centre.").add()
                 .appendInherited(new KeyedCodec<>("EntryOffset", Vec3.CODEC, false),
                         (o, v) -> o.entryOffset = v, o -> o.entryOffset, (o, p) -> o.entryOffset = p.entryOffset)
                 .documentation("Where an arriving player lands, in blocks from the spot the prefab is pasted "
-                        + "at. Unauthored means that spot itself.").add()
+                        + "at (with a Layout, from the entry room's anchor, turned with the room). Unauthored means "
+                        + "that spot itself.").add()
                 .appendInherited(new KeyedCodec<>("EntryYaw", Codec.FLOAT, false),
                         (o, v) -> o.entryYaw = v, o -> o.entryYaw, (o, p) -> o.entryYaw = p.entryYaw)
                 .metadata(EditorSchema.defaultValue(0.0))
                 .documentation("Which way an arriving player faces, in degrees: 0 faces north (toward negative Z), "
                         + "90 faces west (negative X), 180 faces south (positive Z) and 270 faces east. Pitch is "
-                        + "always level. Unauthored means 0, how a player arrives with no facing written.").add()
+                        + "always level. With a Layout it turns with the entry room. Unauthored means 0, how a "
+                        + "player arrives with no facing written; with a Layout, facing the entry room's first "
+                        + "door that leads on.").add()
                 .appendInherited(new KeyedCodec<>("IntroCamera", Codec.STRING, false),
                         (o, v) -> o.introCamera = v, o -> o.introCamera, (o, p) -> o.introCamera = p.introCamera)
                 .documentation("A camera sequence (Server/ZiggfreedCommon/CameraSequences/<Id>.json) each player "
@@ -585,8 +711,9 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         + "Its run lasts until every member in the area is down at once (as FailOnWipe reads it, "
                         + "whatever FailOnWipe says), its time limit passes, or everyone leaves, and every way it "
                         + "ends pays each member what they banked; nothing in Complete clears it. The prefab's "
-                        + "encounter script is a Variant of Zc_Encounter_Endless. Unauthored, the dungeon runs as "
-                        + "Complete says.").add()
+                        + "encounter script is a Variant of Zc_Encounter_Endless. A dungeon with an Area.Layout cannot "
+                        + "be endless yet: its audit refuses the pair and nobody can enter. Unauthored, the dungeon "
+                        + "runs as Complete says.").add()
                 .build();
 
         public Run() {

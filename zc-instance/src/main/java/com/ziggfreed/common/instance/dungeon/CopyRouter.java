@@ -41,6 +41,10 @@ import com.ziggfreed.common.instance.world.CopyKey;
  *   <li>Nothing is reserved into a copy within {@link #CLOSE_MARGIN_MS} of its close:
  *       a copy closes once it has stood empty for its dungeon's {@code EmptyCloseSeconds}, and a copy an
  *       admin is closing ({@link #closing}) takes no one.</li>
+ *   <li>An area counts its runs: each party that takes it while it is free starts the next one
+ *       ({@link Placement#run}). Under {@link Rules#maxRunsPerArea} (a generated dungeon's lane,
+ *       {@link RunLanes}) an area that has served that many is spent and takes no party again, so a copy whose
+ *       areas are all spent takes no new party and closes once it empties.</li>
  * </ul>
  *
  * <p>A copy whose name the server no longer holds, and that no player is on the way into, is forgotten at the
@@ -70,9 +74,13 @@ public final class CopyRouter {
         return SHARED;
     }
 
-    /** What the router needs to know of a dungeon. Ids are lower-cased; the counts are at least one. */
+    /**
+     * What the router needs to know of a dungeon. Ids are lower-cased; the counts are at least one.
+     * {@code maxRunsPerArea} is how many parties one area serves before it is spent (a generated dungeon's lane runs
+     * out of fresh ground, {@link RunLanes}); 0 means no limit.
+     */
     public record Rules(@Nonnull String dungeon, int areasPerCopy, int maxPlayers, boolean partyLocked,
-            long emptyCloseMs) {
+            long emptyCloseMs, int maxRunsPerArea) {
 
         public Rules {
             Objects.requireNonNull(dungeon, "dungeon");
@@ -83,6 +91,13 @@ public final class CopyRouter {
             areasPerCopy = Math.max(1, areasPerCopy);
             maxPlayers = Math.max(1, maxPlayers);
             emptyCloseMs = Math.max(0L, emptyCloseMs);
+            maxRunsPerArea = Math.max(0, maxRunsPerArea);
+        }
+
+        /** Rules with no limit on how many parties an area serves. */
+        public Rules(@Nonnull String dungeon, int areasPerCopy, int maxPlayers, boolean partyLocked,
+                long emptyCloseMs) {
+            this(dungeon, areasPerCopy, maxPlayers, partyLocked, emptyCloseMs, 0);
         }
     }
 
@@ -114,8 +129,17 @@ public final class CopyRouter {
         FULL
     }
 
-    /** A reservation's answer: its kind, and the area reserved (null when refused). */
-    public record Placement(@Nonnull Kind kind, @Nullable CopyKey area) {
+    /**
+     * A reservation's answer: its kind, the area reserved (null when refused), and which of the area's runs the
+     * player joins, counted from 0 for the first party the area served in its copy (-1 when refused). A party taking
+     * a free area starts its next run; a member following into the area the party holds joins the run under way.
+     */
+    public record Placement(@Nonnull Kind kind, @Nullable CopyKey area, int run) {
+
+        /** An answer that names no run. */
+        public Placement(@Nonnull Kind kind, @Nullable CopyKey area) {
+            this(kind, area, area == null ? -1 : 0);
+        }
 
         /** Was a place reserved? */
         public boolean placed() {
@@ -133,11 +157,13 @@ public final class CopyRouter {
             int present, int onTheWay, boolean closing, @Nullable Long closesAtMs) {
     }
 
-    /** One area of a copy: the parties holding it, and who is in it or on the way. */
+    /** One area of a copy: the parties holding it, who is in it or on the way, and how many runs it has served. */
     private static final class Area {
         final Set<String> parties = new LinkedHashSet<>();
         final Set<UUID> onTheWay = new HashSet<>();
         final Set<UUID> present = new HashSet<>();
+        /** How many parties have taken the area while free; the run under way is this less one. */
+        int runs;
 
         int players() {
             return onTheWay.size() + present.size();
@@ -154,20 +180,28 @@ public final class CopyRouter {
         final String dungeon;
         final int number;
         final long emptyCloseMs;
+        /** How many runs one area serves before it is spent; 0 for no limit. */
+        final int maxRunsPerArea;
         final Area[] areas;
         boolean closing;
         /** When the last player left it, or null while anyone is in it or on the way. */
         @Nullable Long emptySinceMs;
 
-        Copy(String world, String dungeon, int number, int areaCount, long emptyCloseMs) {
+        Copy(String world, String dungeon, int number, int areaCount, long emptyCloseMs, int maxRunsPerArea) {
             this.world = world;
             this.dungeon = dungeon;
             this.number = number;
             this.emptyCloseMs = emptyCloseMs;
+            this.maxRunsPerArea = maxRunsPerArea;
             this.areas = new Area[areaCount];
             for (int i = 0; i < areaCount; i++) {
                 areas[i] = new Area();
             }
+        }
+
+        /** Has {@code area} served every run it may? */
+        boolean spent(@Nonnull Area area) {
+            return maxRunsPerArea > 0 && area.runs >= maxRunsPerArea;
         }
 
         boolean anyoneOnTheWay() {
@@ -277,7 +311,7 @@ public final class CopyRouter {
         if (mine != null) {
             Copy copy = copies.get(mine.world());
             if (copy != null && copy.dungeon.equals(dungeon) && !copy.closing && !stopping(copy, probe)) {
-                return new Placement(Kind.HELD, mine);
+                return new Placement(Kind.HELD, mine, runOf(copy, mine));
             }
             drop(player, nowMs);
         }
@@ -288,10 +322,10 @@ public final class CopyRouter {
             if (copy != null && !copy.closing && !stopping(copy, probe)) {
                 Area area = copy.areas[holding.area()];
                 if (area.players() >= rules.maxPlayers()) {
-                    return new Placement(Kind.FULL, null);
+                    return new Placement(Kind.FULL, null, -1);
                 }
                 claim(copy, holding.area(), partyKey, player);
-                return new Placement(Kind.HELD, holding);
+                return new Placement(Kind.HELD, holding, runOf(copy, holding));
             }
             unhold(dungeon, partyKey);
         }
@@ -305,14 +339,17 @@ public final class CopyRouter {
                 index = freeArea(copy);
             }
             if (index >= 0) {
-                return new Placement(Kind.FILLED, claim(copy, index, partyKey, player));
+                CopyKey key = claim(copy, index, partyKey, player);
+                return new Placement(Kind.FILLED, key, runOf(copy, key));
             }
         }
 
         int number = nextNumber(dungeon, probe);
-        Copy copy = new Copy(copyName(dungeon, number), dungeon, number, rules.areasPerCopy(), rules.emptyCloseMs());
+        Copy copy = new Copy(copyName(dungeon, number), dungeon, number, rules.areasPerCopy(), rules.emptyCloseMs(),
+                rules.maxRunsPerArea());
         copies.put(copy.world, copy);
-        return new Placement(Kind.OPENED, claim(copy, 0, partyKey, player));
+        CopyKey key = claim(copy, 0, partyKey, player);
+        return new Placement(Kind.OPENED, key, runOf(copy, key));
     }
 
     /** {@code player} landed in the area reserved for them. False when no reservation of theirs is open. */
@@ -429,14 +466,19 @@ public final class CopyRouter {
         return projected > LAG_BUDGET_MS;
     }
 
-    /** The lowest free area of {@code copy}, or -1 when every area is busy. */
+    /** The lowest free area of {@code copy} that has runs left to serve, or -1 when every area is busy or spent. */
     private static int freeArea(@Nonnull Copy copy) {
         for (int i = 0; i < copy.areas.length; i++) {
-            if (copy.areas[i].free()) {
+            if (copy.areas[i].free() && !copy.spent(copy.areas[i])) {
                 return i;
             }
         }
         return -1;
+    }
+
+    /** The run under way in {@code key}'s area of {@code copy}, counted from 0. */
+    private static int runOf(@Nonnull Copy copy, @Nonnull CopyKey key) {
+        return Math.max(0, copy.areas[key.area()].runs - 1);
     }
 
     /** The lowest busy area of {@code copy} with room for one more player, or -1 when none has. */
@@ -459,11 +501,17 @@ public final class CopyRouter {
         return number;
     }
 
-    /** Put {@code player} on the way into area {@code index} of {@code copy}, held by {@code partyKey}. */
+    /**
+     * Put {@code player} on the way into area {@code index} of {@code copy}, held by {@code partyKey}. A party taking
+     * the area while it is free starts its next run.
+     */
     @Nonnull
     private CopyKey claim(@Nonnull Copy copy, int index, @Nonnull String partyKey, @Nonnull UUID player) {
         CopyKey key = new CopyKey(copy.world, index);
         Area area = copy.areas[index];
+        if (area.free() && area.parties.isEmpty()) {
+            area.runs++;
+        }
         area.parties.add(partyKey);
         area.onTheWay.add(player);
         onTheWay.put(player, key);

@@ -1,8 +1,12 @@
 {
   "$Comment": [
     "A theme palette for build_room.py: the block each material slot of a room spec becomes. A slot names one block,",
-    "or a weighted list picked per cell by a stable hash, so a rebuild writes the same blocks. Copy this file with",
-    "other blocks to re-skin every spec that uses these slots."
+    "a block in one of its states ({Block, State}), or a weighted list picked per cell by a stable hash, so a rebuild",
+    "writes the same blocks. Copy this file with other blocks to re-skin every spec that uses these slots.",
+    "A slot a player must use (a brazier, a rune, a lever, a skill lock) needs a block with a Use interaction, or the",
+    "volume over it never hears the use; a lit and an unlit slot are best one block in two of its own states.",
+    "Lever is vanilla's Gobliterator difficulty lever: its Use flips it to its twin block and back, a pull the player",
+    "sees, while the room's logic reads only the use (Deco_Lever has no Use, so pulling it would do nothing)."
   ],
   "Id": "Crypt_Stone",
   "Slots": {
@@ -19,6 +23,23 @@
     "Pillar": "Rock_Stone_Brick_Smooth",
     "Bars": "Deco_Iron_Bars",
     "Light": "Furniture_Ancient_Torch",
-    "Lever": "Deco_Lever"
+    "Lever": "Goblin_Gobliterator_Difficulty_Lever",
+    "Brazier": {"Block": "Deco_Lantern", "State": "Off"},
+    "Brazier_Lit": {"Block": "Deco_Lantern", "State": "On"},
+    "Core": "Furniture_Goblin_Pot_Loot",
+    "Plate": "Rock_Stone_Brick_Smooth",
+    "Tile": "Rock_Stone_Brick_Smooth",
+    "Mark": "Furniture_Royal_Magic_Carpet",
+    "Rune_A": {"Block": "Deco_Halloween_Pumpkin_Lamp_Green", "State": "Off"},
+    "Rune_A_Lit": {"Block": "Deco_Halloween_Pumpkin_Lamp_Green", "State": "On"},
+    "Rune_B": {"Block": "Deco_Halloween_Pumpkin_Lamp_Orange", "State": "Off"},
+    "Rune_B_Lit": {"Block": "Deco_Halloween_Pumpkin_Lamp_Orange", "State": "On"},
+    "Rune_C": {"Block": "Deco_Halloween_Pumpkin_Lamp_Yellow", "State": "Off"},
+    "Rune_C_Lit": {"Block": "Deco_Halloween_Pumpkin_Lamp_Yellow", "State": "On"},
+    "Pipe": "Metal_Goblin_Iron_Pipe_Large",
+    "Pipe_Lit": "Metal_Goblin_Iron_Pipe_Large_Glowy",
+    "Statue": {"Block": "Dungeon_Checkpoint_Statue", "State": "Inactive"},
+    "Statue_Lit": {"Block": "Dungeon_Checkpoint_Statue", "State": "Active"},
+    "Lock": "Rock_Stone_Cobble"
   }
 }

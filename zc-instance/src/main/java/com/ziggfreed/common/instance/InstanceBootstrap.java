@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.event.events.player.RemovedPlayerFromWorldEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
+import com.hypixel.hytale.server.core.universe.world.worldgen.provider.IWorldGenProvider;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
@@ -33,6 +34,8 @@ import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 import com.ziggfreed.common.instance.dungeon.RunDeaths;
 import com.ziggfreed.common.instance.dungeon.ZigEnterDungeonInteraction;
 import com.ziggfreed.common.instance.dungeon.command.ZigDungeonCommand;
+import com.ziggfreed.common.instance.dungeon.gen.DungeonPainters;
+import com.ziggfreed.common.instance.dungeon.gen.ZigDungeonWorldGenProvider;
 import com.ziggfreed.common.instance.dungeon.kit.ZigCheckpointEffect;
 import com.ziggfreed.common.instance.dungeon.kit.ZigRunMilestoneEffect;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
@@ -233,6 +236,16 @@ public final class InstanceBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the dungeon areas' spawn provider could not be registered", t);
         }
+        // A Type that fails to register throws, at setup, after its own line: a template naming it would fail to load.
+        try {
+            plugin.getCodecRegistry(IWorldGenProvider.CODEC).register(ZigDungeonWorldGenProvider.TYPE,
+                    ZigDungeonWorldGenProvider.class, ZigDungeonWorldGenProvider.CODEC);
+        } catch (RuntimeException | Error e) {
+            SafeLog.warn("[dungeon] the generated dungeons' world generator Type "
+                    + ZigDungeonWorldGenProvider.TYPE + " could not be registered", e);
+            throw e;
+        }
+        DungeonPainters.start();
         // A Type that fails to register throws, at setup, after its own line (InteractionTypes).
         InteractionTypes.registerAll(plugin, List.of(InteractionTypeSpec.of(ZigEnterDungeonInteraction.TYPE_NAME,
                 ZigEnterDungeonInteraction.class, ZigEnterDungeonInteraction::codec)));
@@ -325,6 +338,11 @@ public final class InstanceBootstrap {
             AreaMembers.shutdown();
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the area members' ticker could not be stopped", t);
+        }
+        try {
+            DungeonPainters.shutdown();
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the generated dungeons' painter threads could not be stopped", t);
         }
         try {
             EncounterLeaderboardListener.flushNow();

@@ -3,9 +3,10 @@ package com.ziggfreed.common.instance.dungeon.layout.asset;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -20,13 +21,20 @@ import com.ziggfreed.common.util.SafeLog;
  * The server's answer to {@link PoolIndex}: the prefabs a room's prefab name resolves to across every loaded pack's
  * {@code Server/Prefabs/}, through the engine's own resolver ({@code PrefabLoader.resolvePrefabs}, the one vanilla's
  * cave nodes use), so a pool {@code Folder.*} holds exactly the files the engine would pick from. Each name's keys
- * are read once and kept sorted, so a variant index means the same prefab to the generator and the painter.
+ * are read once and kept sorted, so a variant index means the same prefab to the generator and the painter; its
+ * {@link #paths} are the files those keys load from, in the same order, a key two packs ship taken from the first
+ * pack in the engine's load order.
  *
- * <p>Make a fresh one after the packs reload ({@link #live()}): it never forgets a name it has read.
+ * <p>Make a fresh one after the packs reload ({@link #live()}): it never forgets a name it has read. Safe to read from
+ * any thread.
  */
 public final class PrefabPoolIndex implements PoolIndex {
 
-    private final Map<String, List<String>> keys = new ConcurrentHashMap<>();
+    /** One name's prefabs: its keys in dot form, sorted, and the file each loads from, in the same order. */
+    private record Pool(@Nonnull List<String> keys, @Nonnull List<Path> paths) {
+    }
+
+    private final Map<String, Pool> pools = new ConcurrentHashMap<>();
 
     private PrefabPoolIndex() {
     }
@@ -48,23 +56,37 @@ public final class PrefabPoolIndex implements PoolIndex {
      */
     @Nonnull
     public List<String> keys(@Nonnull String prefab) {
-        String name = prefab.trim();
-        if (name.isEmpty()) {
-            return List.of();
-        }
-        return keys.computeIfAbsent(name, PrefabPoolIndex::read);
+        return pool(prefab).keys();
+    }
+
+    /**
+     * The file each of {@link #keys}'s prefabs loads from, index for index (what {@code PrefabBufferUtil.getCached}
+     * reads); a key two packs ship is the first pack's.
+     */
+    @Nonnull
+    public List<Path> paths(@Nonnull String prefab) {
+        return pool(prefab).paths();
     }
 
     @Nonnull
-    private static List<String> read(@Nonnull String name) {
-        TreeSet<String> found = new TreeSet<>();
+    private Pool pool(@Nonnull String prefab) {
+        String name = prefab.trim();
+        if (name.isEmpty()) {
+            return new Pool(List.of(), List.of());
+        }
+        return pools.computeIfAbsent(name, PrefabPoolIndex::read);
+    }
+
+    @Nonnull
+    private static Pool read(@Nonnull String name) {
+        Map<String, Path> found = new TreeMap<>();
         boolean pool = name.endsWith(RoomSpec.POOL_SUFFIX);
         try {
             for (PrefabStore.AssetPackPrefabPath root : PrefabStore.get().getAllAssetPrefabPaths()) {
                 Path prefabs = root.prefabsPath();
                 try {
                     PrefabLoader.resolvePrefabs(prefabs, name,
-                            path -> found.add(pool ? keyOf(prefabs, path) : name));
+                            path -> found.putIfAbsent(pool ? keyOf(prefabs, path) : name, path));
                 } catch (IOException | RuntimeException e) {
                     SafeLog.warn("[dungeon] prefab pool '" + name + "' could not be read under " + prefabs + ": "
                             + e.getMessage());
@@ -73,7 +95,7 @@ public final class PrefabPoolIndex implements PoolIndex {
         } catch (RuntimeException | LinkageError e) {
             SafeLog.warn("[dungeon] prefab pool '" + name + "' could not be read: " + e.getMessage());
         }
-        return List.copyOf(found);
+        return new Pool(List.copyOf(found.keySet()), List.copyOf(new ArrayList<>(found.values())));
     }
 
     /** A prefab file's key under {@code root}: its path in dot form, its prefab suffix dropped. */

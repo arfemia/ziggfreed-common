@@ -92,7 +92,7 @@ public final class DungeonRefusals {
             case INSIDE -> key("entry.inside");
             case FULL -> named("entry.full", dungeon);
             case COPY_GONE -> named("entry.copy_gone", dungeon);
-            case NO_PREFAB, MISSING_PREFAB, AUDIT_ERROR, FAILED -> named("entry.unavailable", dungeon);
+            case NO_PREFAB, MISSING_PREFAB, MISSING_LAYOUT, AUDIT_ERROR, FAILED -> named("entry.unavailable", dungeon);
             case CANNOT_PAY -> cannotPay(dungeon, outcome.unpaid());
         };
     }

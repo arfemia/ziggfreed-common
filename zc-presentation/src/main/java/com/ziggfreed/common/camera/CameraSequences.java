@@ -81,6 +81,18 @@ public final class CameraSequences {
      */
     public static boolean play(@Nonnull PlayerRef playerRef, @Nonnull CameraSequenceAsset sequence,
             @Nonnull Vector3dc origin) {
+        return play(playerRef, sequence, origin, 0);
+    }
+
+    /**
+     * Play {@code sequence} for {@code playerRef}, its positions measured from {@code origin} and turned
+     * {@code quarterTurns} times about the centre of the {@code origin} block, the way a prefab turns about its
+     * anchor (one turn takes an offset {@code (x, z)} to {@code (z, -x)}, the engine's {@code PrefabRotation}), so a
+     * sequence written for a room plays the same in that room turned. On the player's world thread. Answers whether
+     * it began; 0 turns is {@link #play(PlayerRef, CameraSequenceAsset, Vector3dc)}.
+     */
+    public static boolean play(@Nonnull PlayerRef playerRef, @Nonnull CameraSequenceAsset sequence,
+            @Nonnull Vector3dc origin, int quarterTurns) {
         try {
             Ref<EntityStore> ref = playerRef.getReference();
             if (ref == null || !ref.isValid() || sequence.keyframes().isEmpty()) {
@@ -95,8 +107,9 @@ public final class CameraSequences {
             Object token = new Object();
 
             CameraSequenceBuilder builder = new CameraSequenceBuilder();
+            int turns = Math.floorMod(quarterTurns, 4);
             for (CameraSequenceAsset.Keyframe k : sequence.keyframes()) {
-                builder.keyframe(keyframe(k, origin, view));
+                builder.keyframe(keyframe(k, origin, turns, view));
             }
             if (sequence.lockInput()) {
                 builder.addFlag(CameraSequenceFlags.LockInput);
@@ -197,21 +210,24 @@ public final class CameraSequences {
         }
     }
 
-    /** The engine keyframe {@code k} describes, its positions from {@code origin}, its {@code ToPlayer} from {@code view}. */
+    /**
+     * The engine keyframe {@code k} describes, its positions from {@code origin} turned {@code turns} (0 to 3), its
+     * {@code ToPlayer} from {@code view}.
+     */
     @Nonnull
     static CameraKeyframeBuilder keyframe(@Nonnull CameraSequenceAsset.Keyframe k, @Nonnull Vector3dc origin,
-            @Nonnull View view) {
+            int turns, @Nonnull View view) {
         CameraKeyframeBuilder out = new CameraKeyframeBuilder(k.seconds(), k.easing());
         if (k.toPlayer()) {
             out.position(new Vector3d(view.eye)).look(new Rotation3f(view.look));
         } else {
             Vec3 at = k.position();
             if (at != null) {
-                out.position(offset(origin, at));
+                out.position(offset(origin, at, turns));
             }
             Vec3 look = k.lookAt();
             if (look != null) {
-                out.lookAt(offset(origin, look));
+                out.lookAt(offset(origin, look, turns));
             }
         }
         Float fov = k.fov();
@@ -221,9 +237,27 @@ public final class CameraSequences {
         return out;
     }
 
+    /**
+     * {@code origin} plus {@code by}, the offset turned {@code turns} quarter turns about the centre of the
+     * {@code origin} block (so 0 turns adds it as written).
+     */
     @Nonnull
-    private static Vector3d offset(@Nonnull Vector3dc origin, @Nonnull Vec3 by) {
-        return new Vector3d(origin.x() + by.effectiveX(), origin.y() + by.effectiveY(), origin.z() + by.effectiveZ());
+    static Vector3d offset(@Nonnull Vector3dc origin, @Nonnull Vec3 by, int turns) {
+        double x = by.effectiveX() - 0.5;
+        double z = by.effectiveZ() - 0.5;
+        double tx = switch (turns) {
+            case 1 -> z;
+            case 2 -> -x;
+            case 3 -> -z;
+            default -> x;
+        };
+        double tz = switch (turns) {
+            case 1 -> -x;
+            case 2 -> -z;
+            case 3 -> x;
+            default -> z;
+        };
+        return new Vector3d(origin.x() + 0.5 + tx, origin.y() + by.effectiveY(), origin.z() + 0.5 + tz);
     }
 
     /** Where a player's eyes are and which way they look, as the game's cinematic teleport reads them. */

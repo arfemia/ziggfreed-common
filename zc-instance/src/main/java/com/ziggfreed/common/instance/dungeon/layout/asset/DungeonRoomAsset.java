@@ -51,6 +51,10 @@ import com.ziggfreed.common.instance.dungeon.layout.RoomSpec;
  * <p>{@code Tags} is the engine's own tag map, expanded the engine's way (each key, each value and each
  * {@code Key=Value}), so a plan's {@code Rooms.Tags} and its strata name a room by any of them. The generator reads
  * the folded {@link RoomSpec} ({@link #toSpec()}); door sockets, box and anchor are the prefab's own frame, unrotated.
+ *
+ * <p>A room built as a vanilla piece plus our own blocks and logic names the piece as {@code Prefab} (one prefab)
+ * and ours as {@code Overlay} ({@code "Overlay": "ZiggfreedCommon.Rooms.Puzzle_Brazier_Relay_Overlay"}), painted on
+ * top with the same anchor and turn; {@code tools/rooms/build_room.py} writes both.
  */
 public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, DungeonRoomAsset>> {
 
@@ -67,6 +71,7 @@ public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultA
     private AssetExtraInfo.Data data;
 
     @Nullable private String prefab;
+    @Nullable private String overlay;
     @Nullable private Bounds box;
     @Nullable private Door[] doors;
     @Nullable private String[] roles;
@@ -90,10 +95,16 @@ public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultA
                     + "Dungeon.Stone.Level_1.Room_Small.Room_A. End it with .* for a pool of every prefab in that "
                     + "folder, each an interchangeable variant the run's seed picks from (vanilla's cave-node "
                     + "syntax).").add()
+            .appendInherited(new KeyedCodec<>("Overlay", Codec.STRING, false),
+                    (a, v) -> a.overlay = v, a -> a.overlay, (a, p) -> a.overlay = p.overlay)
+            .documentation("A second prefab, under Server/Prefabs/ in the engine's dot form, painted on top of Prefab "
+                    + "with the same anchor and turn: a room built as a vanilla piece plus its own blocks and logic. "
+                    + "Its entities are the room's logic. One prefab, never a pool, laid over a Prefab that is one "
+                    + "prefab too, so its cells stay where they were fitted. Unauthored, none.").add()
             .appendInherited(new KeyedCodec<>("Box", Bounds.CODEC, false),
                     (a, v) -> a.box = v, a -> a.box, (a, p) -> a.box = p.box)
             .documentation("The blocks the room covers, relative to its prefab's anchor and unrotated, covering every "
-                    + "variant of its pool: no other room is placed over them.").add()
+                    + "variant of its pool and its Overlay: no other room is placed over them.").add()
             .appendInherited(new KeyedCodec<>("Doors", new ArrayCodec<>(Door.CODEC, Door[]::new), false),
                     (a, v) -> a.doors = v, a -> a.doors, (a, p) -> a.doors = p.doors)
             .documentation("The room's door sockets. A door joins another room's door of the same Kind facing the "
@@ -155,7 +166,7 @@ public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultA
                 roles == null ? List.of() : Arrays.asList(roles), expandedTags(),
                 weight == null ? DEFAULT_WEIGHT : weight, min, max, needs == null ? List.of() : Arrays.asList(needs),
                 keep != null && Boolean.TRUE.equals(keep.markers), keep != null && Boolean.TRUE.equals(keep.containers),
-                fill);
+                fill, overlay);
     }
 
     /**

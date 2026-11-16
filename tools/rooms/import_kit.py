@@ -155,6 +155,20 @@ class Pool:
         return self.snap(cell, facing)
 
 
+OPENING_REACH = pio.OPENING_REACH
+
+
+def doorway_opening(variant, at, facing):
+    """A doorway's open span in its face plane (pio.doorway_cells): (least sideways step, most sideways step, whether
+    the flood reached OPENING_REACH, highest rise above At's floor). None when the cell over At is closed."""
+    found = pio.doorway_cells(variant, at, facing)
+    if found is None:
+        return None
+    steps, reached = found
+    ws = [w for w, _ in steps]
+    return min(ws), max(ws), reached, max(dy for _, dy in steps)
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Union-find over (pool, door)
 
@@ -200,7 +214,7 @@ class KitImport:
         self.kit = kit
         self.config = config
         self.cfg = config["Kits"][kit]
-        self.cave_root = os.path.join(assets, *config["CaveRoot"].split("/"))
+        self.cave_root = os.path.join(assets, *self.cfg.get("CaveRoot", config["CaveRoot"]).split("/"))
         self.prefabs_root = os.path.join(assets, "Server", "Prefabs")
         self.graph = Graph(self.cave_root, self.cfg["Graph"])
         self.pools = {}
@@ -284,6 +298,80 @@ class KitImport:
         self.merge_close_doors()
         self.name_kinds()
         self.fit_boxes()
+        self.make_plugs()
+
+    # -----------------------------------------------------------------------------------------------------------
+    # Plugs: a cap for a Kind the kit ships none for
+
+    def make_plugs(self):
+        """With the kit's `Plugs` on, every door Kind no imported Cap closes takes a plug: the config's PlugPrefab
+        (vanilla's empty prefab) as a one-block slab Box over the widest doorway of that Kind, filled with Fill at
+        paint time. Vanilla digs these kits into rock, so a doorway its graph leaves open runs into rock; the plug
+        is that rock, the shape of the Stone kit's own Walls caps (a slab one block deep with its door on it)."""
+        self.plugs = {}
+        if not self.cfg.get("Plugs"):
+            return
+        prefab = self.config.get("PlugPrefab", "Dungeon.Dungeon_Empty")
+        if not pio.pool_files(self.prefabs_root, prefab):
+            self.problems.append("PlugPrefab %s names no prefab file, so no plug was made" % prefab)
+            return
+        capped = {self.kind(p, k) for p in self.output_pools if "Cap" in self.roles(p) for k in self.doors[p]}
+        doors_of = {}
+        for p in self.output_pools:
+            for k in sorted(self.doors[p]):
+                doors_of.setdefault(self.kind(p, k), []).append((p, k))
+        for kind in sorted(doors_of):
+            if kind in capped:
+                continue
+            half, top, measured, wide = 0, 0, 0, []
+            fills = {}
+            for p, (at, facing) in doors_of[kind]:
+                fill = self.fill(p)
+                fills[fill] = fills.get(fill, 0) + 1
+                for v in self.pool(p).variants:
+                    span = doorway_opening(v, at, facing)
+                    if span is None:
+                        continue
+                    measured += 1
+                    if span[2]:
+                        wide.append("%s door %s %s" % (self.room_id(p), at, facing))
+                    half = max(half, abs(span[0]), abs(span[1]))
+                    top = max(top, span[3])
+            if not measured:
+                self.problems.append("no doorway of Kind %s could be measured, so it has no plug" % kind)
+                continue
+            fill = sorted(fills.items(), key=lambda kv: (-kv[1], kv[0] or ""))[0][0]
+            self.plugs[kind] = {"half": half, "top": top, "measured": measured, "fill": fill,
+                                "prefab": prefab, "wide": sorted(set(wide))}
+
+    def plug_id(self, kind):
+        suffix = kind[len(self.kit):].strip("_") if kind.startswith(self.kit) else kind
+        return "Zc_Kit_%s_Plug%s" % (self.kit, "_" + suffix if suffix else "")
+
+    def plug_doc(self, kind):
+        plug = self.plugs[kind]
+        comment = [
+            "%s kit, plug for its %s doors: vanilla's empty prefab %s, which the painter fills with %s over the whole "
+            "Box." % (self.cfg["Label"][0].upper() + self.cfg["Label"][1:], kind, plug["prefab"], plug["fill"]),
+            "Vanilla's graph %s ships no wall cap for this Kind: vanilla digs the kit into rock, so a doorway its graph "
+            "leaves open runs into rock. The plug is that rock, a slab one block deep over the widest doorway of the "
+            "Kind (%d doorway%s measured across every variant), the shape of the Stone kit's own Walls caps. Written "
+            "by tools/rooms/import_kit.py; re-run the importer instead of editing this file." % (
+                self.graph_label(), plug["measured"], "" if plug["measured"] == 1 else "s"),
+            "As a Cap it carries, key by key, every tag value of the rooms whose doors it can close.",
+        ]
+        tags = self.own_tags(None)
+        for key, values in self.closing_tags({kind}).items():
+            tags.setdefault(key, set()).update(values)
+        return {
+            "$Comment": comment,
+            "Prefab": plug["prefab"],
+            "Box": {"Min": pio.xyz_dict((-plug["half"], 0, 0)), "Max": pio.xyz_dict((plug["half"], plug["top"], 0))},
+            "Doors": [{"At": pio.xyz_dict((0, 0, 0)), "Facing": ENTRY_FACING, "Kind": kind}],
+            "Roles": ["Cap"],
+            "Tags": {key: sorted(values) for key, values in sorted(tags.items())},
+            "Fill": plug["fill"],
+        }
 
     def fit_boxes(self):
         """Each room's Box is the union of its variants, pulled back to a doorway's wall where no more than ClipDepth
@@ -433,8 +521,17 @@ class KitImport:
 
         add(self.cfg.get("Tags", {}))
         for rule in self.cfg.get("TagRules", []):
-            if starts_with_any(pool_name, rule["Pools"]):
+            if pool_name is not None and starts_with_any(pool_name, rule["Pools"]):
                 add(rule["Tags"])
+        return tags
+
+    def closing_tags(self, kinds):
+        """Every tag value, key by key, of the rooms with a door of one of `kinds` (what a cap of them carries)."""
+        tags = {}
+        for q in self.output_pools:
+            if any(self.kind(q, k) in kinds for k in self.doors[q]):
+                for key, values in self.own_tags(q).items():
+                    tags.setdefault(key, set()).update(values)
         return tags
 
     def tags(self, pool_name):
@@ -443,11 +540,23 @@ class KitImport:
         tags = self.own_tags(pool_name)
         if "Cap" in self.roles(pool_name):
             kinds = {self.kind(pool_name, k) for k in self.doors[pool_name]}
-            for q in self.output_pools:
-                if any(self.kind(q, k) in kinds for k in self.doors[q]):
-                    for key, values in self.own_tags(q).items():
-                        tags.setdefault(key, set()).update(values)
+            for key, values in self.closing_tags(kinds).items():
+                tags.setdefault(key, set()).update(values)
         return {key: sorted(values) for key, values in sorted(tags.items())}
+
+    def fill(self, pool_name):
+        """The room's Fill: the first FillRule whose pools name this one, else the kit's Fill (None when neither)."""
+        for rule in self.cfg.get("FillRules", []):
+            if starts_with_any(pool_name, rule["Pools"]):
+                return rule["Fill"]
+        return self.cfg.get("Fill")
+
+    def graph_label(self):
+        """The graph folders as the room comment names them; a kit with its own CaveRoot names that root too."""
+        folders = ", ".join(self.cfg["Graph"])
+        if "CaveRoot" in self.cfg:
+            return "%s under %s" % (folders, self.cfg["CaveRoot"])
+        return folders
 
     def door_list(self, p):
         order = {f: i for i, f in enumerate(pio.FACINGS)}
@@ -467,7 +576,7 @@ class KitImport:
             "%s kit, piece %s: %s." % (self.cfg["Label"][0].upper() + self.cfg["Label"][1:], self.piece(p), what),
             "Imported from vanilla's cave-node graph %s (%d node%s use this pool) by tools/rooms/import_kit.py. Re-run the "
             "importer when Hytale changes the kit instead of editing this file." % (
-                ", ".join(self.cfg["Graph"]), len(nodes), "" if len(nodes) == 1 else "s"),
+                self.graph_label(), len(nodes), "" if len(nodes) == 1 else "s"),
             "Each door is a doorway vanilla's graph joins to another piece; a door only meets a door of its own Kind, and "
             "one left open takes a Cap room of that Kind.",
         ]
@@ -477,7 +586,7 @@ class KitImport:
                 "the doorway sits on the Box's face." % (self.clipped[p], "" if self.clipped[p] == 1 else "s"))
         else:
             comment.append("Box covers every variant.")
-        fill = self.cfg.get("Fill")
+        fill = self.fill(p)
         if fill:
             comment.append("Vanilla pastes these pieces into solid rock, so Fill (%s) fills the cells a piece leaves "
                            "unlisted inside its Box." % fill)
@@ -505,6 +614,11 @@ class KitImport:
             name = self.room_id(p) + ".json"
             written.add(name)
             if pio.write_json(os.path.join(folder, name), self.room_doc(p)):
+                changed += 1
+        for kind in sorted(self.plugs):
+            name = self.plug_id(kind) + ".json"
+            written.add(name)
+            if pio.write_json(os.path.join(folder, name), self.plug_doc(kind)):
                 changed += 1
         removed = []
         prefix = "Zc_Kit_%s_" % self.kit
@@ -544,6 +658,14 @@ class KitImport:
                 kinds[d["Kind"]] += 1
                 if "Cap" in roles and len(self.doors[p]) == 1:
                     caps.setdefault(d["Kind"], []).append(self.room_id(p))
+        for kind in sorted(self.plugs):
+            caps.setdefault(kind, []).append(self.plug_id(kind))
+            plug = self.plugs[kind]
+            lines.append("  plug %s: Kind %s, slab %d wide and %d high over %d measured doorways, Fill %s" % (
+                self.plug_id(kind), kind, 2 * plug["half"] + 1, plug["top"] + 1, plug["measured"], plug["fill"]))
+            for w in plug["wide"]:
+                lines.append("    WIDE OPENING (its flood reached %d blocks, so the plug may not seal it): %s" % (
+                    OPENING_REACH, w))
         for k in sorted(kinds):
             lines.append("  Kind %s: %d doors, caps: %s" % (k, kinds[k], ", ".join(sorted(caps.get(k, []))) or "NONE"))
         for p in self.room_pools:
