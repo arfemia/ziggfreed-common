@@ -286,7 +286,10 @@ public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultA
 
     // ==================== Keep ====================
 
-    /** Which of the prefab's own pieces the painter keeps. */
+    /**
+     * Which of the prefab's own pieces a generated run keeps: its markers are the room logic's to place
+     * ({@code room/RunLogic}), its containers the painter's.
+     */
     public static final class Keep {
 
         @Nullable protected Boolean markers;
@@ -296,7 +299,10 @@ public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultA
                 .appendInherited(new KeyedCodec<>("Markers", Codec.BOOLEAN, false),
                         (o, v) -> o.markers = v, o -> o.markers, (o, p) -> o.markers = p.markers)
                 .metadata(EditorSchema.defaultValue(false))
-                .documentation("Whether the prefab's own spawn markers are kept. Unauthored means false.").add()
+                .documentation("Whether the room logic places the Prefab's own entities that are no logic of the "
+                        + "room: its spawn and patrol markers, NPCs and props. Its trigger volumes, groups, points "
+                        + "and encounters are placed regardless, unless the room has an Overlay, whose entities are "
+                        + "then the room's logic. Unauthored means false.").add()
                 .appendInherited(new KeyedCodec<>("Containers", Codec.BOOLEAN, false),
                         (o, v) -> o.containers = v, o -> o.containers, (o, p) -> o.containers = p.containers)
                 .metadata(EditorSchema.defaultValue(false))

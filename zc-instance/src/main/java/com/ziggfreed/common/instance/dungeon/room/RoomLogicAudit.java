@@ -29,14 +29,16 @@ import com.ziggfreed.common.validation.Finding;
  *       {@code WorldAbsolute}, a {@code SetWorldSpawn} with no {@code Origin}, a {@code Teleport} anchored on neither
  *       the volume nor the entity within the same world). Every copy of the room, wherever the run puts it, would
  *       write into the one spot its author stood in.</li>
- *   <li>{@code LOGIC_WORLD_WIDE} (WARNING): a volume reaches every volume of the world that carries a key: a
- *       {@code MatchKey} or {@code MatchTag} with no {@code @room} or {@code @run} suffix, at a {@code Radius} of 0
- *       (the engine's own default for {@code TriggerNpcMarkers}, 50 for the rest), so every party in the copy and
- *       every other copy of the room hears it.</li>
+ *   <li>{@code LOGIC_WORLD_WIDE} (WARNING): a volume reaches past its room: a {@code MatchKey} or {@code MatchTag}
+ *       with no {@code @room} or {@code @run} suffix, at a {@code Radius} of 0 (the engine's own default for
+ *       {@code TriggerNpcMarkers}, 50 for the rest), reaches every volume of the world carrying it; a
+ *       {@code TagCondition} whose {@code Source} is {@code Radius} with no {@code MatchKey} reads every volume within
+ *       its {@code Radius}, every one of the world at 0. Every party in the copy, and every other copy of the room,
+ *       is heard or read.</li>
  * </ul>
  *
  * <p>The checks are pure over a volume's or group's encoded JSON ({@link #worldAbsoluteWrites},
- * {@link #worldWideKeys}); {@link #audit} reads the logic of every room a layout plan may place: its {@code Overlay}'s
+ * {@link #worldWideKeys}, {@link #unkeyedRadiusReads}); {@link #audit} reads the logic of every room a layout plan may place: its {@code Overlay}'s
  * entities when it has one, else every variant of its {@code Prefab}.
  */
 public final class RoomLogicAudit {
@@ -100,6 +102,23 @@ public final class RoomLogicAudit {
         return out;
     }
 
+    /**
+     * How many of {@code holder}'s {@code TagCondition}s read other volumes' tags with no {@code MatchKey}: a
+     * {@code Source} of {@code Radius} with none reads every volume within its {@code Radius}, whatever room or party
+     * it belongs to, and every volume of the world at 0 ({@code TagCondition.collectRadiusTargets}).
+     */
+    public static int unkeyedRadiusReads(@Nonnull BsonDocument holder) {
+        int out = 0;
+        for (BsonDocument element : parts(holder)) {
+            String key = RoomTurns.str(element, "MatchKey");
+            if ("TagCondition".equals(RoomTurns.str(element, "Type"))
+                    && "Radius".equals(RoomTurns.str(element, "Source")) && (key == null || key.isBlank())) {
+                out++;
+            }
+        }
+        return out;
+    }
+
     // ==================== the engine walk ====================
 
     /**
@@ -147,7 +166,10 @@ public final class RoomLogicAudit {
                     absolute.add(name + " (" + type + ")");
                 }
                 for (String key : worldWideKeys(entity.json())) {
-                    wide.add(name + " ('" + key + "')");
+                    wide.add(name + " (the key '" + key + "' at Radius 0)");
+                }
+                if (unkeyedRadiusReads(entity.json()) > 0) {
+                    wide.add(name + " (a TagCondition reading every volume in its Radius, with no MatchKey)");
                 }
             }
         }
@@ -158,9 +180,10 @@ public final class RoomLogicAudit {
                     room.id()));
         }
         if (!wide.isEmpty()) {
-            out.add(Finding.warning(DOMAIN, LOGIC_WORLD_WIDE, "Its logic reaches every volume of the world carrying a key "
-                    + "in " + String.join(", ", wide) + " (Radius 0 and no @room or @run on the key), so every party in "
-                    + "the copy hears it. End the key with @room or @run, or give it a Radius.", room.id()));
+            out.add(Finding.warning(DOMAIN, LOGIC_WORLD_WIDE, "Its logic reaches past its room in "
+                    + String.join(", ", wide) + ", so every party in the copy, and every other copy of the room, is "
+                    + "heard or read. End a key with @room or @run, give it a Radius, and give a Radius TagCondition a "
+                    + "MatchKey ending @room.", room.id()));
         }
     }
 

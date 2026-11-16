@@ -44,8 +44,8 @@ import com.ziggfreed.common.util.SafeLog;
  * freed area ends one still going); an area whose last player left or failed is free, the router lets the
  * party holding it go, and {@link Areas} pastes it afresh for the next party (a generated dungeon's lane logs its
  * run's {@code [dungeon]} measurement line, {@code GeneratedRuns.finish}, and its next party gets a fresh run
- * further along it). In a generated dungeon it also learns which room of the run each member stands in
- * ({@link #roomOf}), and has that room's logic and its neighbours' placed ({@code room/RunLogic}, on the copy's world
+ * further along it). In a generated dungeon it also learns which room of the run each member stands in,
+ * and has that room's logic and its neighbours' placed ({@code room/RunLogic}, on the copy's world
  * thread); the run's logic lasts until its party leaves, through a clear (R1000), and is removed when its lane frees,
  * the removal posted once this list's lock is let go. The ticker touches no store and
  * no entity, so nothing it settles needs the world thread; after each pass it hands the runs their own tick
@@ -103,8 +103,8 @@ public final class AreaMembers {
         @Nullable World world;
         @Nullable UUID worldId;
         @Nullable AreaLayout layout;
-        /** The layout index of the generated room they last stood in, or -1. Written by the ticker only. */
-        volatile int room = -1;
+        /** The layout index of the generated room they last stood in, or -1. Read and written by the ticker only. */
+        int room = -1;
         /** A tick has already warned that it could not settle this member. Read and written by the ticker only. */
         boolean tickFailed;
 
@@ -155,15 +155,6 @@ public final class AreaMembers {
     public synchronized CopyKey presentArea(@Nonnull UUID player) {
         Member member = members.get(player);
         return member == null || !member.present ? null : member.area;
-    }
-
-    /**
-     * The layout index of the generated room {@code player} stood in at the ticker's last pass, or -1: not in an area
-     * of a generated dungeon, or in none of its run's rooms yet.
-     */
-    public synchronized int roomOf(@Nonnull UUID player) {
-        Member member = members.get(player);
-        return member == null || !member.present ? -1 : member.room;
     }
 
     /**

@@ -18,6 +18,10 @@ import com.ziggfreed.common.instance.dungeon.layout.SplitMix64;
  * its clue in a room further back agree. A group has as many variants as the highest {@code n} any room of the run
  * tags it with; the group's name is matched without regard to case. Logic carrying no {@code ZigVariant} tag, or one
  * that does not read as {@code <Group>:<n>}, is always placed.
+ *
+ * <p>The tag is read from a trigger volume's, a volume group's and a point's {@code Tags}, the entities that carry a
+ * tag map; never from an encounter or a marker holder (a spawn or patrol marker, an NPC, a prop), which carry none and
+ * are always placed when their room places them.
  */
 public final class RoomVariants {
 

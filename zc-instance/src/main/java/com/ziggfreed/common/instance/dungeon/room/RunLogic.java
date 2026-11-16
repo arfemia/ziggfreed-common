@@ -126,8 +126,12 @@ public final class RunLogic {
     private record VolumePiece(@Nonnull VolumeEntry entry, @Nullable String link) {
     }
 
-    /** A group, decoded, scoped and turned in its JSON; its effects turned by the engine once registered. */
-    private record GroupPiece(@Nonnull TriggerVolumeGroup group, @Nonnull Vector3d at, boolean turnEffects) {
+    /**
+     * A group, decoded, scoped and turned in its JSON; its effects turned by the engine once registered, about its
+     * origin before the turn ({@code before}), as a volume's are.
+     */
+    private record GroupPiece(@Nonnull TriggerVolumeGroup group, @Nonnull Vector3d before, @Nonnull Vector3d at,
+                              boolean turnEffects) {
     }
 
     /** A point, decoded and scoped; it takes the room's yaw as it is registered. */
@@ -306,10 +310,11 @@ public final class RunLogic {
                     continue;
                 }
                 Vector3d at = placed(room, entity.position());
+                Vector3d before = unturned(room, entity.position());
                 try {
                     switch (entity.kind()) {
-                        case VOLUME -> volumes.add(volume(world, entity.json(), tokens, turns, yaw, at));
-                        case GROUP -> groups.add(group(entity.json(), tokens, turns, at));
+                        case VOLUME -> volumes.add(volume(world, entity.json(), tokens, turns, yaw, before, at));
+                        case GROUP -> groups.add(group(entity.json(), tokens, turns, before, at));
                         case POINT -> points.add(new PointPiece(Point.CODEC.decode(
                                 RoomKeys.rewrite(entity.json(), tokens), new ExtraInfo()), at));
                         case ENCOUNTER, PIECE -> entities.add(entity(entity, yaw, at));
@@ -336,16 +341,28 @@ public final class RunLogic {
                 origin.y() + position.y, origin.z() + RoomTurns.placedZ(position.x, position.z, room.turns()));
     }
 
+    /**
+     * Where an entity at {@code position} of the room's own frame stands once the room is placed, before it turns: the
+     * origin the engine's block-offset turns ({@code YawRotation.rotateBlockOffset}) are handed, which take the target
+     * cell as {@code floor(origin + offset)}, so a block target lands on its turned cell wherever in its own cell the
+     * volume's origin stands (the turned origin would be right only on a cell's corner or centre).
+     */
+    @Nonnull
+    private static Vector3d unturned(@Nonnull Room room, @Nonnull Vector3d position) {
+        Cell origin = room.origin();
+        return new Vector3d(origin.x() + position.x, origin.y() + position.y, origin.z() + position.z);
+    }
+
     @Nonnull
     private static VolumePiece volume(@Nonnull String world, @Nullable BsonDocument json, @Nonnull RoomKeys.Tokens tokens,
-            int turns, float yaw, @Nonnull Vector3d at) {
+            int turns, float yaw, @Nonnull Vector3d before, @Nonnull Vector3d at) {
         BsonDocument scoped = RoomKeys.rewrite(requireJson(json), tokens);
-        RoomTurns.turnVolume(scoped, turns);
+        RoomTurns.turnVolume(scoped, before.x, before.z, turns);
         TriggerVolume volume = TriggerVolume.CODEC.decode(scoped, new ExtraInfo());
         // The shape is turned in the JSON already: the entry is built unturned, then its effects turned once.
         VolumeEntry entry = volume.toVolumeEntry(UUID.randomUUID().toString(), world, new Vector3d(at), 0f);
         if (turns != 0 && entry.isRotateEffectsOnPaste()) {
-            Vector3d origin = new Vector3d(at);
+            Vector3d origin = new Vector3d(before);
             turnEffects(entry.getEffects(), yaw, origin);
             turnEffects(entry.getRejectionEffects(), yaw, origin);
             turnConditions(entry.getConditions(), yaw, origin);
@@ -357,13 +374,13 @@ public final class RunLogic {
 
     @Nonnull
     private static GroupPiece group(@Nullable BsonDocument json, @Nonnull RoomKeys.Tokens tokens, int turns,
-            @Nonnull Vector3d at) {
+            @Nonnull Vector3d before, @Nonnull Vector3d at) {
         BsonDocument scoped = RoomKeys.rewrite(requireJson(json), tokens);
         boolean turnEffects = turns != 0 && RoomTurns.rotatesEffects(scoped);
         if (turnEffects) {
-            RoomTurns.turnEffects(scoped, turns);
+            RoomTurns.turnEffects(scoped, before.x, before.z, turns);
         }
-        return new GroupPiece(TriggerVolumeGroup.CODEC.decode(scoped, new ExtraInfo()), at, turnEffects);
+        return new GroupPiece(TriggerVolumeGroup.CODEC.decode(scoped, new ExtraInfo()), before, at, turnEffects);
     }
 
     @Nonnull
@@ -584,7 +601,7 @@ public final class RunLogic {
             records.group(groupId);
             GroupEntry group = manager.getGroup(groupId);
             if (group != null && piece.turnEffects()) {
-                Vector3d origin = new Vector3d(group.getOrigin());
+                Vector3d origin = new Vector3d(piece.before());
                 turnEffects(group.getEffects(), yaw, origin);
                 turnEffects(group.getRejectionEffects(), yaw, origin);
                 turnConditions(group.getConditions(), yaw, origin);

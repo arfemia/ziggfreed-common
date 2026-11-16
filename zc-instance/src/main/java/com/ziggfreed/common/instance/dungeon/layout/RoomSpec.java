@@ -21,7 +21,8 @@ import javax.annotation.Nullable;
  * @param depthMin       the least fraction of the run's path it may stand at, 0 to 1
  * @param depthMax       the most fraction of the run's path it may stand at, 0 to 1
  * @param needs          the roles a room placed earlier, on a branch, must fill before this one
- * @param keepMarkers    whether the painter keeps the prefab's own spawn markers
+ * @param keepMarkers    whether the room logic places the prefab's own entities that are no logic (spawn and patrol
+ *                       markers, NPCs, props); the painter places no entity
  * @param keepContainers whether the painter keeps the prefab's own containers
  * @param fill           the block the painter fills the cells its prefab leaves unlisted inside {@code box} with, as
  *                       written (a block id is the engine's, never folded); null for its stratum's, else none. The

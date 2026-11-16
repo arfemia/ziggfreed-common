@@ -23,10 +23,12 @@ import com.ziggfreed.common.instance.dungeon.layout.QuarterTurns;
  *       plainly about that origin ({@link #turnShape}) covers exactly the cells its blocks were turned onto.</li>
  *   <li>Everything a volume holds relative to its origin turns plainly about it: the engine's own
  *       {@code rotateInPlace} on each effect, condition and rule does that (block targets about their cell's
- *       centre), so the placer leaves those to it, once, and turns here, in the JSON, only the two the engine turns
- *       otherwise ({@link #turnEffects}): a {@code Teleport}, whose facing the engine adds to its pitch slot
- *       ({@code Rotation.Y}) though it reads the facing from {@code Rotation.X}, and a {@code PastePrefab}, whose
- *       anchor cell the engine turns about the volume's corner, a block off from the room's blocks.</li>
+ *       centre), so the placer leaves those to it, once, handing it the volume's origin BEFORE the turn, since a block
+ *       target's cell is {@code floor(origin + offset)} (the turned origin reads the same only on a cell's corner or
+ *       centre). It turns here, in the JSON, only the two the engine turns otherwise ({@link #turnEffects}): a
+ *       {@code Teleport}, whose facing the engine adds to its pitch slot ({@code Rotation.Y}) though it reads the
+ *       facing from {@code Rotation.X}, and a {@code PastePrefab}, whose anchor cell the engine turns plainly about the
+ *       volume's origin, a block off from the room's blocks.</li>
  * </ul>
  *
  * <p>A turn's yaw is {@code +pi/2} per quarter ({@link #yawRadians}); never the engine's
@@ -94,8 +96,9 @@ public final class RoomTurns {
     /**
      * Turn a volume's encoded {@code TriggerVolume} in place: its shape always, and, unless it says
      * {@code RotateEffectsOnPaste: false}, the effects the engine would turn wrongly ({@link #turnEffects}).
+     * {@code (originX, originZ)} is where the volume's origin stands in the room's own frame, before the turn.
      */
-    public static void turnVolume(@Nonnull BsonDocument volume, int turns) {
+    public static void turnVolume(@Nonnull BsonDocument volume, double originX, double originZ, int turns) {
         int t = QuarterTurns.normalize(turns);
         if (t == 0) {
             return;
@@ -105,7 +108,7 @@ public final class RoomTurns {
             turnShape(shape.asDocument(), t);
         }
         if (rotatesEffects(volume)) {
-            turnEffects(volume, t);
+            turnEffects(volume, originX, originZ, t);
         }
     }
 
@@ -164,12 +167,17 @@ public final class RoomTurns {
      *   <li>{@code Teleport} anchored on the volume ({@code RelativeToVolume}, not {@code RelativeToEntity}): its
      *       {@code Position} turned plainly, and with {@code UseRotation} its facing, {@code Rotation.X}, given the
      *       turn's yaw; its pitch, {@code Rotation.Y}, is left alone;</li>
-     *   <li>{@code PastePrefab} anchored on the volume ({@code Origin} {@code VolumeOrigin}, its default): its anchor
-     *       cell turned about the cell's centre (an unwritten {@code Position} is the volume's own cell), and its
-     *       block {@code Rotation} given the turns.</li>
+     *   <li>{@code PastePrefab} anchored on the volume ({@code Origin} {@code VolumeOrigin}, its default): the cell it
+     *       pastes at, {@code floor(origin + Position)} (an unwritten {@code Position} is the volume's own cell), turned
+     *       by cell index as the room's blocks are, its {@code Position} rewritten as the turned cell's centre less the
+     *       turned origin, so it lands right wherever in its cell the volume's origin stands; and its block
+     *       {@code Rotation} given the turns.</li>
      * </ul>
+     *
+     * <p>{@code (originX, originZ)} is where the volume's (or group's) origin stands in the room's own frame, before
+     * the turn; the room's anchor is a whole block, so any frame a whole number of blocks from it reads the same.
      */
-    public static void turnEffects(@Nonnull BsonDocument holder, int turns) {
+    public static void turnEffects(@Nonnull BsonDocument holder, double originX, double originZ, int turns) {
         int t = QuarterTurns.normalize(turns);
         if (t == 0) {
             return;
@@ -188,7 +196,7 @@ public final class RoomTurns {
                 if ("Teleport".equals(type)) {
                     turnTeleport(effect, t);
                 } else if ("PastePrefab".equals(type)) {
-                    turnPastePrefab(effect, t);
+                    turnPastePrefab(effect, originX, originZ, t);
                 }
             }
         }
@@ -205,7 +213,12 @@ public final class RoomTurns {
         }
     }
 
-    private static void turnPastePrefab(@Nonnull BsonDocument effect, int t) {
+    /**
+     * The paste lands on the cell {@code floor(origin + Position)}. The volume's origin moves to its turned place
+     * ({@link #placedX}), so the offset becomes the plain turn of that cell's centre less the origin: the turned
+     * cell's centre less the turned origin, whose floor is the cell the room's blocks were turned onto.
+     */
+    private static void turnPastePrefab(@Nonnull BsonDocument effect, double originX, double originZ, int t) {
         String origin = str(effect, "Origin");
         if (origin != null && !"VolumeOrigin".equals(origin)) {
             return;
@@ -216,8 +229,8 @@ public final class RoomTurns {
                     .append("Z", new BsonDouble(0));
             effect.put("Position", position);
         }
-        double cx = Math.floor(num(position, "X")) + 0.5;
-        double cz = Math.floor(num(position, "Z")) + 0.5;
+        double cx = Math.floor(originX + num(position, "X")) + 0.5 - originX;
+        double cz = Math.floor(originZ + num(position, "Z")) + 0.5 - originZ;
         position.put("X", new BsonDouble(x(cx, cz, t)));
         position.put("Z", new BsonDouble(z(cx, cz, t)));
         String rotation = str(effect, "Rotation");
