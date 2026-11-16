@@ -35,6 +35,7 @@ import com.ziggfreed.common.instance.dungeon.RunDeaths;
 import com.ziggfreed.common.instance.dungeon.ZigEnterDungeonInteraction;
 import com.ziggfreed.common.instance.dungeon.command.ZigDungeonCommand;
 import com.ziggfreed.common.instance.dungeon.gen.DungeonPainters;
+import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
 import com.ziggfreed.common.instance.dungeon.gen.ZigDungeonWorldGenProvider;
 import com.ziggfreed.common.instance.dungeon.kit.ZigCheckpointEffect;
 import com.ziggfreed.common.instance.dungeon.kit.ZigRunMilestoneEffect;
@@ -220,8 +221,8 @@ public final class InstanceBootstrap {
      * placement naming either fails to load otherwise); the runs' ear for a boss defeat, which may clear the
      * run of each participant's area; the encounter module's run-tag seam, filled from the runs, so a fight
      * inside an area is filed under the area's run; and an endless run's two ties to its fight, the ear for a wave
-     * clear that banks it and the wave seam the fight reads its rules through. Their store registers with the other
-     * framework stores.
+     * clear that banks it and the wave seam the fight reads its rules through; and a closing copy's eviction, which
+     * forgets its generated runs' room logic. Their store registers with the other framework stores.
      * Registration only.
      */
     public static void registerDungeons(@Nonnull JavaPlugin plugin) {
@@ -246,6 +247,11 @@ public final class InstanceBootstrap {
             throw e;
         }
         DungeonPainters.start();
+        try {
+            WorldEvictors.registerEvictor(GeneratedRuns::copyClosed);
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] a closing copy's room logic will not be forgotten until its runs end", t);
+        }
         // A Type that fails to register throws, at setup, after its own line (InteractionTypes).
         InteractionTypes.registerAll(plugin, List.of(InteractionTypeSpec.of(ZigEnterDungeonInteraction.TYPE_NAME,
                 ZigEnterDungeonInteraction.class, ZigEnterDungeonInteraction::codec)));

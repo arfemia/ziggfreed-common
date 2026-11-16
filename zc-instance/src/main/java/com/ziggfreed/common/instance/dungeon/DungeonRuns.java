@@ -34,6 +34,8 @@ import com.ziggfreed.common.encounter.payout.EncounterClaims;
 import com.ziggfreed.common.encounter.seam.RunTag;
 import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
+import com.ziggfreed.common.instance.dungeon.room.RunLogic;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRoundStartedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRounds;
@@ -104,7 +106,9 @@ import com.ziggfreed.common.util.SafeLog;
  * ({@code dungeon/kit/}) find the run they act for through {@link #liveRun}. A milestone counts once per run for each
  * id and placement ({@link #milestone}) and raises {@link DungeonMilestoneEvent}; a member's death counts through
  * {@link #died} ({@link RunDeaths}). A clear's results screen lists the run's deaths, and its rooms, puzzles and
- * secrets when it counted any. The run's checkpoint ({@link RunCheckpoints}) goes however the run ends.
+ * secrets when it counted any. The run's checkpoint ({@link RunCheckpoints}) goes however the run ends, and so does a
+ * generated run's room logic ({@code room/RunLogic}): it places nothing more, and what it placed is removed on the
+ * copy's world thread.
  *
  * <p><b>Threads and locks.</b> {@link AreaMembers} calls {@link #arrived}, {@link #left} and {@link #freed}
  * under its own lock and {@link #tick} after it, on its 1 Hz ticker thread; a boss defeat, the run-tag question
@@ -983,6 +987,13 @@ public final class DungeonRuns {
     private void end(@Nonnull Run run, @Nonnull Ending ending, long nowMs, @Nullable String why) {
         // However it ends, its checkpoint is let go; one it still holds answers nothing once the run is over.
         RunCheckpoints.shared().clear(run.area, run.runId);
+        // However it ends, a generated run's room logic places nothing more, and what it placed is removed on the
+        // copy's world thread (forgotten where the copy has closed).
+        RunLogic logic = GeneratedRuns.logicOf(run.world, run.area.area());
+        if (logic != null && logic.close()) {
+            World world = run.world;
+            outbox.add(new Fire(world, () -> logic.remove(world)));
+        }
         if (run.knobs.endless != null) {
             endEndless(run, ending, nowMs);
             return;

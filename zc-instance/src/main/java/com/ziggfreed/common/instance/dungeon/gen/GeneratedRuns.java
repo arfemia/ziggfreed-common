@@ -37,6 +37,8 @@ import com.ziggfreed.common.instance.dungeon.layout.QuarterTurns;
 import com.ziggfreed.common.instance.dungeon.layout.RoomCatalogue;
 import com.ziggfreed.common.instance.dungeon.layout.RoomSpec;
 import com.ziggfreed.common.instance.dungeon.layout.asset.PrefabPoolIndex;
+import com.ziggfreed.common.instance.dungeon.room.RoomTurns;
+import com.ziggfreed.common.instance.dungeon.room.RunLogic;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.Facing;
@@ -53,6 +55,10 @@ import com.ziggfreed.common.world.Facing;
  * world thread. Its players arrive at the entry room's anchor plus the dungeon's {@code Area.EntryOffset}, turned with
  * the room; they face {@code Area.EntryYaw} turned with the room when the file writes it, else the entry room's first
  * door that leads on.
+ *
+ * <p><b>Its rooms' logic</b> is prepared with it, on the same painter thread ({@code room/RunLogic}), and handed out by
+ * {@link #logicOf}: the area members' ticker places a room's as a member nears it, the run's end removes it all, and a
+ * copy closing forgets it ({@link #copyClosed}).
  */
 public final class GeneratedRuns {
 
@@ -80,11 +86,12 @@ public final class GeneratedRuns {
             return CompletableFuture.failedFuture(new IllegalStateException("the copy " + world.getName()
                     + " does not generate with " + ZigDungeonWorldGenProvider.TYPE + ", so its rooms cannot be painted"));
         }
+        String worldName = world.getName();
         return copy.open(area.area(), run, () -> {
             CompletableFuture<DungeonRun> made = new CompletableFuture<>();
             DungeonPainters.run(() -> {
                 try {
-                    made.complete(build(copy, area.area(), run, layout, dungeon));
+                    made.complete(build(copy, worldName, area.area(), run, layout, dungeon));
                 } catch (Throwable t) {
                     made.completeExceptionally(t);
                 }
@@ -151,11 +158,40 @@ public final class GeneratedRuns {
         return run == null || world == null ? null : run.reportOnce(world.getName());
     }
 
+    /**
+     * The room logic of lane {@code area}'s latest run in {@code world} ({@link RunLogic}: where a member stands, what
+     * is placed as they near it, what the run's end removes); null when the copy generates nothing or the lane has no
+     * run registered. A map read, safe from any thread.
+     */
+    @Nullable
+    public static RunLogic logicOf(@Nullable World world, int area) {
+        ZigDungeonWorldGenProvider copy = ZigDungeonWorldGenProvider.of(world);
+        DungeonRun run = copy == null ? null : copy.current(area);
+        return run == null ? null : run.logic;
+    }
+
+    /**
+     * A copy closed ({@code WorldEvictors}): every run's room logic is forgotten, nothing more placed, since its
+     * volumes, points and entities went with the world. Never throws.
+     */
+    public static void copyClosed(@Nonnull World world) {
+        try {
+            ZigDungeonWorldGenProvider copy = ZigDungeonWorldGenProvider.of(world);
+            if (copy != null) {
+                for (DungeonRun run : copy.runs()) {
+                    run.logic.forget();
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.fine(LOG + "a closing copy's room logic could not be forgotten: " + t.getMessage());
+        }
+    }
+
     // ==================== building a run ====================
 
     @Nonnull
-    private static DungeonRun build(@Nonnull ZigDungeonWorldGenProvider copy, int area, int run,
-            @Nonnull AreaLayout lanes, @Nonnull DungeonAsset dungeon) {
+    private static DungeonRun build(@Nonnull ZigDungeonWorldGenProvider copy, @Nonnull String worldName, int area,
+            int run, @Nonnull AreaLayout lanes, @Nonnull DungeonAsset dungeon) {
         String planId = dungeon.layoutId();
         LayoutPlan plan = dungeon.layoutPlan();
         if (plan == null) {
@@ -186,9 +222,44 @@ public final class GeneratedRuns {
             rooms.add(room(placed, catalogue, pools, frame));
         }
         Transform arrival = arrivalOf(layout, frame, dungeon);
+        RunLogic logic = prepareLogic(worldName, area, run, seed, layout, rooms, catalogue);
         long prepared = System.nanoTime();
         return new DungeonRun(area, run, seed, plan.id(), layout, frame, rooms, arrival,
-                (generated - start) / NANOS_PER_MILLI, (prepared - generated) / NANOS_PER_MILLI);
+                (generated - start) / NANOS_PER_MILLI, (prepared - generated) / NANOS_PER_MILLI, logic);
+    }
+
+    /**
+     * The run's room logic, prepared from its painted rooms: each room's anchor, turn, box and prefabs, whether its
+     * room file keeps its markers, and the rooms its doors join. A run whose logic cannot be prepared runs without it
+     * (warned), so the party still gets its rooms.
+     */
+    @Nonnull
+    private static RunLogic prepareLogic(@Nonnull String worldName, int area, int run, long seed,
+            @Nonnull Layout layout, @Nonnull List<DungeonRun.Room> rooms, @Nonnull RoomCatalogue catalogue) {
+        try {
+            List<RunLogic.Room> logicRooms = new ArrayList<>(rooms.size());
+            for (int i = 0; i < rooms.size(); i++) {
+                DungeonRun.Room room = rooms.get(i);
+                PlacedRoom placed = layout.rooms().get(i);
+                RoomSpec spec = catalogue.room(placed.roomId());
+                List<Integer> neighbours = new ArrayList<>();
+                for (PlacedRoom.DoorLink door : placed.doors()) {
+                    if (door.room() >= 0 && !neighbours.contains(door.room())) {
+                        neighbours.add(door.room());
+                    }
+                }
+                logicRooms.add(new RunLogic.Room(room.index(), room.origin(), room.rotation().ordinal(), room.box(),
+                        room.base(), room.overlay(), spec != null && spec.keepMarkers(), neighbours,
+                        room.roomId() + " (" + room.prefabKey() + ")"));
+            }
+            return RunLogic.prepare(worldName, area, run, seed, logicRooms);
+        } catch (Throwable t) {
+            if (WARNED.add(("logic:" + layout.planId()).toLowerCase(Locale.ROOT))) {
+                SafeLog.warn(LOG + "the room logic of a run of the layout plan " + layout.planId() + " could not be "
+                        + "prepared; its rooms are placed without their logic", t);
+            }
+            return RunLogic.none(area, run);
+        }
     }
 
     /** One placed room as the painter reads it: in world blocks, its variant's prefab loaded. */
@@ -255,8 +326,8 @@ public final class GeneratedRuns {
         Cell anchor = frame.plus(entry.origin());
         int turns = QuarterTurns.normalize(entry.rotation());
         Vec3 offset = dungeon.entryOffset();
-        double dx = turnedX(offset.effectiveX(), offset.effectiveZ(), turns);
-        double dz = turnedZ(offset.effectiveX(), offset.effectiveZ(), turns);
+        double dx = RoomTurns.x(offset.effectiveX(), offset.effectiveZ(), turns);
+        double dz = RoomTurns.z(offset.effectiveX(), offset.effectiveZ(), turns);
         float yaw = dungeon.entryYawAuthored() ? dungeon.entryYaw() + 90f * turns : doorYaw(entry, turns);
         return new Transform(new Vector3d(anchor.x() + 0.5 + dx, anchor.y() + offset.effectiveY(),
                 anchor.z() + 0.5 + dz), Facing.rotation(normalizeYaw(yaw)));
@@ -272,26 +343,6 @@ public final class GeneratedRuns {
             }
         }
         return 90f * turns;
-    }
-
-    /** {@code (x, z)} after {@code turns} quarter turns, as {@link QuarterTurns} turns a cell. */
-    static double turnedX(double x, double z, int turns) {
-        return switch (QuarterTurns.normalize(turns)) {
-            case 1 -> z;
-            case 2 -> -x;
-            case 3 -> -z;
-            default -> x;
-        };
-    }
-
-    /** {@code (x, z)}'s Z after {@code turns} quarter turns. */
-    static double turnedZ(double x, double z, int turns) {
-        return switch (QuarterTurns.normalize(turns)) {
-            case 1 -> -x;
-            case 2 -> -z;
-            case 3 -> x;
-            default -> z;
-        };
     }
 
     private static float normalizeYaw(float yaw) {

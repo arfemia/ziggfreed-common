@@ -19,11 +19,13 @@ import com.hypixel.hytale.server.core.prefab.selection.buffer.impl.IPrefabBuffer
 import com.ziggfreed.common.instance.dungeon.layout.Box;
 import com.ziggfreed.common.instance.dungeon.layout.Cell;
 import com.ziggfreed.common.instance.dungeon.layout.Layout;
+import com.ziggfreed.common.instance.dungeon.room.RunLogic;
 
 /**
  * One registered run of a generated dungeon copy: the layout its seed made, placed in the run's region of its lane,
- * every room ready to paint, where its players arrive, and what painting it has cost so far. Immutable once
- * registered, but for its counters, which the painters add to from any thread.
+ * every room ready to paint, its rooms' logic ready to place ({@link RunLogic}), where its players arrive, and what
+ * painting it has cost so far. Immutable once registered, but for its counters, which the painters add to from any
+ * thread, and its logic's own state.
  */
 final class DungeonRun {
 
@@ -61,6 +63,8 @@ final class DungeonRun {
     @Nonnull final Transform arrival;
     final double generationMs;
     final double prepareMs;
+    /** The rooms' logic, placed as the party nears each room and removed with the run ({@link RunLogic}). */
+    @Nonnull final RunLogic logic;
 
     final AtomicInteger chunksPainted = new AtomicInteger();
     final AtomicInteger chunksOnCaller = new AtomicInteger();
@@ -72,7 +76,8 @@ final class DungeonRun {
     private final Map<Path, IPrefabBuffer> children = new ConcurrentHashMap<>();
 
     DungeonRun(int area, int run, long seed, @Nonnull String planId, @Nonnull Layout layout, @Nonnull Cell frame,
-            @Nonnull List<Room> rooms, @Nonnull Transform arrival, double generationMs, double prepareMs) {
+            @Nonnull List<Room> rooms, @Nonnull Transform arrival, double generationMs, double prepareMs,
+            @Nonnull RunLogic logic) {
         this.area = area;
         this.run = run;
         this.seed = seed;
@@ -83,6 +88,7 @@ final class DungeonRun {
         this.arrival = arrival;
         this.generationMs = generationMs;
         this.prepareMs = prepareMs;
+        this.logic = logic;
         this.reach = reachOf(this.rooms, frame);
     }
 
@@ -112,8 +118,9 @@ final class DungeonRun {
 
     /**
      * The run's one measurement line, the first time it is asked for (its lane freed); null after. Generation is the
-     * layout alone, preparing is placing it and loading its prefabs, both off the world thread; painting is every
-     * chunk of the region written so far.
+     * layout alone, preparing is placing it and loading its prefabs (its room logic's preparing among it), both off
+     * the world thread; painting is every chunk of the region written so far; the room logic's placing is on the
+     * world thread, timed room by room ({@link RunLogic#summary}).
      */
     @Nullable
     String reportOnce(@Nonnull String world) {
@@ -125,12 +132,12 @@ final class DungeonRun {
         int onCaller = chunksOnCaller.get();
         return String.format(Locale.ROOT, "[dungeon] run %d of %s area %d (plan %s, seed %d): %d rooms (%d on the path)"
                         + " generated in %.2f ms and prepared in %.2f ms; %d chunks painted in %.2f ms (%.2f ms a chunk),"
-                        + " %s; %d spawner children expanded, %d prefab entities left to the room logic",
+                        + " %s; %d spawner children expanded, %d prefab entities left to the room logic; %s",
                 run, world, area, planId, seed, layout.rooms().size(), layout.pathLength(), generationMs, prepareMs,
                 chunks, paintMs, chunks == 0 ? 0.0 : paintMs / chunks,
                 onCaller == 0 ? "all on the painter threads"
                         : onCaller + " of them on the asking thread while the painters were down",
-                childrenExpanded.get(), entitiesLeft.get());
+                childrenExpanded.get(), entitiesLeft.get(), logic.summary());
     }
 
     @Nonnull

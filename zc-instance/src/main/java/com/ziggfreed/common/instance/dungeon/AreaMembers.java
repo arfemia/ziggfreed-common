@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
+import com.ziggfreed.common.instance.dungeon.room.RunLogic;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -43,7 +44,9 @@ import com.ziggfreed.common.util.SafeLog;
  * freed area ends one still going); an area whose last player left or failed is free, the router lets the
  * party holding it go, and {@link Areas} pastes it afresh for the next party (a generated dungeon's lane logs its
  * run's {@code [dungeon]} measurement line, {@code GeneratedRuns.finish}, and its next party gets a fresh run
- * further along it). The ticker touches no store and
+ * further along it). In a generated dungeon it also learns which room of the run each member stands in
+ * ({@link #roomOf}), and has that room's logic and its neighbours' placed ({@code room/RunLogic}, on the copy's world
+ * thread). The ticker touches no store and
  * no entity, so nothing it settles needs the world thread; after each pass it hands the runs their own tick
  * ({@link DungeonRuns#tick}: time limits, wipe checks, the round moments), outside this list's lock.
  *
@@ -99,6 +102,8 @@ public final class AreaMembers {
         @Nullable World world;
         @Nullable UUID worldId;
         @Nullable AreaLayout layout;
+        /** The layout index of the generated room they last stood in, or -1. Written by the ticker only. */
+        volatile int room = -1;
         /** A tick has already warned that it could not settle this member. Read and written by the ticker only. */
         boolean tickFailed;
 
@@ -149,6 +154,15 @@ public final class AreaMembers {
     public synchronized CopyKey presentArea(@Nonnull UUID player) {
         Member member = members.get(player);
         return member == null || !member.present ? null : member.area;
+    }
+
+    /**
+     * The layout index of the generated room {@code player} stood in at the ticker's last pass, or -1: not in an area
+     * of a generated dungeon, or in none of its run's rooms yet.
+     */
+    public synchronized int roomOf(@Nonnull UUID player) {
+        Member member = members.get(player);
+        return member == null || !member.present ? -1 : member.room;
     }
 
     /**
@@ -217,7 +231,11 @@ public final class AreaMembers {
             for (Member member : snapshot) {
                 try {
                     PlayerRef player = universe == null ? null : universe.getPlayer(member.player);
-                    settle(member, judge(member, player, now), player, now);
+                    Verdict verdict = judge(member, player, now);
+                    settle(member, verdict, player, now);
+                    if (verdict == Verdict.STAY || verdict == Verdict.ARRIVED) {
+                        learnRoom(member, player);
+                    }
                 } catch (Throwable t) {
                     if (!member.tickFailed) {
                         member.tickFailed = true;
@@ -335,6 +353,30 @@ public final class AreaMembers {
         } else {
             DungeonIntro.stop(member.player);
         }
+    }
+
+    /**
+     * In a generated dungeon, which room of their run {@code member} stands in now, read off their cached transform
+     * (no store); that room's logic and its neighbours' are placed, each once per run, on the copy's world thread
+     * ({@link RunLogic#activate}). A member between rooms keeps the room they stood in last. On the ticker, after
+     * {@link #settle}, outside this list's lock.
+     */
+    private static void learnRoom(@Nonnull Member member, @Nullable PlayerRef player) {
+        World world = member.world;
+        if (!member.present || player == null || world == null) {
+            return;
+        }
+        RunLogic logic = GeneratedRuns.logicOf(world, member.area.area());
+        if (logic == null || logic.ended()) {
+            return;
+        }
+        Vector3d at = player.getTransform().getPosition();
+        int room = logic.roomAt(at.x, at.y, at.z, member.room);
+        if (room < 0) {
+            return;
+        }
+        member.room = room;
+        logic.activate(world, room);
     }
 
     /** The copy {@code member} arrived in, else the one their teleport was waiting on, else null. */
