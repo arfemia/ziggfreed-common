@@ -21,8 +21,10 @@ import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
  * the hit is a weak spot. A hit is a weak spot when it lands inside the target's {@code Head} detail box (the
  * model's own {@code DetailBoxes}), from behind the target (the rear arc the game's own dagger backstab tests),
  * while the target carries a window effect (one tagged {@value #TAG} in its own native {@code Tags}, R751, or one
- * the settings list for vanilla's own: a stun, a flinch's lockout, a freeze, a boss broken down), or on a target at
- * or under the attacker's {@value #FOE_LOW_STAT} percent of its health. {@link WeakSpotSystem} applies it; the
+ * the settings list for vanilla's own: a stun, a flinch's lockout, a freeze, a boss broken down; one tagged
+ * {@value #ONCE} too is spent by the hit it pays), while the attacker wears an effect tagged {@value #TAG_NEXT} (their
+ * next hit, which spends it), or on a target at or under the attacker's {@value #FOE_LOW_STAT} percent of its
+ * health. {@link WeakSpotSystem} applies it; the
  * settings are {@code Server/ZiggfreedCommon/WeakSpotSettings/Default.json} ({@link WeakSpotSettingsAsset}).
  *
  * <p><b>What a weak spot pays</b> (R757, every number a stat): {@value #DAMAGE_STAT}, plus each way's own stat when the
@@ -80,6 +82,21 @@ public final class WeakSpots {
 
     /** The {@link #TAG} value that opens the window for the effect's owner alone. */
     public static final String OWNER_ONLY = "Owner";
+
+    /**
+     * The {@link #TAG} value that spends the window on the first hit it pays: the effect comes off once a hit lands as
+     * a weak spot through it ({@code ["Owner", "Once"]}: the owner's next hit on the foe, one strike's own window).
+     */
+    public static final String ONCE = "Once";
+
+    /**
+     * The native {@code Tags} key an effect on the ATTACKER carries to make their next hit a weak spot:
+     * {@code "Tags": { "ZigWeakSpot_Next": ["Self"] }} (any value). The first direct hit they land while wearing it is a
+     * weak spot, paying
+     * their weak-spot bonus as every way does, and spends it: the effect comes off. Give the effect a bonus of its own
+     * (its {@code RawStatModifiers} on {@value #DAMAGE_STAT}'s maximum) when its wearer may have none.
+     */
+    public static final String TAG_NEXT = "ZigWeakSpot_Next";
 
     /**
      * The airborne effect (R744): put on a foe your own hit launched (a native {@code ApplyEffect} in the hit's

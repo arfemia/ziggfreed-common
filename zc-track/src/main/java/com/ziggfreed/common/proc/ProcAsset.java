@@ -2,6 +2,7 @@ package com.ziggfreed.common.proc;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -223,6 +224,45 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
         }
     }
 
+    /**
+     * The Thrown group: where a ThrownLanding's creature came down. Each leaf asks one thing of the landing, true
+     * only, false only, or either when unauthored.
+     */
+    public static final class Thrown {
+
+        @Nullable protected Boolean onCreature;
+        @Nullable protected Boolean inWater;
+
+        public static final BuilderCodec<Thrown> CODEC = BuilderCodec.builder(Thrown.class, Thrown::new)
+                .appendInherited(new KeyedCodec<>("OnCreature", Codec.BOOLEAN, false),
+                        (o, v) -> o.onCreature = v, o -> o.onCreature, (o, p) -> o.onCreature = p.onCreature)
+                .documentation("True: only a creature that came down on another (one standing where it landed, "
+                        + "never the holder; reach it with an Area around the Target that skips it). False: only one "
+                        + "that did not. Either when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("InWater", Codec.BOOLEAN, false),
+                        (o, v) -> o.inWater = v, o -> o.inWater, (o, p) -> o.inWater = p.inWater)
+                .documentation("True: only a creature that came down in water. False: only one that landed dry. "
+                        + "Either when unauthored.").add()
+                .build();
+
+        public Thrown() {
+        }
+
+        @Nullable
+        public Boolean onCreature() {
+            return onCreature;
+        }
+
+        @Nullable
+        public Boolean inWater() {
+            return inWater;
+        }
+
+        public boolean isEmpty() {
+            return onCreature == null && inWater == null;
+        }
+    }
+
     private String id;
     private AssetExtraInfo.Data data;
 
@@ -241,6 +281,8 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
     @Nullable protected Double leavesUnder;
     @Nullable protected Double allyRadius;
     @Nullable protected Boolean wouldBreakGuard;
+    @Nullable protected Thrown thrown;
+    @Nullable protected String[] projectiles;
     @Nullable protected FactorFormula chance;
     @Nullable protected FactorFormula strength;
     @Nullable protected Cooldown cooldown;
@@ -303,7 +345,8 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
                     + "runs the proc. None when unauthored.").add()
             .appendInherited(new KeyedCodec<>("Seek", Seek.CODEC, false),
                     (a, v) -> a.seek = v, a -> a.seek, (a, p) -> a.seek = p.seek)
-            .documentation("For a moment with no target of its own (CrouchStill, Dodge, Landing, Cast): the "
+            .documentation("For a moment with no target of its own (CrouchStill, Dodge, Landing, Cast, Jump, "
+                    + "ProjectileMiss): the "
                     + "nearest foe within Radius becomes it, or the proc does not run. No target sought when "
                     + "unauthored.").add()
             .appendInherited(new KeyedCodec<>("MinAmount", Codec.DOUBLE, false),
@@ -325,6 +368,15 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
                     (a, p) -> a.wouldBreakGuard = p.wouldBreakGuard)
             .documentation("For Blocked: true runs only on a block whose stamina cost is more than the holder has "
                     + "left (it would break their guard), false only on one that would not. Either when "
+                    + "unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Thrown", Thrown.CODEC, false),
+                    (a, v) -> a.thrown = v, a -> a.thrown, (a, p) -> a.thrown = p.thrown)
+            .documentation("For ThrownLanding: where the creature came down (on another creature, in water); "
+                    + "MinAmount asks how far it dropped. Anywhere when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Projectiles", Codec.STRING_ARRAY, false),
+                    (a, v) -> a.projectiles = v, a -> a.projectiles, (a, p) -> a.projectiles = p.projectiles)
+            .documentation("For ProjectileMiss: the projectiles that count, by their asset id, any case, a * "
+                    + "matching any run of letters (Spear_* for every thrown spear). Every projectile when "
                     + "unauthored.").add()
             .appendInherited(new KeyedCodec<>("Chance", FactorFormula.codec(EditorDataSets.FACTORS), false),
                     (a, v) -> a.chance = v, a -> a.chance, (a, p) -> a.chance = p.chance)
@@ -504,6 +556,58 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
     @Nullable
     public Boolean wouldBreakGuard() {
         return wouldBreakGuard;
+    }
+
+    /** The Thrown group, or null when it asks nothing. */
+    @Nullable
+    public Thrown thrown() {
+        return thrown == null || thrown.isEmpty() ? null : thrown;
+    }
+
+    /** The projectile ids a ProjectileMiss must be about, trimmed; empty for every one. */
+    @Nonnull
+    public List<String> projectiles() {
+        return ProcAction.trimmed(projectiles);
+    }
+
+    /**
+     * Does {@code id} match one of {@code wanted} (any case, a {@code *} in one matching any run of characters)?
+     * False for a blank id. Pure.
+     */
+    public static boolean namesId(@Nonnull List<String> wanted, @Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return false;
+        }
+        String folded = id.trim().toLowerCase(Locale.ROOT);
+        for (String pattern : wanted) {
+            if (globMatches(pattern.toLowerCase(Locale.ROOT), folded)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Does {@code text} match {@code pattern}, a {@code *} matching any run of characters? Pure. */
+    static boolean globMatches(@Nonnull String pattern, @Nonnull String text) {
+        int star = pattern.indexOf('*');
+        if (star < 0) {
+            return pattern.equals(text);
+        }
+        String[] parts = pattern.split("\\*", -1);
+        int at = 0;
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i];
+            if (part.isEmpty()) {
+                continue;
+            }
+            int found = text.indexOf(part, at);
+            if (found < 0 || (i == 0 && found != 0)) {
+                return false;
+            }
+            at = found + part.length();
+        }
+        String last = parts[parts.length - 1];
+        return last.isEmpty() || text.endsWith(last);
     }
 
     @Nullable

@@ -49,6 +49,7 @@ public final class ConditionBootstrap {
                     ZigCrouchingCondition.codec());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.HolderPass());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.FirstHitRecord());
+            plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.SwingOrderStamp());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.Left());
             TypedDamageBonuses.registerRouteTerm(ConditionalStats.ROUTE_TERM_OWNER, ConditionalStats::damagePoints);
             TypedDamageBonuses.registerRouteTerm(BoundGrants.ROUTE_TERM_OWNER, BoundGrants::damagePoints);

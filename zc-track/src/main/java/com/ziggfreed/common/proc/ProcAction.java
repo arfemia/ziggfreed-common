@@ -60,6 +60,7 @@ public final class ProcAction {
     @Nullable protected Heal heal;
     @Nullable protected Soak soak;
     @Nullable protected GuardCost guardCost;
+    @Nullable protected Reflect reflect;
 
     public static final BuilderCodec<ProcAction> CODEC = BuilderCodec.builder(ProcAction.class, ProcAction::new)
             .appendInherited(new KeyedCodec<>("Area", Area.CODEC, false),
@@ -112,6 +113,10 @@ public final class ProcAction {
                     (o, v) -> o.guardCost = v, o -> o.guardCost, (o, p) -> o.guardCost = p.guardCost)
             .documentation("For Blocked: cut the stamina the holder's guard is about to pay for this block, through "
                     + "the engine's own stamina drain, before it is paid. Runs first.").add()
+            .appendInherited(new KeyedCodec<>("Reflect", Reflect.CODEC, false),
+                    (o, v) -> o.reflect = v, o -> o.reflect, (o, p) -> o.reflect = p.reflect)
+            .documentation("For HitIncoming: a projectile's coming hit is turned back at whoever shot it, dealt to "
+                    + "them as the holder's own hit of the same damage type. Runs first, beside Soak.").add()
             .build();
 
     public ProcAction() {
@@ -129,12 +134,49 @@ public final class ProcAction {
     @Nullable public Heal heal() { return heal; }
     @Nullable public Soak soak() { return soak; }
     @Nullable public GuardCost guardCost() { return guardCost; }
+    @Nullable public Reflect reflect() { return reflect; }
 
     /** Does it name no group at all (an Area alone does nothing)? */
     public boolean isEmpty() {
         return applyEffect == null && removeEffect == null && changeStat == null && counter == null
                 && push == null && taunt == null && !breakGuard() && runInteraction == null && heal == null
-                && soak == null && guardCost == null;
+                && soak == null && guardCost == null && reflect == null;
+    }
+
+    /**
+     * The Reflect group: a projectile's coming hit on the holder turned back at its shooter. The shooter takes
+     * {@code Share} of the hit (times the proc's strength), of its own damage type, as a hit of the holder's that no
+     * proc answers; with {@code Stop} the coming hit is stopped. A hit no projectile dealt, or one whose shooter is
+     * gone, is left alone.
+     */
+    public static final class Reflect {
+
+        @Nullable protected FactorFormula share;
+        @Nullable protected Boolean stop;
+
+        public static final BuilderCodec<Reflect> CODEC = BuilderCodec.builder(Reflect.class, Reflect::new)
+                .appendInherited(new KeyedCodec<>("Share", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.share = v, o -> o.share, (o, p) -> o.share = p.share)
+                .documentation("The share of the hit dealt back to the shooter, a formula (1: all of it), times the "
+                        + "proc's strength. 1 when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Stop", Codec.BOOLEAN, false),
+                        (o, v) -> o.stop = v, o -> o.stop, (o, p) -> o.stop = p.stop)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("True: the coming hit is stopped (the projectile turned away). False: it still lands, "
+                        + "and its shooter takes the share as well. True when unauthored.").add()
+                .build();
+
+        public Reflect() {
+        }
+
+        @Nullable
+        public FactorFormula share() {
+            return share;
+        }
+
+        public boolean stop() {
+            return stop == null || stop;
+        }
     }
 
     /** The Heal group: health given through CommonLib's one heal, the holder its giver. */
@@ -301,12 +343,16 @@ public final class ProcAction {
         /** The farthest it ever reaches, in blocks, whatever {@code Radius} says. */
         public static final double RADIUS_CAP = 64.0;
 
+        /** An arc that leaves no side out. */
+        public static final double ARC_FULL = 360.0;
+
         @Nullable protected Double radius;
         @Nullable protected String around;
         @Nullable protected Integer max;
         @Nullable protected Boolean allies;
         @Nullable protected Boolean skipTarget;
         @Nullable protected Condition[] conditions;
+        @Nullable protected Double arc;
 
         public static final BuilderCodec<Area> CODEC = BuilderCodec.builder(Area.class, Area::new)
                 .appendInherited(new KeyedCodec<>("Radius", Codec.DOUBLE, false),
@@ -343,9 +389,25 @@ public final class ProcAction {
                 .documentation("Entity conditions each one reached must meet. To keep bosses and elites out, ask "
                         + "ZigFoeFamily of the group Zig_Boss_Or_Elite with Inverse true. None when "
                         + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Arc", Codec.DOUBLE, false),
+                        (o, v) -> o.arc = v, o -> o.arc, (o, p) -> o.arc = p.arc)
+                .metadata(EditorSchema.defaultValue(ARC_FULL))
+                .documentation("Only those ahead of the holder, within this many degrees across of where they look, "
+                        + "level with the ground (120 is a wide cone in front). Every side when unauthored or 360 "
+                        + "and more.").add()
                 .build();
 
         public Area() {
+        }
+
+        /** The arc ahead in degrees, held to (0, 360]; 360 reaches every side. */
+        public double arc() {
+            return arc == null || !Double.isFinite(arc) || arc <= 0.0 ? ARC_FULL : Math.min(ARC_FULL, arc);
+        }
+
+        /** Does it reach only those ahead of the holder? */
+        public boolean ahead() {
+            return arc() < ARC_FULL;
         }
 
         /** The reach in blocks, held to [0, {@value #RADIUS_CAP}]. */

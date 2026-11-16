@@ -21,6 +21,7 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.math.shape.Box;
 import com.hypixel.hytale.server.core.asset.type.model.config.DetailBox;
+import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.BoundingBox;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
@@ -51,8 +52,11 @@ import com.ziggfreed.common.util.SafeLog;
  * asks the ways in, cheapest first: vanilla's own headshot or backstab branch (a meta read, decided once a hit and
  * applied to each of its causes), the target's window effects (one pass over its active effects against a table), the
  * rear arc (two transform reads), the head box (the target's detail boxes), and last the target's health against the
- * attacker's {@code WeakSpot_FoeLow}; once the hit is a weak spot, only a way whose own stat pays more is asked. A weak
- * spot puts {@link WeakSpots#hitKey} on the hit and shows the attacker the combat text.
+ * attacker's {@code WeakSpot_FoeLow}; once the hit is a weak spot, only a way whose own stat pays more is asked. An
+ * attacker wearing a next-hit effect ({@code ZigWeakSpot_Next}, one flag read when no effect carries the tag) makes
+ * the hit a weak spot and loses the effect with the first hit that lands; a window tagged {@code Once} comes off the
+ * target with the hit it paid. A weak spot puts {@link WeakSpots#hitKey} on the hit and shows the attacker the combat
+ * text.
  */
 public final class WeakSpotSystem extends DamageEventSystem {
 
@@ -107,11 +111,20 @@ public final class WeakSpotSystem extends DamageEventSystem {
             VanillaWeakSpots.Paid vanilla = VanillaWeakSpots.paidForHit(damage, target);
             Ways ways = Ways.of(stats);
             boolean bound = BoundGrants.hasHitTerms(attacker);
-            if (!ways.mayPay() && !bound) {
+            // The attacker's next-hit effect (ZigWeakSpot_Next): its own bonus is on the stats read above, and the
+            // first hit that lands spends it, paying or not.
+            int next = WeakSpotWindows.nextOn(store, attacker);
+            if (!ways.mayPay() && !bound && next == WeakSpotWindows.NO_EFFECT) {
                 return;
             }
             if (damage.isCancelled() || damage.getAmount() <= 0f
                     || target.equals(attacker) || !TypedDamageBonuses.attackerAllowed(store, attacker)) {
+                return;
+            }
+            if (next != WeakSpotWindows.NO_EFFECT) {
+                spend(commandBuffer, attacker, next);
+            }
+            if (!ways.mayPay() && !bound) {
                 return;
             }
             if (bound) {
@@ -127,15 +140,24 @@ public final class WeakSpotSystem extends DamageEventSystem {
             // the bonus it already paid counts against ours: one weak-spot bonus a hit, the larger of the two.
             boolean vanillaHead = vanilla != null && vanilla.head() && settings.headEnabled();
             boolean vanillaBack = vanilla != null && vanilla.backstab() && settings.backstabEnabled();
-            int found = waysOf(store, damage, target, attacker, settings, ways, vanillaHead || vanillaBack);
+            int[] window = {WeakSpotWindows.NO_EFFECT};
+            int found = waysOf(store, damage, target, attacker, settings, ways,
+                    vanillaHead || vanillaBack || next != WeakSpotWindows.NO_EFFECT, window);
             if (vanillaHead) {
                 found |= HEAD;
             }
             if (vanillaBack) {
                 found |= BACK;
             }
+            if (next != WeakSpotWindows.NO_EFFECT) {
+                found |= NEXT;
+            }
             if (found == 0) {
                 return;
+            }
+            // A window a paid hit spends (ZigWeakSpot Once) comes off with the hit it opened.
+            if ((found & WINDOW) != 0 && WeakSpotWindows.spentByHit(window[0])) {
+                spend(commandBuffer, target, window[0]);
             }
             double points = base + ((found & HEAD) != 0 ? ways.head() : 0.0) + ((found & BACK) != 0 ? ways.back() : 0.0)
                     + ((found & WINDOW) != 0 ? ways.staggered() : 0.0);
@@ -168,6 +190,26 @@ public final class WeakSpotSystem extends DamageEventSystem {
 
     /** The hit is a weak spot on a target low enough for the attacker's {@code WeakSpot_FoeLow}. */
     static final int LOW = 8;
+
+    /** The hit is a weak spot through the attacker's next-hit effect ({@code ZigWeakSpot_Next}). */
+    static final int NEXT = 16;
+
+    /** Take the effect at {@code index} off {@code ref}: a spent next-hit effect or once window. Never throws. */
+    private static void spend(@Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> ref,
+            int index) {
+        if (index < 0) {
+            return;
+        }
+        try {
+            EffectControllerComponent ctrl =
+                    commandBuffer.getComponent(ref, EffectControllerComponent.getComponentType());
+            if (ctrl != null) {
+                ctrl.removeEffect(ref, index, commandBuffer);
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[weakspot] spending a weak-spot effect failed: " + t.getMessage());
+        }
+    }
 
     /** The attacker's weak-spot stats for one hit, read once. */
     record Ways(double base, double head, double back, double staggered, double foeLow, boolean sourcesMayPay) {
@@ -211,12 +253,15 @@ public final class WeakSpotSystem extends DamageEventSystem {
      */
     private static int waysOf(@Nonnull Store<EntityStore> store, @Nonnull Damage damage,
             @Nonnull Ref<EntityStore> target, @Nonnull Ref<EntityStore> attacker,
-            @Nonnull WeakSpotSettingsAsset settings, @Nonnull Ways ways, boolean alreadyWeak) {
+            @Nonnull WeakSpotSettingsAsset settings, @Nonnull Ways ways, boolean alreadyWeak, @Nonnull int[] window) {
         int found = 0;
         boolean weak = alreadyWeak;
-        if ((!weak || ways.staggered() > 0.0) && WeakSpotWindows.openFor(store, target, attacker)) {
-            found |= WINDOW;
-            weak = true;
+        if (!weak || ways.staggered() > 0.0) {
+            window[0] = WeakSpotWindows.windowOn(store, target, attacker);
+            if (window[0] != WeakSpotWindows.NO_EFFECT) {
+                found |= WINDOW;
+                weak = true;
+            }
         }
         TransformComponent targetAt = store.getComponent(target, TransformComponent.getComponentType());
         if ((!weak || ways.back() > 0.0) && targetAt != null && settings.backstabEnabled()

@@ -18,7 +18,8 @@ import com.ziggfreed.common.track.source.VictimPayload;
 
 /**
  * The triggers that ride the library's own moments, a library-default {@link MomentListener}: a player's hit on a
- * creature ({@code DEAL_DAMAGE}: Hit, and SprintHit while they sprint), a kill ({@code KILL_ENTITY}), a block broken
+ * creature ({@code DEAL_DAMAGE}: Hit, and SprintHit while they sprint; the creature struck is watched for a landing,
+ * {@link ThrownLandings}), a kill ({@code KILL_ENTITY}, its amount the overkill {@link KillBlows} reads), a block broken
  * ({@code BREAK_BLOCK}) and a harvest ({@code PICKUP_ITEM}). A hit counts for the player who struck it, never for an
  * owner a turret's hit was credited to; it also marks the foe struck for the effect moments' watch
  * ({@link EffectWatch}). World thread, inside the producer's own dispatch. A heal given (HealGiven) rides zc-core's
@@ -45,7 +46,8 @@ final class ProcMoments implements MomentListener {
         } else if (KILL_KIND.equalsIgnoreCase(kind)) {
             if (Procs.listens(ProcTrigger.KILL)) {
                 VictimPayload victim = moment.payload(VictimPayload.class);
-                fire(moment, ProcTrigger.KILL, victim == null ? null : victim.victimRef(), null, 1.0, null);
+                Ref<EntityStore> slain = victim == null ? null : victim.victimRef();
+                fire(moment, ProcTrigger.KILL, slain, null, KillBlows.overkill(moment.store(), slain), null);
             }
         } else if (BREAK_KIND.equalsIgnoreCase(kind)) {
             if (Procs.listens(ProcTrigger.BLOCK_BREAK)) {
@@ -60,7 +62,8 @@ final class ProcMoments implements MomentListener {
         boolean hit = Procs.listens(ProcTrigger.HIT);
         boolean sprint = Procs.listens(ProcTrigger.SPRINT_HIT);
         boolean watch = !ProcConfig.getInstance().watched(true).isEmpty();
-        if (!hit && !sprint && !watch) {
+        boolean thrown = Procs.listens(ProcTrigger.THROWN_LANDING);
+        if (!hit && !sprint && !watch && !thrown) {
             return;
         }
         HitPayload payload = moment.payload(HitPayload.class);
@@ -77,6 +80,9 @@ final class ProcMoments implements MomentListener {
         Ref<EntityStore> victim = payload.victimRef();
         if (watch) {
             EffectWatch.noteFoe(moment.ref(), victim, System.nanoTime());
+        }
+        if (thrown && !ProcMarks.fromProc(damage)) {
+            ThrownLandings.launched(moment.ref(), victim, System.nanoTime());
         }
         if (hit) {
             fire(moment, ProcTrigger.HIT, victim, damage, amount, null);

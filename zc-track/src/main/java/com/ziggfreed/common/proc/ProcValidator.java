@@ -67,6 +67,7 @@ public final class ProcValidator {
     public static final String GROUP_NOTHING = "GROUP_NOTHING";
     public static final String ON_FOE_NOT_PER_TARGET = "ON_FOE_NOT_PER_TARGET";
     public static final String REACH_NOBODY = "REACH_NOBODY";
+    public static final String MOMENT_ONLY = "MOMENT_ONLY";
 
     /** What the audit asks of the server: each answers whether an id is known here. */
     public record Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
@@ -292,6 +293,14 @@ public final class ProcValidator {
             out.add(Finding.warning(DOMAIN, BLOCK_ONLY, "proc '" + id + "' asks WouldBreakGuard on " + trigger.id()
                     + ", which is no block, so it never runs", id));
         }
+        if (trigger != ProcTrigger.THROWN_LANDING && proc.thrown() != null) {
+            out.add(Finding.warning(DOMAIN, MOMENT_ONLY, "proc '" + id + "' asks Thrown on " + trigger.id()
+                    + ", which only ThrownLanding reads, so it never runs", id));
+        }
+        if (trigger != ProcTrigger.PROJECTILE_MISS && !proc.projectiles().isEmpty()) {
+            out.add(Finding.warning(DOMAIN, MOMENT_ONLY, "proc '" + id + "' names Projectiles on " + trigger.id()
+                    + ", which only ProjectileMiss reads, so it never runs", id));
+        }
     }
 
     /**
@@ -316,10 +325,20 @@ public final class ProcValidator {
                         + "LeavePercent, so it lowers nothing", id));
             }
         }
-        if (trigger != null && trigger != ProcTrigger.BLOCKED
-                && (action.guardCost() != null || (action.changeStat() != null && action.changeStat().byCost()))) {
-            out.add(Finding.warning(DOMAIN, BLOCK_ONLY, "proc '" + id + "' reads a block's stamina cost (GuardCost, "
-                    + "ChangeStat ByCost) on " + trigger.id() + ", which costs nothing: it does nothing", id));
+        if (trigger != null && trigger != ProcTrigger.BLOCKED && action.guardCost() != null) {
+            out.add(Finding.warning(DOMAIN, BLOCK_ONLY, "proc '" + id + "' cuts a block's stamina cost (GuardCost) on "
+                    + trigger.id() + ", which is no block: it does nothing", id));
+        }
+        if (trigger != null && trigger != ProcTrigger.BLOCKED && trigger != ProcTrigger.CAST
+                && action.changeStat() != null && action.changeStat().byCost()) {
+            out.add(Finding.warning(DOMAIN, BLOCK_ONLY, "proc '" + id + "' reads a moment's cost (ChangeStat ByCost) "
+                    + "on " + trigger.id() + ", which costs nothing (only a block and a mod's own cast do): it does "
+                    + "nothing", id));
+        }
+        if (trigger != null && trigger != ProcTrigger.HIT_INCOMING && action.reflect() != null) {
+            out.add(Finding.warning(DOMAIN, COMING_ONLY, "proc '" + id + "' has a Reflect on " + trigger.id()
+                    + ", which is no hit coming at the holder (only HitIncoming can turn one back): it does nothing",
+                    id));
         }
         if (action.heal() != null && action.heal().amount() == null) {
             out.add(Finding.warning(DOMAIN, GROUP_NOTHING, "proc '" + id + "' has a Heal with no Amount, so it heals "

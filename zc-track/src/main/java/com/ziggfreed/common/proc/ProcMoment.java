@@ -17,17 +17,28 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * its amount (the damage dealt or taken, the blocks fallen, the seconds crouched, the health a heal restores), the
  * block a break was about, what names the move behind it: the RootInteraction a cast's chain started from
  * ({@code root}) and the ability a consumer names for its own cast ({@code ability}), the effect an effect moment is
- * about ({@code effect}), and what the moment costs the holder ({@code cost}: on Blocked, the stamina their guard is
- * about to pay for the block; 0 on every other moment). World thread; the command buffer is the producing system's,
- * null outside one.
+ * about ({@code effect}), what the moment costs the holder ({@code cost}: on Blocked, the stamina their guard is
+ * about to pay for the block; on a consumer's Cast, what the cast cost; 0 on every other moment), and what a
+ * ProjectileMiss is about ({@code projectile}, the projectile's asset id). World thread; the command buffer is the
+ * producing system's, null outside one.
  */
 public record ProcMoment(@Nonnull ProcTrigger trigger, @Nonnull Store<EntityStore> store,
         @Nullable CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> holder,
         @Nullable Ref<EntityStore> target, @Nullable Damage damage, double amount, @Nullable String blockId,
-        @Nullable String root, @Nullable String ability, @Nullable EffectSeen effect, double cost) {
+        @Nullable String root, @Nullable String ability, @Nullable EffectSeen effect, double cost,
+        @Nullable String projectile) {
 
     /** The effect an EffectLanded or EffectEnded moment is about: its id, and whether it is on a foe. */
     public record EffectSeen(@Nonnull String id, boolean onFoe) {
+    }
+
+    /** A moment about no projectile. */
+    public ProcMoment(@Nonnull ProcTrigger trigger, @Nonnull Store<EntityStore> store,
+            @Nullable CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> holder,
+            @Nullable Ref<EntityStore> target, @Nullable Damage damage, double amount, @Nullable String blockId,
+            @Nullable String root, @Nullable String ability, @Nullable EffectSeen effect, double cost) {
+        this(trigger, store, commandBuffer, holder, target, damage, amount, blockId, root, ability, effect, cost,
+                null);
     }
 
     /** A moment that costs the holder nothing. */
@@ -73,6 +84,6 @@ public record ProcMoment(@Nonnull ProcTrigger trigger, @Nonnull Store<EntityStor
     @Nonnull
     ProcMoment about(@Nullable Ref<EntityStore> other) {
         return new ProcMoment(trigger, store, commandBuffer, holder, other, damage, amount, blockId, root, ability,
-                effect, cost);
+                effect, cost, projectile);
     }
 }
