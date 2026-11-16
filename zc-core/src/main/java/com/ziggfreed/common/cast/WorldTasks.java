@@ -54,6 +54,23 @@ public final class WorldTasks {
         }
     }
 
+    /**
+     * Run {@code step} on {@code anchor}'s world thread one world tick from now: a step that re-queues itself every
+     * frame (a dash steering toward its foe) runs once a tick, never again inside the same task-queue drain, which
+     * polls until empty and would run a step queued from within it again at once. Any thread.
+     *
+     * @return false when it could not be queued, as {@link #later}
+     */
+    public static boolean nextTick(@Nonnull Ref<EntityStore> anchor, @Nonnull Consumer<Store<EntityStore>> step) {
+        long tickMs;
+        try {
+            tickMs = Math.max(1L, WorldEvictors.worldOf(anchor).getTickStepNanos() / 1_000_000L);
+        } catch (Throwable t) {
+            SafeLog.fine("[cast] a step for the next tick had no world to run in: " + t.getMessage());
+            return false;
+        }
+        return later(anchor, tickMs, step);
+    }
     /** The step, on the world thread, when its entity is still in that world's store. */
     private static void fire(@Nonnull World world, @Nonnull Ref<EntityStore> anchor,
             @Nonnull Consumer<Store<EntityStore>> step) {
