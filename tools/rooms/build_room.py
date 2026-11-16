@@ -23,7 +23,8 @@ The spec (JSON, keys as below; every cell is anchor-relative, the anchor being t
 - Doors: {At, Facing, Kind, Width (odd, default 3), Height (default 3), Depth (wall thickness carved, default 1),
   Closed (a slot filling the opening, such as Bars)}. At is the doorway's floor cell on the room's outer face, the
   same rule the kit importer follows, so a neighbour's door meets it one step out.
-- Props: {At, Slot}. Spawns: {At, Marker} (a manual spawn marker id, woken by the SealedCombat template).
+- Props: {At, Slot}. Spawns: {At, Marker} (a manual spawn marker id, woken by the SealedCombat template). A spec
+  without an overlay that lists any writes "Keep": {"Markers": true} in its room file, so the room logic places them.
 - Logic: {Template, ...params} from logic_templates.TEMPLATES; a template may place blocks of its own (braziers,
   plates, runes), which count as props.
 - Any cell may be written {X, Z, "OnFloor": true} (Y optional, the height to start looking from): the builder puts it
@@ -447,6 +448,12 @@ class RoomBuild:
                 "kept as it is.",
             ]
             room["Prefab"] = spec["Prefab"]
+            if spec.get("Spawns"):
+                # Its spawn markers stand in its own prefab, which the room logic places only when the room file
+                # keeps its markers (Keep.Markers is false unless written).
+                keep = dict(room.get("Keep") or {})
+                keep["Markers"] = True
+                room["Keep"] = keep
         room.update({
             "$Comment": comment,
             "Box": {"Min": pio.xyz_dict(self.box[0]), "Max": pio.xyz_dict(self.box[1])},

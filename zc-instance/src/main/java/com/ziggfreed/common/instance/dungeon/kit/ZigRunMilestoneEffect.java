@@ -27,8 +27,10 @@ import com.ziggfreed.common.util.SafeLog;
  * }</pre>
  *
  * <p>A player stepping in counts for their own run; a volume firing with no player (a signal, a mob, a tick of an
- * empty room) counts for the run of the area it stands in. Outside a dungeon run, or once the run is over, it does
- * nothing. It grants nothing itself.
+ * empty room) counts for the run of the area it stands in. It keeps counting after the run's clear (or its failure)
+ * until the party leaves (R1000), so a skill lock opened after the last boss still raises its event, though the
+ * results already shown keep their own numbers. Outside a dungeon run, or once its party has left, it does nothing.
+ * It grants nothing itself.
  *
  * <p>Registered into the engine's trigger effect map at setup ({@code InstanceBootstrap.registerRoomKit}), the
  * library's manifest depending on the TriggerVolumes plugin that reads it.

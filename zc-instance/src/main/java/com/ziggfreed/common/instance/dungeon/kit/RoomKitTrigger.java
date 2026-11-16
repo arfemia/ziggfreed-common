@@ -34,9 +34,9 @@ final class RoomKitTrigger {
     }
 
     /**
-     * The run the volume acts for, while it is going: {@code player}'s area's run, or with no player the run of the
-     * area the volume stands in ({@link DungeonRuns#liveRun}). Null in a world that is no dungeon copy, for a player
-     * in no area, or once the run is over.
+     * The run the volume acts for, until its party leaves (after a clear too, R1000): {@code player}'s area's run, or
+     * with no player the run of the area the volume stands in ({@link DungeonRuns#liveRun}). Null in a world that is no
+     * dungeon copy, for a player in no area, or once the run's area has freed.
      */
     @Nullable
     static DungeonRuns.LiveRun runOf(@Nonnull TriggerContext context, @Nullable UUID player) {

@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
+import com.ziggfreed.common.instance.dungeon.room.RunLogic;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -43,7 +44,10 @@ import com.ziggfreed.common.util.SafeLog;
  * freed area ends one still going); an area whose last player left or failed is free, the router lets the
  * party holding it go, and {@link Areas} pastes it afresh for the next party (a generated dungeon's lane logs its
  * run's {@code [dungeon]} measurement line, {@code GeneratedRuns.finish}, and its next party gets a fresh run
- * further along it). The ticker touches no store and
+ * further along it). In a generated dungeon it also learns which room of the run each member stands in,
+ * and has that room's logic and its neighbours' placed ({@code room/RunLogic}, on the copy's world
+ * thread); the run's logic lasts until its party leaves, through a clear (R1000), and is removed when its lane frees,
+ * the removal posted once this list's lock is let go. The ticker touches no store and
  * no entity, so nothing it settles needs the world thread; after each pass it hands the runs their own tick
  * ({@link DungeonRuns#tick}: time limits, wipe checks, the round moments), outside this list's lock.
  *
@@ -99,6 +103,8 @@ public final class AreaMembers {
         @Nullable World world;
         @Nullable UUID worldId;
         @Nullable AreaLayout layout;
+        /** The layout index of the generated room they last stood in, or -1. Read and written by the ticker only. */
+        int room = -1;
         /** A tick has already warned that it could not settle this member. Read and written by the ticker only. */
         boolean tickFailed;
 
@@ -217,7 +223,11 @@ public final class AreaMembers {
             for (Member member : snapshot) {
                 try {
                     PlayerRef player = universe == null ? null : universe.getPlayer(member.player);
-                    settle(member, judge(member, player, now), player, now);
+                    Verdict verdict = judge(member, player, now);
+                    settle(member, verdict, player, now);
+                    if (verdict == Verdict.STAY || verdict == Verdict.ARRIVED) {
+                        learnRoom(member, player);
+                    }
                 } catch (Throwable t) {
                     if (!member.tickFailed) {
                         member.tickFailed = true;
@@ -284,6 +294,8 @@ public final class AreaMembers {
         String runLine = null;
         AreaLayout arrivedIn = null;
         World arrivedWorld = null;
+        RunLogic freedLogic = null;
+        World freedWorld = null;
         synchronized (this) {
             if (members.get(member.player) != member) {
                 return;
@@ -316,9 +328,16 @@ public final class AreaMembers {
                             + (now - member.arrivedAtMs) + " ms inside";
                 }
                 if (nobodyIn(member.area)) {
-                    Areas.shared().released(worldOf(member), member.area);
+                    freedWorld = worldOf(member);
+                    Areas.shared().released(freedWorld, member.area);
                     DungeonRuns.shared().freed(member.area, now);
-                    runLine = GeneratedRuns.finish(worldOf(member), member.area);
+                    runLine = GeneratedRuns.finish(freedWorld, member.area);
+                    // A generated run's room logic lasts until its party leaves (R1000): it places nothing more from
+                    // now, and what it placed is removed once outside this lock.
+                    freedLogic = GeneratedRuns.logicOf(freedWorld, member.area.area());
+                    if (freedLogic != null && !freedLogic.close()) {
+                        freedLogic = null;
+                    }
                     line += runLine == null
                             ? "; the area is free, and the next party there finds it cleared and pasted afresh"
                             : "; the lane is free, and its next party gets a fresh run further along it";
@@ -329,12 +348,39 @@ public final class AreaMembers {
         if (runLine != null) {
             SafeLog.info(runLine);
         }
+        if (freedLogic != null) {
+            freedLogic.removeOn(freedWorld);
+        }
         // The area's camera intro, outside the lock: played on arrival, its view handed back on any way out.
         if (verdict == Verdict.ARRIVED) {
             DungeonIntro.playSoon(member.player, member.area, arrivedIn, arrivedWorld);
         } else {
             DungeonIntro.stop(member.player);
         }
+    }
+
+    /**
+     * In a generated dungeon, which room of their run {@code member} stands in now, read off their cached transform
+     * (no store); that room's logic and its neighbours' are placed, each once per run, on the copy's world thread
+     * ({@link RunLogic#activate}). A member between rooms keeps the room they stood in last. On the ticker, after
+     * {@link #settle}, outside this list's lock.
+     */
+    private static void learnRoom(@Nonnull Member member, @Nullable PlayerRef player) {
+        World world = member.world;
+        if (!member.present || player == null || world == null) {
+            return;
+        }
+        RunLogic logic = GeneratedRuns.logicOf(world, member.area.area());
+        if (logic == null || logic.ended()) {
+            return;
+        }
+        Vector3d at = player.getTransform().getPosition();
+        int room = logic.roomAt(at.x, at.y, at.z, member.room);
+        if (room < 0) {
+            return;
+        }
+        member.room = room;
+        logic.activate(world, room);
     }
 
     /** The copy {@code member} arrived in, else the one their teleport was waiting on, else null. */

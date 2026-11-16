@@ -40,6 +40,7 @@ import com.ziggfreed.common.instance.dungeon.layout.RoomCatalogueAudit;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutConfig;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomConfig;
 import com.ziggfreed.common.instance.dungeon.layout.asset.PrefabPoolIndex;
+import com.ziggfreed.common.instance.dungeon.room.RoomLogicAudit;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.season.SeasonGate;
@@ -85,8 +86,9 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       pasted), {@link #LANES_CLAMPED} (its copies hold fewer areas than it asks, the furthest lane kept within
  *       {@link RunLanes#FAR_LIMIT}) and {@link #LAYOUT_TOO_TALL} (its plan reaches past the world's top); the prefab
  *       checks are skipped; and the engine walk runs the room catalogue's own audit
- *       ({@code layout/RoomCatalogueAudit}) once over every plan an enabled dungeon names, its findings filed under the
- *       same domain.</li>
+ *       ({@code layout/RoomCatalogueAudit}) once over every plan an enabled dungeon names, then the room logic's
+ *       ({@code room/RoomLogicAudit}: ERROR {@code LOGIC_WORLD_ABSOLUTE}, WARNING {@code LOGIC_WORLD_WIDE}) over every
+ *       room such a plan may place, its findings filed under the same domain.</li>
  * </ul>
  */
 public final class DungeonValidator {
@@ -220,8 +222,11 @@ public final class DungeonValidator {
         if (plans.isEmpty()) {
             return List.of();
         }
-        RoomCatalogue catalogue = DungeonRoomConfig.getInstance().catalogue(PrefabPoolIndex.live());
-        return RoomCatalogueAudit.audit(catalogue, plans.values());
+        PrefabPoolIndex pools = PrefabPoolIndex.live();
+        RoomCatalogue catalogue = DungeonRoomConfig.getInstance().catalogue(pools);
+        List<Finding> out = new ArrayList<>(RoomCatalogueAudit.audit(catalogue, plans.values()));
+        out.addAll(RoomLogicAudit.audit(catalogue, pools, plans.values()));
+        return out;
     }
 
     /**

@@ -38,9 +38,9 @@ import com.ziggfreed.common.world.Facing;
 
 /**
  * A party checkpoint for any dungeon run, generated or hand-built: the trigger-volume effect {@code ZigCheckpoint}.
- * The first time a member of a run steps in (or a signal reaches it while the run is going), the run's respawn moves
- * here and the checkpoint before it is retired ({@link RunCheckpoints}), every member gets a short heal over time
- * and sees the checkpoint banner. A checkpoint the run already took does nothing again, so walking back through an
+ * The first time a member of a run steps in (or a signal reaches it while the party holds the run), the run's
+ * respawn moves here and the checkpoint before it is retired ({@link RunCheckpoints}), every member gets a short heal
+ * over time and sees the checkpoint banner. A checkpoint the run already took does nothing again, so walking back through an
  * earlier statue never moves the respawn back.
  *
  * <pre>{@code
@@ -52,9 +52,10 @@ import com.ziggfreed.common.world.Facing;
  * ({@code RespawnOffset} a vector row, {@code RespawnYaw} a number, {@code HealEffect} an entity-effect picker, the
  * two banner keys text), each nullable, null meaning its declared default.
  *
- * <p>Only this run's members respawn here, and only while the run is going: another party in the same copy keeps
- * its own entry, and the world's spawn and every player's own respawn points are never touched (those are kept by
- * world name, and copy names repeat). It grants nothing.
+ * <p>Only this run's members respawn here, and only until they all leave the area, after a clear too (R1000, so a
+ * party going back for a secret keeps its place): another party in the same copy keeps its own entry, and the world's
+ * spawn and every player's own respawn points are never touched (those are kept by world name, and copy names
+ * repeat). It grants nothing.
  *
  * <p>Registered into the engine's trigger effect map at setup ({@code InstanceBootstrap.registerRoomKit}), the
  * library's manifest depending on the TriggerVolumes plugin that reads it.
@@ -98,7 +99,7 @@ public final class ZigCheckpointEffect extends TriggerEffect {
                         ZigCheckpointEffect::new, TriggerEffect.BASE_CODEC)
                 .documentation("A dungeon run's checkpoint: the first time a member steps in, the run's members "
                         + "respawn here from then on (the checkpoint before it retired), each gets a short heal and "
-                        + "sees a banner. Only that run's members, and only while it lasts; another party in the same "
+                        + "sees a banner. Only that run's members, until they leave the dungeon; another party in the same "
                         + "copy keeps its own. Outside a dungeon run it does nothing.")
                 .append(new KeyedCodec<>("RespawnOffset", Vector3dUtil.CODEC, false),
                         (e, v) -> e.respawnOffset = v, e -> e.respawnOffset)
