@@ -18,7 +18,9 @@ import com.ziggfreed.common.util.PeriodMath;
  * dungeon's id, so every party that day walks the same rooms in the same order; any other run
  * takes a fresh random seed. A day is the library's day: midnight to midnight UTC, the window a dungeon's
  * {@code Rewards.Diminish} counts {@code Daily} clears in ({@link PeriodMath}), so the daily layout and the daily count
- * turn over together.
+ * turn over together. The seed is taken as the party sets off, while a clear's stats land when it clears: a daily run
+ * begun before midnight and cleared after it keeps the day before's rooms, and its time ranks on the new day's Today
+ * board (the stat board files every write by the moment it lands; a known limit, the run being rare and short).
  *
  * <p>Pure but for the random seed: {@link #daily} and {@link #dayOf} are plain arithmetic, the same on every JVM.
  */

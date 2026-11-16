@@ -56,14 +56,17 @@ public final class DungeonOmenAsset implements JsonAssetWithMap<String, DefaultA
                     a -> a.data)
             .appendInherited(new KeyedCodec<>("Mobs", Effects.CODEC, false),
                     (a, v) -> a.mobs = v, a -> a.mobs, (a, p) -> a.mobs = p.mobs)
-            .documentation("What the omen puts on every creature that comes into being in a run that drew it: its "
-                    + "foes, its bosses and anything their fights raise. Give these effects no end (Infinite), "
-                    + "as a creature keeps one for its life. Unauthored, the omen leaves creatures alone.").add()
+            .documentation("What the omen puts on every foe in a run that drew it: each creature whose role is hostile "
+                    + "to players by default, its bosses and what their fights raise among them, the ones a dungeon's "
+                    + "prefab brought as the run starts and every later one as it comes. A friendly character, a pet "
+                    + "or a summon that ignores players is left alone. Give these effects no end (Infinite), as a "
+                    + "creature keeps one for its life. Unauthored, the omen leaves creatures alone.").add()
             .appendInherited(new KeyedCodec<>("Players", Effects.CODEC, false),
                     (a, v) -> a.players = v, a -> a.players, (a, p) -> a.players = p.players)
             .documentation("What the omen puts on every player standing in a run that drew it. The run renews each "
                     + "effect every second while the player stays, so give it a Duration of a few seconds: it then "
-                    + "wears off soon after they leave. Unauthored, the omen leaves players alone.").add()
+                    + "wears off soon after they leave. An effect with no end (Infinite) is reported, since a player "
+                    + "who disconnects in the run could keep it. Unauthored, the omen leaves players alone.").add()
             .appendInherited(new KeyedCodec<>("Text", Text.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
             .documentation("What players read the omen as, at the dungeon's gate and as they arrive, by "

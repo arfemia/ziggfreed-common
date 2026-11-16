@@ -23,9 +23,16 @@ import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * A run's omens on its creatures: each creature that comes into being in a dungeon copy, in the area of a run that drew
- * an omen with {@code Mobs.Effects}, gets those effects ({@link RunOmens#putOn}) on a world task of its own, once the
- * add has settled. Its foes, its bosses and what their fights raise alike; a creature anywhere else costs a name read.
+ * A run's omens on its creatures: each creature that comes into being in a dungeon copy, in the area of a run whose
+ * omens carry {@code Mobs.Effects}, gets those effects ({@link RunOmens#putOn}) on a world task of its own, once the
+ * add has settled: its foes, its bosses and what their fights raise alike, a foe of players alone (a role hostile to
+ * players by default; a friendly character, a pet or a summon that ignores players is left out). A creature anywhere
+ * else costs a name read.
+ *
+ * <p>It answers a {@code LOAD} as a {@code SPAWN}: a creature a sleeping section parked comes back through a load, and
+ * one the run's start could not see (parked then) gets the omens as it wakes; one that already carries an effect is
+ * never given it twice. The creatures a pasted run's prefab brought before anyone arrived get theirs once at the run's
+ * start ({@link RunOmens#putOnStanding}).
  */
 public final class OmenMobs extends RefSystem<EntityStore> {
 

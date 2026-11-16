@@ -3,6 +3,7 @@ package com.ziggfreed.common.instance.dungeon.tier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -40,8 +41,9 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * A dungeon's gate when it has more than one way in ({@link DungeonGate}): the tiers the player's party may pick
- * ({@link DungeonTiers#partyRank}: up to the lowest rank any member standing with them has opened), each with the exact
+ * A dungeon's gate when it has more than one way in ({@link DungeonGate}): exactly the tiers open to the player's whole
+ * party ({@link DungeonTiers#party}: every member standing with them has cleared that tier's own {@code Opens}), each
+ * with the exact
  * omens it meets this week ({@link RunOmens#draw}, R1006), then the daily the party may pick with its own, then every
  * omen met this week by name with what each does,
  * and under the list which dungeon to clear to open the next tier. A row's click goes in through the one entry
@@ -129,10 +131,10 @@ public final class DungeonGatePage extends ToastablePage<DungeonGateEventData> {
         cmd.set("#Lead.TextSpans", description == null ? key("gate.lead") : ContentKeys.tr(description));
 
         List<TierLadder.Rung> ladder = DungeonTiers.ladderOf(dungeonId);
-        int rank = DungeonTiers.partyRank(ladder, ref, store, this.playerRef.getUuid());
+        List<Predicate<String>> party = DungeonTiers.party(ref, store, this.playerRef.getUuid());
         List<LedgerRow> tiers = new ArrayList<>();
         List<LedgerRow> dailies = new ArrayList<>();
-        for (TierLadder.Rung rung : TierLadder.pickable(ladder, rank)) {
+        for (TierLadder.Rung rung : TierLadder.pickable(ladder, party)) {
             DungeonAsset dungeon = DungeonConfig.getInstance().resolve(rung.id());
             if (dungeon == null || !dungeon.isOpen()) {
                 continue;
@@ -153,7 +155,7 @@ public final class DungeonGatePage extends ToastablePage<DungeonGateEventData> {
         LedgerPainter.paint(cmd, events, LIST, LedgerModel.of(sections), Set.of(), null, ROWS, RowSize.STANDARD,
                 this.playerRef);
 
-        Message hint = hint(ladder, rank, tiers.isEmpty() && dailies.isEmpty());
+        Message hint = hint(ladder, party, tiers.isEmpty() && dailies.isEmpty());
         if (hint != null) {
             cmd.set("#Hint.Visible", true);
             cmd.set("#Hint.TextSpans", hint);
@@ -200,11 +202,12 @@ public final class DungeonGatePage extends ToastablePage<DungeonGateEventData> {
      * {@code nothing} is; else none.
      */
     @Nullable
-    private static Message hint(@Nonnull List<TierLadder.Rung> ladder, int rank, boolean nothing) {
+    private static Message hint(@Nonnull List<TierLadder.Rung> ladder, @Nonnull List<Predicate<String>> party,
+            boolean nothing) {
         if (nothing) {
             return key("gate.none");
         }
-        TierLadder.Rung next = TierLadder.next(ladder, rank);
+        TierLadder.Rung next = TierLadder.next(ladder, party);
         DungeonAsset tier = next == null ? null : DungeonConfig.getInstance().resolve(next.id());
         DungeonAsset opener = next == null || next.opens() == null ? null
                 : DungeonConfig.getInstance().resolve(next.opens());

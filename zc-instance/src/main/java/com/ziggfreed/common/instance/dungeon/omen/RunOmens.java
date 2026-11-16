@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -16,7 +17,9 @@ import org.joml.Vector3d;
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.asset.type.attitude.Attitude;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
@@ -26,6 +29,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.npc.entities.NPCEntity;
+import com.hypixel.hytale.server.npc.role.support.WorldSupport;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.i18n.ContentKeys;
@@ -43,7 +48,9 @@ import com.ziggfreed.common.util.SafeLog;
  *       effects renewed on every member there (a timed effect to its full length, a lasting one put back if it fell
  *       off); {@link #takeOff} takes them off a member who left, on the world they are in now;</li>
  *   <li>{@link #mobEffects} and {@link #putOn}: the effects {@link OmenMobs} puts on each creature that comes into
- *       being in a run's area;</li>
+ *       being in a run's area, and {@link #putOnStanding} on those a pasted run's prefab brought before anyone
+ *       arrived, once at its start; a foe of players alone ({@link #foe}), never one that carries the effect
+ *       already;</li>
  *   <li>the factor {@value #FACTOR} ({@link #contribute}): with an omen's id as its {@code Param}, 1 when the run the
  *       subject stands in drew it, 0 when it did not, and nothing (a shut gate) for a subject in no run, so a room's
  *       {@code ZigRequires} opens a door or raises a wave only under that omen.</li>
@@ -261,7 +268,22 @@ public final class RunOmens {
         return effects(omens, DungeonOmenAsset::mobEffects);
     }
 
-    /** On the creature's world thread: put {@code effects} on it, each by its own length and overlap. Never throws. */
+    /** Whether any of {@code omens} puts an effect on a run's creatures. */
+    public static boolean holdsMobs(@Nonnull List<String> omens) {
+        for (String id : omens) {
+            DungeonOmenAsset omen = DungeonOmenConfig.getInstance().resolve(id);
+            if (omen != null && !omen.mobEffects().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * On the creature's world thread: put {@code effects} on it, each by its own length and overlap, when it is a foe
+     * ({@link #foe}) and does not carry the effect already, so a creature asked twice (the run's start and its own
+     * arrival, or a sleeping section waking) never stacks one. Never throws.
+     */
     public static void putOn(@Nonnull Ref<EntityStore> ref, @Nonnull List<EntityEffect> effects) {
         try {
             if (!ref.isValid()) {
@@ -270,15 +292,60 @@ public final class RunOmens {
             Store<EntityStore> store = ref.getStore();
             EffectControllerComponent controller = store.getComponent(ref,
                     EffectControllerComponent.getComponentType());
-            if (controller == null) {
+            if (controller == null || !foe(store, ref)) {
                 return;
             }
             for (EntityEffect effect : effects) {
-                controller.addEffect(ref, effect, store);
+                if (!controller.hasEffect(effect)) {
+                    controller.addEffect(ref, effect, store);
+                }
             }
         } catch (Throwable t) {
             SafeLog.fine(LOG + "a run's omens could not be put on a creature: " + t.getMessage());
         }
+    }
+
+    /**
+     * On {@code world}'s thread, as a pasted run starts: put {@code omens}' creature effects on every creature already
+     * standing where {@code inArea} says (x, z), the ones its prefab brought before anyone arrived; each one later is
+     * {@link OmenMobs}'. Answers how many it asked. Nothing off the world thread; never throws.
+     */
+    public static int putOnStanding(@Nonnull World world, @Nonnull BiPredicate<Double, Double> inArea,
+            @Nonnull List<String> omens) {
+        try {
+            Store<EntityStore> store = world.getEntityStore().getStore();
+            List<EntityEffect> effects = mobEffects(omens);
+            if (!store.isInThread() || effects.isEmpty()) {
+                return 0;
+            }
+            List<Ref<EntityStore>> standing = new ArrayList<>();
+            store.forEachChunk(Query.and(NPCEntity.getComponentType(), TransformComponent.getComponentType()),
+                    (chunk, commands) -> {
+                        for (int i = 0; i < chunk.size(); i++) {
+                            TransformComponent at = chunk.getComponent(i, TransformComponent.getComponentType());
+                            if (at != null && inArea.test(at.getPosition().x, at.getPosition().z)) {
+                                standing.add(chunk.getReferenceTo(i));
+                            }
+                        }
+                    });
+            for (Ref<EntityStore> ref : standing) {
+                putOn(ref, effects);
+            }
+            return standing.size();
+        } catch (Throwable t) {
+            SafeLog.fine(LOG + "a run's omens could not be put on the creatures standing in it: " + t.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Whether the creature at {@code ref} is a foe of players: its role's default attitude toward a player is hostile
+     * (the engine's own fallback when nothing overrides it). A friendly or idle character, a pet, and a summon whose
+     * role ignores players (the family's summons do) are left out. A creature with no role reads as no foe.
+     */
+    static boolean foe(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        WorldSupport support = store.getComponent(ref, WorldSupport.getComponentType());
+        return support != null && support.getDefaultPlayerAttitude() == Attitude.HOSTILE;
     }
 
     // ==================== the factor ====================

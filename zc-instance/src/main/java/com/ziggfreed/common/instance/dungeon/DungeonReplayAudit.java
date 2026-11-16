@@ -31,9 +31,14 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       draws;</li>
  *   <li>{@link #NO_OMENS_TO_DRAW}: {@code Omens.Count} asks for omens and the pool holds none that is loaded;</li>
  *   <li>{@link #UNKNOWN_OMEN_EFFECT}: an omen names an effect no loaded file defines, which it skips;</li>
+ *   <li>{@link #LASTING_PLAYER_OMEN}: an omen's {@code Players.Effects} names an effect with no end (Infinite), which
+ *       a player who leaves while it is being renewed, or disconnects in the run, could keep;</li>
+ *   <li>{@link #DAILY_WITHOUT_LAYOUT}: {@code Seed.Daily} on a dungeon with no {@code Area.Layout}, which pastes the
+ *       same prefab every run, so the day's seed changes nothing there;</li>
  *   <li>the shared {@code UNKNOWN_TEXT_KEY} for an omen's {@code Text} keys.</li>
  * </ul>
- * {@link #audit()} is the thin engine walk and {@link #audit(Collection, Map, Predicate, Predicate)} the pure core.
+ * {@link #audit()} is the thin engine walk and {@link #audit(Collection, Map, Predicate, Predicate, Predicate)} the
+ * pure core.
  */
 public final class DungeonReplayAudit {
 
@@ -42,6 +47,8 @@ public final class DungeonReplayAudit {
     public static final String UNKNOWN_DUNGEON_OMEN = "UNKNOWN_DUNGEON_OMEN";
     public static final String NO_OMENS_TO_DRAW = "NO_OMENS_TO_DRAW";
     public static final String UNKNOWN_OMEN_EFFECT = "UNKNOWN_OMEN_EFFECT";
+    public static final String LASTING_PLAYER_OMEN = "LASTING_PLAYER_OMEN";
+    public static final String DAILY_WITHOUT_LAYOUT = "DAILY_WITHOUT_LAYOUT";
 
     /** How far down {@code Tier.Opens} is followed before it is called a loop. */
     private static final int MAX_DEPTH = 32;
@@ -54,7 +61,12 @@ public final class DungeonReplayAudit {
     public static List<Finding> audit() {
         try {
             return audit(DungeonConfig.getInstance().all().values(), DungeonOmenConfig.getInstance().all(),
-                    effect -> EntityEffect.getAssetMap().getAsset(effect) != null, TextKeyAudit.liveCatalogue());
+                    effect -> EntityEffect.getAssetMap().getAsset(effect) != null,
+                    effect -> {
+                        EntityEffect loaded = EntityEffect.getAssetMap().getAsset(effect);
+                        return loaded != null && loaded.isInfinite();
+                    },
+                    TextKeyAudit.liveCatalogue());
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the tiers and omens audit failed: " + t.getMessage(), t);
             return List.of();
@@ -66,13 +78,14 @@ public final class DungeonReplayAudit {
      *
      * @param dungeons    every folded dungeon (a switched-off one is skipped, but still opens a tier above it)
      * @param omens       every folded omen, by its lower-cased id
-     * @param effectKnown whether an id names a loaded entity effect
-     * @param textShipped whether a lang key is shipped
+     * @param effectKnown    whether an id names a loaded entity effect
+     * @param effectLasting  whether an id names a loaded entity effect with no end (Infinite)
+     * @param textShipped    whether a lang key is shipped
      */
     @Nonnull
     public static List<Finding> audit(@Nonnull Collection<DungeonAsset> dungeons,
             @Nonnull Map<String, DungeonOmenAsset> omens, @Nonnull Predicate<String> effectKnown,
-            @Nonnull Predicate<String> textShipped) {
+            @Nonnull Predicate<String> effectLasting, @Nonnull Predicate<String> textShipped) {
         List<Finding> out = new ArrayList<>();
         Map<String, DungeonAsset> byId = new HashMap<>();
         for (DungeonAsset dungeon : dungeons) {
@@ -86,10 +99,15 @@ public final class DungeonReplayAudit {
             }
             auditTier(dungeon, byId, out);
             auditOmens(dungeon, omens, out);
+            if (dungeon.seedDaily() && !dungeon.generated()) {
+                out.add(Finding.warning(DungeonValidator.DOMAIN, DAILY_WITHOUT_LAYOUT, "dungeon '" + dungeon.getId()
+                        + "' sets Seed.Daily but names no Area.Layout, so every run pastes the same prefab and the day's "
+                        + "seed changes nothing; give it a layout plan, or leave Seed out", dungeon.getId()));
+            }
         }
         for (DungeonOmenAsset omen : omens.values()) {
             if (omen != null && omen.getId() != null) {
-                auditOmen(omen, effectKnown, textShipped, out);
+                auditOmen(omen, effectKnown, effectLasting, textShipped, out);
             }
         }
         return out;
@@ -148,11 +166,20 @@ public final class DungeonReplayAudit {
     }
 
     private static void auditOmen(@Nonnull DungeonOmenAsset omen, @Nonnull Predicate<String> effectKnown,
-            @Nonnull Predicate<String> textShipped, @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> effectLasting, @Nonnull Predicate<String> textShipped,
+            @Nonnull List<Finding> out) {
         String id = omen.getId();
         String where = "omen '" + id + "'";
         check(where + " Mobs.Effects", omen.mobEffects(), effectKnown, id, out);
         check(where + " Players.Effects", omen.playerEffects(), effectKnown, id, out);
+        for (String effect : omen.playerEffects()) {
+            if (known(effectKnown, effect) && lasting(effectLasting, effect)) {
+                out.add(Finding.warning(DungeonValidator.DOMAIN, LASTING_PLAYER_OMEN, where + " Players.Effects names "
+                        + "the effect '" + effect + "', which has no end (Infinite): a player who leaves while it is "
+                        + "being renewed, or disconnects in the run, could keep it. Give it a Duration of a few "
+                        + "seconds; the run renews it every second", id));
+            }
+        }
         TextKeyAudit.check(out, DungeonValidator.DOMAIN, id, where + " Text.NameKey", omen.nameKey(), textShipped,
                 "its name at the gate and on arrival shows as the raw key");
         TextKeyAudit.check(out, DungeonValidator.DOMAIN, id, where + " Text.DescriptionKey", omen.descriptionKey(),
@@ -175,6 +202,15 @@ public final class DungeonReplayAudit {
             return test.test(value);
         } catch (Throwable t) {
             return true;
+        }
+    }
+
+    /** {@code test}'s answer; one that throws reads as no, so nothing is reported on a guess. */
+    private static boolean lasting(@Nonnull Predicate<String> test, @Nonnull String value) {
+        try {
+            return test.test(value);
+        } catch (Throwable t) {
+            return false;
         }
     }
 

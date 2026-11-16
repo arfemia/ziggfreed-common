@@ -1048,16 +1048,16 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .appendInherited(new KeyedCodec<>("Rank", Codec.INTEGER, false),
                         (o, v) -> o.rank = v, o -> o.rank, (o, p) -> o.rank = p.rank)
                 .metadata(EditorSchema.defaultValue(1L))
-                .documentation("Which tier this is, from 1, the gate listing tiers from the lowest. A party may pick "
-                        + "every tier up to the lowest rank any member standing with them has opened. Unauthored, or "
-                        + "less than 1, means 1.").add()
+                .documentation("Which tier this is, from 1: the gate lists tiers from the lowest. It only orders them; "
+                        + "what opens a tier is its own Opens. Unauthored, or less than 1, means 1.").add()
                 .appendInherited(new KeyedCodec<>("Opens", Codec.STRING, false),
                         (o, v) -> o.opens = v, o -> o.opens, (o, p) -> o.opens = p.opens)
                 .metadata(EditorSchema.assetRef(DungeonAsset.class))
                 .documentation("The dungeon whose clear opens this tier, by its id (a file under "
                         + "Server/ZiggfreedCommon/Dungeons/), as a rule the tier below. A player who has cleared it once "
-                        + "has this tier open for good, read from their Dungeon_Runs_Completed record. Unauthored, the "
-                        + "tier is open to everyone.").add()
+                        + "has this tier open for good, read from their Dungeon_Runs_Completed record, and a party may go "
+                        + "in only when every member standing with them has. Unauthored, the tier is open to "
+                        + "everyone.").add()
                 .build();
 
         public Tier() {

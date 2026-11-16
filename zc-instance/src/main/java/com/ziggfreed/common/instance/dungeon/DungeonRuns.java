@@ -375,6 +375,7 @@ public final class DungeonRuns {
                 run.members.countAll(named);
                 queueStart(run, named);
                 queueGoal(run, player);
+                queueStandingOmens(run);
                 line = startLine(run, player, named.size());
             }
         }
@@ -404,6 +405,22 @@ public final class DungeonRuns {
         InstanceRoundStartedEvent event = new InstanceRoundStartedEvent(
                 metadata(run, run.members.participantCount(), 0L, null), named);
         outbox.add(new Fire(run.world, () -> InstanceRounds.fireStarted(event)));
+    }
+
+    /**
+     * Queue, at a pasted run's start, its omens' creature effects on the creatures its prefab brought before anyone
+     * arrived ({@code omen/RunOmens#putOnStanding}), once, on the copy's world thread. A generated run's creatures all
+     * come later with its room logic, and get theirs as they come. Under this list's lock.
+     */
+    private void queueStandingOmens(@Nonnull Run run) {
+        if (run.layout.generated() || !RunOmens.holdsMobs(run.omens)) {
+            return;
+        }
+        World world = run.world;
+        AreaLayout layout = run.layout;
+        int index = run.area.area();
+        List<String> omens = run.omens;
+        outbox.add(new Fire(world, () -> RunOmens.putOnStanding(world, (x, z) -> layout.inCell(index, x, z), omens)));
     }
 
     /** Queue the line telling {@code player}, just come into {@code run}, what to do there. Under this list's lock. */
@@ -993,8 +1010,9 @@ public final class DungeonRuns {
         Long laidOut = GeneratedRuns.seedOf(world, area.area());
         long seed = laidOut != null ? laidOut : RunSeeds.seedFor(dungeon, nowMs);
         List<String> omens = dungeon == null ? List.of() : RunOmens.draw(dungeon, nowMs);
+        // Only a generated daily lays out the day's shared rooms; a pasted one says nothing about it (the audit warns).
         return new Run(area, world, preset, dungeon == null ? Knobs.BARE : knobsOf(dungeon), nowMs, seed,
-                dungeon != null && dungeon.seedDaily(), omens);
+                dungeon != null && dungeon.seedDaily() && dungeon.generated(), omens);
     }
 
     /**

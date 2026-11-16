@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -39,9 +40,10 @@ import com.ziggfreed.common.party.ZcParty;
  * <p><b>Who has opened what</b> is read where clears are already recorded: the library's {@code Dungeon_Runs_Completed}
  * line for the dungeon a rung's {@code Opens} names ({@code dungeon:<difficulty>@<id>}), through the
  * {@code ziggfreedcommon:counter} reading, as any {@code Requires} block reads it. No answer (the stats store switched
- * off, a player with no record) opens nothing past the rungs open to everyone. A party's rank is the lowest of the
- * members standing in the asker's world, the asker included: a member's record is read on their own world's thread, so
- * a member elsewhere is asked when they come to a gate themselves (lead's call). All of it on the asker's world thread.
+ * off, a player with no record) opens nothing past the rungs open to everyone. A rung is open to a party only when every
+ * member standing in the asker's world, the asker included, has cleared that rung's own {@code Opens}: a member's
+ * record is read on their own world's thread, so a member elsewhere is asked when they come to a gate themselves (lead's
+ * call). All of it on the asker's world thread.
  */
 public final class DungeonTiers {
 
@@ -93,16 +95,15 @@ public final class DungeonTiers {
     }
 
     /**
-     * The rank the party of {@code player} (at {@code ref} in {@code store}) may pick up to on {@code ladder}: the lowest
-     * opened rank among the members standing in this world, the player included. On that world's thread.
+     * The clears of each member of {@code player}'s party standing in this world, the player first (at {@code ref} in
+     * {@code store}): one answer per member, asked of a dungeon id, as {@link TierLadder} reads them. A member in
+     * another world is not asked (lead's call). On that world's thread.
      */
-    public static int partyRank(@Nonnull List<TierLadder.Rung> ladder, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Store<EntityStore> store, @Nonnull UUID player) {
-        if (ladder.isEmpty()) {
-            return 0;
-        }
-        List<Integer> ranks = new ArrayList<>();
-        ranks.add(memberRank(ladder, store, ref));
+    @Nonnull
+    public static List<Predicate<String>> party(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull UUID player) {
+        List<Predicate<String>> members = new ArrayList<>();
+        members.add(opens -> cleared(store, ref, opens));
         Party party = ZcParty.service().partyOf(player);
         Universe universe = Universe.get();
         if (party != null && universe != null) {
@@ -113,37 +114,31 @@ public final class DungeonTiers {
                 PlayerRef other = universe.getPlayer(member);
                 Ref<EntityStore> otherRef = other == null ? null : other.getReference();
                 if (otherRef != null && otherRef.isValid() && otherRef.getStore() == store) {
-                    ranks.add(memberRank(ladder, store, otherRef));
+                    members.add(opens -> cleared(store, otherRef, opens));
                 }
             }
         }
-        return TierLadder.partyRank(ranks);
+        return members;
     }
 
     /**
-     * The dungeon the party of {@code player} must clear next before it may pick {@code dungeon} (its next rung's
-     * {@code Opens}), or null when it may pick it now. On the player's world thread.
+     * The dungeon the party of {@code player} must clear before it may go into {@code dungeon}: its own
+     * {@code Tier.Opens}, when some member standing in this world has not cleared it; null when it names none or every
+     * one of them has. On the player's world thread.
      */
     @Nullable
-    public static String lockedBehind(@Nonnull String dungeonId, @Nonnull DungeonAsset dungeon,
-            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull UUID player) {
-        if (dungeon.tierOpens() == null && dungeon.tierRank() <= 1) {
+    public static String lockedBehind(@Nonnull DungeonAsset dungeon, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store, @Nonnull UUID player) {
+        String opens = dungeon.tierOpens();
+        if (opens == null) {
             return null;
         }
-        List<TierLadder.Rung> ladder = ladderOf(dungeonId);
-        int rank = partyRank(ladder, ref, store, player);
-        if (dungeon.tierRank() <= rank) {
-            return null;
+        for (Predicate<String> member : party(ref, store, player)) {
+            if (!member.test(opens)) {
+                return opens;
+            }
         }
-        TierLadder.Rung next = TierLadder.next(ladder, rank);
-        String opens = next == null ? null : next.opens();
-        return opens != null ? opens : dungeon.tierOpens() != null ? dungeon.tierOpens() : dungeonId;
-    }
-
-    /** The opened rank of the player at {@code ref} on {@code ladder}. On their world's thread. */
-    private static int memberRank(@Nonnull List<TierLadder.Rung> ladder, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref) {
-        return TierLadder.openedRank(ladder, opens -> cleared(store, ref, opens));
+        return null;
     }
 
     /**

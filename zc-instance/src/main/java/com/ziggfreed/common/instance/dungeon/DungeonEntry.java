@@ -44,7 +44,8 @@ import com.ziggfreed.common.util.SafeLog;
  *       layout plan loaded instead), and its audit finds no ERROR ({@link DungeonValidator#entryErrors});</li>
  *   <li>the player is in no area and on the way into none;</li>
  *   <li>on a player's way in, a tier ({@code Tier}) is open to their party: every member standing in their world has
- *       cleared the tier it rests on ({@code tier/DungeonTiers}), else {@link Result#TIER_LOCKED};</li>
+ *       cleared the dungeon its own {@code Tier.Opens} names ({@code tier/DungeonTiers}), else
+ *       {@link Result#TIER_LOCKED};</li>
  *   <li>a player who would open an area for their party holds one of the cost's keys
  *       ({@link DungeonEntryCost#heldKey}), which pays it with nothing spent, or can pay the dungeon's
  *       {@code EntryCost} ({@link DungeonEntryCost#lacking}); one following into the area their party holds is not
@@ -118,7 +119,7 @@ public final class DungeonEntry {
         PROMPTED,
         /**
          * The dungeon is a tier the player's party has not opened: some member standing with them has not cleared the
-         * tier it rests on ({@code tier/DungeonTiers}; {@link Outcome#prefab()} names the dungeon to clear next).
+         * dungeon its {@code Tier.Opens} names ({@code tier/DungeonTiers}; {@link Outcome#prefab()} names it).
          * Nothing was reserved or spent.
          */
         TIER_LOCKED
@@ -256,7 +257,7 @@ public final class DungeonEntry {
         // A tier the party has not opened: every member standing here must have cleared the tier it rests on. The
         // admin's way in (no charge) is never asked.
         if (charge) {
-            String behind = DungeonTiers.lockedBehind(id, dungeon, ref, ref.getStore(), uuid);
+            String behind = DungeonTiers.lockedBehind(dungeon, ref, ref.getStore(), uuid);
             if (behind != null) {
                 return new Outcome(Result.TIER_LOCKED, dungeon, behind, null);
             }

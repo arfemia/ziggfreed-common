@@ -1399,7 +1399,7 @@ public final class FrameworkAssetRegistrar {
                         + "BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                         + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
                         + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), DungeonRooms, "
-                        + "DungeonLayouts, "
+                        + "DungeonLayouts, DungeonOmens, "
                         + "RewardChests (owner file mods/ziggfreedcommon/reward-chests.json), "
                         + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                         + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "

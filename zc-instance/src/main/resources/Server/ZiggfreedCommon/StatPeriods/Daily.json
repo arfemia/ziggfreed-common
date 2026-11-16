@@ -1,5 +1,5 @@
 {
-  "$Comment": "The Records tab for today, the daily board. Marked keeps it to the lines carrying that word: the library marks a daily dungeon's lines Daily, so the tab ranks today's daily runs and shows only on the Dungeons tab, and only once someone has a daily line today; every other tab, and a server with no daily dungeon, never shows it. A new day starts empty at midnight on Zone's clock; keep Zone at UTC so the tab turns over with a daily dungeon's shared layout. Keep is how many days the board holds, today included.",
+  "$Comment": "The Records tab for today, the daily board. Marked keeps it to the lines carrying that word: the library marks a daily dungeon's lines Daily, so the tab ranks today's daily runs and shows only on the Dungeons tab, and only once someone has a daily line today; every other tab, and a server with no daily dungeon, never shows it. A new day starts empty at midnight on Zone's clock; keep Zone at UTC so the tab turns over with a daily dungeon's shared layout. A daily run begun just before midnight and cleared after it ranks on the new day's tab. Keep is how many days the board holds, today included.",
   "Kind": "Daily",
   "NameKey": "ziggfreedcommon.statboard.period.daily",
   "Marked": "Daily",
