@@ -137,7 +137,8 @@ goal.time.minutes_seconds = {0, number} {0, plural, one {minute} other {minutes}
 goal.endless = Hold out as long as you can. Every wave you clear adds to your chest.
 goal.endless_limit = The run ends after {0}.
 goal.endless_end = The run ends when everyone is down at once, and you keep your chest. You can also leave between waves and take it with you.
-# Under the rules: goal.daily on a daily run, then goal.omen once for each omen the run drew, {0} its name.
+# Under the rules: goal.daily on a daily run, then goal.omen once for each of this week's omens on its tier, {0} its
+# name.
 goal.daily = Today's daily: every party walks these same rooms.
 goal.omen = Omen: {0}
 
@@ -145,17 +146,21 @@ goal.omen = Omen: {0}
 tier.named = {0}: Tier {1, number}
 
 # A dungeon's gate, when it has tiers or a daily: the tiers the party may pick, the daily, then this week's omens.
-# gate.lead shows when the dungeon names no description of its own. In gate.tier.omens, {0} is how many of the
-# week's omens a run of that tier meets. In gate.next, {0} is the dungeon to clear and {1} the tier it opens.
+# gate.lead shows when the dungeon names no description of its own. In gate.tier.omens and gate.daily.omens, {0} is
+# the omens every run of that tier meets this week, by name, joined by omen.list. In gate.next, {0} is the dungeon to
+# clear and {1} the tier it opens.
 gate.lead = Pick how deep your party goes. You can pick any tier everyone with you has opened.
 gate.tiers = Tiers
 gate.daily = Today's daily
 gate.omens = This week's omens
-gate.tier.omens = Meets {0, number} of this week's omens
+gate.tier.omens = This week: {0}
 gate.tier.no_omens = No omens
-gate.daily.meta = The same rooms and omens for every party today. A new layout comes at midnight UTC.
+gate.daily.meta = The same rooms for every party today. A new layout comes at midnight UTC.
+gate.daily.omens = The same rooms for every party today. This week: {0}
 gate.next = Clear {0} to open {1}.
 gate.none = No tier is open to your party here yet.
+# Two omen names in a list, the list so far first: {0}, {1}.
+omen.list = {0}, {1}
 
 # The omen reading's name on a requirement line (ziggfreedcommon:dungeon_omen).
 factor.dungeon_omen = an omen of this run

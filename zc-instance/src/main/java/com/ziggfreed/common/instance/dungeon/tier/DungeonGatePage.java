@@ -41,8 +41,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A dungeon's gate when it has more than one way in ({@link DungeonGate}): the tiers the player's party may pick
- * ({@link DungeonTiers#partyRank}: up to the lowest rank any member standing with them has opened), each with how many
- * of the week's omens it meets, then the daily the party may pick, then this week's omens by name with what each does,
+ * ({@link DungeonTiers#partyRank}: up to the lowest rank any member standing with them has opened), each with the exact
+ * omens it meets this week ({@link RunOmens#draw}, R1006), then the daily the party may pick with its own, then every
+ * omen met this week by name with what each does,
  * and under the list which dungeon to clear to open the next tier. A row's click goes in through the one entry
  * ({@link DungeonEntry#enterWithParty}), which checks the tier again; a refusal reads as the usual line over the open
  * page, and a dungeon with an entry cost opens its confirm screen in this page's place.
@@ -159,35 +160,35 @@ public final class DungeonGatePage extends ToastablePage<DungeonGateEventData> {
         }
     }
 
-    /** A tier's or a daily's row: its name with its rank, and how many of the week's omens it meets. */
+    /** A tier's or a daily's row: its name with its rank, and this week's omens it meets, by name. */
     @Nonnull
     private static LedgerRow row(@Nonnull TierLadder.Rung rung, @Nonnull DungeonAsset dungeon) {
-        int count = dungeon.omenCount();
-        Message meta = rung.daily() ? key("gate.daily.meta")
-                : count > 0 ? key("gate.tier.omens", count) : key("gate.tier.no_omens");
+        Message omens = RunOmens.names(RunOmens.draw(dungeon, System.currentTimeMillis()));
+        Message meta = rung.daily()
+                ? (omens == null ? key("gate.daily.meta") : key("gate.daily.omens", omens))
+                : (omens == null ? key("gate.tier.no_omens") : key("gate.tier.omens", omens));
         return new LedgerRow(rung.id(), DungeonRefusals.tierName(dungeon), meta, Picture.NONE, Tone.NEUTRAL, null,
                 null, null, Mark.NONE, false);
     }
 
     /**
-     * This week's omens, by name over what each does: the week's set of the lowest rung that meets omens (tiers sharing
-     * a pool share it); none when no rung of the ladder meets any.
+     * This week's omens, by name over what each does: every omen some rung of the ladder meets this week, in the week's
+     * order; none when no rung meets any.
      */
     @Nonnull
     private static List<LedgerRow> omenRows(@Nonnull List<TierLadder.Rung> ladder) {
-        DungeonAsset drawing = null;
+        long now = System.currentTimeMillis();
+        List<String> met = new ArrayList<>();
         for (TierLadder.Rung rung : ladder) {
             DungeonAsset dungeon = DungeonConfig.getInstance().resolve(rung.id());
-            if (dungeon != null && dungeon.omenCount() > 0) {
-                drawing = dungeon;
-                break;
+            for (String omen : dungeon == null ? List.<String>of() : RunOmens.draw(dungeon, now)) {
+                if (!met.contains(omen)) {
+                    met.add(omen);
+                }
             }
         }
-        if (drawing == null) {
-            return List.of();
-        }
         List<LedgerRow> rows = new ArrayList<>();
-        for (String omen : RunOmens.weekSet(drawing, System.currentTimeMillis())) {
+        for (String omen : met) {
             rows.add(new LedgerRow(OMENS + ":" + omen, RunOmens.name(omen), RunOmens.description(omen), Picture.NONE,
                     Tone.NEUTRAL, null, null, null, Mark.NONE, false));
         }

@@ -99,7 +99,8 @@ public final class InstanceBootstrap {
      * Open the stat board ({@code stats-board.json}) beside the library's owner files and put it on
      * Records. It shows nothing until the store that keeps the stats fills its source
      * ({@code StatBoard.setSource}), so until then Records shows no tab. Split the Bosses, Dungeons and Endless Runs
-     * sections into their bosses and dungeons, and hand the encounter audit the records groups a binding row may name.
+     * sections into their bosses and dungeons, mark the Dungeons section's daily lines (the Today tab's), and hand the
+     * encounter audit the records groups a binding row may name.
      */
     public static void installStatBoard() {
         try {
@@ -111,6 +112,7 @@ public final class InstanceBootstrap {
         try {
             StatSectionConfig.getInstance().split(StatBoardBossFights.SECTION, StatBoardBossFights.split());
             StatSectionConfig.getInstance().split(StatBoardDungeons.SECTION, StatBoardDungeons.split());
+            StatSectionConfig.getInstance().mark(StatBoardDungeons.SECTION, StatBoardDungeons::marks);
             StatSectionConfig.getInstance().split(StatBoardDungeons.ENDLESS_SECTION, StatBoardDungeons.endlessSplit());
             EncounterAudit.recordGroups(RecordGroupConfig.getInstance()::has);
         } catch (Throwable t) {

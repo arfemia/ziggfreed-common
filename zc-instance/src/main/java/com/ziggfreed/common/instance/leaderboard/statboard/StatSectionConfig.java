@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -40,6 +41,9 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
 
     /** The registered splits, by lower-cased section id. */
     private volatile Map<String, StatSplit> splits = Map.of();
+
+    /** Section id (lower-cased) -> which of its lines carry which mark ({@link #mark}). */
+    private volatile Map<String, BiPredicate<String, String>> marks = Map.of();
 
     private volatile List<StatSection> sections = List.of();
     /** The sections the files author, in tab order. */
@@ -109,6 +113,54 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
     @Nullable
     public StatSplit splitOf(@Nonnull String sectionId) {
         return splits.get(sectionId.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Say which of section {@code sectionId}'s lines carry a mark (null takes it away): {@code marks} answers, for a
+     * stored line ({@code Stat/Thing}) and a mark word, whether the line carries it. A period naming a mark
+     * ({@link StatPeriod#marked}) ranks only lines some section marks so, and shows its tab only on a section holding
+     * one in its running window. Whoever owns the lines registers it, at setup, as a split is.
+     */
+    public synchronized void mark(@Nonnull String sectionId, @Nullable BiPredicate<String, String> marks) {
+        Map<String, BiPredicate<String, String>> next = new LinkedHashMap<>(this.marks);
+        String id = sectionId.toLowerCase(Locale.ROOT);
+        if (marks == null) {
+            next.remove(id);
+        } else {
+            next.put(id, marks);
+        }
+        this.marks = Map.copyOf(next);
+    }
+
+    /** Whether some section marks the stored line {@code key} ({@code Stat/Thing}) with {@code mark}. */
+    public boolean marked(@Nonnull String key, @Nonnull String mark) {
+        for (BiPredicate<String, String> marking : marks.values()) {
+            if (asks(marking, key, mark)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether section {@code sectionId} marks the stored line {@code key} with {@code mark}. */
+    public boolean marks(@Nonnull String sectionId, @Nonnull String key, @Nonnull String mark) {
+        BiPredicate<String, String> marking = marks.get(sectionId.toLowerCase(Locale.ROOT));
+        return marking != null && asks(marking, key, mark);
+    }
+
+    /** Whether section {@code sectionId} marks any line at all ({@link #mark}). */
+    public boolean marksAny(@Nonnull String sectionId) {
+        return marks.containsKey(sectionId.toLowerCase(Locale.ROOT));
+    }
+
+    /** {@code marking}'s answer; one that throws marks nothing. */
+    private static boolean asks(@Nonnull BiPredicate<String, String> marking, @Nonnull String key,
+            @Nonnull String mark) {
+        try {
+            return marking.test(key, mark);
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** Every section, the generated ones included, in tab order. */

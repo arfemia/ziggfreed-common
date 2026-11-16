@@ -39,10 +39,21 @@ import com.ziggfreed.common.occurrence.OccurrenceSource;
  * @param from     a range's first moment, on {@code zone}'s clock; null for open
  * @param to       the moment a range ends (left out), on {@code zone}'s clock; null for open
  * @param event    the calendar event a season follows, lower-cased; null for every event that is live
+ * @param marked   the mark a line must carry to rank in this period ({@link StatSectionConfig#mark}), its tab
+ *                 showing only on a section holding such a line in its running window; null ranks every line
+ *                 on every section
  */
 public record StatPeriod(@Nonnull String id, @Nonnull PeriodKind kind, @Nullable String nameKey, int order,
                          @Nonnull ZoneId zone, @Nonnull DayOfWeek startsOn, int keep,
-                         @Nullable LocalDateTime from, @Nullable LocalDateTime to, @Nullable String event) {
+                         @Nullable LocalDateTime from, @Nullable LocalDateTime to, @Nullable String event,
+                         @Nullable String marked) {
+
+    /** A period that ranks every line on every section. */
+    public StatPeriod(@Nonnull String id, @Nonnull PeriodKind kind, @Nullable String nameKey, int order,
+                      @Nonnull ZoneId zone, @Nonnull DayOfWeek startsOn, int keep,
+                      @Nullable LocalDateTime from, @Nullable LocalDateTime to, @Nullable String event) {
+        this(id, kind, nameKey, order, zone, startsOn, keep, from, to, event, null);
+    }
 
     /** The bucket of the period that never ends. */
     public static final String ALL_TIME = "all_time";

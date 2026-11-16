@@ -37,8 +37,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * A run's omens as the running server applies them ({@link DungeonOmenAsset}, drawn by {@link OmenDraw}):
  * <ul>
- *   <li>{@link #draw}: a run's omens at its start, {@code Omens.Count} of the dungeon's week's set by the run's seed,
- *       which {@code DungeonRuns} keeps on the run; {@link #weekSet} is the week's set the gate shows;</li>
+ *   <li>{@link #draw}: a tier's omens this week, the first {@code Omens.Count} of the dungeon's week's set, which the
+ *       gate lists and {@code DungeonRuns} keeps on each run at its start; {@link #weekSet} is the week's set;</li>
  *   <li>{@link #holdOn}: on the copy's world thread, once a second while a member stands in the run, each omen's player
  *       effects renewed on every member there (a timed effect to its full length, a lasting one put back if it fell
  *       off); {@link #takeOff} takes them off a member who left, on the world they are in now;</li>
@@ -59,6 +59,9 @@ public final class RunOmens {
     public static final String FACTOR = "ziggfreedcommon:dungeon_omen";
 
     private static final String LOG = "[dungeon] ";
+
+    /** The glue between two omen names in a list: {@code {0}, {1}} in English. */
+    private static final String LIST_KEY = "ziggfreedcommon.dungeon.omen.list";
 
     /** Effect ids already warned about. */
     private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
@@ -82,11 +85,15 @@ public final class RunOmens {
         return OmenDraw.weekSet(pool(dungeon), dungeon.omensPerWeek(), OmenDraw.weekOf(nowMs));
     }
 
-    /** A run's omens: {@code Omens.Count} of the week's set at {@code nowMs}, drawn by its {@code seed}. */
+    /**
+     * {@code dungeon}'s omens this week ({@link OmenDraw#forTier}): the first {@code Omens.Count} of the week's set at
+     * {@code nowMs}, the same for every run of it that week and nesting under a higher tier's. A run's start keeps them,
+     * and the gate lists them.
+     */
     @Nonnull
-    public static List<String> draw(@Nonnull DungeonAsset dungeon, long seed, long nowMs) {
+    public static List<String> draw(@Nonnull DungeonAsset dungeon, long nowMs) {
         int count = dungeon.omenCount();
-        return count <= 0 ? List.of() : OmenDraw.runDraw(weekSet(dungeon, nowMs), count, seed);
+        return count <= 0 ? List.of() : OmenDraw.forTier(weekSet(dungeon, nowMs), count);
     }
 
     /** The loaded omens {@code dungeon}'s pool names, else every loaded omen, each by its file's own id. */
@@ -113,6 +120,20 @@ public final class RunOmens {
     }
 
     // ==================== words ====================
+
+    /**
+     * {@code omens} by name as one line, each after the last behind the {@code omen.list} glue (a comma in English), so
+     * it may be nested as a param; null for none.
+     */
+    @Nullable
+    public static Message names(@Nonnull List<String> omens) {
+        Message out = null;
+        for (String omen : omens) {
+            Message name = name(omen);
+            out = out == null ? name : Msg.key(LIST_KEY, out, name);
+        }
+        return out;
+    }
 
     /** An omen's name as players read it: its {@code Text.NameKey}, else its id. */
     @Nonnull

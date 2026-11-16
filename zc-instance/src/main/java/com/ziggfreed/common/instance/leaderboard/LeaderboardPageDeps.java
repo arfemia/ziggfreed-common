@@ -67,6 +67,8 @@ public final class LeaderboardPageDeps {
     private final Map<String, String> primaryPictures;
     /** Primary tab key -> the line saying what counts there and how to get on it ({@link #withPrimaryHints}). */
     private final Map<String, Message> primaryHints;
+    /** Primary tab key -> that tab's own secondary row ({@link #withTabsByPrimary}); a tab not in it has {@link #tabs}. */
+    private final Map<String, List<LeaderboardBucketTab>> tabsByPrimary;
     /** Primary tab key -> that tab's own split of its board ({@link #withSplits}); a tab not in it has none. */
     private final Map<String, LeaderboardSplit> splits;
 
@@ -82,7 +84,7 @@ public final class LeaderboardPageDeps {
                                @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys) {
         this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null, Map.of(), true, false, List.of(),
-                Map.of(), Map.of(), Map.of());
+                Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     private LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
@@ -92,8 +94,14 @@ public final class LeaderboardPageDeps {
                                 boolean allTabs, boolean statsOnly, @Nonnull List<PageLink> primaryLinks,
                                 @Nonnull Map<String, String> primaryPictures,
                                 @Nonnull Map<String, Message> primaryHints,
-                                @Nonnull Map<String, LeaderboardSplit> splits) {
+                                @Nonnull Map<String, LeaderboardSplit> splits,
+                                @Nonnull Map<String, List<LeaderboardBucketTab>> tabsByPrimary) {
         this.splits = Map.copyOf(splits);
+        Map<String, List<LeaderboardBucketTab>> rows = new LinkedHashMap<>();
+        for (Map.Entry<String, List<LeaderboardBucketTab>> e : tabsByPrimary.entrySet()) {
+            rows.put(e.getKey(), List.copyOf(e.getValue()));
+        }
+        this.tabsByPrimary = Map.copyOf(rows);
         this.primaryLinks = List.copyOf(primaryLinks);
         this.primaryPictures = Map.copyOf(primaryPictures);
         this.primaryHints = Map.copyOf(primaryHints);
@@ -120,7 +128,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withMenuTab(@Nullable String tab) {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, tab,
-                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, splits);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, splits, tabsByPrimary);
     }
 
     /**
@@ -131,7 +139,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withColumnsByPrimary(@Nonnull Map<String, List<StatColumnDef>> columns) {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columns, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, splits);
+                columns, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, splits, tabsByPrimary);
     }
 
     /**
@@ -141,7 +149,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withoutAllTabs() {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, false, statsOnly, primaryLinks, primaryPictures, primaryHints, splits);
+                columnsByPrimary, false, statsOnly, primaryLinks, primaryPictures, primaryHints, splits, tabsByPrimary);
     }
 
     /**
@@ -151,7 +159,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps statsOnly() {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, true, primaryLinks, primaryPictures, primaryHints, splits);
+                columnsByPrimary, allTabs, true, primaryLinks, primaryPictures, primaryHints, splits, tabsByPrimary);
     }
 
     /**
@@ -164,7 +172,7 @@ public final class LeaderboardPageDeps {
         List<PageLink> links = new ArrayList<>(primaryLinks);
         links.add(new PageLink(key, label, opens));
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, statsOnly, links, primaryPictures, primaryHints, splits);
+                columnsByPrimary, allTabs, statsOnly, links, primaryPictures, primaryHints, splits, tabsByPrimary);
     }
 
     /**
@@ -181,7 +189,7 @@ public final class LeaderboardPageDeps {
             }
         }
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, statsOnly, primaryLinks, pictures, primaryHints, splits);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, pictures, primaryHints, splits, tabsByPrimary);
     }
 
     /**
@@ -199,7 +207,7 @@ public final class LeaderboardPageDeps {
             }
         }
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, lines, splits);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, lines, splits, tabsByPrimary);
     }
 
     /**
@@ -216,7 +224,31 @@ public final class LeaderboardPageDeps {
             }
         }
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, out);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, out, tabsByPrimary);
+    }
+
+    /**
+     * A copy whose primary tabs may each show a secondary row of their own ({@code tab key -> row}), as a stat board's
+     * section does when a marked period's tab shows on it alone; a tab the map leaves out shows {@link #tabs()}.
+     * Added over the rows already set. Everything else is kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps withTabsByPrimary(@Nonnull Map<String, List<LeaderboardBucketTab>> rows) {
+        Map<String, List<LeaderboardBucketTab>> out = new LinkedHashMap<>(tabsByPrimary);
+        for (Map.Entry<String, List<LeaderboardBucketTab>> e : rows.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null) {
+                out.put(e.getKey(), e.getValue());
+            }
+        }
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, splits, out);
+    }
+
+    /** The secondary row under primary tab {@code primary}: its own when it has one, else {@link #tabs()}. */
+    @Nonnull
+    public List<LeaderboardBucketTab> tabs(@Nonnull String primary) {
+        List<LeaderboardBucketTab> own = tabsByPrimary.get(primary);
+        return own != null ? own : tabs;
     }
 
     /** Primary tab {@code key}'s split of its board, or null when it has none ({@link #withSplits}). */

@@ -228,7 +228,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         LeaderboardSplit.Variant chosen = picked == null ? null : variantOf(picked, variant);
         this.activeVariant = chosen == null ? "" : chosen.key();
         this.activeSecondary = pinned() ? this.split.pinnedTab()
-                : resolveKey(deps.tabs(), secondary, deps.allTabs());
+                : resolveKey(deps.tabs(activePrimary), secondary, deps.allTabs());
         // Off the split's all-time tab, a selection with columns of its own for a window shows them, and the figure
         // its rows read from all time beside each name.
         LeaderboardSplit.Periodic periodic = !offAllTime() ? null
@@ -262,7 +262,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         if (split == null || split.pinnedTab() == null || (activeSplit.isEmpty() && activePick.isEmpty())) {
             return false;
         }
-        for (LeaderboardBucketTab tab : deps.tabs()) {
+        for (LeaderboardBucketTab tab : deps.tabs(activePrimary)) {
             if (tab.bucketKey().equals(split.pinnedTab())) {
                 return true;
             }
@@ -476,7 +476,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     @Nonnull
     private List<String> bucketsFor(@Nonnull String secondary) {
         List<String> primaries = ALL.equals(activePrimary) ? concreteKeys(deps.primaryTabs()) : List.of(activePrimary);
-        List<String> secondaries = ALL.equals(secondary) ? concreteKeys(deps.tabs()) : List.of(secondary);
+        List<String> secondaries = ALL.equals(secondary) ? concreteKeys(deps.tabs(activePrimary)) : List.of(secondary);
         if (deps.primaryTabs().isEmpty()) {
             return secondaries; // single secondary axis (legacy board)
         }
@@ -559,7 +559,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         boolean views = deps.primaryTabsCarryColumns();
         boolean primary = !deps.primaryTabs().isEmpty();
         // A split choice that pins the second row reads its pinned tab with the row hidden.
-        boolean secondary = !deps.tabs().isEmpty() && !pinned();
+        boolean secondary = !deps.tabs(activePrimary).isEmpty() && !pinned();
         cmd.set("#GroupRow.Visible", primary);
         cmd.set("#GroupRule.Visible", primary && views);
         cmd.set("#TabRow.Visible", secondary);
@@ -569,7 +569,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             buildTabRow(cmd, events, t, "#GroupBar", deps.primaryTabs(), activePrimary, "group", views);
         }
         if (secondary) {
-            buildTabRow(cmd, events, t, "#TabBar", deps.tabs(), activeSecondary, "tab", false);
+            buildTabRow(cmd, events, t, "#TabBar", deps.tabs(activePrimary), activeSecondary, "tab", false);
         }
         paintSplitRow(cmd, events);
     }

@@ -52,6 +52,27 @@ public final class StatBoardDungeons {
      */
     public static final String ENDLESS_SECTION = "endless_runs";
 
+    /**
+     * The mark a daily dungeon's lines carry ({@code Seed.Daily}), which the library's Daily period names
+     * ({@code StatPeriods/Daily.json}, {@code Marked}), so the Today tab ranks daily runs and shows on this tab alone.
+     */
+    public static final String DAILY = "Daily";
+
+    /**
+     * The Dungeons tab's marks ({@link StatSectionConfig#mark}), registered once at setup for {@value #SECTION}: a stored
+     * line ({@code Stat/dungeon:<difficulty>@<dungeon id>}) carries {@value #DAILY} when its dungeon is a daily as
+     * loaded now; nothing else is marked.
+     */
+    public static boolean marks(@Nonnull String key, @Nonnull String mark) {
+        int slash = key.indexOf('/');
+        if (!DAILY.equalsIgnoreCase(mark.trim()) || slash < 0) {
+            return false;
+        }
+        RecordedThings.Place place = Dungeons.READING.place(key.substring(slash + 1));
+        DungeonAsset dungeon = place == null ? null : DungeonConfig.getInstance().resolve(place.thing());
+        return dungeon != null && dungeon.seedDaily();
+    }
+
     /** The Dungeons tab's split, registered once at setup for {@value #SECTION}; its columns are the section's. */
     @Nonnull
     public static StatSplit split() {

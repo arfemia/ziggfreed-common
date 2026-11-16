@@ -204,14 +204,24 @@ public final class StatBoard {
         Map<String, Occurrence> live = null;
         Set<String> buckets = new LinkedHashSet<>();
         buckets.add(StatPeriod.ALL_TIME);
+        // A marked period's windows take only the lines some section marks for it.
+        Map<String, Map<String, Long>> markedBuckets = new LinkedHashMap<>();
         // Each window's prefix -> how many of its kind to keep, for every window this write turned over.
         Map<String, Integer> turned = new LinkedHashMap<>();
         for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
+            Map<String, Long> lines = period.marked() == null ? ranked : markedLines(ranked, period.marked());
+            if (lines.isEmpty()) {
+                continue;
+            }
             if (live == null && period.kind() == PeriodKind.SEASON_RUN) {
                 live = liveAt(now);
             }
             for (StatPeriod.Window window : period.windows(now, live == null ? Map.of() : live)) {
-                buckets.add(window.key());
+                if (period.marked() == null) {
+                    buckets.add(window.key());
+                } else {
+                    markedBuckets.put(window.key(), lines);
+                }
                 String prefix = window.prefix();
                 if (prefix != null && !window.key().equals(lastWindow.put(prefix, window.key()))) {
                     turned.put(prefix, period.keep());
@@ -221,10 +231,26 @@ public final class StatBoard {
         for (String bucket : buckets) {
             move.apply(target, bucket, uuid, name, ranked);
         }
+        for (Map.Entry<String, Map<String, Long>> bucket : markedBuckets.entrySet()) {
+            move.apply(target, bucket.getKey(), uuid, name, bucket.getValue());
+        }
         // After the writes, so the running window is one of the Keep newest it keeps.
         for (Map.Entry<String, Integer> window : turned.entrySet()) {
             target.retain(window.getKey(), window.getValue());
         }
+    }
+
+    /** The entries of {@code ranked} some section marks with {@code mark} ({@link StatSectionConfig#mark}). */
+    @Nonnull
+    private static Map<String, Long> markedLines(@Nonnull Map<String, Long> ranked, @Nonnull String mark) {
+        Map<String, Long> out = new LinkedHashMap<>();
+        StatSectionConfig sections = StatSectionConfig.getInstance();
+        for (Map.Entry<String, Long> line : ranked.entrySet()) {
+            if (sections.marked(line.getKey(), mark)) {
+                out.put(line.getKey(), line.getValue());
+            }
+        }
+        return out;
     }
 
     /**

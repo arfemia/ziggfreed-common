@@ -24,7 +24,7 @@ import com.ziggfreed.common.asset.EditorSchema;
  *
  * <pre>{@code
  * {"Kind":"AllTime","NameKey":"ziggfreedcommon.statboard.period.all_time","Order":0}
- * {"Kind":"Daily","NameKey":"ziggfreedcommon.statboard.period.daily","Zone":"UTC","Keep":2,"Order":5}
+ * {"Kind":"Daily","NameKey":"ziggfreedcommon.statboard.period.daily","Zone":"UTC","Keep":2,"Order":5,"Marked":"Daily"}
  * {"Kind":"Weekly","NameKey":"ziggfreedcommon.statboard.period.weekly","StartsOn":"Monday","Zone":"UTC","Keep":2,"Order":10}
  * {"Kind":"Monthly","NameKey":"ziggfreedcommon.statboard.period.monthly","Zone":"UTC","Keep":2,"Order":20}
  * {"Kind":"SeasonRun","Event":"*","NameKey":"ziggfreedcommon.statboard.period.season","Keep":2,"Order":30}
@@ -59,6 +59,7 @@ public final class StatPeriodAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable private String from;
     @Nullable private String to;
     @Nullable private String event;
+    @Nullable private String marked;
 
     public static final AssetBuilderCodec<String, StatPeriodAsset> CODEC = AssetBuilderCodec.builder(
                     StatPeriodAsset.class,
@@ -122,6 +123,13 @@ public final class StatPeriodAsset implements JsonAssetWithMap<String, DefaultAs
             .documentation("The calendar event a SeasonRun period follows, by its id. Unauthored, or a lone "
                     + "asterisk, follows every event that is live. Each run gets its own tab while it is live "
                     + "and keeps it after it ends. Other kinds ignore it.").add()
+            .appendInherited(new KeyedCodec<>("Marked", Codec.STRING, false),
+                    (a, v) -> a.marked = v, a -> a.marked, (a, parent) -> a.marked = parent.marked)
+            .documentation("A word a line must carry to rank in this period, such as Daily, which the library "
+                    + "gives a daily dungeon's lines on the Dungeons tab. The period's tab then shows only on a "
+                    + "section holding such a line in its running window, so every other section, and a server "
+                    + "with no such line, looks as if the period were not there. Unauthored, every line ranks and "
+                    + "the tab shows on every section.").add()
             .build();
 
     public StatPeriodAsset() {
@@ -142,7 +150,7 @@ public final class StatPeriodAsset implements JsonAssetWithMap<String, DefaultAs
         return problem() != null ? null : new StatPeriod(periodId.toLowerCase(Locale.ROOT),
                 PeriodKind.fromAuthored(kind), blankToNull(nameKey), order == null ? 0 : order, zoneId(),
                 dayOfWeek(), keep == null ? DEFAULT_KEEP : Math.max(1, keep), dateTime(from), dateTime(to),
-                followedEvent());
+                followedEvent(), blankToNull(marked));
     }
 
     /** Why this file cannot run, as a line for the log; null when it can. */

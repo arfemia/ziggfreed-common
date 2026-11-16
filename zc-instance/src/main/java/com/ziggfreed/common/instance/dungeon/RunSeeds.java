@@ -11,10 +11,11 @@ import com.ziggfreed.common.util.PeriodMath;
 
 /**
  * Where a run's seed comes from, the one source every part of a run reads it from: a generated run's layout and room
- * variants ({@code gen/GeneratedRuns}), and every run's omens ({@code omen/OmenDraw}).
+ * variants ({@code gen/GeneratedRuns}). A run's omens are its tier's for the week, never the seed's
+ * ({@code omen/OmenDraw}).
  *
  * <p>A dungeon with {@code Seed.Daily} gives every run that day the one seed {@link #daily} makes from the day and the
- * dungeon's id, so every party that day walks the same rooms in the same order and meets the same omens; any other run
+ * dungeon's id, so every party that day walks the same rooms in the same order; any other run
  * takes a fresh random seed. A day is the library's day: midnight to midnight UTC, the window a dungeon's
  * {@code Rewards.Diminish} counts {@code Daily} clears in ({@link PeriodMath}), so the daily layout and the daily count
  * turn over together.

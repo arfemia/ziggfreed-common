@@ -114,8 +114,8 @@ import com.ziggfreed.common.util.SafeLog;
  * ({@code room/RunLogic}) lasts as long and is removed then ({@link AreaMembers}).
  *
  * <p><b>Its seed and omens.</b> A run takes its seed at its start: a generated run's layout seed, else the one
- * {@link RunSeeds} gives (the day's for a dungeon with {@code Seed.Daily}), and draws its omens from the week's set by
- * it ({@code omen/RunOmens#draw}), kept on the run. An arrival's goal line names them; while any member stands in the
+ * {@link RunSeeds} gives (the day's for a dungeon with {@code Seed.Daily}), and its tier's omens for the week
+ * ({@code omen/RunOmens#draw}, the same for every run of that tier that week), kept on the run. An arrival's goal line names them; while any member stands in the
  * area, its omens' player effects are renewed once a second on each of them, and taken off a member who leaves; its
  * creatures' effects go on as each comes into being ({@code omen/OmenMobs}), and the omen factor reads them through
  * {@link #omensAt}.
@@ -989,10 +989,10 @@ public final class DungeonRuns {
             @Nullable DungeonAsset dungeon, long nowMs) {
         String preset = dungeon != null && dungeon.getId() != null && !dungeon.getId().isBlank()
                 ? dungeon.getId().trim() : dungeonId == null ? area.world() : dungeonId;
-        // A generated run's layout seed is the run's seed, so its omens follow its rooms (a daily's are the day's).
+        // A generated run's layout seed is the run's seed; its omens are its tier's for the week (R1006).
         Long laidOut = GeneratedRuns.seedOf(world, area.area());
         long seed = laidOut != null ? laidOut : RunSeeds.seedFor(dungeon, nowMs);
-        List<String> omens = dungeon == null ? List.of() : RunOmens.draw(dungeon, seed, nowMs);
+        List<String> omens = dungeon == null ? List.of() : RunOmens.draw(dungeon, nowMs);
         return new Run(area, world, preset, dungeon == null ? Knobs.BARE : knobsOf(dungeon), nowMs, seed,
                 dungeon != null && dungeon.seedDaily(), omens);
     }

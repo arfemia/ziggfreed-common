@@ -14,10 +14,12 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.leaderboard.Leaderboard;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardBucketTab;
+import com.ziggfreed.common.instance.leaderboard.LeaderboardEntry;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardPageDeps;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardSplit;
 import com.ziggfreed.common.instance.leaderboard.RecordsBoard;
@@ -33,7 +35,8 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code Stat/*} line standing for every line the source names for that stat, at most
  * {@value StatColumnDef#MAX_STAT_COLUMNS}; a section left with none shows no tab; a range shows its tab from
  * the moment it starts; a season shows one tab per run, while it is live and after it ends for as long as
- * the board keeps it. The page shows the Stats view alone, with no "All" tab on either row, since
+ * the board keeps it; a marked period (the Today tab) shows only on a section whose lines it holds now
+ * ({@link #sectionRows}). The page shows the Stats view alone, with no "All" tab on either row, since
  * neither sections nor periods add up. A section split in code ({@link StatSplit}) adds its row of groups and
  * its picker of single things under its tab, and a picked thing's row of variants under that (the Bosses tab's,
  * {@link StatBoardBossFights}: groups of bosses, a boss per pick, its party sizes as variants).
@@ -97,7 +100,7 @@ public final class StatBoardRecords implements RecordsBoard {
     private static boolean hasPeriodTab(@Nonnull Leaderboard board) {
         Instant now = StatClock.now();
         for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
-            if (period.kind() != PeriodKind.SEASON_RUN && period.readKey(now) != null) {
+            if (period.marked() == null && period.kind() != PeriodKind.SEASON_RUN && period.readKey(now) != null) {
                 return true;
             }
         }
@@ -150,6 +153,7 @@ public final class StatBoardRecords implements RecordsBoard {
         }
         return new LeaderboardPageDeps(board, sectionTabs, periodTabs, List.of(), StatBoardMessages.INSTANCE,
                 (section, period) -> bucketOf(period))
+                .withTabsByPrimary(sectionRows(board, sectionTabs))
                 .withColumnsByPrimary(columns)
                 .withPrimaryPictures(pictures)
                 .withPrimaryHints(hints)
@@ -524,15 +528,85 @@ public final class StatBoardRecords implements RecordsBoard {
     /**
      * The period row: one tab per period that reads a window now, keyed by the period's id so a page left
      * open across a turnover reads the new window, and one per run a season shows, keyed by that run's own
-     * bucket, which never moves. Every section shares it.
+     * bucket, which never moves. Every section shares it; a marked period ({@link StatPeriod#marked}) is never on
+     * it ({@link #sectionRows}).
      */
     @Nonnull
     static List<LeaderboardBucketTab> periodTabs(@Nonnull Leaderboard board) {
+        return periodTabs(board, null);
+    }
+
+    /**
+     * Each section's own period row where it differs from the shared one: the shared row with each marked period
+     * ({@link StatPeriod#marked}) whose running window holds a line the section marks so ({@link StatSectionConfig#mark}),
+     * in the periods' order. A section marking nothing, or holding no such line now, is left out and shows the shared
+     * row, as does every section on a server whose marked periods hold nothing.
+     */
+    @Nonnull
+    static Map<String, List<LeaderboardBucketTab>> sectionRows(@Nonnull Leaderboard board,
+            @Nonnull List<LeaderboardBucketTab> sectionTabs) {
+        Map<String, List<LeaderboardBucketTab>> rows = new LinkedHashMap<>();
+        StatSectionConfig config = StatSectionConfig.getInstance();
+        for (LeaderboardBucketTab tab : sectionTabs) {
+            String section = tab.bucketKey();
+            if (config.marksAny(section) && holdsMarked(board, section)) {
+                rows.put(section, periodTabs(board, section));
+            }
+        }
+        return rows;
+    }
+
+    /** Whether some marked period's running window holds a line {@code section} marks for it. */
+    private static boolean holdsMarked(@Nonnull Leaderboard board, @Nonnull String section) {
+        Instant now = StatClock.now();
+        for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
+            if (period.marked() != null && period.kind() != PeriodKind.SEASON_RUN
+                    && holds(board, period.readKey(now), section, period.marked())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether bucket {@code bucket} holds a line {@code section} marks with {@code mark}; false for no bucket. */
+    private static boolean holds(@Nonnull Leaderboard board, @Nullable String bucket, @Nonnull String section,
+            @Nonnull String mark) {
+        if (bucket == null) {
+            return false;
+        }
+        StatSectionConfig config = StatSectionConfig.getInstance();
+        for (LeaderboardEntry entry : board.forBucket(bucket).values()) {
+            CounterMap counters = entry == null ? null : entry.counters;
+            if (counters == null) {
+                continue;
+            }
+            for (String key : counters.keys()) {
+                if (config.marks(section, key, mark)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The period row of {@code section} ({@link #periodTabs(Leaderboard)} for null, the shared row): a marked period
+     * joins it only when its running window holds a line the section marks for it. A marked season shows no tab.
+     */
+    @Nonnull
+    private static List<LeaderboardBucketTab> periodTabs(@Nonnull Leaderboard board, @Nullable String section) {
         Instant now = StatClock.now();
         OccurrenceSource runs = Occurrences.source();
         Set<String> held = null;
         List<LeaderboardBucketTab> tabs = new ArrayList<>();
         for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
+            if (period.marked() != null) {
+                if (section != null && period.kind() != PeriodKind.SEASON_RUN
+                        && holds(board, period.readKey(now), section, period.marked())) {
+                    tabs.add(new LeaderboardBucketTab(period.id(), name(period.nameKey(), period.id())));
+                }
+                continue;
+            }
             if (period.kind() != PeriodKind.SEASON_RUN) {
                 if (period.readKey(now) != null) {
                     tabs.add(new LeaderboardBucketTab(period.id(), name(period.nameKey(), period.id())));

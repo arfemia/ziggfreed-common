@@ -82,8 +82,9 @@ import com.ziggfreed.common.season.SeasonGate;
  *
  * <p>{@code Tier}, {@code Omens} and {@code Seed} are the replay hooks ({@code tier/}, {@code omen/}, {@link RunSeeds}):
  * a tier is a child file of the tier below with its own rank and the dungeon whose clear opens it, so each tier keeps
- * its own runs, daily rewards and Records line; a week's omens are drawn from a pool and each run meets
- * {@code Omens.Count} of them; and a daily is a child file whose runs all share the day's seed.
+ * its own runs, daily rewards and Records line; a week's omens are drawn from a pool in order and each tier meets
+ * the first {@code Omens.Count} of them (R1006: exact per tier per week, a higher tier's including a lower one's); and
+ * a daily is a child file whose runs all share the day's seed.
  */
 public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, DungeonAsset>> {
 
@@ -203,13 +204,14 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                     + "pick. Unauthored, the dungeon is a tier of rank 1 that is always open.").add()
             .appendInherited(new KeyedCodec<>("Omens", Omens.CODEC, false),
                     (a, v) -> a.omens = v, a -> a.omens, (a, p) -> a.omens = p.omens)
-            .documentation("The omens a run meets: each week a set is drawn from the pool, the same for every tier "
-                    + "sharing it, and each run draws Count of that set by its seed. The gate shows the week's set "
-                    + "and a player arriving reads the run's. Unauthored, runs meet no omens.").add()
+            .documentation("The omens this tier meets: each week the pool is put in a new order, the same for every "
+                    + "tier sharing it, and the tier meets the first Count of it, so every run of the tier that week "
+                    + "meets the same omens and a higher tier meets every omen of a lower one. The gate lists each "
+                    + "tier's omens and a player arriving reads them. Unauthored, runs meet no omens.").add()
             .appendInherited(new KeyedCodec<>("Seed", Seed.CODEC, false),
                     (a, v) -> a.seed = v, a -> a.seed, (a, p) -> a.seed = p.seed)
-            .documentation("Where a run's seed comes from, which picks its rooms, their variants and its omens. "
-                    + "Unauthored, every run takes a fresh random seed.").add()
+            .documentation("Where a run's seed comes from, which picks its rooms and their variants. Unauthored, "
+                    + "every run takes a fresh random seed.").add()
             .appendInherited(new KeyedCodec<>("Text", Text.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
             .documentation("What players read the dungeon as, and what they are told to do there, by "
@@ -1075,8 +1077,9 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
                         (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
                 .metadata(EditorSchema.defaultValue(0L))
-                .documentation("How many of the week's omens each run meets, drawn by the run's seed, so a higher tier "
-                        + "can meet more. Unauthored, or 0, means none.").add()
+                .documentation("How many of the week's omens this tier meets: the first Count of the week's order, so "
+                        + "a higher tier with a larger Count meets every omen a lower one does, and more. Unauthored, or "
+                        + "0, means none.").add()
                 .appendInherited(new KeyedCodec<>("Pool", Codec.STRING_ARRAY, false),
                         (o, v) -> o.pool = v, o -> o.pool, (o, p) -> o.pool = p.pool)
                 .metadata(EditorSchema.assetRef(DungeonOmenAsset.class))
@@ -1087,7 +1090,8 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         (o, v) -> o.perWeek = v, o -> o.perWeek, (o, p) -> o.perWeek = p.perWeek)
                 .metadata(EditorSchema.defaultValue((long) DEFAULT_OMENS_PER_WEEK))
                 .documentation("How many omens make the week's set, drawn afresh every Monday at 00:00 UTC. Unauthored "
-                        + "means 4; a pool no bigger than this is the whole set every week.").add()
+                        + "means 4; a pool no bigger than this is the whole set every week, in a new order, so the "
+                        + "tiers' omens still change.").add()
                 .build();
 
         public Omens() {
