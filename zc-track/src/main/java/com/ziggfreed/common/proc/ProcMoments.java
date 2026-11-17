@@ -47,7 +47,12 @@ final class ProcMoments implements MomentListener {
             if (Procs.listens(ProcTrigger.KILL)) {
                 VictimPayload victim = moment.payload(VictimPayload.class);
                 Ref<EntityStore> slain = victim == null ? null : victim.victimRef();
-                fire(moment, ProcTrigger.KILL, slain, null, KillBlows.overkill(moment.store(), slain), null);
+                Damage blow = KillBlows.blow(moment.store(), slain);
+                // A kill a proc's own hit landed is no moment for any proc, as that hit itself is none (ProcMarks).
+                if (ProcMarks.procHit(blow)) {
+                    return;
+                }
+                fire(moment, ProcTrigger.KILL, slain, null, KillBlows.overkill(blow), null);
             }
         } else if (BREAK_KIND.equalsIgnoreCase(kind)) {
             if (Procs.listens(ProcTrigger.BLOCK_BREAK)) {

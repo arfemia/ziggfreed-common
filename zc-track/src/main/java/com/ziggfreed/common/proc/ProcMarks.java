@@ -44,6 +44,22 @@ final class ProcMarks {
                     && APPLIED.contains(source.getEffect())) {
                 return true;
             }
+            return procHit(damage);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * Is {@code damage} a hit a proc dealt itself: one its chain or its {@code Strike} or {@code Reflect} landed
+     * ({@code Damage.INTERACTION_TYPE} is {@link ProcActions#CHAIN_TYPE})? A kill such a hit lands is no Kill moment
+     * ({@code ProcMoments}). Never throws.
+     */
+    static boolean procHit(@Nullable Damage damage) {
+        if (damage == null) {
+            return false;
+        }
+        try {
             InteractionType type = damage.getIfPresentMetaObject(Damage.INTERACTION_TYPE);
             return type == ProcActions.CHAIN_TYPE;
         } catch (Throwable t) {
