@@ -78,9 +78,11 @@ public final class StunControl {
 
     /**
      * The native {@code Tags} key an effect carries to make whoever wears it immune to stuns with no look of its own
-     * ({@code "Tags": { "ZigStunImmune": ["Yes"] }}, any value): a boss only its fight may stun wears one. Every stun
-     * that asks {@link #isImmune} passes such an entity over; a stun its fight deals itself writes past it
-     * ({@code ZigStun}'s {@code IgnoreImmune}, or {@link #stun} called directly).
+     * ({@code "Tags": { "ZigStunImmune": ["Stun", "Root"] }}; the library's {@code Zig_Stun_Immune} is one): a boss
+     * only its fight may stun wears one. Every stun that asks {@link #isImmune} passes such an entity over; the tag's
+     * values name the game's own stun effects the wearer sheds the tick they land ({@link StunImmunity}), for the
+     * stuns that never ask. A stun its fight deals itself writes past it ({@code ZigStun}'s {@code IgnoreImmune}, or
+     * {@link #stun} called directly).
      */
     public static final String STUN_IMMUNE_TAG = "ZigStunImmune";
 
