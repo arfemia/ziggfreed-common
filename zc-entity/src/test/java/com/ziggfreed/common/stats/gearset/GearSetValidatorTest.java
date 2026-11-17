@@ -14,6 +14,7 @@ import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
@@ -176,6 +177,25 @@ class GearSetValidatorTest {
                 "on a channel with a base it is fine");
         assertTrue(GearSetValidator.audit(List.of(set), ALL_ITEMS, ALL_STATS, ALL_EFFECTS, id -> Double.NaN).isEmpty(),
                 "a base that cannot be read is not zero");
+    }
+
+    @Test
+    void aTierLineOnAMirroredStatIsAWarningCarryingItsOwnersReason() {
+        GearSetAsset set = GearSetAsset.of("S", named("k"), null, new String[] {"A", "B"},
+                GearSetAsset.Tier.of(2, null, null, null, null, null,
+                        Map.of("Level_Probe", new StatModifierSpec[] {StatModifierSpec.additive(5f)})));
+        MirroredStats.claim("probe", "Level_Probe"::equalsIgnoreCase, ctx -> 1.0, "the probe's level comes only from"
+                + " its record");
+        try {
+            List<Finding> findings = GearSetValidator.audit(List.of(set), ALL_ITEMS, ALL_STATS, ALL_EFFECTS, BASE_TEN);
+            assertEquals(List.of(GearSetValidator.MIRRORED_STAT_ON_GEAR), codes(findings));
+            assertEquals(Severity.WARNING, findings.get(0).severity());
+            assertTrue(findings.get(0).message().contains("comes only from its record"));
+        } finally {
+            MirroredStats.clearForTests();
+        }
+        assertTrue(GearSetValidator.audit(List.of(set), ALL_ITEMS, ALL_STATS, ALL_EFFECTS, BASE_TEN).isEmpty(),
+                "with no owner mirroring the stat, the line is an ordinary one");
     }
 
     @Test
