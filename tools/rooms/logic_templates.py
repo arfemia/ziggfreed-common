@@ -976,7 +976,7 @@ def skill_lock(params, ctx):
     places them; a usable block); an entry {Door: n} fills that door's whole opening instead, as the builder measured
     it (a vanilla doorway is rarely a box), so the lock is the room's own way in; Lock_Slot (palette slot; default
     Lock, a block whose Use does nothing, such as CommonLib's Zc_Lock_* blocks), Opened (the slot the cells become; default
-    air), Factor (default hytale:stat), Param (the stat a skill's level reads as, upper case after its prefix, such as
+    air), Factor (default hytale:stat), Param (the stat a skill's level reads as, such as
     Level_Mining), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
     opens it, required), Level (the level the hint names; default Min), Milestone (default Secret_Found), Signal,
     OpenSound, OpenVfx.
