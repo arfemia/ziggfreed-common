@@ -1,0 +1,9 @@
+{
+  "$Comment": "Percent bonus to how fast a thrown projectile leaves its thrower, in whole percent points (15 is +15%): what the game's throw launches at its own speed (a thrown spear, a thrown potion), which then also flies further. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers or a pick's grant (a weapon talent's bound While its weapon is held). ziggfreed-common holds it between -90 and 300 and leaves an arrow or a bomb, which launch with a force of their own, alone. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false,
+  "Tags": { "ZigGrantFamily": [ "Combat" ] }
+}
