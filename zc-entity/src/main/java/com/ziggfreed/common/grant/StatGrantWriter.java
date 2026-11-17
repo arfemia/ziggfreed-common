@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.StatIndexCache.Landing;
 import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.util.SafeLog;
@@ -27,11 +28,12 @@ import com.ziggfreed.common.util.SafeLog;
  * amounts of every placement under that key summed (times how often each is held). It reads back every modifier it
  * finds under the owner's prefix on the entity's stat map (the map is saved with the entity, so what an earlier
  * session wrote is found too), plans the difference ({@link StatGrantPlan}) and writes only that, through the stat
- * map's keyed put and remove. A grant bound to a condition ({@code While}) is handed to {@code BoundGrants} instead,
- * whose holder pass puts or takes off its modifier as the condition holds. The keys under an owner's prefix it never
- * owns are a runtime writer's, an {@code @} straight after the prefix: the conditional fold's
- * ({@code ConditionalStats.MODIFIER_PREFIX}), a bound grant's ({@code BoundGrants.MODIFIER_PREFIX}) and a counter's
- * stacks (zc-track's {@code proc/}), all under {@code zigtrack:} for the rollback sweep. World thread.
+ * map's keyed put and remove. A grant naming a retired stat id ({@code StatAliases}) writes each of its successors at
+ * the alias's scale, as a saved roll reads. A grant bound to a condition ({@code While}) is handed to
+ * {@code BoundGrants} instead, whose holder pass puts or takes off its modifier as the condition holds. The keys under
+ * an owner's prefix it never owns are a runtime writer's, an {@code @} straight after the prefix: the conditional
+ * fold's ({@code ConditionalStats.MODIFIER_PREFIX}), a bound grant's ({@code BoundGrants.MODIFIER_PREFIX}) and a
+ * counter's stacks (zc-track's {@code proc/}), all under {@code zigtrack:} for the rollback sweep. World thread.
  */
 public final class StatGrantWriter implements GrantWriter {
 
@@ -79,14 +81,11 @@ public final class StatGrantWriter implements GrantWriter {
             String key = one.key().startsWith(prefix) ? one.key().substring(prefix.length()) : one.key();
             // Counted before the stat check, so a key's later grants keep their ids whether or not this stat loads.
             int place = seen.merge(key, 1, Integer::sum);
-            int index = StatIndexCache.resolve(grant.stat());
-            if (index == StatIndexCache.UNRESOLVED) {
-                StatIndexCache.warnUnknownOnce(grant.stat());
-                continue;
+            for (Landing landing : StatIndexCache.landingsOf(grant.stat())) {
+                double amount = grant.amountOn(baseMax(landing.index())) * landing.scale() * one.count();
+                out.add(BoundGrants.Bound.additive(key + ":" + landing.statId() + ":" + place, landing.statId(),
+                        amount, grant.whileConditions()));
             }
-            double amount = grant.amountOn(baseMax(index)) * one.count();
-            out.add(BoundGrants.Bound.additive(key + ":" + grant.stat() + ":" + place, grant.stat(), amount,
-                    grant.whileConditions()));
         }
         return out;
     }
@@ -100,16 +99,13 @@ public final class StatGrantWriter implements GrantWriter {
                     || grant.bound()) {
                 continue;
             }
-            int index = StatIndexCache.resolve(grant.stat());
-            if (index == StatIndexCache.UNRESOLVED) {
-                StatIndexCache.warnUnknownOnce(grant.stat());
-                continue;
+            for (Landing landing : StatIndexCache.landingsOf(grant.stat())) {
+                double amount = grant.amountOn(baseMax(landing.index())) * landing.scale() * one.count();
+                if (amount == 0.0 || !Double.isFinite(amount)) {
+                    continue;
+                }
+                out.merge(new StatGrantPlan.Target(landing.index(), one.key()), (float) amount, Float::sum);
             }
-            double amount = grant.amountOn(baseMax(index)) * one.count();
-            if (amount == 0.0 || !Double.isFinite(amount)) {
-                continue;
-            }
-            out.merge(new StatGrantPlan.Target(index, one.key()), (float) amount, Float::sum);
         }
         return out;
     }

@@ -372,8 +372,9 @@ final class ProcActions {
         if (!on.isValid() || stat == null || change.amount() == null) {
             return;
         }
-        int index = StatIndexCache.resolve(stat);
-        EntityStatMap stats = index == StatIndexCache.UNRESOLVED ? null
+        // A write: a retired id changes each successor, at its alias's scale.
+        List<StatIndexCache.Landing> landings = StatIndexCache.landingsOf(stat);
+        EntityStatMap stats = landings.isEmpty() ? null
                 : moment.accessor().getComponent(on, EntityStatMap.getComponentType());
         if (stats == null) {
             return;
@@ -382,7 +383,9 @@ final class ProcActions {
         double authored = Procs.evaluate(change.amount(), context) * (change.byCost() ? moment.costIn(stat) : 1.0);
         double amount = statAmount(authored, change.scaled(), strength);
         if (amount != 0.0 && Double.isFinite(amount)) {
-            stats.addStatValue(index, (float) amount);
+            for (StatIndexCache.Landing landing : landings) {
+                stats.addStatValue(landing.index(), (float) (amount * landing.scale()));
+            }
         }
     }
 
@@ -429,7 +432,8 @@ final class ProcActions {
         double off = soak.share() == null ? 0.0 : hit * unit(Procs.evaluate(soak.share(), context));
         String onto = soak.onto();
         if (off > 0.0 && onto != null) {
-            int index = StatIndexCache.resolve(onto);
+            // A pool, read and spent together: a retired id's one successor (resolveCurrent).
+            int index = StatIndexCache.resolveCurrent(onto);
             EntityStatValue pays = index == StatIndexCache.UNRESOLVED ? null : stats.get(index);
             double perPoint = soak.perPoint() == null ? 1.0
                     : Math.max(0.0, Procs.evaluate(soak.perPoint(), context));

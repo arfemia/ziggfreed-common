@@ -1,5 +1,5 @@
 {
-  "$Comment": "A conditional resistance in whole percent points, added to its holder's every resistance but Fall while another player within 8 blocks is under half health. Any item's StatModifiers raise it like any stat. Base 0.",
+  "$Comment": "A conditional resistance in whole percent points, added to its holder's every resistance but Fall while an ally within 8 blocks is under half health (an ally is a party member, else any other player while PvP is off). Any item's StatModifiers raise it like any stat. Base 0.",
   "InitialValue": 0.0,
   "Min": -1000.0,
   "Max": 0.0,

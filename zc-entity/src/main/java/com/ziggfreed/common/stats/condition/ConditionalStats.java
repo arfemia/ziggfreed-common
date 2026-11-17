@@ -235,6 +235,12 @@ public final class ConditionalStats {
                         int index = StatIndexCache.resolve(onto);
                         if (index != StatIndexCache.UNRESOLVED) {
                             wanted.merge(new OntoKey(index, key), amount, Float::sum);
+                            continue;
+                        }
+                        // A write: a retired id lands on each successor, at its alias's scale.
+                        for (StatIndexCache.Landing landing : StatIndexCache.landingsOf(onto)) {
+                            wanted.merge(new OntoKey(landing.index(), key), (float) (amount * landing.scale()),
+                                    Float::sum);
                         }
                     }
                 }
@@ -539,7 +545,7 @@ public final class ConditionalStats {
 
     /** A stat's current maximum, where modifiers accumulate; 0 when unregistered, absent or not finite. */
     private static double readMax(@Nonnull EntityStatMap stats, @Nonnull String statId) {
-        int index = StatIndexCache.resolve(statId);
+        int index = StatIndexCache.resolveCurrent(statId);
         if (index == StatIndexCache.UNRESOLVED) {
             return 0.0;
         }

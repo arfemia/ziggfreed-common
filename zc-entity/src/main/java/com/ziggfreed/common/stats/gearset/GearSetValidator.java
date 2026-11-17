@@ -108,7 +108,7 @@ public final class GearSetValidator {
         try {
             List<Finding> out = new ArrayList<>(audit(GearSetConfig.getInstance().all().values(),
                     loadedItemIds(),
-                    id -> StatIndexCache.resolve(id) >= 0,
+                    StatIndexCache::resolvesForWrite,
                     GearSetValidator::effectKnown,
                     GearSetValidator::effectFactsOf,
                     GearSetValidator::baseMaxOf));

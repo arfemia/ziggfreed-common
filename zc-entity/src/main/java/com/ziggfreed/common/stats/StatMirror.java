@@ -33,12 +33,14 @@ public final class StatMirror {
 
     /**
      * Write-or-replace an additive {@code MAX} modifier of {@code value} under {@code key} on
-     * {@code statId}. No-op when the stat is unregistered, the entity has no stat map, or an
+     * {@code statId} (a retired id's one successor at scale 1, {@link StatIndexCache#resolveCurrent},
+     * so a mirror an author named before a rename writes the new stat). No-op when the stat is
+     * unregistered (or retired onto several stats or at a scale), the entity has no stat map, or an
      * equal modifier is already present under {@code key}.
      */
     public static void set(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId, @Nonnull String key, double value) {
-        int idx = StatIndexCache.resolve(statId);
+        int idx = StatIndexCache.resolveCurrent(statId);
         if (idx == StatIndexCache.UNRESOLVED) {
             return;
         }
@@ -58,10 +60,13 @@ public final class StatMirror {
         }
     }
 
-    /** Remove the EXACT-key modifier from {@code statId}. Safe if absent / stat unregistered. */
+    /**
+     * Remove the EXACT-key modifier from {@code statId}, resolved as {@link #set} resolves it. Safe if
+     * absent / stat unregistered.
+     */
     public static void remove(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId, @Nonnull String key) {
-        int idx = StatIndexCache.resolve(statId);
+        int idx = StatIndexCache.resolveCurrent(statId);
         if (idx == StatIndexCache.UNRESOLVED) {
             return;
         }
