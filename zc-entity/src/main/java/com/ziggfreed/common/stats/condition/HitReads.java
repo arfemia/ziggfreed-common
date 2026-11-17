@@ -1,16 +1,22 @@
 package com.ziggfreed.common.stats.condition;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.joml.Vector3d;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
+import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.meta.MetaKey;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCalculatorSystems;
@@ -33,6 +39,17 @@ import com.ziggfreed.common.damage.weakspot.WeakSpots;
  */
 public final class HitReads {
 
+    /**
+     * The native {@code Tags} key an effect carries to give its wearer's classless hits a damage class
+     * ({@code "Tags": { "ZigHitClass": ["Charged"] }}, its first value a damage class name): while the attacker wears it,
+     * a hit whose own damage names no class (the engine's {@code UNKNOWN}, as the game's held axe swing's) reads as that
+     * class to every {@code Hit.Classes} read, a conditional stat's and a proc's alike ({@link #classFor}). A hit that
+     * names its own class keeps it, a damage-over-time tick is never given one (a tick carries its effect's calculator,
+     * and reads that calculator's own class as it always did), and the engine's own damage class (what armor's class
+     * enhancement reads) is never touched, so the tag changes only what a {@code Hit.Classes} read hears.
+     */
+    public static final String CLASS_TAG = "ZigHitClass";
+
     /** The last hit decided on this thread: its source object and target, and what was read on it. */
     private static final class LastHit {
         @Nullable Damage.Source source;
@@ -50,6 +67,8 @@ public final class HitReads {
      */
     private static final class Meta {
         static final MetaKey<Integer> SWING_ORDER = Damage.META_REGISTRY.registerMetaObject();
+        /** The class the attacker's tag gave this damage, looked up once ({@code ""} for none). */
+        static final MetaKey<String> TAGGED_CLASS = Damage.META_REGISTRY.registerMetaObject();
     }
 
     private HitReads() {
@@ -179,7 +198,8 @@ public final class HitReads {
         }
         last.source = damage.getSource();
         last.target = target;
-        last.damageClass = classOf(sequence);
+        last.damageClass = classFor(sequence != null, isOverTime(damage), calculatorClass(sequence),
+                () -> taggedClass(accessor, damage));
         last.later = sequence != null && laterInSwing(damage);
         // An attacker with no id is never noted, so it never reads as a first hit (it would on every hit).
         UUID attacker = target != null && damage.getSource() instanceof Damage.EntitySource entity
@@ -188,13 +208,103 @@ public final class HitReads {
         return last;
     }
 
+    /**
+     * The class a classless hit takes from its attacker's effects ({@link #CLASS_TAG}): the first worn effect's tag
+     * value, lower-cased, or null when the attacker wears none or is no entity. Looked up once per damage and kept on
+     * it, so every later read of the same damage takes the answer. Never throws.
+     */
     @Nullable
-    private static String classOf(@Nullable DamageCalculatorSystems.DamageSequence sequence) {
+    private static String taggedClass(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Damage damage) {
+        try {
+            String kept = damage.getIfPresentMetaObject(Meta.TAGGED_CLASS);
+            if (kept != null) {
+                return kept.isEmpty() ? null : kept;
+            }
+            String found = lookUpTag(accessor, damage);
+            damage.putMetaObject(Meta.TAGGED_CLASS, found == null ? "" : found);
+            return found;
+        } catch (Throwable ignored) {
+            // A meta store that cannot be read or written: looked up again on the next read.
+            return lookUpTag(accessor, damage);
+        }
+    }
+
+    /** {@link #taggedClass}'s lookup over the attacker's worn effects. Never throws. */
+    @Nullable
+    private static String lookUpTag(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Damage damage) {
+        if (!(damage.getSource() instanceof Damage.EntitySource entity) || entity.getRef() == null
+                || !entity.getRef().isValid()) {
+            return null;
+        }
+        try {
+            EffectControllerComponent ctrl =
+                    accessor.getComponent(entity.getRef(), EffectControllerComponent.getComponentType());
+            if (ctrl == null || ctrl.getActiveEffects().isEmpty()) {
+                return null;
+            }
+            for (ActiveEntityEffect active : ctrl.getActiveEffects().values()) {
+                EntityEffect effect = EntityEffect.getAssetMap().getAsset(active.getEntityEffectIndex());
+                AssetExtraInfo.Data data = effect == null ? null : EntityEffect.CODEC.getData(effect);
+                String tagged = classTag(data == null ? null : data.getRawTags());
+                if (tagged != null) {
+                    return tagged;
+                }
+            }
+        } catch (Throwable ignored) {
+            // An attacker whose effects cannot be read wears no class.
+        }
+        return null;
+    }
+
+    /**
+     * The class an effect's raw tags give its wearer's classless hits ({@link #CLASS_TAG}), lower-cased, or null.
+     * Pure.
+     */
+    @Nullable
+    static String classTag(@Nullable Map<String, String[]> rawTags) {
+        if (rawTags == null) {
+            return null;
+        }
+        for (Map.Entry<String, String[]> entry : rawTags.entrySet()) {
+            if (entry.getKey() == null || !entry.getKey().equalsIgnoreCase(CLASS_TAG) || entry.getValue() == null) {
+                continue;
+            }
+            for (String value : entry.getValue()) {
+                if (value != null && !value.isBlank()) {
+                    return value.trim().toLowerCase(Locale.ROOT);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The class a hit reads as, lower-cased, or null for none. Pure. A hit with no calculator has none. Otherwise its
+     * calculator's own class wins, a damage-over-time tick's included (a tick carries its effect's calculator), unless
+     * that is {@code UNKNOWN}: the engine gives a damage that names no class {@code UNKNOWN}, never null, and a
+     * {@code Classes} entry never names it, so it reads as no class. Such a hit takes the class its attacker's tagged
+     * effect gives ({@link #CLASS_TAG}; {@code tagged} is asked only then), unless it is a damage-over-time tick, which
+     * never takes one.
+     */
+    @Nullable
+    static String classFor(boolean hasCalculator, boolean overTime, @Nullable DamageClass own,
+            @Nonnull Supplier<String> tagged) {
+        if (!hasCalculator) {
+            return null;
+        }
+        if (own != null && own != DamageClass.UNKNOWN) {
+            return own.name().toLowerCase(Locale.ROOT);
+        }
+        return overTime ? null : tagged.get();
+    }
+
+    /** The class the hit's calculator names (the engine's {@code UNKNOWN} for none), or null with no calculator. */
+    @Nullable
+    private static DamageClass calculatorClass(@Nullable DamageCalculatorSystems.DamageSequence sequence) {
         if (sequence == null) {
             return null;
         }
         DamageCalculator calculator = sequence.getDamageCalculator();
-        DamageClass damageClass = calculator == null ? null : calculator.getDamageClass();
-        return damageClass == null ? null : damageClass.name().toLowerCase(Locale.ROOT);
+        return calculator == null ? null : calculator.getDamageClass();
     }
 }

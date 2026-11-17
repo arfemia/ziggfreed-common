@@ -1,0 +1,12 @@
+{
+  "$Comment": "Makes Damage_VsStunned conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a foe wearing an effect of the Stunned family (a stun, a stagger, a knockdown, the game's own stuns).",
+  "Target": [
+    {
+      "Id": "ZigEffectFamily",
+      "Family": "Stunned"
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

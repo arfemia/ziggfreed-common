@@ -1063,6 +1063,7 @@ public final class NpcPlacementAsset
      * "Interact": { "Dialogue": "guide_intro" }
      * "Interact": { "Open": "Quests" }
      * "Interact": { "Open": { "Type": "Mmo_Board", "Board": "daily" } }
+     * "Interact": { "Enabled": false }
      * }</pre>
      *
      * <p><b>Author one or the other.</b> Both together is an authoring mistake the validator reports
@@ -1072,7 +1073,9 @@ public final class NpcPlacementAsset
      * <p>The conversation is automatically WITH the character standing here: header name,
      * {@code @self}, talk credit and quest conditions all read this placement's own identity, so
      * nothing about a destination ever restates an npc id. A placement authoring neither leaf opens
-     * that character's quest list.
+     * that character's quest list, unless {@code Enabled} is false: then press-F opens nothing at all,
+     * for a character that is part of the scenery (a builder at work, a training dummy) and whose role
+     * may carry no press-F of its own.
      *
      * <p><b>A destination is a whole leaf under {@code Parent} inheritance</b>: a child that authors
      * one REPLACES the one it inherited rather than merging into it, because half of one type's
@@ -1084,10 +1087,18 @@ public final class NpcPlacementAsset
      */
     public static final class Interact {
 
+        @Nullable protected Boolean enabled;
         @Nullable protected String dialogue;
         @Nullable protected Destination open;
 
         public static final BuilderCodec<Interact> CODEC = BuilderCodec.builder(Interact.class, Interact::new)
+                .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.enabled = v, o -> o.enabled, (o, p) -> o.enabled = p.enabled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Set false and pressing F on this character opens nothing, not even its quest "
+                        + "list: a character that is part of the scenery, such as a builder hammering away or a "
+                        + "training dummy, whose role may have no press-F at all. Unauthored, press-F opens what "
+                        + "Dialogue or Open names, else the character's quest list.").add()
                 .appendInherited(new KeyedCodec<>("Dialogue", Codec.STRING, false),
                         (o, v) -> o.dialogue = v, o -> o.dialogue, (o, p) -> o.dialogue = p.dialogue)
                 .documentation("The conversation to open on press-F, named by its file id. The short way to "
@@ -1117,6 +1128,14 @@ public final class NpcPlacementAsset
             return i;
         }
 
+        /** A press-F switched off ({@code "Enabled": false}): the character is only scenery. */
+        @Nonnull
+        public static Interact disabled() {
+            Interact i = new Interact();
+            i.enabled = false;
+            return i;
+        }
+
         /** The authored dialogue id, or null when this placement opens something else (or nothing). */
         @Nullable
         public String getDialogue() {
@@ -1141,6 +1160,11 @@ public final class NpcPlacementAsset
             }
             String id = dialogue == null ? null : dialogue.trim();
             return id == null || id.isEmpty() ? null : NpcDestinations.Dialogue.of(id);
+        }
+
+        /** {@code Enabled}: true unless written false, when press-F opens nothing. */
+        public boolean isEnabled() {
+            return enabled == null || enabled;
         }
 
         /** True when both spellings are authored, which is one press-F described twice. */

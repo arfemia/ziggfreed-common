@@ -362,6 +362,17 @@ public final class ProcValidator {
             out.add(Finding.warning(DOMAIN, GROUP_NOTHING, "proc '" + id + "' has a Heal with no Amount, so it heals "
                     + "nothing", id));
         }
+        ProcAction.Strike strike = action.strike();
+        if (strike != null) {
+            if (strike.amount() == null) {
+                out.add(Finding.warning(DOMAIN, GROUP_NOTHING, "proc '" + id + "' has a Strike with no Amount, so it "
+                        + "deals nothing", id));
+            }
+            if (strike.cause() != null && !known.cause().test(strike.cause())) {
+                out.add(Finding.error(DOMAIN, UNKNOWN_CAUSE, "proc '" + id + "' strikes with the damage cause '"
+                        + strike.cause() + "', which this server does not have", id));
+            }
+        }
     }
 
     /** A held effect's Reach: one that names no kind to reach, or none at all as written (WARNING). */

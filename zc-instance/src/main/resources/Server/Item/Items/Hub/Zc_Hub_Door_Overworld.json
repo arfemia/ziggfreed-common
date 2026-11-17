@@ -1,0 +1,40 @@
+{
+  "$Comment": "The temple hub's way out to the overworld: the game's own temple exit pad (its Parent, Forgotten_Temple_Portal_Exit: the pad players know leads out), with the plainer portal glow the game's hub portals wear, standing in the goblins' iron niche on the Concourse. Stepping on it, or pressing F on it, runs ZigOpen on the Overworld destination, the same way out the Porter offers: every instance at once, to where the player stood before they went in. Its map marker is the game's portal icon under the pad's own name, so the hub's map shows the way out. It has no recipe and no category and is a Variant, so the creative library hides it, and like the pad it copies nobody can break it.",
+  "Parent": "Forgotten_Temple_Portal_Exit",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.hub.door.overworld.name",
+    "Description": "ziggfreedcommon.hub.door.overworld.description"
+  },
+  "Variant": true,
+  "Categories": [],
+  "BlockType": {
+    "InteractionHint": "ziggfreedcommon.hub.door.overworld.hint",
+    "BlockEntity": {
+      "Components": {
+        "BlockMapMarker": {
+          "Name": "ziggfreedcommon.hub.door.overworld.name",
+          "Icon": "Portal.png"
+        }
+      }
+    },
+    "Particles": [
+      {
+        "SystemId": "MagicPortal_Default",
+        "PositionOffset": { "Y": 2.0 },
+        "Scale": 0.8
+      }
+    ],
+    "Interactions": {
+      "CollisionEnter": {
+        "Interactions": [
+          { "Type": "ZigOpen", "Open": "Overworld" }
+        ]
+      },
+      "Use": {
+        "Interactions": [
+          { "Type": "ZigOpen", "Open": "Overworld" }
+        ]
+      }
+    }
+  }
+}

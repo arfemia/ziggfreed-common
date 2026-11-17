@@ -1,19 +1,11385 @@
 {
-  "version": 8,
-  "blockIdVersion": 11,
   "anchorX": 0,
   "anchorY": 0,
   "anchorZ": 0,
+  "blockIdVersion": 11,
   "blocks": [
-    { "x": -12, "y": 1, "z": -12, "name": "Wood_Darkwood_Fence" },
-    { "x": 11, "y": 1, "z": -12, "name": "Wood_Darkwood_Fence" },
-    { "x": -12, "y": 1, "z": 11, "name": "Wood_Darkwood_Fence" },
-    { "x": 11, "y": 1, "z": 11, "name": "Wood_Darkwood_Fence" },
-    { "x": 0, "y": 1, "z": 0, "name": "Rock_Stone_Cobble" },
-    { "x": 0, "y": 1, "z": -13, "name": "Furniture_Goblin_Sign" },
-    { "x": -12, "y": 2, "z": -12, "name": "Wood_Darkwood_Fence" },
-    { "x": 11, "y": 2, "z": -12, "name": "Wood_Darkwood_Fence" },
-    { "x": -12, "y": 2, "z": 11, "name": "Wood_Darkwood_Fence" },
-    { "x": 11, "y": 2, "z": 11, "name": "Wood_Darkwood_Fence" }
-  ]
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -3,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -2,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -12
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 1
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 2
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 3
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 4
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 5
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 6
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 8
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 9
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 10
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -12,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -11,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -10,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -9,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -8,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -7,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -6,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -5,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -4,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -3,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -2,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": -1,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 0,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 1,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 2,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 3,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 4,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 5,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 6,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 7,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 8,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 9,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 10,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Rock_Stone",
+      "x": 11,
+      "y": -1,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -11,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -4,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -3,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -2,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -1,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 0,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 1,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 2,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 4,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 9,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 10,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": -12
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -6,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -4,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -3,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -2,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -1,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 0,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 1,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 2,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 3,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 4,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 5,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 8,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 11,
+      "y": 0,
+      "z": -11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -10,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -4,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -3,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -2,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -1,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 0,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 1,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 4,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 9,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": -10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -4,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -3,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -2,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -1,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 0,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 1,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 2,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 3,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 4,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 9,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 11,
+      "y": 0,
+      "z": -9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -10,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -4,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -3,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -2,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -1,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 0,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 1,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 4,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 5,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 6,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 8,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 9,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 10,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 11,
+      "y": 0,
+      "z": -8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -11,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -4,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -3,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -2,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -1,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 0,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 1,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 4,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 5,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 6,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 7,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 8,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 10,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": -7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -12,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -4,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -3,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -2,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -1,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 0,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 1,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 4,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 6,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 7,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 8,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 10,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": -6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -4,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -3,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -2,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -1,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 0,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 1,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 4,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 5,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 7,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 10,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": -5
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -12,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -11,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -10,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -9,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -8,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -6,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -5,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -4,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -3,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -2,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -1,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 0,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 1,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 2,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 4,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 9,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 11,
+      "y": 0,
+      "z": -4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -12,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -11,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -10,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -9,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -8,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": -3
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -12,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -11,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -10,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -9,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 9,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 11,
+      "y": 0,
+      "z": -2
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -12,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -11,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -10,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -9,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -8,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 11,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -12,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -11,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -10,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -9,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 6,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 8,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 9,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 10,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 11,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -12,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -11,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -10,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -9,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 6,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 7,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 8,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 9,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 10,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -12,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -11,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -10,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -9,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 8,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 9,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 10,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 11,
+      "y": 0,
+      "z": 2
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -12,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -11,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -10,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -9,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -7,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 6,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 7,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 8,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 9,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 10,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": 3
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -11,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -9,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -8,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 8,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 11,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -12,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -11,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -10,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -9,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 9,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 11,
+      "y": 0,
+      "z": 5
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -12,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -9,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -8,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 9,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 11,
+      "y": 0,
+      "z": 6
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -12,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -11,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -10,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -8,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -1,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 0,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 1,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 2,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 3,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 4,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": 5,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 9,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 11,
+      "y": 0,
+      "z": 7
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -4,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -3,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -2,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -1,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 0,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 1,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 4,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 8,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 10,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": 8
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -4,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -3,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -2,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -1,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 0,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 1,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 3,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 4,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 8,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 10,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": 9
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -12,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": -7,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -4,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -3,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -2,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -1,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 0,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 1,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 4,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 6,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 8,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 10,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": 10
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -12,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -11,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -10,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -9,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -8,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -7,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -6,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -5,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -4,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": -3,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -2,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": -1,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 0,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Rock_Quartzite_Cobble",
+      "x": 1,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 2,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 3,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 4,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 5,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 6,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 7,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Gravel",
+      "x": 8,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 9,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 10,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Soil_Pathway",
+      "x": 11,
+      "y": 0,
+      "z": 11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -10,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -9,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -8,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -7,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -6,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -5,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -4,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 3,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 4,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 5,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 6,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 7,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 8,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 9,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -11
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -10
+    },
+    {
+      "name": "Zc_Hub_Sign_Building",
+      "rotation": 2,
+      "x": 4,
+      "y": 1,
+      "z": -10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -9
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -9
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -8
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -8
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -6
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -6
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -5
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -5
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -4
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -4
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 1,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 1,
+      "z": -3
+    },
+    {
+      "name": "Rubble_Quartzite",
+      "x": 8,
+      "y": 1,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -2
+    },
+    {
+      "name": "Rubble_Quartzite",
+      "x": -8,
+      "y": 1,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 1,
+      "z": -2
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -2
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 1,
+      "z": -1
+    },
+    {
+      "name": "Metal_Goblin_Iron_Stack",
+      "x": 2,
+      "y": 1,
+      "z": -1
+    },
+    {
+      "name": "Furniture_Ancient_Crate",
+      "x": 3,
+      "y": 1,
+      "z": -1
+    },
+    {
+      "name": "Furniture_Ancient_Barrel",
+      "x": 4,
+      "y": 1,
+      "z": -1
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": -1
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 0
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 1,
+      "z": 0
+    },
+    {
+      "name": "Deco_Scrap_Pile_Shiny",
+      "x": -4,
+      "y": 1,
+      "z": 0
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 0
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 1
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 1
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 2
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 2
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 3
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 3
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 4
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 4
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 5
+    },
+    {
+      "name": "Rubble_Quartzite",
+      "x": -2,
+      "y": 1,
+      "z": 5
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 5
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 6
+    },
+    {
+      "name": "Rubble_Quartzite_Medium",
+      "x": 7,
+      "y": 1,
+      "z": 6
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 6
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 1,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -2,
+      "y": 1,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 1,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 8
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 8
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 9
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 9
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -11,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -10,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -9,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -8,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -7,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -6,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -5,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -4,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -3,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -2,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": -1,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 0,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 1,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 2,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 3,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 4,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 5,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 6,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 7,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 8,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 9,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Metal_Goblin_Iron_Fence",
+      "x": 10,
+      "y": 1,
+      "z": 10
+    },
+    {
+      "name": "Furniture_Goblin_Brazier",
+      "x": -4,
+      "y": 2,
+      "z": -11
+    },
+    {
+      "filler": 1024,
+      "name": "Zc_Hub_Sign_Building",
+      "rotation": 2,
+      "x": 4,
+      "y": 2,
+      "z": -10
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 2,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 2,
+      "z": -3
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 2,
+      "z": -2
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 2,
+      "z": -1
+    },
+    {
+      "name": "Furniture_Ancient_Crate",
+      "x": 3,
+      "y": 2,
+      "z": -1
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -6,
+      "y": 2,
+      "z": 0
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -4,
+      "y": 2,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -3,
+      "y": 2,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 2,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 3,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 3,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 3,
+      "z": 7
+    },
+    {
+      "name": "Rock_Quartzite_Brick",
+      "x": -5,
+      "y": 3,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 3,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 4,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 4,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 4,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 4,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 5,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 5,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": -2
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": -1
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": 0
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": 1
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": 2
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": 3
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": 4
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": 5
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -6,
+      "y": 5,
+      "z": 6
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -5,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -4,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -3,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -2,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": -1,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": 0,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": 1,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": 2,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": 3,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron_Bars_Platforms",
+      "x": 4,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 5,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 6,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 6,
+      "z": -3
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": -6,
+      "y": 6,
+      "z": 7
+    },
+    {
+      "name": "Metal_Goblin_Iron",
+      "x": 5,
+      "y": 6,
+      "z": 7
+    }
+  ],
+  "version": 8,
+  "zcDistrict": "Scaffold_Small",
+  "zcGeneratedBy": "tools/rooms/build_hub.py",
+  "zcHash": "459bc6c51ca7d3359bbd47e013047e6ce993d50d"
 }
