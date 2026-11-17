@@ -1,0 +1,31 @@
+{
+  "$Comment": "The temple hub's way back to the Forgotten Temple: the game's own temple gateway pad (its Parent, Forgotten_Temple_Portal_Enter: the same pad, glow and sound), standing in the marble niche on the Concourse. Stepping on it, or pressing F on it, runs ZigOpen on the Instance destination of the game's shared temple copy, the same way back the Porter offers: a player who came in by the Doorkeeper lands beside it again and keeps the temple's own exit to the gateway they came by; anyone else arrives at the temple's landing. It has no recipe and no category and is a Variant, so the creative library hides it, and like the pad it copies nobody can break it.",
+  "Parent": "Forgotten_Temple_Portal_Enter",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.hub.door.temple.name",
+    "Description": "ziggfreedcommon.hub.door.temple.description"
+  },
+  "Variant": true,
+  "Categories": [],
+  "BlockType": {
+    "InteractionHint": "ziggfreedcommon.hub.door.temple.hint",
+    "Interactions": {
+      "CollisionEnter": {
+        "Interactions": [
+          {
+            "Type": "ZigOpen",
+            "Open": { "Type": "Instance", "Instance": "Forgotten_Temple_Goblins" }
+          }
+        ]
+      },
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "ZigOpen",
+            "Open": { "Type": "Instance", "Instance": "Forgotten_Temple_Goblins" }
+          }
+        ]
+      }
+    }
+  }
+}

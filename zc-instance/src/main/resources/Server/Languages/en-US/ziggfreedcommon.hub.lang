@@ -23,6 +23,35 @@ porter.opt.farewell = I'll stay a while.
 # The hub's map.
 marker.concourse = Concourse
 
+# The Concourse's two pads: their names, what the game's lore page says of them and the hint a player sees on them.
+door.temple.name = Way to the Temple
+door.temple.description = Step on it to go back to the Forgotten Temple.
+door.temple.hint = Press [{key}] to go back to the temple
+door.overworld.name = Way Out
+door.overworld.description = Step on it to head out to the overworld, back where you left it.
+door.overworld.hint = Press [{key}] to head out to the overworld
+
+# The boards on the Concourse, read with F on the game's lore page.
+board.map.name = Temple Hub Map
+board.map.description = You're on the Concourse, right in the middle of the hub. The big lots face you across the streets on all four sides, and the small ones sit in pairs along the lanes in each corner.\n\nWherever you see scaffolding, the builders are still at work. New places open there as they finish.
+board.notice.name = Notice Board
+board.notice.description = Nothing pinned up yet. Hub notices go up here once things get going.
+
+# The sign at the way into every empty lot.
+sign.building.name = Under Construction
+sign.building.description = The goblin builders are working on this spot. Something new opens here soon.
+
+# The notes on the Concourse, read with F on the game's lore page. The work order is in the goblins' own voice.
+lore.welcome.name = Welcome to the Temple Hub
+lore.welcome.description = The goblins who fixed up the temple's lab got a taste for building, and this new wing is the result. The Concourse sits in the middle, with lots all around it for new halls and shops.\n\nThe pad in the marble alcove up ahead on the left takes you back to the temple. The one in the iron alcove on the right takes you straight out to the overworld. The Porter by the map can send you either way too.\n\nThe empty lots are still under construction, so check back. The builders are quick.
+lore.work_order.name = Goblin Work Order
+lore.work_order.description = <i>New wing. Big job.\n\nMiddle first. Then the lots. Then more lots.\n\nDo not break the old temple. Kweebecs get upset.\n\nThe pipe leaks again. Hit it harder.</i>
+lore.kweebec.name = A Note from the Kweebecs
+lore.kweebec.description = To whoever is in charge of the goblins,\n\nThe hammering starts before the sun comes up and keeps going after it sets. These trees were here long before anyone wanted a new wing, so please keep your scaffolding off the roots.\n\nThank you,\nThe Kweebecs of the temple
+
+# The goblin builders at work on the Concourse's unfinished corner and on every empty large lot.
+builder.name = Goblin Builder
+
 # A way that cannot be taken.
 travel.closed = That way is closed right now.
 travel.here = You're already there.

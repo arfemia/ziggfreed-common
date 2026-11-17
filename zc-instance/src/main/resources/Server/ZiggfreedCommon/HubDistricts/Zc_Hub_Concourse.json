@@ -1,16 +1,22 @@
 {
-  "$Comment": "The temple hub's Concourse, where players arrive: the middle lot, laid in smooth chalk brick with a lantern on a pillar at each corner of the landing. Its porter stands on the Porter spot (the placement Zc_Hub_Porter) and sends players back to the temple or out to the overworld. This is a first shell, enough to walk in and out; the real Concourse replaces its prefab. A server owner can move it to another lot or switch it off in mods/ziggfreedcommon/hub-districts.json: players then arrive on the scaffolding, and when the Concourse stands nowhere at all the porter waits a few blocks ahead of the arrival.",
+  "$Comment": "The temple hub's Concourse, where players arrive: the middle lot, an open temple court in the temple's marble and quartzite with old trees growing through it, built out by the temple's goblins. Players land on the void crystal in the middle of its rose, the hub map and the Porter just ahead to the left; the way back to the temple is the pad in the marble niche ahead-left, the way out to the overworld the pad in the goblins' iron niche ahead-right, and four notice boards stand behind. An avenue runs from the rose to a gateway in each side, straight across the street from each large lot's own way in. Its south-east corner is still being built, where a goblin builder works. Its prefab is drawn by tools/rooms/build_hub.py; rebuild it there rather than editing the prefab. The spots: Arrival (the landing, under the map marker), Porter, Map (in front of the map board), Board_1 to Board_4 (in front of each notice board, for whatever board takes them later) and Builder (facing the pipe he hammers). Floor is the hub's street block, which every district shares so the streets match. A server owner can move it to another lot or switch it off in mods/ziggfreedcommon/hub-districts.json: players then arrive on the scaffolding, and the Porter waits a few blocks ahead of the arrival.",
   "Lot": {
     "Id": "Concourse",
     "Size": "Large"
   },
   "Prefab": {
-    "Base": "ZiggfreedCommon.Hub.Concourse_Stub",
-    "Floor": "Rock_Chalk_Brick_Smooth"
+    "Base": "ZiggfreedCommon.Hub.Concourse",
+    "Floor": "Rock_Ledge_Brick"
   },
   "Anchors": [
     { "Name": "Arrival", "At": { "X": 0, "Y": 1, "Z": 0 }, "Yaw": 0 },
-    { "Name": "Porter", "At": { "X": 0, "Y": 1, "Z": -8 }, "Yaw": 180 }
+    { "Name": "Porter", "At": { "X": -4, "Y": 1, "Z": -7 }, "Yaw": 180 },
+    { "Name": "Map", "At": { "X": -8, "Y": 1, "Z": -6 }, "Yaw": 180 },
+    { "Name": "Board_1", "At": { "X": -13, "Y": 1, "Z": 12 }, "Yaw": 0 },
+    { "Name": "Board_2", "At": { "X": -10, "Y": 1, "Z": 12 }, "Yaw": 0 },
+    { "Name": "Board_3", "At": { "X": 9, "Y": 1, "Z": 12 }, "Yaw": 0 },
+    { "Name": "Board_4", "At": { "X": 12, "Y": 1, "Z": 12 }, "Yaw": 0 },
+    { "Name": "Builder", "At": { "X": 12, "Y": 1, "Z": 22 }, "Yaw": 0 }
   ],
   "Marker": {
     "Icon": "Spawn.png",

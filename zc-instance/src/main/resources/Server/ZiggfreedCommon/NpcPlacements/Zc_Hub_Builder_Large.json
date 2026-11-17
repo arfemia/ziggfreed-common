@@ -1,0 +1,15 @@
+{
+  "$Comment": "A goblin builder on every empty large lot of the temple hub, hammering at the pipe by the front of the half-built hall: a Custom anchor on the large scaffolding's Builder spot (Provider ziggfreedcommon:hub), which gives one spot per lot the scaffolding stands on, so each empty large lot has its own builder and a lot a district claims has none. Interact.Enabled false: pressing F on him opens nothing, since he is part of the place. Switch them all off in mods/ziggfreedcommon/npc-placements.json with { \"Zc_Hub_Builder_Large\": { \"Enabled\": false } }.",
+  "Name": "Zc_Hub_Builder_Large",
+  "Enabled": true,
+  "Where": { "GameplayConfig": [ "ZiggfreedCommon_Hub" ] },
+  "Identity": { "Role": "Zc_Hub_Builder" },
+  "Anchor": {
+    "Custom": {
+      "Provider": "ziggfreedcommon:hub",
+      "Params": { "District": "Zc_Hub_Scaffold_Large", "Anchor": "Builder" }
+    }
+  },
+  "Lifecycle": { "Respawn": true },
+  "Interact": { "Enabled": false }
+}

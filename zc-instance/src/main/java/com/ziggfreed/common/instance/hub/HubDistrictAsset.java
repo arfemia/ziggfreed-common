@@ -274,7 +274,7 @@ public final class HubDistrictAsset implements JsonAssetWithMap<String, DefaultA
                 .appendInherited(new KeyedCodec<>("Size", Codec.STRING, false),
                         (o, v) -> o.size = v, o -> o.size, (o, p) -> o.size = p.size)
                 .metadata(EditorSchema.oneOf(Size.words()))
-                .documentation("The district's size: Small (32 blocks square) or Large (64). A district larger than "
+                .documentation("The district's size: Small (24 blocks square) or Large (64). A district larger than "
                         + "the lot it names stands nowhere. Unauthored, it fits whatever lot it names.").add()
                 .appendInherited(new KeyedCodec<>("FillsEmpty", Codec.BOOLEAN, false),
                         (o, v) -> o.fillsEmpty = v, o -> o.fillsEmpty, (o, p) -> o.fillsEmpty = p.fillsEmpty)

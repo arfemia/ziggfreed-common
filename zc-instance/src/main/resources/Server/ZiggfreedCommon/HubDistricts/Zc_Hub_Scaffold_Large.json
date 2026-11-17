@@ -1,11 +1,14 @@
 {
-  "$Comment": "The scaffolding on every large lot of the temple hub that no district claims: cobblestone ground, a fence post at each corner and a goblin sign at the front, the temple's goblin builders at work. It names no lot, so any district that claims a lot takes its place there. Give it a Parent and a new Prefab to change how unbuilt lots look.",
+  "$Comment": "The scaffolding on every large lot of the temple hub that no district claims: the temple's goblin builders at work, a fenced site with a hall's walls a few courses up, iron scaffold towers, a crane, stock piles, their site office and a sign at the way in saying something new opens there soon. A goblin builder hammers at the pipe by the hall's front (the spot Builder, the placement Zc_Hub_Builder_Large). It names no lot, so any district that claims a lot takes its place there. Its prefab is drawn by tools/rooms/build_hub.py; rebuild it there rather than editing the prefab. Floor is the hub's street block, which every district shares so the streets match. Give it a Parent and a new Prefab to change how unbuilt lots look.",
   "Lot": {
     "Size": "Large",
     "FillsEmpty": true
   },
   "Prefab": {
     "Base": "ZiggfreedCommon.Hub.Scaffold_Large",
-    "Floor": "Rock_Stone_Cobble"
-  }
+    "Floor": "Rock_Ledge_Brick"
+  },
+  "Anchors": [
+    { "Name": "Builder", "At": { "X": 4, "Y": 1, "Z": -13 }, "Yaw": 0 }
+  ]
 }

@@ -106,8 +106,8 @@ public class ActionPlacementInteract extends ActionBase {
 
         Destination destination = destinationFor(placement);
         if (destination == null) {
-            SafeLog.fine("[placement] press-F on an NPC with no placement stamp and a role authoring"
-                    + " neither Dialogue nor Open - nothing to open");
+            SafeLog.fine("[placement] press-F on an NPC whose placement switches press-F off, or with no"
+                    + " placement stamp and a role authoring neither Dialogue nor Open - nothing to open");
             return false;
         }
 
@@ -187,11 +187,14 @@ public class ActionPlacementInteract extends ActionBase {
     /**
      * WHAT this placement opens: its authored destination, or - when it authors no {@code Interact}
      * at all - the character's quest list, which is what a placed NPC with nothing else to say is
-     * for.
+     * for; nothing when its {@code Interact.Enabled} is false, a character that is only scenery.
      */
     @Nullable
     private static Destination destinationOf(@Nonnull NpcPlacementAsset placement) {
         NpcPlacementAsset.Interact interact = placement.getInteract();
+        if (interact != null && !interact.isEnabled()) {
+            return null;
+        }
         Destination authored = interact == null ? null : interact.destination();
         return authored != null ? authored : NpcDestinations.Quests.of(null);
     }

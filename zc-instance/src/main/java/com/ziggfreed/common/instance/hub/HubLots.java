@@ -19,9 +19,10 @@ import com.ziggfreed.common.instance.dungeon.layout.Facing;
  * The middle cell is the {@link #CONCOURSE}, where players arrive. The four side cells ({@code North}, {@code East},
  * {@code South}, {@code West}) are one {@link Size#LARGE} lot each, its front facing the Concourse. Each corner cell
  * ({@code North_East} and so on) holds four {@link Size#SMALL} lots, {@code <Cell>_1} to {@code _4} for its north-west,
- * north-east, south-east and south-west quarters, the inner two facing the street toward the Concourse's row and the
- * outer two the hub's edge. Every lot's floor runs half a {@link #STREET} out from its edge, so the floors meet in
- * streets between the lots.
+ * north-east, south-east and south-west quarters, each in the middle of its quarter, so a street runs through the cell
+ * both ways; the two north quarters face south and the two south quarters north, across the lane through the cell's
+ * middle, so every small lot fronts a street and none the hub's edge. Every lot's floor runs out from its edge to the
+ * middle of the streets around it, so the floors meet in streets {@link #STREET} wide between the lots.
  *
  * <p><b>Growth.</b> A lot is never moved or renamed once shipped: a district claims a lot by id, and a new lot (an outer
  * ring) is added beside these, never in their place. A district's prefab is authored with its front facing North (-Z),
@@ -49,7 +50,7 @@ public final class HubLots {
 
     /** A lot's size: a closed vocabulary, authored as its word and read without regard to case. */
     public enum Size {
-        SMALL("Small", 32),
+        SMALL("Small", 24),
         LARGE("Large", 64);
 
         private final String word;
@@ -213,21 +214,21 @@ public final class HubLots {
                 new Cell(cx + half - 1, FLOOR_Y, cz + half - 1)));
     }
 
-    /** A corner cell's four small lots, north-west, north-east, south-east, south-west; each floors its quarter. */
+    /**
+     * A corner cell's four small lots, north-west, north-east, south-east, south-west, each centred in its quarter and
+     * flooring it; the north two face south and the south two north, across the lane through the cell's middle.
+     */
     private static void corner(@Nonnull List<Lot> lots, @Nonnull String cell, int cx, int cz) {
-        int quarter = Size.SMALL.span / 2;
+        int quarter = PITCH / 4;
         int half = PITCH / 2;
         int[][] quarters = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
         for (int i = 0; i < quarters.length; i++) {
             int sx = quarters[i][0];
             int sz = quarters[i][1];
-            // The quarter nearer the hub's middle row faces in, toward the street past the Concourse's row.
-            boolean inner = Math.abs(cz + sz * quarter) < Math.abs(cz);
-            Facing in = cz < 0 ? Facing.SOUTH : Facing.NORTH;
             int minX = sx < 0 ? cx - half : cx;
             int minZ = sz < 0 ? cz - half : cz;
             lots.add(new Lot(cell + "_" + (i + 1), Size.SMALL, cx + sx * quarter, cz + sz * quarter,
-                    inner ? in : in.opposite(), new Box(new Cell(minX, FLOOR_Y, minZ),
+                    sz < 0 ? Facing.SOUTH : Facing.NORTH, new Box(new Cell(minX, FLOOR_Y, minZ),
                     new Cell(minX + half - 1, FLOOR_Y, minZ + half - 1))));
         }
     }

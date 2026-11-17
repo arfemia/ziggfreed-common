@@ -31,9 +31,15 @@ import os
 import sys
 import zlib
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 
+import blockinfo  # noqa: E402
+import hubkit  # noqa: E402
+import iso  # noqa: E402
 import prefabio as pio  # noqa: E402
+
+ZC_SERVER = os.path.normpath(os.path.join(HERE, "..", "..", "zc-instance", "src", "main", "resources", "Server"))
 
 CELL = 10
 MARGIN = 40
@@ -524,9 +530,156 @@ def render_layout(lib, layout, title):
     return svg.render(title, legend_for(mats, STANDARD_KEY))
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# The temple hub: its districts and the whole hub, from above and from the corners
+
+
+def hub_districts(folder):
+    """{id: district file} under `folder` (a HubDistricts folder), read whole."""
+    out = {}
+    for dirpath, dirnames, filenames in os.walk(folder):
+        dirnames.sort()
+        for fn in sorted(filenames):
+            if fn.endswith(".json"):
+                out[fn[:-5]] = pio.load_json(os.path.join(dirpath, fn))
+    return out
+
+
+def hub_layout(districts):
+    """[(lot, district id, placeholder)] as HubLayout.assign lays enabled districts out: a claimed lot first by id,
+    then every empty lot by the first district filling empty lots of its size."""
+    lots = hubkit.lots()
+    held = {}
+    fillers = []
+    for did in sorted(districts, key=str.lower):
+        d = districts[did]
+        if d.get("Enabled") is False:
+            continue
+        lot = (d.get("Lot") or {})
+        if lot.get("Id"):
+            key = lot["Id"].lower()
+            if key not in held and any(l[0].lower() == key for l in lots):
+                held[key] = did
+        elif lot.get("FillsEmpty"):
+            fillers.append((did, lot.get("Size")))
+    out = []
+    for lot in lots:
+        if lot[0].lower() in held:
+            out.append((lot, held[lot[0].lower()], False))
+            continue
+        for did, size in fillers:
+            if size is None or size.lower() == lot[1].lower():
+                out.append((lot, did, True))
+                break
+    return out
+
+
+def district_cells(lib_roots, district):
+    """The district's prefab cells {(x, y, z): (name, rotation)} from its Prefab.Base and Overlays, its floor block."""
+    cells = {}
+    prefab = district.get("Prefab") or {}
+    for key in [prefab.get("Base")] + list(prefab.get("Overlays") or []):
+        if not key:
+            continue
+        for root in lib_roots:
+            files = pio.pool_files(root, key)
+            if files:
+                p = pio.load_prefab(files[0])
+                for c, b in p.blocks.items():
+                    if b.get("filler"):
+                        continue
+                    if b.get("name") == pio.EMPTY_BLOCK:
+                        cells.pop(c, None)
+                    else:
+                        cells[c] = (b["name"], int(b.get("rotation", 0)))
+                break
+    return cells, prefab.get("Floor")
+
+
+def lot_scene(scene, lot, district, cells, floor):
+    """A district on its lot, its floor out to the middle of the streets first, in world blocks."""
+    lid, size, cx, cz, face, (fx0, fz0, fx1, fz1) = lot
+    if floor:
+        for x in range(fx0, fx1 + 1):
+            for z in range(fz0, fz1 + 1):
+                scene.add((x, 0, z), floor)
+    scene.add_cells(cells, (cx, 0, cz), hubkit.TURNS[face])
+
+
+def write_hub(out_dir, districts_dir, prefab_roots, server_roots, png=False, views=("SE", "NW")):
+    """Pictures of every district with a prefab (from above with its spots, and from `views`) and of the whole hub."""
+    os.makedirs(out_dir, exist_ok=True)
+    info = blockinfo.BlockInfo(server_roots)
+    districts = hub_districts(districts_dir)
+    written = []
+
+    def emit(name, svg):
+        path = os.path.join(out_dir, name + ".svg")
+        pio.write_text(path, svg)
+        written.append(path)
+        if png:
+            iso.png(path, path[:-4] + ".png")
+
+    for did, d in sorted(districts.items()):
+        cells, floor = district_cells(prefab_roots, d)
+        if not cells:
+            continue
+        lot = d.get("Lot") or {}
+        size = lot.get("Size") or "Large"
+        span = hubkit.SPANS.get(size, 64)
+        lo = -(span // 2)
+        top = iso.TopDown(info)
+        top.add_cells(cells)
+        marks = [(int((a.get("At") or {}).get("X", 0)), int((a.get("At") or {}).get("Z", 0)), a.get("Name", "?"),
+                  "#ffd54f") for a in d.get("Anchors") or []]
+        emit(did + ".top", top.svg(scale=9.0 if span <= 32 else 7.0, title=did + ": from above",
+                                   subtitle="%s lot, %d blocks square; its front (the way in) is the top edge; "
+                                            "gold dots are its named spots" % (size, span),
+                                   marks=marks, outlines=[(lo, lo, lo + span - 1, lo + span - 1, "#555", True, "")]))
+        for view in views:
+            sc = iso.Scene(info)
+            sc.add_cells(cells)
+            emit("%s.%s" % (did, view), sc.svg(view=view, scale=12.0 if span <= 32 else 8.0,
+                                                title="%s: from the %s" % (did, view),
+                                                subtitle="Front (the way in) faces north"))
+            if span > 32:
+                # A large lot's middle, closer: where its players land or its way in leads.
+                emit("%s.%s.close" % (did, view), sc.svg(
+                    view=view, scale=16.0, title="%s: its middle, from the %s" % (did, view),
+                    subtitle="The middle 40 blocks square", clip=((-20, -20), (19, 19))))
+    placed = hub_layout(districts)
+    whole_top = iso.TopDown(info)
+    whole = iso.Scene(info)
+    outlines = []
+    for lot, did, placeholder in placed:
+        cells, floor = district_cells(prefab_roots, districts[did])
+        lot_scene(whole_top, lot, districts[did], cells, floor)
+        lot_scene(whole, lot, districts[did], cells, floor)
+        lid, size, cx, cz, face = lot[:5]
+        half = hubkit.SPANS[size] // 2
+        outlines.append((cx - half, cz - half, cx - half + hubkit.SPANS[size] - 1, cz - half + hubkit.SPANS[size] - 1,
+                         "#7a1f1f" if not placeholder else "#444", True, "%s, faces %s" % (lid, face[0])))
+    emit("Hub.top", whole_top.svg(scale=3.0, title="The temple hub from above",
+                                  subtitle="Every lot with what stands on it today; dashed: each lot's own ground",
+                                  outlines=outlines))
+    for view in views[:1]:
+        emit("Hub.%s" % view, whole.svg(view=view, scale=3.2, title="The temple hub from the %s" % view))
+    return written
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="mode", required=True)
+    h = sub.add_parser("hub")
+    h.add_argument("--districts", default=os.path.join(ZC_SERVER, "ZiggfreedCommon", "HubDistricts"),
+                   help="a HubDistricts folder (default CommonLib's own)")
+    h.add_argument("--prefabs", action="append", default=[], help="a Server/Prefabs folder (repeatable; CommonLib's "
+                   "own is always read)")
+    h.add_argument("--server", action="append", default=[], help="a pack's Server folder whose items name blocks "
+                   "(repeatable; vanilla's and CommonLib's are always read)")
+    h.add_argument("--views", default="SE,NW", help="the corners to draw from, of SE, SW, NW and NE")
+    h.add_argument("--png", action="store_true", help="also write each picture as a PNG (Edge or Chrome headless)")
+    h.add_argument("--out", required=True)
     a = sub.add_parser("room")
     a.add_argument("--room", required=True)
     a.add_argument("--prefabs", action="append", default=[])
@@ -542,7 +695,14 @@ def main(argv=None):
     c.add_argument("--prefabs", action="append", default=[])
     c.add_argument("--out", required=True)
     args = ap.parse_args(argv)
-    if args.mode == "room":
+    if args.mode == "hub":
+        vanilla = blockinfo.vanilla_server(HERE)
+        prefab_roots = [os.path.join(ZC_SERVER, "Prefabs")] + list(args.prefabs)
+        servers = [vanilla, ZC_SERVER] + list(args.server)
+        views = tuple(v.strip().upper() for v in args.views.split(",") if v.strip())
+        written = write_hub(args.out, args.districts, prefab_roots, servers, args.png, views)
+        print("wrote %d pictures to %s" % (len(written), args.out))
+    elif args.mode == "room":
         lib = Library(args.prefabs)
         room = pio.load_json(args.room)
         title = os.path.basename(args.room)[:-5]

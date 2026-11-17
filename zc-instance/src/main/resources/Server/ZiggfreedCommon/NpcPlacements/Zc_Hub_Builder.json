@@ -1,0 +1,15 @@
+{
+  "$Comment": "The goblin builder on the temple hub's Concourse, hammering at the pipe in its unfinished south-east corner: a Custom anchor on the Concourse's Builder spot (Provider ziggfreedcommon:hub), so he follows the Concourse to whatever lot it stands on and is simply absent when it stands nowhere. Interact.Enabled false: pressing F on him opens nothing, since he is part of the place (his role, the lab's repairer, has no press-F of its own either). Switch him off in mods/ziggfreedcommon/npc-placements.json with { \"Zc_Hub_Builder\": { \"Enabled\": false } }.",
+  "Name": "Zc_Hub_Builder",
+  "Enabled": true,
+  "Where": { "GameplayConfig": [ "ZiggfreedCommon_Hub" ] },
+  "Identity": { "Role": "Zc_Hub_Builder" },
+  "Anchor": {
+    "Custom": {
+      "Provider": "ziggfreedcommon:hub",
+      "Params": { "District": "Zc_Hub_Concourse", "Anchor": "Builder" }
+    }
+  },
+  "Lifecycle": { "Respawn": true },
+  "Interact": { "Enabled": false }
+}
