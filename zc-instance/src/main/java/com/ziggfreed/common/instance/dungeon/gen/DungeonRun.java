@@ -25,9 +25,9 @@ import com.ziggfreed.common.instance.dungeon.room.RunLogic;
  * One registered run of a generated dungeon copy: the layout its seed made, placed in the run's region of its lane,
  * every room ready to paint, its rooms' logic ready to place ({@link RunLogic}), where its players arrive, and what
  * painting it has cost so far. Immutable once registered, but for its counters, which the painters add to from any
- * thread, and its logic's own state.
+ * thread, and its logic's own state. The painter reads it as its {@link PaintJob}.
  */
-final class DungeonRun {
+final class DungeonRun implements PaintJob {
 
     private static final double NANOS_PER_MILLI = 1_000_000.0;
 
@@ -47,7 +47,19 @@ final class DungeonRun {
      */
     record Room(int index, @Nonnull String roomId, @Nonnull String prefabKey, @Nonnull Cell origin,
                 @Nonnull PrefabRotation rotation, @Nonnull Box box, @Nonnull IPrefabBuffer base,
-                @Nullable IPrefabBuffer overlay, int fillBlock, boolean keepContainers) {
+                @Nullable IPrefabBuffer overlay, int fillBlock, boolean keepContainers) implements PaintPiece {
+
+        @Nonnull
+        @Override
+        public String label() {
+            return "room " + roomId + " (" + prefabKey + ")";
+        }
+
+        @Nonnull
+        @Override
+        public List<IPrefabBuffer> overlays() {
+            return overlay == null ? List.of() : List.of(overlay);
+        }
     }
 
     final int area;
@@ -103,8 +115,36 @@ final class DungeonRun {
      * after, so every chunk a child crosses reads the one buffer; safe from any painter thread.
      */
     @Nonnull
-    IPrefabBuffer child(@Nonnull Path prefab) {
+    @Override
+    public IPrefabBuffer child(@Nonnull Path prefab) {
         return children.computeIfAbsent(prefab, PrefabBufferUtil::getCached);
+    }
+
+    @Override
+    public long seed() {
+        return seed;
+    }
+
+    @Nonnull
+    @Override
+    public List<Room> pieces() {
+        return rooms;
+    }
+
+    @Nonnull
+    @Override
+    public String describe() {
+        return "run " + run + " in area " + area;
+    }
+
+    @Override
+    public void childExpanded() {
+        childrenExpanded.incrementAndGet();
+    }
+
+    @Override
+    public void entitiesLeft(int count) {
+        entitiesLeft.addAndGet(count);
     }
 
     /** Count one chunk this run painted rooms into, and what it took. */

@@ -1,0 +1,19 @@
+{
+  "Name": "Zc_Hub_Porter",
+  "$Comment": "The temple hub's porter's conversation, which its placement (NpcPlacements/Zc_Hub_Porter.json) opens on press F: the hub's two ways out. Back to the temple opens the Instance destination on the game's own shared temple copy, Forgotten_Temple_Goblins, so a player who came from the temple stands beside the doorkeeper again; out to the overworld opens the Overworld destination, which leaves every instance for where the player stood before they went in.",
+  "Start": { "Fallback": "greet" },
+  "Nodes": {
+    "greet": {
+      "TextKey": "ziggfreedcommon.hub.porter.greet",
+      "Options": [
+        {
+          "LabelKey": "ziggfreedcommon.hub.porter.opt.temple",
+          "Style": "accept",
+          "Open": { "Type": "Instance", "Instance": "Forgotten_Temple_Goblins" }
+        },
+        { "LabelKey": "ziggfreedcommon.hub.porter.opt.overworld", "Style": "accept", "Open": "Overworld" },
+        { "LabelKey": "ziggfreedcommon.hub.porter.opt.farewell", "Style": "farewell", "Close": true }
+      ]
+    }
+  }
+}

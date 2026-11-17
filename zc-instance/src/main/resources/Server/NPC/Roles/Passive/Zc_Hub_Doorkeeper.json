@@ -1,0 +1,9 @@
+{
+  "$Comment": "The temple hub's doorkeeper, a goblin scientist from the temple's lab, as a thin Variant of the library's Template_Zig_QuestGiver, which holds the whole body (standing, watching, the press-F action that opens what the placement's Interact names). Modify names only Appearance and NameTranslationKey, two of the five parameters that template declares. The NPC placement Zc_Hub_Doorkeeper stands it in the Forgotten Temple.",
+  "Type": "Variant",
+  "Reference": "Template_Zig_QuestGiver",
+  "Modify": {
+    "Appearance": "Goblin_Scientist",
+    "NameTranslationKey": "ziggfreedcommon.hub.doorkeeper.name"
+  }
+}

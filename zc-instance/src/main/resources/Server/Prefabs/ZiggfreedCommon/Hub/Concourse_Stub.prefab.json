@@ -1,0 +1,21 @@
+{
+  "version": 8,
+  "blockIdVersion": 11,
+  "anchorX": 0,
+  "anchorY": 0,
+  "anchorZ": 0,
+  "blocks": [
+    { "x": -6, "y": 1, "z": -6, "name": "Rock_Chalk_Brick_Pillar_Base" },
+    { "x": 6, "y": 1, "z": -6, "name": "Rock_Chalk_Brick_Pillar_Base" },
+    { "x": -6, "y": 1, "z": 6, "name": "Rock_Chalk_Brick_Pillar_Base" },
+    { "x": 6, "y": 1, "z": 6, "name": "Rock_Chalk_Brick_Pillar_Base" },
+    { "x": -6, "y": 2, "z": -6, "name": "Rock_Chalk_Brick_Pillar_Middle" },
+    { "x": 6, "y": 2, "z": -6, "name": "Rock_Chalk_Brick_Pillar_Middle" },
+    { "x": -6, "y": 2, "z": 6, "name": "Rock_Chalk_Brick_Pillar_Middle" },
+    { "x": 6, "y": 2, "z": 6, "name": "Rock_Chalk_Brick_Pillar_Middle" },
+    { "x": -6, "y": 3, "z": -6, "name": "Furniture_Temple_Light_Lantern" },
+    { "x": 6, "y": 3, "z": -6, "name": "Furniture_Temple_Light_Lantern" },
+    { "x": -6, "y": 3, "z": 6, "name": "Furniture_Temple_Light_Lantern" },
+    { "x": 6, "y": 3, "z": 6, "name": "Furniture_Temple_Light_Lantern" }
+  ]
+}
