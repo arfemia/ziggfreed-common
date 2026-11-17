@@ -5,6 +5,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.builtin.triggervolumes.TriggerVolumesPlugin;
+import com.hypixel.hytale.builtin.triggervolumes.effect.TriggerCondition;
 import com.hypixel.hytale.builtin.triggervolumes.effect.TriggerEffect;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
@@ -38,6 +39,7 @@ import com.ziggfreed.common.instance.dungeon.gen.DungeonPainters;
 import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
 import com.ziggfreed.common.instance.dungeon.gen.ZigDungeonWorldGenProvider;
 import com.ziggfreed.common.instance.dungeon.kit.ZigCheckpointEffect;
+import com.ziggfreed.common.instance.dungeon.kit.ZigHasEffectCondition;
 import com.ziggfreed.common.instance.dungeon.kit.ZigRunMilestoneEffect;
 import com.ziggfreed.common.instance.dungeon.omen.OmenMobs;
 import com.ziggfreed.common.instance.dungeon.omen.RunOmens;
@@ -283,6 +285,12 @@ public final class InstanceBootstrap {
             SafeLog.warn("[dungeon] the endless runs could not be wired, so an endless dungeon raises no wave", t);
         }
         try {
+            EncounterSeams.fillRunScale(DungeonRuns.shared()::scaleAt);
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the encounter run-scale seam could not be filled, so a dungeon tier's boss is no "
+                    + "tougher than the tier below", t);
+        }
+        try {
             RunOmens.contribute();
             plugin.getEntityStoreRegistry().registerSystem(new OmenMobs());
         } catch (Throwable t) {
@@ -303,10 +311,14 @@ public final class InstanceBootstrap {
                 ZigCheckpointEffect.class, ZigCheckpointEffect.codec());
         plugin.getCodecRegistry(TriggerEffect.CODEC).register(ZigRunMilestoneEffect.TYPE_NAME,
                 ZigRunMilestoneEffect.class, ZigRunMilestoneEffect.codec());
+        plugin.getCodecRegistry(TriggerCondition.CODEC).register(ZigHasEffectCondition.TYPE_NAME,
+                ZigHasEffectCondition.class, ZigHasEffectCondition.codec());
         try {
             TriggerVolumesPlugin volumes = TriggerVolumesPlugin.get();
             if (volumes != null) {
                 volumes.registerAssetField(ZigCheckpointEffect.TYPE_NAME, ZigCheckpointEffect.HEAL_EFFECT_KEY,
+                        "EntityEffect");
+                volumes.registerAssetField(ZigHasEffectCondition.TYPE_NAME, ZigHasEffectCondition.EFFECT_KEY,
                         "EntityEffect");
             }
         } catch (Throwable t) {

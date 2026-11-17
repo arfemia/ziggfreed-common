@@ -31,6 +31,7 @@ import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.event.EncounterWaveClearedEvent;
 import com.ziggfreed.common.encounter.payout.EncounterClaims;
+import com.ziggfreed.common.encounter.seam.RunScale;
 import com.ziggfreed.common.encounter.seam.RunTag;
 import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.i18n.Msg;
@@ -739,6 +740,40 @@ public final class DungeonRuns {
     public synchronized WaveRules rulesAt(@Nullable UUID worldUuid, @Nonnull Vector3d at) {
         Run run = runAt(worldUuid, at);
         return run == null || run.ended || run.knobs.endless == null ? null : run.knobs.endless.rules();
+    }
+
+    /**
+     * The seam zc-encounter asks once per fight: the step of the tier whose run holds the spot {@code at} in world
+     * {@code worldUuid} ({@code Tier.Health} and {@code Tier.Damage} of the run's dungeon as loaded now), so a tier's
+     * boss and the creatures its fight raises are that much tougher; null for a fight in no run, or a tier with no step.
+     * Quick, and under this list's leaf lock only.
+     */
+    @Nullable
+    public RunScale scaleAt(@Nullable UUID worldUuid, @Nonnull Vector3d at) {
+        String dungeonId;
+        synchronized (this) {
+            Run run = runAt(worldUuid, at);
+            dungeonId = run == null ? null : run.dungeon;
+        }
+        if (dungeonId == null) {
+            return null;
+        }
+        DungeonAsset dungeon = DungeonConfig.getInstance().resolve(dungeonId.toLowerCase(Locale.ROOT));
+        if (dungeon == null) {
+            return null;
+        }
+        RunScale scale = new RunScale(dungeon.tierHealth(), dungeon.tierDamage());
+        return scale.none() ? null : scale;
+    }
+
+    /**
+     * How many players the run of {@code area} counts: every participant a start has named so far (the first arriver,
+     * those on the way with them and every later arrival), at least 1; 1 for an area with no run. Room logic sizes a
+     * room's foes by it as the room is placed.
+     */
+    public synchronized int partySize(@Nonnull CopyKey area) {
+        Run run = runs.get(area);
+        return run == null ? 1 : Math.max(1, run.members.participantCount());
     }
 
     /** Whether dungeon {@code dungeonId} is an endless wave run as loaded now. */

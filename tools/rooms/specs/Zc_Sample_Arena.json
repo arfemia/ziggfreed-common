@@ -1,0 +1,54 @@
+{
+  "$Comment": [
+    "The sample boss arena for build_room.py: a hall whose fight (the encounter script Zc_Encounter_Example, standing in",
+    "the middle) closes both doorways as it begins and opens them as the boss falls or the fight resets (ArenaDoors), with",
+    "four pillars a charging boss wearing Zig_Staggered crashes into, cracking and then shattering them (CrashPillars), and",
+    "two tagged health-pack points. The arena tag is the script's own and plain, never @room. Cells are relative to the",
+    "prefab anchor, the south doorway's floor cell; North is -Z."
+  ],
+  "Id": "Zc_Sample_Arena",
+  "Label": "Sample boss arena",
+  "Prefab": "ZiggfreedCommon.Samples.Zc_Sample_Arena",
+  "Room": {
+    "Roles": ["Boss"],
+    "Tags": {"Kit": ["Sample"]}
+  },
+  "Pillars": [
+    {"Min": {"X": -5, "Y": 1, "Z": -5}, "Max": {"X": -5, "Y": 6, "Z": -5}},
+    {"Min": {"X": 5, "Y": 1, "Z": -5}, "Max": {"X": 5, "Y": 6, "Z": -5}},
+    {"Min": {"X": -6, "Y": 1, "Z": -14}, "Max": {"X": -5, "Y": 6, "Z": -13}},
+    {"Min": {"X": 5, "Y": 1, "Z": -14}, "Max": {"X": 6, "Y": 6, "Z": -13}}
+  ],
+  "Shapes": [
+    {"Op": "Shell", "Min": {"X": -9, "Y": 0, "Z": -18}, "Max": {"X": 9, "Y": 8, "Z": 0}},
+    {"Op": "Fill", "Slot": "Pillar", "Min": {"X": -5, "Y": 1, "Z": -5}, "Max": {"X": -5, "Y": 6, "Z": -5}},
+    {"Op": "Fill", "Slot": "Pillar", "Min": {"X": 5, "Y": 1, "Z": -5}, "Max": {"X": 5, "Y": 6, "Z": -5}},
+    {"Op": "Fill", "Slot": "Pillar", "Min": {"X": -6, "Y": 1, "Z": -14}, "Max": {"X": -5, "Y": 6, "Z": -13}},
+    {"Op": "Fill", "Slot": "Pillar", "Min": {"X": 5, "Y": 1, "Z": -14}, "Max": {"X": 6, "Y": 6, "Z": -13}}
+  ],
+  "Doors": [
+    {"At": {"X": 0, "Y": 0, "Z": 0}, "Facing": "South", "Kind": "Sample", "Width": 3, "Height": 3},
+    {"At": {"X": 0, "Y": 0, "Z": -18}, "Facing": "North", "Kind": "Sample", "Width": 3, "Height": 3,
+     "ExitOnly": true}
+  ],
+  "Props": [
+    {"Slot": "Light", "At": {"X": -8, "Y": 1, "Z": -1}},
+    {"Slot": "Light", "At": {"X": 8, "Y": 1, "Z": -1}}
+  ],
+  "Encounters": [
+    {"At": {"X": 0, "Y": 1, "Z": -9}, "Id": "Zc_Encounter_Example"}
+  ],
+  "Spawns": [
+    {"At": {"X": 0, "Y": 1, "Z": -11}, "Marker": "Skeleton_Soldier_Manual"}
+  ],
+  "Points": [
+    {"At": {"X": -7, "Y": 1, "Z": -9}, "Tags": ["Zc_Sample_Health_Pack"]},
+    {"At": {"X": 7, "Y": 1, "Z": -9}, "Tags": ["Zc_Sample_Health_Pack"]}
+  ],
+  "Logic": [
+    {"Template": "ArenaDoors", "Tag": "Zc_Sample_Arena", "Doors": [0, 1]},
+    {"Template": "CrashPillars", "Tag": "Zc_Sample_Arena", "Pillars": "$Pillars", "Effect": "Zig_Staggered",
+     "Crash": "Root_Interrupt_All", "Cracked": "Rock_Stone_Cobble", "Stump": "Rock_Stone_Cobble_Half",
+     "CrackVfx": "Block_Break_Dust"}
+  ]
+}

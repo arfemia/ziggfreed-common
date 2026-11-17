@@ -10,6 +10,7 @@
 # keeps only the first server.lang it finds, so every module's Type names live here, zc-instance's
 # dungeon room kit included.
 customUI.triggerVolumeEffectEditor.conditionType.ZigRequires = Requires
+customUI.triggerVolumeEffectEditor.conditionType.ZigHasEffect = Wears Effect
 customUI.triggerVolumeEffectEditor.effectType.ZigCheckpoint = Dungeon Checkpoint
 customUI.triggerVolumeEffectEditor.effectType.ZigRunMilestone = Dungeon Milestone
 

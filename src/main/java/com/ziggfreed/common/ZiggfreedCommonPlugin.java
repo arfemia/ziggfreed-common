@@ -46,6 +46,7 @@ import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.control.ControlBootstrap;
+import com.ziggfreed.common.effect.warcry.WarCryBootstrap;
 import com.ziggfreed.common.effect.costume.CostumeBootstrap;
 import com.ziggfreed.common.effect.duration.DurationBootstrap;
 import com.ziggfreed.common.effect.movement.MovementBootstrap;
@@ -319,6 +320,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Crowd control: the ZigStun, ZigTaunt, ZigAggroDrop and ZigAggroSuppress Types before any asset decodes,
         // and the per-world aggro windows with their attitude provider and sweep.
         ControlBootstrap.install(this);
+        // War cries: a creature wearing an effect tagged ZigWarCry shouts and rallies the foes round it.
+        WarCryBootstrap.install(this);
         // Timed buffs on the native buff bar: the per-player slot record (unconditional, so a saved one
         // always reads back) and the ready and respawn refreshes, inert until a consumer registers a source.
         BuffBootstrap.install(this);

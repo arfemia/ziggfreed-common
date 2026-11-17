@@ -1,16 +1,23 @@
 package com.ziggfreed.common.encounter.run;
 
 import java.util.List;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.joml.Vector3d;
+
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
+import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
+import com.ziggfreed.common.encounter.seam.RunScale;
 import com.ziggfreed.common.health.HealthUtil;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Party-size, run and power scaling of maximum health, for the subject and for the adds the fight's
@@ -60,6 +67,39 @@ public final class EncounterScaling {
         }
         return grow(adds.healthPerMember(), adds.healthMultiplier(), adds.healthPerPowerPoint(),
                 adds.maxHealthMultiplier(), members, power, 1.0);
+    }
+
+    /**
+     * The step of the run {@code run}'s fight stands in (a dungeon tier's): asked of the run-scale seam once, with the
+     * encounter entity's place, and kept on the run until it rolls over. {@link RunScale#NONE} when the entity has no
+     * place. Never throws.
+     */
+    @Nonnull
+    public static RunScale runScaleOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> encounterRef,
+            @Nonnull ZigEncounterRun run) {
+        RunScale known = run.runScale();
+        if (known != null) {
+            return known;
+        }
+        RunScale asked = RunScale.NONE;
+        try {
+            TransformComponent at = encounterRef.isValid()
+                    ? store.getComponent(encounterRef, TransformComponent.getComponentType()) : null;
+            if (at != null) {
+                UUID world = run.worldUuid() != null ? run.worldUuid() : EncounterLifecycle.worldUuid(store);
+                asked = EncounterSeams.runScaleAt(world, new Vector3d(at.getPosition()));
+            }
+        } catch (Throwable t) {
+            SafeLog.fine(Encounters.LOG_PREFIX + " a fight's run step could not be read: " + t.getMessage());
+        }
+        run.noteRunScale(asked);
+        return asked;
+    }
+
+    /** The run multiplier a subject's scale reads: the spawn call's, times its run's health step once asked. */
+    public static double runMultiplier(@Nonnull ZigEncounterRun run) {
+        RunScale scale = run.runScale();
+        return run.healthMultiplier() * (scale == null ? 1.0 : scale.health());
     }
 
     /** The member count a scale reads: the live roster, or the party the spawn call seeded when that is larger. */

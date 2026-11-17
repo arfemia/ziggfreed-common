@@ -568,6 +568,20 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return blankToNull(tier == null ? null : tier.opens);
     }
 
+    /** {@code Tier.Health}: the health step of this tier's boss fights, at least 1; 1 unauthored. */
+    public double tierHealth() {
+        return atLeastOne(tier == null ? null : tier.health);
+    }
+
+    /** {@code Tier.Damage}: the damage step of this tier's boss fights, at least 1; 1 unauthored. */
+    public double tierDamage() {
+        return atLeastOne(tier == null ? null : tier.damage);
+    }
+
+    private static double atLeastOne(@Nullable Double v) {
+        return v == null || !Double.isFinite(v) ? 1.0 : Math.max(1.0, v);
+    }
+
     /** {@code Omens.Count}: how many of the week's set a run draws, zero or more; zero unauthored. */
     public int omenCount() {
         Integer v = omens == null ? null : omens.count;
@@ -1043,6 +1057,8 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
 
         @Nullable protected Integer rank;
         @Nullable protected String opens;
+        @Nullable protected Double health;
+        @Nullable protected Double damage;
 
         public static final BuilderCodec<Tier> CODEC = BuilderCodec.builder(Tier.class, Tier::new)
                 .appendInherited(new KeyedCodec<>("Rank", Codec.INTEGER, false),
@@ -1058,6 +1074,18 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         + "has this tier open for good, read from their Dungeon_Runs_Completed record, and a party may go "
                         + "in only when every member standing with them has. Unauthored, the tier is open to "
                         + "everyone.").add()
+                .appendInherited(new KeyedCodec<>("Health", Codec.DOUBLE, false),
+                        (o, v) -> o.health = v, o -> o.health, (o, p) -> o.health = p.health)
+                .metadata(EditorSchema.defaultValue(1.0))
+                .documentation("How much more health every boss fight in this tier's runs has than its script and "
+                        + "its party scale give it: the boss's and every creature its fight raises, times this "
+                        + "(1.6 is 60% more). Unauthored, or below 1, means 1.").add()
+                .appendInherited(new KeyedCodec<>("Damage", Codec.DOUBLE, false),
+                        (o, v) -> o.damage = v, o -> o.damage, (o, p) -> o.damage = p.damage)
+                .metadata(EditorSchema.defaultValue(1.0))
+                .documentation("How much harder every boss fight in this tier's runs hits: the boss's and every "
+                        + "creature its fight raises, every hit times this (1.3 is 30% harder). Unauthored, or below "
+                        + "1, means 1.").add()
                 .build();
 
         public Tier() {

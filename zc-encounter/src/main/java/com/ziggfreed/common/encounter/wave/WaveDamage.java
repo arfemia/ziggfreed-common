@@ -4,14 +4,8 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
-import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
-import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.effect.outgoing.DamageBonusReconciler;
-import com.ziggfreed.common.stats.StatIndexCache;
-import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
-import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.encounter.run.DamageStep;
 
 /**
  * The damage half of an endless run's ramp: a creature an endless wave raised carries its wave's step as one keyed
@@ -46,22 +40,6 @@ public final class WaveDamage {
      * for 0. Answers whether it is on. Never throws.
      */
     public static boolean apply(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> creature, int percent) {
-        if (percent <= 0 || !creature.isValid()) {
-            return false;
-        }
-        try {
-            EntityStatMap stats = store.getComponent(creature, EntityStatMap.getComponentType());
-            int index = StatIndexCache.resolve(TypedDamageBonuses.EVERY_TYPE_STAT_ID);
-            if (stats == null || index == StatIndexCache.UNRESOLVED) {
-                return false;
-            }
-            stats.putModifier(index, MODIFIER_KEY, new StaticModifier(Modifier.ModifierTarget.MAX,
-                    StaticModifier.CalculationType.ADDITIVE, percent));
-            DamageBonusReconciler.sync(store, creature);
-            return true;
-        } catch (Throwable t) {
-            SafeLog.warn("[encounter] a wave's damage step could not go on a creature: " + t.getMessage());
-            return false;
-        }
+        return DamageStep.apply(store, creature, MODIFIER_KEY, percent);
     }
 }

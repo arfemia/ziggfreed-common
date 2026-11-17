@@ -1052,7 +1052,99 @@ def room_hint(params, ctx):
     return Logic(hint_volumes(params, ctx, region_param="Region"))
 
 
+def event_any(event, keys, entry):
+    """The event carries one of `keys`: one condition per key would AND them, so each key takes its own entry."""
+    return [event_tag_is(event, key, entry=entry + i) for i, key in enumerate(keys)]
+
+
+def arena_doors(params, ctx):
+    """An arena's doorways, closed while its fight is on: each listed doorway's air turns to bars as the fight begins
+    (its encounter script signals Engaged to the volumes carrying its arena tag) and back to air as the boss falls
+    (Defeated) or the fight resets (Reset). The volumes carry the arena tag plain, never @room: the fight's own signal
+    reaches them, and an arena keeps its fights more than its signal's range from the next arena.
+
+    params: Tag (the script's ArenaTag), Doors (indices into the spec's Doors; default all), Bars (the palette slot that
+    closes a doorway; default Bars)."""
+    tag = params["Tag"]
+    if tag.endswith(ROOM) or tag.endswith(RUN):
+        raise ValueError("an arena tag is the fight's own, plain: an encounter script's signal is never scoped")
+    bars = ctx["slot"](params.get("Bars", "Bars"))
+    out = Logic()
+    for i in params.get("Doors", range(len(ctx["doors"]))):
+        d = ctx["doors"][i]
+        lo, hi = d["OpeningMin"], d["OpeningMax"]
+        effects = [swap_cells("SIGNAL_RECEIVED", lo, lo, hi, [EMPTY], bars, entry=1),
+                   set_own_tag("SIGNAL_RECEIVED", "State", "Sealed", entry=1)]
+        conditions = event_any("SIGNAL_RECEIVED", ["Engaged"], 1)
+        for entry, key in ((2, "Defeated"), (3, "Reset")):
+            effects.append(swap_cells("SIGNAL_RECEIVED", lo, lo, hi, [bars], EMPTY, entry=entry))
+            effects.append(set_own_tag("SIGNAL_RECEIVED", "State", "Open", entry=entry))
+            conditions += event_any("SIGNAL_RECEIVED", [key], entry)
+        out.entities.append(volume_entity("%sDoor_%d" % (ctx["name"], i), lo, box_size(lo, hi), effects, conditions,
+                                          {tag: "Door", "State": "Open"}))
+    return out
+
+
+def crash_pillars(params, ctx):
+    """Pillars a charging creature crashes into (the Gobliterator's barrel breakdown, R683): each pillar stands in a
+    volume a block wider than itself that watches the creatures in it, and one wearing the charging mark (Effect, which
+    the creature's charge puts on it) runs the crash interaction (Crash: a root interaction run on that creature, such as
+    a stun and a weak-spot window). The first crash cracks the pillar (its blocks turn to Cracked), a crash once it has
+    settled shatters it (a Stump on its base row, air above), and a shattered pillar stops nothing. The fight's Reset
+    (its encounter script signals the arena tag) stands every pillar up again.
+
+    params: Pillars [{Min, Max}], Effect (the charging mark), Crash (a root interaction id), Tag (the script's ArenaTag),
+    Pillar (the palette slot the pillars are built of; default Pillar), Cracked and Stump (block ids), Reach (blocks
+    either side of a pillar the volume watches; default 1), Settle (seconds a cracked pillar takes before it can
+    shatter; default 3), Interval (seconds between looks; default 0.2), and the optional CrackSound, CrackVfx,
+    ShatterSound and ShatterVfx."""
+    tag = params["Tag"]
+    if tag.endswith(ROOM) or tag.endswith(RUN):
+        raise ValueError("an arena tag is the fight's own, plain: an encounter script's signal is never scoped")
+    pillar = ctx["slot"](params.get("Pillar", "Pillar"))
+    cracked, stump = params["Cracked"], params["Stump"]
+    reach = int(params.get("Reach", 1))
+    settle = float(params.get("Settle", 3.0))
+    interval = float(params.get("Interval", 0.2))
+    crash = effect("RunRootInteraction", "TICK", 1, RootInteraction=params["Crash"], InteractionType="Secondary",
+                   EquipSlot=0)
+    out = Logic()
+    for i, p in enumerate(params["Pillars"]):
+        plo, phi = region(p)
+        lo = (plo[0] - reach, plo[1], plo[2] - reach)
+        hi = (phi[0] + reach, max(phi[1], plo[1] + 2), phi[2] + reach)
+        base_hi = (phi[0], plo[1], phi[2])
+        mid = ((plo[0] + phi[0]) // 2, plo[1], (plo[2] + phi[2]) // 2)
+        effects = [dict(crash, Entry=1),
+                   swap_cells("TICK", lo, plo, phi, [pillar], cracked, entry=1),
+                   set_own_tag("TICK", "State", "Cracking", entry=1),
+                   set_own_tag("TICK", "State", "Cracked", entry=1, delay=settle)]
+        effects += cue("TICK", params, "Crack", lo, mid, entry=1)
+        effects += [dict(crash, Entry=2),
+                    swap_cells("TICK", lo, plo, base_hi, [pillar, cracked], stump, entry=2),
+                    set_own_tag("TICK", "State", "Shattered", entry=2)]
+        if phi[1] > plo[1]:
+            effects.append(swap_cells("TICK", lo, (plo[0], plo[1] + 1, plo[2]), phi, [pillar, cracked], EMPTY,
+                                      entry=2))
+        effects += cue("TICK", params, "Shatter", lo, mid, entry=2)
+        for e in effects:
+            if e["Event"] == "TICK":
+                e["Interval"] = interval
+        effects += [swap_cells("SIGNAL_RECEIVED", lo, plo, phi, [cracked, stump, EMPTY], pillar, entry=3),
+                    set_own_tag("SIGNAL_RECEIVED", "State", "Intact", entry=3)]
+        conditions = []
+        for entry, state in ((1, "Intact"), (2, "Cracked")):
+            conditions.append(condition("ZigHasEffect", "TICK", entry, Effect=params["Effect"]))
+            conditions.append(tag_is("TICK", "State", state, entry=entry))
+        conditions += event_any("SIGNAL_RECEIVED", ["Reset"], 3)
+        out.entities.append(volume_entity("%sPillar_%d" % (ctx["name"], i), lo, box_size(lo, hi), effects, conditions,
+                                          {tag: "Pillar", "State": "Intact"}, targets=("Npc",)))
+    return out
+
+
 TEMPLATES = {
+    "ArenaDoors": arena_doors,
+    "CrashPillars": crash_pillars,
     "RoomHint": room_hint,
     "SealedCombat": sealed_combat,
     "LeverDoor": lever_door,

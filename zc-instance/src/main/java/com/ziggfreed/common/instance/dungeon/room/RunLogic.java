@@ -36,6 +36,7 @@ import com.hypixel.hytale.builtin.triggervolumes.manager.VolumeEntry;
 import com.hypixel.hytale.builtin.triggervolumes.system.DelayedEffectScheduler;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
@@ -49,8 +50,10 @@ import com.hypixel.hytale.server.core.prefab.selection.buffer.impl.IPrefabBuffer
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.spawning.SpawnLineage;
+import com.hypixel.hytale.server.spawning.spawnmarkers.SpawnMarkerEntity;
 import com.ziggfreed.common.instance.dungeon.layout.Box;
 import com.ziggfreed.common.instance.dungeon.layout.Cell;
+import com.ziggfreed.common.instance.dungeon.layout.DoorSpec;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.TickingSections;
 
@@ -118,6 +121,28 @@ public final class RunLogic {
         }
     }
 
+    /**
+     * A room's foes, as its run's layout plan sizes them ({@link RoomFoes}): the rule its role takes, the roster its tags
+     * draw on, its own box and the doors that join it to another room (never a capped one), in its unturned frame, and
+     * the block its sealed doorways close with (null for none).
+     */
+    public record FoeSite(@Nonnull RoomFoes.Rule rule, @Nonnull RoomFoes.Roster roster, @Nonnull Box localBox,
+                          @Nonnull List<DoorSpec> doors, @Nullable String bars) {
+
+        public FoeSite {
+            doors = List.copyOf(doors);
+        }
+    }
+
+    /**
+     * A room's foes, ready to size: the room, its site, the spots they rise on in its own frame (its prefab's spawn
+     * markers, else the middle of its doors), and its scoping tokens. The volume is written as the room is placed, for
+     * the party standing then.
+     */
+    private record FoePiece(@Nonnull Room room, @Nonnull FoeSite site, @Nonnull List<Vector3d> spots,
+                            @Nonnull RoomKeys.Tokens tokens) {
+    }
+
     /** One prefab's groups and volumes, whose group links remap together. */
     private record Batch(@Nonnull List<GroupPiece> groups, @Nonnull List<VolumePiece> volumes) {
     }
@@ -142,14 +167,17 @@ public final class RunLogic {
     private record EntityPiece(@Nonnull Holder<EntityStore> holder, @Nonnull UUID uuid, @Nonnull Vector3d at) {
     }
 
-    /** One room's logic, ready to place, and the room's quarter turns (its points and groups take their yaw). */
+    /**
+     * One room's logic, ready to place, and the room's quarter turns (its points and groups take their yaw); its foes,
+     * null for none.
+     */
     private record Prepared(int turns, @Nonnull List<Batch> batches, @Nonnull List<PointPiece> points,
-                            @Nonnull List<EntityPiece> entities) {
+                            @Nonnull List<EntityPiece> entities, @Nullable FoePiece foes) {
 
-        static final Prepared NONE = new Prepared(0, List.of(), List.of(), List.of());
+        static final Prepared NONE = new Prepared(0, List.of(), List.of(), List.of(), null);
 
         boolean empty() {
-            return batches.isEmpty() && points.isEmpty() && entities.isEmpty();
+            return batches.isEmpty() && points.isEmpty() && entities.isEmpty() && foes == null;
         }
     }
 
@@ -159,6 +187,9 @@ public final class RunLogic {
 
     private final int lane;
     private final int run;
+    private final long seed;
+    /** The run's party as its members' ticker last counted it, which a room's foes are sized for as it is placed. */
+    private final AtomicInteger party = new AtomicInteger(1);
     @Nonnull private final List<Room> rooms;
     /** Each room's logic, by layout index; null for an index the run has no room at. */
     @Nonnull private final Prepared[] prepared;
@@ -179,10 +210,11 @@ public final class RunLogic {
     private final AtomicLong placeNanos = new AtomicLong();
     private final AtomicLong maxNanos = new AtomicLong();
 
-    private RunLogic(int lane, int run, @Nonnull List<Room> rooms, @Nonnull Prepared[] prepared, double prepareMs,
-            int leftOut) {
+    private RunLogic(int lane, int run, long seed, @Nonnull List<Room> rooms, @Nonnull Prepared[] prepared,
+            double prepareMs, int leftOut) {
         this.lane = lane;
         this.run = run;
+        this.seed = seed;
         this.rooms = List.copyOf(rooms);
         this.prepared = prepared;
         this.prepareMs = prepareMs;
@@ -198,6 +230,16 @@ public final class RunLogic {
      */
     @Nonnull
     public static RunLogic prepare(@Nonnull String worldName, int lane, int run, long seed, @Nonnull List<Room> rooms) {
+        return prepare(worldName, lane, run, seed, rooms, Map.of());
+    }
+
+    /**
+     * As {@link #prepare(String, int, int, long, List)}, with the foes the run's layout plan gives its rooms, by layout
+     * index: each such room raises them on its own spawn spots when it is placed ({@link RoomFoes}).
+     */
+    @Nonnull
+    public static RunLogic prepare(@Nonnull String worldName, int lane, int run, long seed, @Nonnull List<Room> rooms,
+            @Nonnull Map<Integer, FoeSite> foes) {
         long start = System.nanoTime();
         int size = 0;
         for (Room room : rooms) {
@@ -231,7 +273,8 @@ public final class RunLogic {
             Room room = rooms.get(i);
             int[] dropped = {0};
             try {
-                prepared[room.index()] = build(world, lane, run, room, read.get(i), picks, dropped);
+                prepared[room.index()] = build(world, lane, run, room, read.get(i), picks, dropped,
+                        foes.get(room.index()));
             } catch (Throwable t) {
                 warnOnce("prepare:" + room.label(), LOG + "the logic of the room " + room.label() + " could not be "
                         + "prepared; the room is placed without it", t);
@@ -239,13 +282,13 @@ public final class RunLogic {
             }
             leftOut += dropped[0];
         }
-        return new RunLogic(lane, run, rooms, prepared, (System.nanoTime() - start) / NANOS_PER_MILLI, leftOut);
+        return new RunLogic(lane, run, seed, rooms, prepared, (System.nanoTime() - start) / NANOS_PER_MILLI, leftOut);
     }
 
     /** A run with no logic: what a run whose logic could not be prepared at all runs with. */
     @Nonnull
     public static RunLogic none(int lane, int run) {
-        return new RunLogic(lane, run, List.of(), new Prepared[0], 0.0, 0);
+        return new RunLogic(lane, run, 0L, List.of(), new Prepared[0], 0.0, 0);
     }
 
     /** One prefab of a room and the entities of it the room file keeps. */
@@ -294,7 +337,8 @@ public final class RunLogic {
 
     @Nonnull
     private static Prepared build(@Nonnull String world, int lane, int run, @Nonnull Room room,
-            @Nonnull List<Source> sources, @Nonnull Map<String, Integer> picks, @Nonnull int[] dropped) {
+            @Nonnull List<Source> sources, @Nonnull Map<String, Integer> picks, @Nonnull int[] dropped,
+            @Nullable FoeSite site) {
         RoomKeys.Tokens tokens = RoomKeys.tokens(lane, run, room.index());
         int turns = room.turns();
         float yaw = RoomTurns.yawRadians(turns);
@@ -329,8 +373,38 @@ public final class RunLogic {
                 batches.add(new Batch(List.copyOf(groups), List.copyOf(volumes)));
             }
         }
-        Prepared out = new Prepared(turns, List.copyOf(batches), List.copyOf(points), List.copyOf(entities));
+        FoePiece foes = site == null ? null : new FoePiece(room, site, spotsOf(room, site), tokens);
+        Prepared out = new Prepared(turns, List.copyOf(batches), List.copyOf(points), List.copyOf(entities), foes);
         return out.empty() ? Prepared.NONE : out;
+    }
+
+    /**
+     * Where a room's foes rise, in its own frame: where its base prefab's spawn markers stand (the piece's own spots,
+     * on its floors, though the markers themselves are left out unless its room file keeps them), else the middle of its
+     * joined doors' floor cells, one block up.
+     */
+    @Nonnull
+    private static List<Vector3d> spotsOf(@Nonnull Room room, @Nonnull FoeSite site) {
+        List<Vector3d> spots = new ArrayList<>();
+        ComponentType<EntityStore, SpawnMarkerEntity> marker = SpawnMarkerEntity.getComponentType();
+        for (RoomEntities.Entity entity : RoomEntities.read(room.base(), room.label())) {
+            if (entity.kind() == RoomEntities.Kind.PIECE && entity.holder().getComponent(marker) != null) {
+                spots.add(new Vector3d(entity.position()));
+            }
+        }
+        if (!spots.isEmpty() || site.doors().isEmpty()) {
+            return List.copyOf(spots);
+        }
+        double x = 0;
+        double z = 0;
+        int y = Integer.MAX_VALUE;
+        for (DoorSpec door : site.doors()) {
+            x += door.at().x() + 0.5;
+            z += door.at().z() + 0.5;
+            y = Math.min(y, door.at().y() + 1);
+        }
+        int n = site.doors().size();
+        return List.of(new Vector3d(x / n, y, z / n));
     }
 
     /** Where an entity at {@code position} of the room's own frame stands once the room is placed and turned. */
@@ -498,6 +572,15 @@ public final class RunLogic {
      * time it is asked for in the run, on {@code world}'s thread. From any thread; nothing once its party has left.
      */
     public void activate(@Nonnull World world, int room) {
+        activate(world, room, party.get());
+    }
+
+    /**
+     * As {@link #activate(World, int)}, the run's party counted at {@code partySize} players: a room's foes placed from
+     * now on are sized for it.
+     */
+    public void activate(@Nonnull World world, int room, int partySize) {
+        party.set(Math.max(1, partySize));
         Room here = roomOf(room);
         if (here == null || ended.get()) {
             return;
@@ -555,11 +638,14 @@ public final class RunLogic {
         Store<EntityStore> store = world.getEntityStore().getStore();
         String worldName = world.getName().toLowerCase(Locale.ROOT);
         float yaw = RoomTurns.yawRadians(logic.turns());
-        if (!logic.batches().isEmpty()) {
+        if (!logic.batches().isEmpty() || logic.foes() != null) {
             TriggerVolumeManager manager = volumeManager(store);
             if (manager != null) {
                 for (Batch batch : logic.batches()) {
                     placeBatch(manager, worldName, batch, yaw);
+                }
+                if (logic.foes() != null) {
+                    placeFoes(manager, worldName, logic.foes());
                 }
                 manager.clearPrefabGroupLinkRemap();
                 manager.markSpatialDirty();
@@ -631,6 +717,36 @@ public final class RunLogic {
             records.volume(id);
             volumesPlaced.incrementAndGet();
         }
+    }
+
+    /**
+     * Write and register a room's foe volume ({@link RoomFoeVolume}) for the party as counted now: its foes picked from
+     * the run's seed ({@link RoomFoes#picks}), each on the next of the room's spots in turn, the volume scoped and turned
+     * with the room as a prefab's own volume is. A room with no spots or no foes places nothing.
+     */
+    private void placeFoes(@Nonnull TriggerVolumeManager manager, @Nonnull String worldName, @Nonnull FoePiece piece) {
+        Room room = piece.room();
+        FoeSite site = piece.site();
+        if (piece.spots().isEmpty()) {
+            warnOnce("foes-spots:" + room.label(), LOG + "the room " + room.label() + " has no spot for its foes (no "
+                    + "spawn marker, no joined door); it raises none", null);
+            return;
+        }
+        List<RoomFoes.Pick> picks = RoomFoes.picks(site.roster(), site.rule(), party.get(), seed, room.index());
+        if (picks.isEmpty()) {
+            return;
+        }
+        List<RoomFoeVolume.Foe> foes = new ArrayList<>(picks.size());
+        for (int i = 0; i < picks.size(); i++) {
+            foes.add(new RoomFoeVolume.Foe(picks.get(i).role(), piece.spots().get(i % piece.spots().size())));
+        }
+        BsonDocument json = RoomFoeVolume.of("Zc_Foes_" + room.index(), site.localBox(), site.doors(), site.bars(),
+                site.rule().sealed(), foes);
+        Vector3d corner = RoomFoeVolume.corner(site.localBox());
+        VolumePiece volume = volume(worldName, json, piece.tokens(), room.turns(), RoomTurns.yawRadians(room.turns()),
+                unturned(room, corner), placed(room, corner));
+        Batch batch = new Batch(List.of(), List.of(volume));
+        placeBatch(manager, worldName, batch, RoomTurns.yawRadians(room.turns()));
     }
 
     /** On the world thread, its section ticking: add one entity, unless its party left while it waited. */

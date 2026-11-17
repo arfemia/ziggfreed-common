@@ -8,17 +8,31 @@
     "boss bar and the music are applied through, and the roster the library credits presence from. In",
     "Intro, while nothing is bound in SubjectSlot and the site has rested, TriggerSpawners fires the",
     "SpawnMarker within SummonRange and binds the first spawn into the slot; the moment the Target sensor sees it, the",
-    "boss is made vulnerable, the bar goes up under BossBarName, the Music starts, the zc:engaged beat",
-    "tells the library the fight is on, and the state moves to Fight. In Fight, the FightBehavior slot",
-    "runs whatever macro a Variant hands it (Zc_Adds_Wave, say, or a macro of your own on the",
-    "Hytale.Instruction.Encounter.Phase.Behavior interface), and the moment the Target sensor loses",
-    "the boss the defeat beat clears the bar, stops the music, releases the slot and sends",
-    "zc:defeated. Complete waits RearmSeconds, sends zc:reset and returns to Intro, so the same",
-    "entity runs the fight again the next time a player comes near.",
+    "boss is made vulnerable, the bar goes up under BossBarName, the Music starts, the arena's volumes",
+    "tagged ArenaTag hear Engaged, the zc:engaged beat tells the library the fight is on, and the state",
+    "moves to Fight. In Fight, the FightBehavior slot runs whatever macro a Variant hands it (Zc_Adds_Wave,",
+    "say, or a macro of your own on the Hytale.Instruction.Encounter.Phase.Behavior interface), and the",
+    "moment the Target sensor loses the boss the defeat beat clears the bar, stops the music, releases the",
+    "slot, tells the arena's volumes Defeated and sends zc:defeated. Complete waits RearmSeconds, sends",
+    "zc:reset and returns to Intro, so the same entity runs the fight again the next time a player comes",
+    "near.",
+    "",
+    "Phases. A fight with more than one hands Phase2Transition a transition macro (Zc_Phase_At_Health,",
+    "its numbers through _ForwardedModifiers), which moves the fight to Phase_2 and runs Phase2Behavior",
+    "there; Phase3Transition and Phase3Behavior go on to Phase_3 the same way. EveryPhase runs beside each",
+    "phase's own behaviour in all three, for what the whole fight does (a timer, health packs, a hint).",
+    "Every slot left $Null does nothing, so a one-phase fight writes none of them. Each phase keeps the",
+    "same defeat check.",
+    "",
+    "The arena reset (ArenaReset true): a wipe (every player in SensorRange down) or an arena left with no",
+    "living player for EmptyArenaSeconds runs the game's own Encounter_Macro_Reset_Arena: it waits until no",
+    "fallen player still lies in the arena, removes the boss and every creature of ResetGroups, tells the",
+    "arena's volumes Reset, stops the music and goes back to Intro, where zc:reset tells the library and",
+    "ResetBehavior has cleared the fight's own flags; the boss rises fresh the next time a player comes",
+    "near. Off by default, so a fight without it stands as it was until the library leashes it.",
     "",
     "The release runs on the Target sensor alone, so a boss role does not have to send a beacon to",
-    "start the fight. Phase transitions are not in this base: add them in a Generic script with the",
-    "Zc_Phase_At_Health macro, or set FightBehavior to a macro that carries them.",
+    "start the fight.",
     "",
     "The Target sensor also lets go of a boss that is still alive but has run past TargetRange, and",
     "the defeat beat fires for that too. The library checks the boss at the beat: one still alive, or",
@@ -41,12 +55,12 @@
     "so a resting site waits quietly in Intro instead of trying its marker. Complete's RearmSeconds",
     "stays the short wait right after a kill; both must pass before the boss rises again.",
     "",
-    "The six zc instruction Types, each legal only inside an encounter script: ZigGrant pays the",
+    "The seven zc instruction Types, each legal only inside an encounter script: ZigGrant pays the",
     "credited participants a loot reference scaled by share; ZigFeedback draws a FeedbackMoment for",
-    "each member; ZigScaleTarget applies the row's health scale to the bound subject now; ZigMembers",
-    "is true while the member count is inside a range; ZigFactor is true while a factor reading",
-    "about the fight is inside a range; ZigRested is true while the site carries no rest or the",
-    "world's clock is past the one its last defeat stamped.",
+    "each member; ZigScaleTarget applies the row's health scale to the bound subject now; ZigStunTarget",
+    "stuns the subject for a window; ZigMembers is true while the member count is inside a range;",
+    "ZigFactor is true while a factor reading about the fight is inside a range; ZigRested is true while",
+    "the site carries no rest or the world's clock is past the one its last defeat stamped.",
     "",
     "The library reads the zc: beats and nothing else: it credits everyone who fought, scales the",
     "boss's health with the party, pays what the binding row under",
@@ -88,7 +102,52 @@
     },
     "FightBehavior": {
       "Value": "$Null",
-      "Description": "A macro on the Hytale.Instruction.Encounter.Phase.Behavior interface run while the fight is on, or $Null for none. Zc_Adds_Wave is one."
+      "Description": "A macro on the Hytale.Instruction.Encounter.Phase.Behavior interface run while the fight is on (its first phase), or $Null for none. Zc_Adds_Wave is one."
+    },
+    "Phase2Transition": {
+      "Value": "$Null",
+      "Description": "A macro on the Hytale.Instruction.Encounter.Phase.Transition interface that moves the fight to Phase_2, such as Zc_Phase_At_Health; $Null for a fight with one phase."
+    },
+    "Phase2Behavior": {
+      "Value": "$Null",
+      "Description": "A macro on the Phase.Behavior interface run while Phase_2 lasts, or $Null for none."
+    },
+    "Phase3Transition": {
+      "Value": "$Null",
+      "Description": "A macro on the Phase.Transition interface that moves the fight from Phase_2 to Phase_3; $Null for none."
+    },
+    "Phase3Behavior": {
+      "Value": "$Null",
+      "Description": "A macro on the Phase.Behavior interface run while Phase_3 lasts, or $Null for none."
+    },
+    "EveryPhase": {
+      "Value": "$Null",
+      "Description": "A macro on the Phase.Behavior interface run in every phase beside that phase's own behaviour, or $Null for none."
+    },
+    "ArenaTag": {
+      "Value": "Zc_Encounter_Arena",
+      "Description": "The tag of the arena's trigger volumes the fight signals: Engaged as it begins, Defeated as the boss falls, Reset as an arena reset ends. Give each arena's volumes the tag its script names."
+    },
+    "ArenaSignalRange": {
+      "Value": 60,
+      "Description": "How far from the encounter entity a volume carrying ArenaTag hears the fight's signals. Keep it under the distance to the next arena."
+    },
+    "ArenaReset": {
+      "Value": false,
+      "Description": "True: a wipe, or an arena with no living player for EmptyArenaSeconds, removes the boss and what ResetGroups names and starts the fight over."
+    },
+    "EmptyArenaSeconds": {
+      "Value": [ 15, 15 ],
+      "Description": "Seconds the arena must hold no living player before an arena reset runs."
+    },
+    "ResetGroups": {
+      "Value": [],
+      "TypeHint": "String",
+      "Description": "NPC groups an arena reset removes within TargetRange: the boss in every form and what the fight raised."
+    },
+    "ResetBehavior": {
+      "Value": "$Null",
+      "Description": "A macro on the Phase.Behavior interface run once as an arena reset begins, to clear the fight's own flags and timers, or $Null for none."
     },
     "RearmSeconds": {
       "Value": [ 30, 30 ],
@@ -96,6 +155,75 @@
     }
   },
   "Instructions": [
+    {
+      "$Comment": "The arena reset, the game's own: it runs whether or not a player is near, so a wipe is seen. Its wipe check runs only while Zc_Encounter_Live is set, which the engage sets only with ArenaReset.",
+      "Reference": "Encounter_Macro_Reset_Arena",
+      "Modify": {
+        "_ExportStates": [ "Resetting", "Intro" ],
+        "LiveFlag": "Zc_Encounter_Live",
+        "RestartMessage": "Zc_Encounter_Restart",
+        "Slot": { "Compute": "SubjectSlot" },
+        "SlotRange": { "Compute": "TargetRange" },
+        "BeaconRange": { "Compute": "TargetRange" },
+        "RemoveGroups": { "Compute": "ResetGroups" },
+        "RemoveRadius": { "Compute": "TargetRange" },
+        "ArenaRange": { "Compute": "SensorRange" },
+        "CorpseRange": { "Compute": "TargetRange" },
+        "ResetOnEmptyArena": { "Compute": "ArenaReset" },
+        "EmptyArenaSeconds": { "Compute": "EmptyArenaSeconds" },
+        "ResetTag": { "Compute": "ArenaTag" },
+        "ResetRadius": { "Compute": "ArenaSignalRange" },
+        "StopMusic": true,
+        "ClearWeather": false
+      }
+    },
+    {
+      "$Comment": "Once per arena reset, whether or not a player is near: the bar comes down, the fight is no longer live, its own flags are cleared, and zc:reset is owed to the library once the boss is gone (Intro sends it).",
+      "Continue": true,
+      "Sensor": {
+        "Type": "And",
+        "Sensors": [
+          {
+            "Type": "State",
+            "State": "Resetting"
+          },
+          {
+            "Type": "Flag",
+            "Name": "Zc_Encounter_Reset_Owed",
+            "Set": false
+          }
+        ]
+      },
+      "Instructions": [
+        {
+          "Continue": true,
+          "Sensor": {
+            "Type": "Any"
+          },
+          "Actions": [
+            {
+              "Type": "ClearEncounterBossBar"
+            },
+            {
+              "Type": "SetFlag",
+              "Name": "Zc_Encounter_Live",
+              "SetTo": false
+            },
+            {
+              "Type": "SetFlag",
+              "Name": "Zc_Encounter_Reset_Owed"
+            }
+          ]
+        },
+        {
+          "Continue": true,
+          "Reference": { "Compute": "ResetBehavior" },
+          "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+          "AcceptsForward": true,
+          "Nullable": true
+        }
+      ]
+    },
     {
       "Sensor": {
         "Type": "Player",
@@ -111,6 +239,25 @@
             "State": "Intro"
           },
           "Instructions": [
+            {
+              "$Comment": "Back from an arena reset: the library hears zc:reset now the boss is gone.",
+              "Continue": true,
+              "Sensor": {
+                "Type": "Flag",
+                "Name": "Zc_Encounter_Reset_Owed"
+              },
+              "Actions": [
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Encounter_Reset_Owed",
+                  "SetTo": false
+                },
+                {
+                  "Type": "SignalWorldEvent",
+                  "SignalId": "zc:reset"
+                }
+              ]
+            },
             {
               "Sensor": {
                 "Type": "Target",
@@ -129,6 +276,19 @@
                 {
                   "Type": "StartEncounterMusic",
                   "MusicContainer": { "Compute": "Music" }
+                },
+                {
+                  "Enabled": { "Compute": "ArenaReset" },
+                  "Type": "SetFlag",
+                  "Name": "Zc_Encounter_Live"
+                },
+                {
+                  "Type": "SignalTaggedVolumes",
+                  "MatchTag": { "Compute": "ArenaTag" },
+                  "Radius": { "Compute": "ArenaSignalRange" },
+                  "MaxTargets": 0,
+                  "SignalKey": "Engaged",
+                  "PositionSource": "Self"
                 },
                 {
                   "Type": "SignalWorldEvent",
@@ -192,6 +352,22 @@
               "Nullable": true
             },
             {
+              "Continue": true,
+              "Reference": { "Compute": "EveryPhase" },
+              "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+              "AcceptsForward": true,
+              "Nullable": true
+            },
+            {
+              "Reference": { "Compute": "Phase2Transition" },
+              "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Transition" ],
+              "AcceptsForward": true,
+              "Nullable": true,
+              "Modify": {
+                "_ExportStates": [ "Phase_2" ]
+              }
+            },
+            {
               "Sensor": {
                 "Type": "Not",
                 "Sensor": {
@@ -210,6 +386,156 @@
                 {
                   "Type": "ReleaseTarget",
                   "TargetSlot": { "Compute": "SubjectSlot" }
+                },
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Encounter_Live",
+                  "SetTo": false
+                },
+                {
+                  "Type": "SignalTaggedVolumes",
+                  "MatchTag": { "Compute": "ArenaTag" },
+                  "Radius": { "Compute": "ArenaSignalRange" },
+                  "MaxTargets": 0,
+                  "SignalKey": "Defeated",
+                  "PositionSource": "Self"
+                },
+                {
+                  "Type": "SignalWorldEvent",
+                  "SignalId": "zc:defeated"
+                },
+                {
+                  "Type": "State",
+                  "State": "Complete"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Sensor": {
+            "Type": "State",
+            "State": "Phase_2"
+          },
+          "Instructions": [
+            {
+              "Reference": { "Compute": "Phase2Behavior" },
+              "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+              "AcceptsForward": true,
+              "Nullable": true
+            },
+            {
+              "Continue": true,
+              "Reference": { "Compute": "EveryPhase" },
+              "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+              "AcceptsForward": true,
+              "Nullable": true
+            },
+            {
+              "Reference": { "Compute": "Phase3Transition" },
+              "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Transition" ],
+              "AcceptsForward": true,
+              "Nullable": true,
+              "Modify": {
+                "_ExportStates": [ "Phase_3" ]
+              }
+            },
+            {
+              "Sensor": {
+                "Type": "Not",
+                "Sensor": {
+                  "Type": "Target",
+                  "Range": { "Compute": "TargetRange" },
+                  "TargetSlot": { "Compute": "SubjectSlot" }
+                }
+              },
+              "Actions": [
+                {
+                  "Type": "ClearEncounterBossBar"
+                },
+                {
+                  "Type": "StopEncounterMusic"
+                },
+                {
+                  "Type": "ReleaseTarget",
+                  "TargetSlot": { "Compute": "SubjectSlot" }
+                },
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Encounter_Live",
+                  "SetTo": false
+                },
+                {
+                  "Type": "SignalTaggedVolumes",
+                  "MatchTag": { "Compute": "ArenaTag" },
+                  "Radius": { "Compute": "ArenaSignalRange" },
+                  "MaxTargets": 0,
+                  "SignalKey": "Defeated",
+                  "PositionSource": "Self"
+                },
+                {
+                  "Type": "SignalWorldEvent",
+                  "SignalId": "zc:defeated"
+                },
+                {
+                  "Type": "State",
+                  "State": "Complete"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Sensor": {
+            "Type": "State",
+            "State": "Phase_3"
+          },
+          "Instructions": [
+            {
+              "Reference": { "Compute": "Phase3Behavior" },
+              "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+              "AcceptsForward": true,
+              "Nullable": true
+            },
+            {
+              "Continue": true,
+              "Reference": { "Compute": "EveryPhase" },
+              "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+              "AcceptsForward": true,
+              "Nullable": true
+            },
+            {
+              "Sensor": {
+                "Type": "Not",
+                "Sensor": {
+                  "Type": "Target",
+                  "Range": { "Compute": "TargetRange" },
+                  "TargetSlot": { "Compute": "SubjectSlot" }
+                }
+              },
+              "Actions": [
+                {
+                  "Type": "ClearEncounterBossBar"
+                },
+                {
+                  "Type": "StopEncounterMusic"
+                },
+                {
+                  "Type": "ReleaseTarget",
+                  "TargetSlot": { "Compute": "SubjectSlot" }
+                },
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Encounter_Live",
+                  "SetTo": false
+                },
+                {
+                  "Type": "SignalTaggedVolumes",
+                  "MatchTag": { "Compute": "ArenaTag" },
+                  "Radius": { "Compute": "ArenaSignalRange" },
+                  "MaxTargets": 0,
+                  "SignalKey": "Defeated",
+                  "PositionSource": "Self"
                 },
                 {
                   "Type": "SignalWorldEvent",
