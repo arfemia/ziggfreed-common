@@ -660,8 +660,9 @@ final class ProcActions {
      * Strike {@code on} as the holder's own hit: the {@code Amount}, times the moment's amount when {@code ByAmount},
      * times the strength unless {@code Scaled} is false, of the {@code Cause}'s type (the moment's own hit's when it
      * writes none, else {@link ProcAction.Strike#DEFAULT_CAUSE}), through the engine's own damage, marked a proc's own
-     * ({@link #CHAIN_TYPE}) so no proc or counter answers it, a kill it lands included. The engine's damage steps all
-     * run on it, so it spares nothing a plain hit would not. The holder is never struck.
+     * ({@link #CHAIN_TYPE}) so no proc or counter answers it, and a strike's own ({@link ProcMarks#markStrike}) so a kill
+     * it lands is no Kill moment either. The engine's damage steps all run on it, so it spares nothing a plain hit would
+     * not. The holder is never struck.
      */
     private static void strike(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
             @Nonnull ProcAction.Strike strike, double strength, @Nonnull FactorContext context) {
@@ -677,6 +678,7 @@ final class ProcActions {
         }
         Damage hit = new Damage(new Damage.EntitySource(holder), cause, (float) amount);
         hit.putMetaObject(Damage.INTERACTION_TYPE, CHAIN_TYPE);
+        ProcMarks.markStrike(hit);
         DamageSystems.executeDamage(on, moment.accessor(), hit);
     }
 

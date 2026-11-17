@@ -1,6 +1,7 @@
 package com.ziggfreed.common.stats.condition;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -9,8 +10,12 @@ import javax.annotation.Nullable;
 
 import org.joml.Vector3d;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
+import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.meta.MetaKey;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCalculatorSystems;
@@ -32,6 +37,16 @@ import com.ziggfreed.common.damage.weakspot.WeakSpots;
  * source object and target) takes the same answer, as the weak-spot step decides vanilla's branch.
  */
 public final class HitReads {
+
+    /**
+     * The native {@code Tags} key an effect carries to give its wearer's classless hits a damage class
+     * ({@code "Tags": { "ZigHitClass": ["Charged"] }}, its first value a damage class name): while the attacker wears it,
+     * a hit whose own damage names no class (the game's held axe swing) reads as that class to every
+     * {@code Hit.Classes} read, a conditional stat's and a proc's alike. A hit that names its own class keeps it, a
+     * damage-over-time tick (a hit with no calculator) is never given one, and the engine's own damage class (what armor's
+     * class enhancement reads) is never touched, so the tag changes only what a {@code Hit.Classes} read hears.
+     */
+    public static final String CLASS_TAG = "ZigHitClass";
 
     /** The last hit decided on this thread: its source object and target, and what was read on it. */
     private static final class LastHit {
@@ -180,12 +195,67 @@ public final class HitReads {
         last.source = damage.getSource();
         last.target = target;
         last.damageClass = classOf(sequence);
+        if (last.damageClass == null && sequence != null) {
+            last.damageClass = taggedClass(accessor, damage);
+        }
         last.later = sequence != null && laterInSwing(damage);
         // An attacker with no id is never noted, so it never reads as a first hit (it would on every hit).
         UUID attacker = target != null && damage.getSource() instanceof Damage.EntitySource entity
                 && entity.getRef() != null ? FirstHits.idOf(accessor, entity.getRef()) : null;
         last.first = attacker != null && !FirstHits.hitBefore(attacker, target);
         return last;
+    }
+
+    /**
+     * The class a classless hit takes from its attacker's effects ({@link #CLASS_TAG}): the first worn effect's tag
+     * value, lower-cased, or null when the attacker wears none or is no entity. Never throws.
+     */
+    @Nullable
+    private static String taggedClass(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Damage damage) {
+        if (!(damage.getSource() instanceof Damage.EntitySource entity) || entity.getRef() == null
+                || !entity.getRef().isValid()) {
+            return null;
+        }
+        try {
+            EffectControllerComponent ctrl =
+                    accessor.getComponent(entity.getRef(), EffectControllerComponent.getComponentType());
+            if (ctrl == null || ctrl.getActiveEffects().isEmpty()) {
+                return null;
+            }
+            for (ActiveEntityEffect active : ctrl.getActiveEffects().values()) {
+                EntityEffect effect = EntityEffect.getAssetMap().getAsset(active.getEntityEffectIndex());
+                AssetExtraInfo.Data data = effect == null ? null : EntityEffect.CODEC.getData(effect);
+                String tagged = classTag(data == null ? null : data.getRawTags());
+                if (tagged != null) {
+                    return tagged;
+                }
+            }
+        } catch (Throwable ignored) {
+            // An attacker whose effects cannot be read wears no class.
+        }
+        return null;
+    }
+
+    /**
+     * The class an effect's raw tags give its wearer's classless hits ({@link #CLASS_TAG}), lower-cased, or null.
+     * Pure.
+     */
+    @Nullable
+    static String classTag(@Nullable Map<String, String[]> rawTags) {
+        if (rawTags == null) {
+            return null;
+        }
+        for (Map.Entry<String, String[]> entry : rawTags.entrySet()) {
+            if (entry.getKey() == null || !entry.getKey().equalsIgnoreCase(CLASS_TAG) || entry.getValue() == null) {
+                continue;
+            }
+            for (String value : entry.getValue()) {
+                if (value != null && !value.isBlank()) {
+                    return value.trim().toLowerCase(Locale.ROOT);
+                }
+            }
+        }
+        return null;
     }
 
     @Nullable
