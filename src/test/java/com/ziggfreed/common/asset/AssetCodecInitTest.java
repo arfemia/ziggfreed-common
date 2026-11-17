@@ -51,6 +51,7 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
 import com.ziggfreed.common.instance.claims.RewardChestAsset;
+import com.ziggfreed.common.instance.hub.HubDistrictAsset;
 import com.ziggfreed.common.instance.reward.DropRarityAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
@@ -417,6 +418,15 @@ class AssetCodecInitTest {
         assertNotNull(RewardChestAsset.Banner.CODEC, "the Banner group codec must static-init");
         assertNotNull(RewardChestAsset.Text.CODEC, "the Text group codec must static-init");
         assertNotNull(RewardChestAsset.Despawn.CODEC, "the Despawn group codec must static-init");
+    }
+
+    @Test
+    void hubDistrictCodecsInitialize() {
+        assertNotNull(HubDistrictAsset.CODEC, "HubDistrictAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(HubDistrictAsset.Lot.CODEC, "the Lot group codec must static-init");
+        assertNotNull(HubDistrictAsset.Prefab.CODEC, "the Prefab group codec must static-init");
+        assertNotNull(HubDistrictAsset.Anchor.CODEC, "the Anchor entry codec must static-init");
+        assertNotNull(HubDistrictAsset.Marker.CODEC, "the Marker group codec must static-init");
     }
 
     @Test

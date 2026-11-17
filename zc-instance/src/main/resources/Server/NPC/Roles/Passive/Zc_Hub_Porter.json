@@ -1,0 +1,9 @@
+{
+  "$Comment": "The temple hub's porter, a goblin scrapper, as a thin Variant of the library's Template_Zig_QuestGiver, which holds the whole body (standing, watching, the press-F action that opens what the placement's Interact names). Modify names only Appearance and NameTranslationKey. The NPC placement Zc_Hub_Porter stands it on the Concourse's Porter spot.",
+  "Type": "Variant",
+  "Reference": "Template_Zig_QuestGiver",
+  "Modify": {
+    "Appearance": "Goblin_Scrapper",
+    "NameTranslationKey": "ziggfreedcommon.hub.porter.name"
+  }
+}

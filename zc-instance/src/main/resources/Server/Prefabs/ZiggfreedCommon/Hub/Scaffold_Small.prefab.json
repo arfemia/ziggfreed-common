@@ -1,0 +1,19 @@
+{
+  "version": 8,
+  "blockIdVersion": 11,
+  "anchorX": 0,
+  "anchorY": 0,
+  "anchorZ": 0,
+  "blocks": [
+    { "x": -12, "y": 1, "z": -12, "name": "Wood_Darkwood_Fence" },
+    { "x": 11, "y": 1, "z": -12, "name": "Wood_Darkwood_Fence" },
+    { "x": -12, "y": 1, "z": 11, "name": "Wood_Darkwood_Fence" },
+    { "x": 11, "y": 1, "z": 11, "name": "Wood_Darkwood_Fence" },
+    { "x": 0, "y": 1, "z": 0, "name": "Rock_Stone_Cobble" },
+    { "x": 0, "y": 1, "z": -13, "name": "Furniture_Goblin_Sign" },
+    { "x": -12, "y": 2, "z": -12, "name": "Wood_Darkwood_Fence" },
+    { "x": 11, "y": 2, "z": -12, "name": "Wood_Darkwood_Fence" },
+    { "x": -12, "y": 2, "z": 11, "name": "Wood_Darkwood_Fence" },
+    { "x": 11, "y": 2, "z": 11, "name": "Wood_Darkwood_Fence" }
+  ]
+}

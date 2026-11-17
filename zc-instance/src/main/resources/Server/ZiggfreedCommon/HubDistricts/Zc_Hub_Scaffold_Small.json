@@ -1,0 +1,11 @@
+{
+  "$Comment": "The scaffolding on every small lot of the temple hub that no district claims: cobblestone ground, a fence post at each corner and a goblin sign at the front. It names no lot, so any district that claims a lot takes its place there.",
+  "Lot": {
+    "Size": "Small",
+    "FillsEmpty": true
+  },
+  "Prefab": {
+    "Base": "ZiggfreedCommon.Hub.Scaffold_Small",
+    "Floor": "Rock_Stone_Cobble"
+  }
+}

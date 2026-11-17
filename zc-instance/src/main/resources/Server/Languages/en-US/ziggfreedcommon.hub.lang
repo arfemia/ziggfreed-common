@@ -1,0 +1,28 @@
+# The temple hub (com.ziggfreed.common.instance.hub) and the ways between the overworld and its instances
+# (com.ziggfreed.common.instance.world.TravelDestinations): the title on arrival, the doorkeeper and the porter, the
+# map's names, and what a refused way tells the player. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.hub.<key>.
+
+# The title a player sees as they arrive in the hub.
+discovery.title = Temple Hub
+discovery.subtitle = A new wing of the temple, still being built
+
+# The doorkeeper in the Forgotten Temple.
+doorkeeper.name = Doorkeeper
+doorkeeper.greet = The builders have been busy behind this door. There is a whole new wing back there, and more of it opens as they finish. Want to have a look?
+doorkeeper.opt.enter = Take me in
+doorkeeper.opt.farewell = Not now.
+
+# The porter on the hub's Concourse.
+porter.name = Porter
+porter.greet = Heading out? I can send you back to the temple, or straight out to the overworld.
+porter.opt.temple = Back to the temple
+porter.opt.overworld = Out to the overworld
+porter.opt.farewell = I'll stay a while.
+
+# The hub's map.
+marker.concourse = Concourse
+
+# A way that cannot be taken.
+travel.closed = That way is closed right now.
+travel.here = You're already there.
