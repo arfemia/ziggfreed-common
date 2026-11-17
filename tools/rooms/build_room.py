@@ -22,11 +22,15 @@ The spec (JSON, keys as below; every cell is anchor-relative, the anchor being t
   {"Op": "Carve", Min, Max} (air).
 - Doors: {At, Facing, Kind, Width (odd, default 3), Height (default 3), Depth (wall thickness carved, default 1),
   Closed (a slot filling the opening, such as Bars)}. At is the doorway's floor cell on the room's outer face, the
-  same rule the kit importer follows, so a neighbour's door meets it one step out.
+  same rule the kit importer follows, so a neighbour's door meets it one step out. A Closed door is written ExitOnly
+  in the room file (an overlay's Closed doors too): the layout never enters the room through a door it seals, so the
+  room's logic opening it is always the way on. "ExitOnly": true marks a door the room's logic seals some other way
+  (an arena's way on, shut by its fight), with no block in it.
 - Props: {At, Slot}. Spawns: {At, Marker} (a manual spawn marker id, woken by the SealedCombat template). A spec
   without an overlay that lists any writes "Keep": {"Markers": true} in its room file, so the room logic places them.
 - Logic: {Template, ...params} from logic_templates.TEMPLATES; a template may place blocks of its own (braziers,
-  plates, runes), which count as props.
+  plates, runes), which count as props. A template is handed the room's doors and its Box (an overlay's: the base
+  room's), the region a room hint covers unless it names its own.
 - Any cell may be written {X, Z, "OnFloor": true} (Y optional, the height to start looking from): the builder puts it
   in the first air cell over a floor in that column, nearest that height, with headroom above.
 The palette: {Id, Slots: {<slot>: block id, {Block, State}, or [{Block, State?, Weight}, ...] picked per cell by a
@@ -42,6 +46,13 @@ An overlay spec builds a vanilla piece plus our own blocks and logic instead of 
   opening's free cells. Shapes may only Fill, and every block the overlay or a template places, and every cell a
   template's volume writes a block into, must be a free cell of the base: the overlay never puts a block on a cell the
   base fills.
+- A door the base has no opening for (a sealed piece) is declared with "Cut": true and its Width, Height and Depth,
+  as a script door is: the overlay writes air (Empty) over every cell of that opening, the base's walls included, since
+  the painter writes every listed overlay cell over the base, air too. That opening is the one place the overlay may
+  write over a filled cell, and it writes only air there; its threshold is the base's floor, or the room's Fill where
+  the base leaves the cell unlisted. A cut door cannot also be Closed.
+- A cell of the base's water is never free, so nothing lands in a pool by accident; Submerged [{X, Y, Z}] names the
+  water cells (air under the base's fluid, no block) the overlay may stand a block in, such as a sunken chest.
 - The room file names the base as Prefab and ours as Overlay, painted on top with the same anchor and turn.
 """
 import argparse
@@ -72,6 +83,10 @@ class BuildError(Exception):
 
 
 class Palette:
+    """A theme's slots, each a block id, a {Block, State} object, or a weighted list of them. An object's Height (for a
+    block taller than one cell, such as a 2.8-block statue: 3) makes the builder write the cells above it as the
+    block's fillers, as a prefab of vanilla's lists them, since a painted cell gets no fillers of its own."""
+
     def __init__(self, doc):
         self.id = doc.get("Id", "")
         self.slots = doc["Slots"]
@@ -105,6 +120,13 @@ class Palette:
                 break
         ref = self._ref(chosen)
         return lt.prefab_name(ref, ref.state)
+
+    def height(self, slot):
+        """How many cells tall `slot`'s block stands: its object's Height, else 1."""
+        if slot == AIR:
+            return 1
+        value = self._value(slot)
+        return max(1, int(value.get("Height", 1))) if isinstance(value, dict) else 1
 
     def main_block(self, slot):
         """The slot's first block, with its state (what a volume's block swap names)."""
@@ -228,6 +250,7 @@ class RoomBuild:
         self.base_room = base_room
         self.overlay = "Base" in spec
         self.slots = {}
+        self.cuts = set()
         self.problems = []
         if self.overlay and base is None:
             raise BuildError("spec %s names a Base, but no base prefab was given" % spec.get("Id"))
@@ -274,6 +297,12 @@ class RoomBuild:
         spec = self.spec
         if self.overlay:
             self.ground = BaseGround(self.base)
+            for d in spec.get("Submerged", []):
+                cell = pio.xyz_tuple(d)
+                if self.base.name_at(cell) != pio.EMPTY_BLOCK or cell not in self.base.fluids:
+                    raise BuildError("Submerged %s: the base holds no water there with no block (a submerged cell is "
+                                     "the base's own air under its fluid)" % (cell,))
+                self.ground.free_cells.add(cell)
         else:
             self.ground = ScriptGround(self.slots)
         for op in spec.get("Shapes", []):
@@ -310,7 +339,8 @@ class RoomBuild:
             if self.overlay and not self.ground.free(cell):
                 self.problems.append("spawn marker %s at %s stands in a cell the base fills" % (s["Marker"], cell))
             entities.append(spawn_marker_entity(spec["Id"], i, cell, s["Marker"]))
-        ctx = {"doors": self.doors, "slot": self.palette.main_block, "name": spec["Id"] + "_"}
+        ctx = {"doors": self.doors, "slot": self.palette.main_block, "name": spec["Id"] + "_",
+               "box": self.room_box()}
         for i, logic in enumerate(spec.get("Logic", [])):
             template = lt.TEMPLATES.get(logic["Template"])
             if template is None:
@@ -338,7 +368,8 @@ class RoomBuild:
                 if self.slots.get(c, AIR) == AIR:
                     self.slots[c] = "Floor"
             doors.append({"Index": i, "At": pio.xyz_tuple(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"],
-                          "OpeningMin": olo, "OpeningMax": ohi, "Opening": opening, "Closed": closed})
+                          "OpeningMin": olo, "OpeningMax": ohi, "Opening": opening, "Closed": closed,
+                          "ExitOnly": bool(d.get("ExitOnly"))})
         return doors
 
     def base_doors(self):
@@ -352,6 +383,9 @@ class RoomBuild:
         doors = []
         for i, d in enumerate(given):
             at, facing = pio.xyz_tuple(d["At"]), d["Facing"]
+            if d.get("Cut"):
+                doors.append(self.cut_door(i, d, d.get("Closed") or closed_by.get(i)))
+                continue
             found = pio.doorway_cells(self.base, at, facing)
             if found is None:
                 raise BuildError("door %d at %s %s: the base has no open doorway there" % (i, at, facing))
@@ -364,8 +398,26 @@ class RoomBuild:
                 for c in opening:
                     self.put(c, closed, "door %d's %s" % (i, closed))
             doors.append({"Index": i, "At": at, "Facing": facing, "Kind": d["Kind"], "OpeningMin": olo,
-                          "OpeningMax": ohi, "Opening": opening, "Closed": closed})
+                          "OpeningMax": ohi, "Opening": opening, "Closed": closed, "ExitOnly": bool(d.get("ExitOnly"))})
         return doors
+
+    def cut_door(self, i, d, closed):
+        """A door the overlay cuts into a sealed base: its opening's cells become air in the overlay, whatever the base
+        holds there; a free threshold cell takes the Floor slot, a filled one is the base's floor, an unlisted one the
+        room's Fill."""
+        if closed:
+            raise BuildError("door %d: a cut door cannot also be Closed (the cut writes air, never a block over the "
+                             "base)" % i)
+        opening, threshold, olo, ohi = door_cells(d)
+        for c in opening:
+            self.slots[c] = AIR
+            self.cuts.add(c)
+        for c in threshold:
+            if self.ground.free(c):
+                self.put(c, "Floor", "door %d's threshold" % i)
+        return {"Index": i, "At": pio.xyz_tuple(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"],
+                "OpeningMin": olo, "OpeningMax": ohi, "Opening": opening, "Closed": None, "Cut": True,
+                "ExitOnly": bool(d.get("ExitOnly"))}
 
     def room_box(self):
         if not self.overlay:
@@ -387,7 +439,7 @@ class RoomBuild:
             elif inside(pio.step(at, d["Facing"])):
                 self.problems.append("door %s %s is not on the room's outer face, so no neighbour could meet it"
                                      % (at, d["Facing"]))
-            if not self.ground.solid(at) and self.slots.get(at, AIR) == AIR:
+            if not self.ground.solid(at) and self.slots.get(at, AIR) == AIR and not self.filled_at_paint(at):
                 self.problems.append("door %s %s has no floor" % (at, d["Facing"]))
         for name, what in lt.world_absolute_uses(self.entities):
             self.problems.append("volume %s uses a world-absolute position (%s)" % (name, what))
@@ -397,6 +449,13 @@ class RoomBuild:
             for name, cell in lt.placed_cells(self.entities):
                 if not self.ground.free(cell):
                     self.problems.append("volume %s writes a block into %s, a cell the base fills" % (name, cell))
+
+    def filled_at_paint(self, cell):
+        """Whether the painter fills `cell` with the room's Fill: an overlay cell the base leaves unlisted, in a room
+        that has a Fill (its own, else its base room's)."""
+        if not self.overlay or cell in self.base.blocks or cell in self.base.fluids:
+            return False
+        return bool((self.spec.get("Room") or {}).get("Fill") or (self.base_room or {}).get("Fill"))
 
     # -----------------------------------------------------------------------------------------------------------
     # Output
@@ -408,7 +467,17 @@ class RoomBuild:
         blocks = []
         for cell in sorted(self.slots):
             slot = self.slots[cell]
-            blocks.append((cell, {"name": self.palette.block(slot, cell)}))
+            name = self.palette.block(slot, cell)
+            blocks.append((cell, {"name": name}))
+            for k in range(1, self.palette.height(slot)):
+                above = (cell[0], cell[1] + k, cell[2])
+                if above in self.slots:
+                    raise BuildError("%s at %s stands %d cells tall, but the overlay also writes %s"
+                                     % (slot, cell, self.palette.height(slot), above))
+                if self.overlay and not self.ground.free(above):
+                    raise BuildError("%s at %s stands %d cells tall, but the base fills %s"
+                                     % (slot, cell, self.palette.height(slot), above))
+                blocks.append((above, {"name": name, "filler": pio.pack_filler(0, k, 0)}))
         doc = pio.prefab_doc((0, 0, 0), blocks, entities=self.entities)
         doc[STAMP_KEY] = STAMP_VALUE
         doc["zcSpec"] = self.spec["Id"]
@@ -422,7 +491,11 @@ class RoomBuild:
         doors = []
         order = {f: i for i, f in enumerate(pio.FACINGS)}
         for d in sorted(self.doors, key=lambda d: (order[d["Facing"]], d["At"])):
-            doors.append({"At": pio.xyz_dict(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"]})
+            door = {"At": pio.xyz_dict(d["At"]), "Facing": d["Facing"], "Kind": d["Kind"]}
+            if d["Closed"] or d.get("ExitOnly"):
+                # Sealed by the room's logic until it is solved: the layout may leave by it, never enter.
+                door["ExitOnly"] = True
+            doors.append(door)
         label = spec.get("Label", spec["Id"])
         if self.overlay:
             tags = {}
@@ -466,12 +539,15 @@ class RoomBuild:
             self.spec["Id"], self.prefab_path_key(), self.palette.id, self.box[0], self.box[1], len(self.slots),
             len(self.entities))]
         if self.overlay:
-            lines.append("  overlay on %s: %d free cells in the base, %d of them used" % (
-                self.spec["Base"]["Prefab"], len(self.ground.free_cells), len(self.slots)))
+            lines.append("  overlay on %s: %d free cells in the base, %d of them used, %d cells cut" % (
+                self.spec["Base"]["Prefab"], len(self.ground.free_cells), len(self.slots) - len(self.cuts),
+                len(self.cuts)))
         for d in self.doors:
-            lines.append("  socket %d: %s %s kind %s, opening %s..%s%s" % (
+            lines.append("  socket %d: %s %s kind %s, opening %s..%s%s%s" % (
                 d["Index"], d["At"], d["Facing"], d["Kind"], d["OpeningMin"], d["OpeningMax"],
-                ", closed by %s" % d["Closed"] if d["Closed"] else ""))
+                ", closed by %s, exit only" % d["Closed"] if d["Closed"] else
+                (", exit only" if d.get("ExitOnly") else ""),
+                ", cut into the base" if d.get("Cut") else ""))
         keys = lt.room_scoped_keys(self.entities)
         lines.append("  room-scoped keys: %s" % (", ".join(keys) or "none"))
         for p in self.problems:

@@ -37,6 +37,7 @@ public final class FactorSnapshot implements FactorLookup {
 
     /** The context every reading is resolved against, re-scoped per term to that term's own param. */
     @Nonnull
+    @Override
     public FactorContext context() {
         return ctx;
     }

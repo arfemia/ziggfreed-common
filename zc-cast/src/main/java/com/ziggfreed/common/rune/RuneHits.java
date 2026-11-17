@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
 import com.hypixel.hytale.server.core.entity.InteractionContext;
+import com.hypixel.hytale.server.core.meta.MetaKey;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.projectile.component.ImpactModifiers;
@@ -21,7 +22,7 @@ import com.ziggfreed.common.util.SafeLog;
  * A consumer's own hit takes the same two: a cause under the engine's elemental root ({@link #ELEMENTAL_ROOT}) turns
  * into the conversion's cause (a physical or any other cause is untouched), and the modifiers ride the hit as {@code
  * ImpactModifiers.DAMAGE_MODIFIERS}. Called where the hit is built, before it is dispatched, so every system after it
- * reads the converted cause.
+ * reads the converted cause; a converted hit keeps the cause it had before ({@link #convertedFrom}).
  *
  * <p><b>On a chain</b> ({@link #stamp}): the engine snapshots an ability item's cast onto its chain ({@code
  * ImpactModifiers.CAST_SNAPSHOT}), so the chain's native steps (an attribute-bound selector, effect or damage, the
@@ -74,9 +75,33 @@ public final class RuneHits {
             return;
         }
         int index = causes.getIndex(target.getId());
-        if (index != AssetMapWithIndexes.NOT_FOUND) {
+        if (index != AssetMapWithIndexes.NOT_FOUND && index != damage.getDamageCauseIndex()) {
+            damage.putMetaObject(Keys.CONVERTED_FROM, cause.getId());
             damage.setDamageCauseIndex(index);
         }
+    }
+
+    /**
+     * The id of the cause {@link #apply} converted {@code damage} from, or null when it converted nothing (no
+     * conversion, a cause outside the elemental root, or one already the conversion's). For a consumer that keys
+     * something on what the hit was before its rune, as a skill's own element. Never throws.
+     */
+    @Nullable
+    public static String convertedFrom(@Nullable Damage damage) {
+        if (damage == null) {
+            return null;
+        }
+        try {
+            return damage.getIfPresentMetaObject(Keys.CONVERTED_FROM);
+        } catch (Throwable t) {
+            SafeLog.fine("[runes] a hit's converted cause could not be read: " + t.getMessage());
+            return null;
+        }
+    }
+
+    /** The hit's own meta key, registered on first use. */
+    private static final class Keys {
+        static final MetaKey<String> CONVERTED_FROM = Damage.META_REGISTRY.registerMetaObject();
     }
 
     /**

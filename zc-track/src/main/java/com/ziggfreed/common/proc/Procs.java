@@ -259,18 +259,35 @@ public final class Procs {
 
     /**
      * {@link #cast(Store, CommandBuffer, Ref, String)} naming the stamina the cast spent ({@code cost}, after every
-     * cut; 0 when it cost nothing or another pool paid it): the moment's cost, as a block's is, which a
-     * {@code ChangeStat} with {@code ByCost} gives back a share of (a talent that makes a cast free), so a refund only
-     * ever gives back stamina that was spent.
+     * cut; 0 when it cost nothing or another pool paid it): {@link #cast(Store, CommandBuffer, Ref, String, String,
+     * double)} with the pool {@link ProcMoment#STAMINA}.
      */
     public static void cast(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> holder, @Nullable String ability, double cost) {
+        cast(store, commandBuffer, holder, ability, ProcMoment.STAMINA, cost);
+    }
+
+    /**
+     * {@link #cast(Store, CommandBuffer, Ref, String)} naming what the cast spent ({@code cost}, after every cut; 0
+     * when it cost nothing) and the stat it was drawn from ({@code costStat}, an entity stat id; null reads as
+     * {@link ProcMoment#STAMINA}): the moment's cost, as a block's is. A {@code ChangeStat} with {@code ByCost} gives
+     * back a share of it only to that same stat (a talent that makes a cast free), and a counter's {@code ByCost} keeps
+     * only stamina, so a refund only ever gives back what was spent from the pool it pays into.
+     */
+    public static void cast(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> holder, @Nullable String ability, @Nullable String costStat, double cost) {
         if (!listens(ProcTrigger.CAST)) {
             return;
         }
         fire(new ProcMoment(ProcTrigger.CAST, store, commandBuffer, holder, null, null, 1.0, null, null,
                 ability == null || ability.isBlank() ? null : ability.trim(), null,
-                Double.isFinite(cost) && cost > 0.0 ? cost : 0.0));
+                Double.isFinite(cost) && cost > 0.0 ? cost : 0.0, null, pool(costStat)));
+    }
+
+    /** A moment's pool as a producer names it: trimmed, null for none (which reads as stamina). */
+    @Nullable
+    private static String pool(@Nullable String costStat) {
+        return costStat == null || costStat.isBlank() ? null : costStat.trim();
     }
 
     /**
@@ -287,17 +304,28 @@ public final class Procs {
 
     /**
      * {@link #dodge(Store, CommandBuffer, Ref)} naming the stamina the dodge spent ({@code cost}, after every cut; 0
-     * when it cost nothing or another pool paid it): the moment's cost, as a block's is, which a {@code ChangeStat} or
-     * a {@code Counter} with {@code ByCost} reads, so a knack can give back the dodge's own cost (or a share of it) and
-     * a counter can keep it for a later moment.
+     * when it cost nothing or another pool paid it): {@link #dodge(Store, CommandBuffer, Ref, String, double)} with
+     * the pool {@link ProcMoment#STAMINA}.
      */
     public static void dodge(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> holder, double cost) {
+        dodge(store, commandBuffer, holder, ProcMoment.STAMINA, cost);
+    }
+
+    /**
+     * {@link #dodge(Store, CommandBuffer, Ref)} naming what the dodge spent ({@code cost}, after every cut; 0 when it
+     * cost nothing) and the stat it was drawn from ({@code costStat}; null reads as {@link ProcMoment#STAMINA}): the
+     * moment's cost, as a block's is. A {@code ChangeStat} with {@code ByCost} gives back a share of it to that same
+     * stat only, and a {@code Counter} with {@code ByCost} keeps the stamina it cost for a later moment, so a knack
+     * gives back the dodge's own cost (or a share of it), and nothing for a dodge another pool paid.
+     */
+    public static void dodge(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> holder, @Nullable String costStat, double cost) {
         if (!listens(ProcTrigger.DODGE)) {
             return;
         }
         fire(new ProcMoment(ProcTrigger.DODGE, store, commandBuffer, holder, null, null, 1.0, null, null, null, null,
-                Double.isFinite(cost) && cost > 0.0 ? cost : 0.0));
+                Double.isFinite(cost) && cost > 0.0 ? cost : 0.0, null, pool(costStat)));
     }
 
     /**

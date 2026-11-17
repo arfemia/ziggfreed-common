@@ -304,6 +304,12 @@ def write_json(path, obj):
     return write_text(path, dumps(obj))
 
 
+def pack_filler(x, y, z):
+    """A filler cell's `filler` value: its offset from the block's own cell, five bits an axis, x then z then y, the
+    engine's packing (FillerBlockUtil.pack). A cell one above the block packs to 1024, two above to 2048."""
+    return (x & 31) | ((z & 31) << 5) | ((y & 31) << 10)
+
+
 def prefab_doc(anchor, blocks, fluids=(), entities=()):
     """A `.prefab.json` document (version 8, blockIdVersion 11, vanilla's values) from anchor-relative cells.
 

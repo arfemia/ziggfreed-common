@@ -24,10 +24,13 @@ import com.ziggfreed.common.instance.dungeon.layout.PlacedRoom.Part;
  * <p><b>How a try runs.</b> The seed picks one tag per stratum, then rolls each beat's count and the connectors
  * between beats, which fixes the path's length and so each slot's depth. The path is embedded by socket snapping:
  * the entry's anchor stands on the plan's {@code Bounds.Entry} (the bounds' centre unless the plan says), and each
- * next room is turned so one of its doors
+ * next room is turned so one of its doors (never an exit-only one: a room is entered only by a door it may be entered
+ * by, so a puzzle's sealed way on is always the way out)
  * meets an open door of the previous room of the same kind face to face, and kept only if its turned box stays in
  * the bounds and clears every placed room, and (unless it is the last) it leaves a door open of a kind the next
- * slot's rooms can meet, a gate likewise for its branch's end room. A room on a branch of its own then answers each
+ * slot's rooms can meet, a gate likewise for its branch's end room, it stands no nearer than the plan's
+ * {@code Apart} distance to any placed room sharing that rule's tag, and it has not yet stood as many times as a
+ * {@code MaxPerRun} rule matching it allows. A room on a branch of its own then answers each
  * path room's {@code Needs}, off a path room before it; the plan's side branches follow, a gate room first where one
  * is named; and every door still open takes a cap, a room whose role is {@code Cap} with one door of that kind.
  * Rooms join as a tree: a door never joins a second room by chance, so no loop can bypass a gate or a puzzle.
@@ -44,7 +47,8 @@ import com.ziggfreed.common.instance.dungeon.layout.PlacedRoom.Part;
  * <p><b>Retries.</b> A try that cannot finish is dropped whole and the next one runs on a seed derived from the run
  * seed and the try's number, up to the plan's {@code MaxTries}; then the plan is relaxed (optional branches
  * dropped, then every count at its least, {@link Relax}) and tried again, so a run gets a layout whenever its plan
- * can be met at all. When none can, the result says why.
+ * can be met at all. No step loosens an {@code Apart} or a {@code MaxPerRun} rule: a layout that cannot keep one is no
+ * layout. When none can, the result says why.
  */
 public final class LayoutGenerator {
 
@@ -311,6 +315,8 @@ public final class LayoutGenerator {
         int pathLength;
         int branches;
         int checks;
+        int tooNear;
+        int spent;
         boolean exhausted;
         String failure;
 
@@ -346,7 +352,10 @@ public final class LayoutGenerator {
                 if (placed == null) {
                     return fail(exhausted ? budgetSpent()
                             : "no room with role '" + slot.role() + "' fits path slot " + i + " (beat " + slot.beat()
-                                    + ", " + candidates.size() + " candidates)");
+                                    + ", " + candidates.size() + " candidates" + (tooNear == 0 ? ""
+                                    : ", " + tooNear + " places refused as too near a room sharing an Apart tag")
+                                    + (spent == 0 ? "" : ", " + spent + " rooms refused as already placed their "
+                                            + "MaxPerRun times") + ")");
                 }
             }
             SplitMix64 needs = SplitMix64.derive(trySeed, STREAM_NEEDS);
@@ -491,6 +500,11 @@ public final class LayoutGenerator {
          * A room of {@code candidates} joined onto an open door of {@code target}, or null when none fits. With
          * {@code onward}, the room must also leave a door open of one of those kinds, so the next room has a door to
          * meet.
+         *
+         * <p>On the path, once a room carrying an {@code Apart} tag stands, the path heads away from it: the target's
+         * open doors farthest from it are tried first, and of the ways the room the seed picked can stand, the one
+         * whose open doors lie farthest from it wins. The seed still picks the room; only its turn and door are
+         * steered, so the next room sharing the tag finds its distance far more often than a walk that doubles back.
          */
         @Nullable
         private Node attach(@Nonnull List<RoomSpec> candidates, @Nonnull Node target, @Nonnull SplitMix64 rng,
@@ -501,9 +515,15 @@ public final class LayoutGenerator {
             }
             int[] doorOrder = indices(doors.size());
             shuffle(doorOrder, rng);
+            List<Box> away = fill.part() == Part.PATH || fill.part() == Part.LINK ? taggedBoxes() : List.of();
+            if (!away.isEmpty()) {
+                doorOrder = farthestFirst(doors, doorOrder, away);
+            }
             for (RoomSpec spec : weightedOrder(candidates, rng)) {
-                int[] own = usableDoors(spec);
+                int[] own = enterableDoors(spec);
                 shuffle(own, rng);
+                Placement best = null;
+                double bestFar = -1;
                 for (int o : doorOrder) {
                     Open join = doors.get(o);
                     for (int d : own) {
@@ -518,10 +538,21 @@ public final class LayoutGenerator {
                         int turns = door.facing().turnsTo(join.facing().opposite());
                         Cell origin = join.at().step(join.facing()).minus(door.at().turned(turns));
                         Placement fit = fit(spec, turns, origin, d, join, onward);
-                        if (fit != null) {
+                        if (fit == null) {
+                            continue;
+                        }
+                        if (away.isEmpty()) {
                             return place(fit, fill, target.index, rng);
                         }
+                        double far = farness(fit, away);
+                        if (far > bestFar) {
+                            best = fit;
+                            bestFar = far;
+                        }
                     }
+                }
+                if (best != null) {
+                    return place(best, fill, target.index, rng);
                 }
             }
             return null;
@@ -529,14 +560,18 @@ public final class LayoutGenerator {
 
         /**
          * Whether {@code spec}, turned {@code turns} with its anchor at {@code origin}, fits: inside the bounds,
-         * clear of every room and every held cap box but the one of the door it joins, with room for a cap in
-         * front of each door it leaves open, and (with {@code onward}) one of those doors of a kind listed there.
+         * clear of every room and every held cap box but the one of the door it joins, as far as the plan's
+         * {@code Apart} rules ask from every room sharing their tags, with room for a cap in front of each door it
+         * leaves open, and (with {@code onward}) one of those doors of a kind listed there.
          */
         @Nullable
         private Placement fit(@Nonnull RoomSpec spec, int turns, @Nonnull Cell origin, int joinDoor,
                 @Nullable Open join, @Nullable List<String> onward) {
+            if (spentFor(spec)) {
+                return null;
+            }
             Box box = spec.box().turned(turns).shifted(origin);
-            if (!box.within(view.bounds) || hitsRoom(box) || hitsHeld(box, join, List.of())) {
+            if (!box.within(view.bounds) || hitsRoom(box) || hitsHeld(box, join, List.of()) || tooNear(spec, box)) {
                 return null;
             }
             List<Open> fresh = new ArrayList<>();
@@ -573,6 +608,113 @@ public final class LayoutGenerator {
             for (Node node : rooms) {
                 if (box.overlaps(node.box)) {
                     return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Whether {@code spec} already stands as many times as one of the plan's {@code MaxPerRun} rules that matches it
+         * allows, counted per room.
+         */
+        private boolean spentFor(@Nonnull RoomSpec spec) {
+            for (LayoutPlan.MaxPerRun rule : plan.maxPerRun()) {
+                if (!rule.matches(spec)) {
+                    continue;
+                }
+                int placed = 0;
+                for (Node node : rooms) {
+                    if (node.spec.id().equals(spec.id())) {
+                        placed++;
+                    }
+                }
+                if (placed >= rule.max()) {
+                    spent++;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** The boxes of the placed rooms carrying a tag one of the plan's {@code Apart} rules binds. */
+        @Nonnull
+        private List<Box> taggedBoxes() {
+            List<Box> tagged = new ArrayList<>();
+            for (LayoutPlan.Apart rule : plan.apart()) {
+                for (Node node : rooms) {
+                    if (node.spec.carries(rule.tag())) {
+                        tagged.add(node.box);
+                    }
+                }
+            }
+            return tagged;
+        }
+
+        /** How far {@code at} stands from the nearest of {@code boxes}. */
+        private static double nearest(@Nonnull Cell at, @Nonnull List<Box> boxes) {
+            Box cell = new Box(at, at);
+            double nearest = Double.POSITIVE_INFINITY;
+            for (Box box : boxes) {
+                nearest = Math.min(nearest, cell.distanceTo(box));
+            }
+            return nearest;
+        }
+
+        /**
+         * How far a fit leads from {@code away}: its open door farthest from the nearest of those boxes, or its box's
+         * own distance when it leaves no door open.
+         */
+        private static double farness(@Nonnull Placement fit, @Nonnull List<Box> away) {
+            if (fit.fresh().isEmpty()) {
+                double nearest = Double.POSITIVE_INFINITY;
+                for (Box box : away) {
+                    nearest = Math.min(nearest, fit.box().distanceTo(box));
+                }
+                return nearest;
+            }
+            double far = 0;
+            for (Open door : fit.fresh()) {
+                far = Math.max(far, nearest(door.at(), away));
+            }
+            return far;
+        }
+
+        /** {@code order} (the open doors' shuffled order) with the doors farthest from {@code away} first, ties kept. */
+        @Nonnull
+        private static int[] farthestFirst(@Nonnull List<Open> doors, @Nonnull int[] order, @Nonnull List<Box> away) {
+            if (order.length < 2) {
+                return order;
+            }
+            double[] far = new double[doors.size()];
+            for (int i = 0; i < doors.size(); i++) {
+                far[i] = nearest(doors.get(i).at(), away);
+            }
+            Integer[] sorted = new Integer[order.length];
+            for (int i = 0; i < order.length; i++) {
+                sorted[i] = order[i];
+            }
+            Arrays.sort(sorted, (a, b) -> Double.compare(far[b], far[a]));
+            int[] out = new int[sorted.length];
+            for (int i = 0; i < sorted.length; i++) {
+                out[i] = sorted[i];
+            }
+            return out;
+        }
+
+        /**
+         * Whether {@code spec} standing in {@code box} would break one of the plan's {@code Apart} rules: it carries
+         * the rule's tag and so does a placed room nearer to it than the rule's distance.
+         */
+        private boolean tooNear(@Nonnull RoomSpec spec, @Nonnull Box box) {
+            for (LayoutPlan.Apart rule : plan.apart()) {
+                if (!spec.carries(rule.tag())) {
+                    continue;
+                }
+                for (Node node : rooms) {
+                    if (node.spec.carries(rule.tag()) && box.distanceTo(node.box) < rule.blocks()) {
+                        tooNear++;
+                        return true;
+                    }
                 }
             }
             return false;
@@ -809,7 +951,8 @@ public final class LayoutGenerator {
                 int turns = spec.facing().turnsTo(door.facing().opposite());
                 Cell origin = door.at().step(door.facing()).minus(spec.at().turned(turns));
                 Box box = cap.box().turned(turns).shifted(origin);
-                if (!box.within(view.bounds) || hitsRoom(box) || hitsHeld(box, door, List.of())) {
+                if (!box.within(view.bounds) || hitsRoom(box) || hitsHeld(box, door, List.of())
+                        || tooNear(cap, box)) {
                     continue;
                 }
                 Fill at = owner.fill;
@@ -866,13 +1009,16 @@ public final class LayoutGenerator {
         return out;
     }
 
-    /** The kinds of every usable door of {@code rooms}, each once, in the order met. */
+    /**
+     * The kinds of every door {@code rooms} can be entered by, each once, in the order met: the kinds a room before
+     * them must leave open for one of them to join.
+     */
     @Nonnull
     private static List<String> kindsOf(@Nonnull List<RoomSpec> rooms) {
         List<String> kinds = new ArrayList<>();
         for (RoomSpec room : rooms) {
             for (DoorSpec door : room.doors()) {
-                if (door.usable() && !kinds.contains(door.kind())) {
+                if (door.enterable() && !kinds.contains(door.kind())) {
                     kinds.add(door.kind());
                 }
             }
@@ -880,12 +1026,13 @@ public final class LayoutGenerator {
         return kinds;
     }
 
+    /** The doors a room joining onto an open door may meet it by: never an exit-only one. */
     @Nonnull
-    private static int[] usableDoors(@Nonnull RoomSpec spec) {
-        int[] out = new int[spec.usableDoorCount()];
+    private static int[] enterableDoors(@Nonnull RoomSpec spec) {
+        int[] out = new int[spec.enterableDoorCount()];
         int n = 0;
         for (int i = 0; i < spec.doors().size(); i++) {
-            if (spec.doors().get(i).usable()) {
+            if (spec.doors().get(i).enterable()) {
                 out[n++] = i;
             }
         }

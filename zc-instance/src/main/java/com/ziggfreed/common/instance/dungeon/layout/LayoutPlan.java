@@ -20,10 +20,13 @@ import javax.annotation.Nullable;
  * @param entry     the cell the entry room's anchor stands on, in the layout's frame; null for the bounds' centre.
  *                  Kept as written, so {@link RoomCatalogueAudit} can report one outside the bounds.
  * @param maxTries  how many seeds it tries at each relax step before relaxing further
+ * @param apart     the distances rooms sharing a tag keep between them; no relax step loosens one
+ * @param maxPerRun how many times one room may stand in a run, for the rooms a rule matches; no relax step loosens one
  */
 public record LayoutPlan(@Nonnull String id, @Nonnull List<String> roomTags, @Nonnull List<Stratum> strata,
                          @Nonnull List<Beat> path, @Nullable Links links, @Nonnull List<Branch> branches,
-                         @Nonnull Cell bounds, @Nullable Cell entry, int maxTries) {
+                         @Nonnull Cell bounds, @Nullable Cell entry, int maxTries, @Nonnull List<Apart> apart,
+                         @Nonnull List<MaxPerRun> maxPerRun) {
 
     /** How many seeds a plan tries at each relax step when its file says nothing. */
     public static final int DEFAULT_MAX_TRIES = 64;
@@ -47,6 +50,31 @@ public record LayoutPlan(@Nonnull String id, @Nonnull List<String> roomTags, @No
         bounds = bounds == null ? DEFAULT_BOUNDS
                 : new Cell(Math.max(1, bounds.x()), Math.max(1, bounds.y()), Math.max(1, bounds.z()));
         maxTries = maxTries < 1 ? DEFAULT_MAX_TRIES : maxTries;
+        List<Apart> rules = new ArrayList<>();
+        if (apart != null) {
+            for (Apart rule : apart) {
+                if (rule != null && !rule.tag().isEmpty() && rule.blocks() > 0) {
+                    rules.add(rule);
+                }
+            }
+        }
+        apart = List.copyOf(rules);
+        List<MaxPerRun> caps = new ArrayList<>();
+        if (maxPerRun != null) {
+            for (MaxPerRun rule : maxPerRun) {
+                if (rule != null && rule.binds()) {
+                    caps.add(rule);
+                }
+            }
+        }
+        maxPerRun = List.copyOf(caps);
+    }
+
+    /** A plan whose rooms keep no distance from each other beyond not sharing a block, and may repeat. */
+    public LayoutPlan(@Nonnull String id, @Nonnull List<String> roomTags, @Nonnull List<Stratum> strata,
+            @Nonnull List<Beat> path, @Nullable Links links, @Nonnull List<Branch> branches, @Nullable Cell bounds,
+            @Nullable Cell entry, int maxTries) {
+        this(id, roomTags, strata, path, links, branches, bounds, entry, maxTries, List.of(), List.of());
     }
 
     /** The cell the entry room's anchor stands on: {@code entry}, else the centre of the bounds. */
@@ -116,6 +144,44 @@ public record LayoutPlan(@Nonnull String id, @Nonnull List<String> roomTags, @No
             String folded = Words.fold(role);
             role = folded == null ? "" : folded;
             count = count == null ? Count.ONE : count;
+        }
+    }
+
+    /**
+     * A distance rooms sharing a tag keep: any two rooms that both carry {@code tag} (folded, matched as a room's
+     * expanded tags are: a key, a value or {@code key=value}) have their nearest cells at least {@code blocks} apart,
+     * such as two boss arenas whose fights reach a hundred blocks round them.
+     */
+    public record Apart(@Nonnull String tag, int blocks) {
+
+        public Apart {
+            String folded = Words.fold(tag);
+            tag = folded == null ? "" : folded;
+            blocks = Math.max(0, blocks);
+        }
+    }
+
+    /**
+     * How many times one room may stand in a run: each room that fills {@code role} (when one is named) and carries
+     * {@code tag} (when one is named) is placed at most {@code max} times, counted per room, so a run of puzzles meets
+     * as many different puzzles as the catalogue holds before it meets one twice. Both folded.
+     */
+    public record MaxPerRun(@Nullable String role, @Nullable String tag, int max) {
+
+        public MaxPerRun {
+            role = Words.fold(role);
+            tag = Words.fold(tag);
+            max = Math.max(1, max);
+        }
+
+        /** Whether it names a role or a tag; a rule naming neither binds nothing. */
+        public boolean binds() {
+            return role != null || tag != null;
+        }
+
+        /** Whether {@code room} is one this rule counts. */
+        public boolean matches(@Nonnull RoomSpec room) {
+            return binds() && (role == null || room.hasRole(role)) && (tag == null || room.carries(tag));
         }
     }
 

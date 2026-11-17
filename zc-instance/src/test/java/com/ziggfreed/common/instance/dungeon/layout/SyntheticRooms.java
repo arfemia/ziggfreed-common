@@ -25,6 +25,8 @@ final class SyntheticRooms {
     /** The first stratum's fill, and the arenas' own, which wins over it. */
     static final String STRATUM_FILL = "Rock_Stone";
     static final String ARENA_FILL = "Rock_Basalt";
+    /** The tag every arena carries, which a plan's {@code Apart} rule can bind. */
+    static final String ARENA_TAG = "Arena";
 
     /** Every pool holds three variants but the ghost's, which holds none; a single prefab is one. */
     static final PoolIndex POOLS = prefab -> prefab.equals(GHOST_POOL) ? 0 : prefab.endsWith(".*") ? 3 : 1;
@@ -34,6 +36,15 @@ final class SyntheticRooms {
 
     @Nonnull
     static RoomCatalogue catalogue() {
+        return catalogue(false);
+    }
+
+    /**
+     * The kit; with {@code oneWayPuzzles}, each puzzle's north and east doors are exit-only, so it may be entered by
+     * its south door alone, as a puzzle whose sealed doors are the way on.
+     */
+    @Nonnull
+    static RoomCatalogue catalogue(boolean oneWayPuzzles) {
         List<RoomSpec> rooms = new ArrayList<>();
         for (String stratum : new String[] {"Ruins", "Crypt", "Void"}) {
             String s = stratum.toLowerCase(Locale.ROOT);
@@ -59,13 +70,14 @@ final class SyntheticRooms {
                     List.of("Combat"), stratum, 2, 0, 1, List.of(),
                     door(0, 0, -7, Facing.NORTH, "Small"), door(7, 0, 0, Facing.EAST, "Large"),
                     door(0, 0, 7, Facing.SOUTH, "Small"), door(-7, 0, 0, Facing.WEST, "Small")));
-            rooms.add(filled(room("arena_" + s, "Synthetic." + stratum + ".Arena", box(-10, 0, -10, 10, 10, 10),
-                    List.of("Combat", "Boss"), stratum, 1, 0.5, 1, List.of(),
-                    door(0, 0, -10, Facing.NORTH, "Large"), door(0, 0, 10, Facing.SOUTH, "Large")), ARENA_FILL));
+            rooms.add(filled(tagged(room("arena_" + s, "Synthetic." + stratum + ".Arena",
+                    box(-10, 0, -10, 10, 10, 10), List.of("Combat", "Boss"), stratum, 1, 0.5, 1, List.of(),
+                    door(0, 0, -10, Facing.NORTH, "Large"), door(0, 0, 10, Facing.SOUTH, "Large")), ARENA_TAG),
+                    ARENA_FILL));
             rooms.add(room("puzzle_" + s, "Synthetic." + stratum + ".Puzzle.*", box(-5, 0, -5, 5, 6, 5),
                     List.of("Puzzle"), stratum, 1, 0.2, 1, List.of("Clue"),
-                    door(0, 0, -5, Facing.NORTH, "Small"), door(0, 0, 5, Facing.SOUTH, "Small"),
-                    door(5, 0, 0, Facing.EAST, "Small")));
+                    door(0, 0, -5, Facing.NORTH, "Small", oneWayPuzzles), door(0, 0, 5, Facing.SOUTH, "Small"),
+                    door(5, 0, 0, Facing.EAST, "Small", oneWayPuzzles)));
             rooms.add(room("clue_" + s, "Synthetic." + stratum + ".Clue", box(-3, 0, -3, 3, 4, 3),
                     List.of("Clue"), stratum, 1, 0, 1, List.of(),
                     door(0, 0, 3, Facing.SOUTH, "Small")));
@@ -118,6 +130,16 @@ final class SyntheticRooms {
                 new Cell(384, 64, 384), new Cell(160, 48, 200), 64);
     }
 
+    /** {@code room} carrying one more tag. */
+    @Nonnull
+    static RoomSpec tagged(@Nonnull RoomSpec room, @Nonnull String tag) {
+        List<String> tags = new ArrayList<>(room.tags());
+        tags.add(tag);
+        return new RoomSpec(room.id(), room.prefab(), room.box(), room.doors(), room.roles(), tags, room.weight(),
+                room.depthMin(), room.depthMax(), room.needs(), room.keepMarkers(), room.keepContainers(),
+                room.fill());
+    }
+
     /** {@code room} with its own fill block. */
     @Nonnull
     static RoomSpec filled(@Nonnull RoomSpec room, @Nonnull String fill) {
@@ -147,5 +169,11 @@ final class SyntheticRooms {
     @Nonnull
     static DoorSpec door(int x, int y, int z, @Nullable Facing facing, @Nonnull String kind) {
         return new DoorSpec(new Cell(x, y, z), facing, kind);
+    }
+
+    /** A door, exit-only when {@code exitOnly}. */
+    @Nonnull
+    static DoorSpec door(int x, int y, int z, @Nullable Facing facing, @Nonnull String kind, boolean exitOnly) {
+        return new DoorSpec(new Cell(x, y, z), facing, kind, exitOnly);
     }
 }

@@ -1,0 +1,49 @@
+{
+  "$Comment": "A dungeon skill lock, the root wall (Woodcutting's): the game's thick hanging roots (Plant_Vine_Thick_Roots' model and textures), made solid so a column of them closes a doorway. Using it does nothing on its own, so the use reaches the room's trigger volume, whose ZigRequires opens it for a player with the skill and whose RejectionEffects tell anyone else what opens it (the SkillLock room template, tools/rooms). It has no Gathering, so no survival player, creature or explosion can break it and it drops nothing; it has no recipe and no category and is a Variant, so the creative library hides it. It needs no support and is not climbable.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.dungeon.lock.root_wall.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Plant_Vine_Thick_Roots.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Block",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Foliage/Plants/Vine_Thick_Roots.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Foliage/Plants/Vine_Thick_Roots_Texture.png",
+        "Weight": 1
+      },
+      {
+        "Texture": "Blocks/Foliage/Plants/Vine_Thick_Roots_Texture2.png",
+        "Weight": 2
+      }
+    ],
+    "HitboxType": "Plant_Full",
+    "VariantRotation": "NESW",
+    "Flags": {},
+    "BlockParticleSetId": "Grass",
+    "BlockSoundSetId": "Rope",
+    "PhysicalMaterialId": "Wool",
+    "ParticleColor": "#c1904e",
+    "TextureComputedColor": "#B38245",
+    "InteractionHint": "server.interactionHints.examine",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "Simple"
+          }
+        ]
+      }
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Dungeon_Lock"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}
