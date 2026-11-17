@@ -23,7 +23,9 @@ import com.ziggfreed.common.track.source.TrackSources;
  * {@link MirroredStats}, so every reading of a mirrored stat ({@code hytale:stat}, a proc's stat, a consumer's own
  * authored read) answers the level the mirror writes ({@link TrackService#mirror}: the best level, or the current
  * climb's under {@code Mirror.Current}), and a gear, effect or grant line on it counts nowhere. Several tracks
- * mirroring one stat read their levels summed, as their keyed modifiers sum on it.
+ * mirroring one stat read their levels summed, as their keyed modifiers sum on it. A derived track's mirror is never
+ * written ({@code TrackService} keeps no climb of its own for it), so a stat one names reads its derived level here
+ * (the best, or the current under {@code Mirror.Current}, off its sources), where its fold would read none.
  *
  * <p>Which stat mirrors which tracks is read off the live tracks once per fold (kept until a track fold,
  * {@link TrackSources#generation}, or a curve fold, {@link TrackCurves#generation}, moves), so the per-read test

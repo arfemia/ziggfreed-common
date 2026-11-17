@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.factor.HytaleFactors;
+import com.ziggfreed.common.stats.MirroredStats;
 
 /**
  * A stat as it reads at one station, whether or not its holder is working there (R958), and the share of it bound to
@@ -32,6 +33,10 @@ import com.ziggfreed.common.factor.HytaleFactors;
  * moment, R958); while its holder works at a station the condition names, the holder pass has read the knobs live, so
  * a share it left off stays off and a roll there reads exactly the stat, whichever of the condition's stations the
  * {@code Param} names.
+ *
+ * <p>A stat its owner mirrors from a record ({@link MirroredStats}: a level) reads exactly that record at any station:
+ * {@code hytale:stat} already answers the record, so no bound share is added or taken out, and its station share
+ * reads 0. A grant bound to working at a station never lifts a mirror, as gear never does.
  *
  * <p>Contributed process-wide at setup ({@link #contribute}), so a station's loot table, a quest's reward and a gate
  * all resolve them. Unanswerable where {@code hytale:stat} is (no live subject, an unknown stat) and for a {@code Param}
@@ -84,11 +89,14 @@ public final class StationStatReading {
 
     /**
      * What the entity at {@code ref} reads on {@code statId} at {@code stationId}, given the stat's own reading
-     * {@code stat}: less the on shares bound to another station, plus the off shares that would count there. World
-     * thread.
+     * {@code stat}: less the on shares bound to another station, plus the off shares that would count there; a
+     * mirrored stat's own reading unchanged ({@link MirroredStats}). World thread.
      */
     public static double read(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             double stat, @Nonnull String statId, @Nonnull String stationId) {
+        if (MirroredStats.claimOf(statId) != null) {
+            return stat;
+        }
         String working = StationWork.stationAt(accessor, ref);
         double elsewhere = BoundGrants.onPoints(ref, statId, condition -> boundElsewhere(condition, stationId));
         double away = BoundGrants.offPoints(accessor, ref, statId,
@@ -98,10 +106,13 @@ public final class StationStatReading {
 
     /**
      * What the shares of {@code statId} bound to working at {@code stationId} add for the entity at {@code ref}, on or
-     * off: none of the stat's unbound modifiers. World thread.
+     * off: none of the stat's unbound modifiers; 0 on a mirrored stat ({@link MirroredStats}). World thread.
      */
     public static double share(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId, @Nonnull String stationId) {
+        if (MirroredStats.claimOf(statId) != null) {
+            return 0.0;
+        }
         String working = StationWork.stationAt(accessor, ref);
         return BoundGrants.onPoints(ref, statId, condition -> countsAt(condition, stationId))
                 + BoundGrants.offPoints(accessor, ref, statId, condition -> countsAway(condition, stationId, working));
