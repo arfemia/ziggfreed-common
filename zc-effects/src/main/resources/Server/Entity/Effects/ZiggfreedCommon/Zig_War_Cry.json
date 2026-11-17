@@ -1,0 +1,14 @@
+{
+  "$Comment": "A war cry: the creature wearing it shouts while a player is near and rallies the foes round it. Its ZigWarCry tag names the effect the rally puts on every creature within reach that is hostile to players (Zig_Rallied, the game's own goblin war cry), itself too; ZigWarCryShout names the tell it shows as it shouts; ZigWarCryRadius is the reach in blocks, ZigWarCryEvery the seconds between shouts, and ZigWarCryDelay the seconds from the shout to the rally. A creature never shouts while another cry within reach is still in force, so a pack rallies once at a time. Put it on a creature with an omen's Mobs.Effects, an affix or any ApplyEffect; it shows nothing itself and lasts until taken off. Copy it under your own id with other tags for a cry of your own.",
+  "Infinite": true,
+  "Debuff": false,
+  "OverlapBehavior": "Ignore",
+  "RemovalBehavior": "Infinite",
+  "Tags": {
+    "ZigWarCry": ["Zig_Rallied"],
+    "ZigWarCryShout": ["Zig_War_Cry_Shout"],
+    "ZigWarCryRadius": ["10"],
+    "ZigWarCryEvery": ["18", "25"],
+    "ZigWarCryDelay": ["1"]
+  }
+}

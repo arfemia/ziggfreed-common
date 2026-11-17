@@ -14,6 +14,8 @@
 - The overlay placer never puts a block on a cell the base fills, and never lets a volume write one there; a door
   a spec seals is written ExitOnly; a door cut into a sealed base writes air only over its declared opening.
 - A rune order puts a wrong rune out at every step, the first included; a room hint is said once per player.
+- Two close crash pillars never watch the same cell, and a pillar's shatter notices read the others before it marks
+  itself shattered.
 """
 import filecmp
 import os
@@ -451,6 +453,45 @@ class PuzzleLogic(unittest.TestCase):
                                     self.ctx())
         self.assertEqual(sum(1 for _, v in lt.volumes(plates.entities) if v["Name"] == "T_Hint"), 1,
                          "a puzzle's HintKey stamps the room hint")
+
+
+class ArenaLogic(unittest.TestCase):
+    def ctx(self):
+        palette = build_room.Palette(pio.load_json(PALETTE))
+        return {"doors": [], "slot": palette.main_block, "name": "T_", "box": ((-12, 0, -12), (12, 8, 12))}
+
+    @staticmethod
+    def cells(box):
+        (x0, y0, z0), (x1, y1, z1) = box
+        return {(x, y, z) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1) for z in range(z0, z1 + 1)}
+
+    def test_close_pillars_never_share_a_watched_cell_and_a_lone_one_keeps_its_reach(self):
+        lone = {"Min": {"X": 6, "Y": 0, "Z": 6}, "Max": {"X": 7, "Y": 5, "Z": 7}}
+        near = {"Min": {"X": -8, "Y": 0, "Z": -8}, "Max": {"X": -7, "Y": 5, "Z": -7}}
+        rim = {"Min": {"X": -10, "Y": 2, "Z": -7}, "Max": {"X": -10, "Y": 7, "Z": -7}}
+        boxes = lt.pillar_boxes([lone, near, rim], 2)
+        self.assertEqual(boxes[0], ((4, 0, 4), (9, 5, 9)), "a pillar with no neighbour is watched Reach blocks round")
+        self.assertFalse(self.cells(boxes[1]) & self.cells(boxes[2]), "two close pillars split the gap between them")
+        for box, pillar in ((boxes[1], near), (boxes[2], rim)):
+            plo, phi = lt.region(pillar)
+            self.assertTrue(self.cells((plo, phi)) <= self.cells(box), "a pillar's own cells stay watched")
+
+    def test_the_pillar_notices_read_the_others_before_the_shatter_marks_this_one(self):
+        pillars = [{"Min": {"X": x, "Y": 0, "Z": 0}, "Max": {"X": x, "Y": 4, "Z": 0}} for x in (-8, 0, 8)]
+        made = lt.crash_pillars({"Tag": "T_Arena", "Pillars": pillars, "Effect": "Mark", "Crash": "Root_Crash",
+                                 "Cracked": "Rock_Stone_Cobble", "Stump": "Rock_Stone_Cobble_Half", "Reach": 2,
+                                 "ShatterMoment": "Shattered", "LastMoment": "None_Left"}, self.ctx())
+        for _, tv in lt.volumes(made.entities):
+            notices = {e["Moment"]: e["Entry"] for e in tv["Effects"] if e["Type"] == "ZigFeedback"}
+            shatter = {e["Entry"] for e in tv["Effects"] if e["Type"] == "ModifyTags" and e["TagValue"] == "Shattered"}
+            self.assertEqual(len(shatter), 1)
+            self.assertTrue(all(entry < min(shatter) for entry in notices.values()),
+                            "the volume's entries run in order, so each notice reads the pillars first")
+            counts = {c["Entry"]: c for c in tv["Conditions"] if c.get("Source") == "Radius"}
+            self.assertEqual(counts[notices["None_Left"]]["MinimumCount"], 2, "the last: every other one shattered")
+            self.assertFalse(counts[notices["None_Left"]]["Inverted"])
+            self.assertTrue(counts[notices["Shattered"]]["Inverted"], "one of several: not every other one yet")
+            self.assertTrue(counts[notices["Shattered"]]["MatchKey"].endswith(lt.ROOM), "it counts its own room's")
 
 
 if __name__ == "__main__":

@@ -2,8 +2,10 @@ package com.ziggfreed.common.instance.dungeon.gen;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -28,6 +30,7 @@ import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.RunLanes;
 import com.ziggfreed.common.instance.dungeon.RunSeeds;
 import com.ziggfreed.common.instance.dungeon.layout.Cell;
+import com.ziggfreed.common.instance.dungeon.layout.DoorSpec;
 import com.ziggfreed.common.instance.dungeon.layout.Layout;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutGenerator;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
@@ -36,7 +39,9 @@ import com.ziggfreed.common.instance.dungeon.layout.PlacedRoom;
 import com.ziggfreed.common.instance.dungeon.layout.QuarterTurns;
 import com.ziggfreed.common.instance.dungeon.layout.RoomCatalogue;
 import com.ziggfreed.common.instance.dungeon.layout.RoomSpec;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutConfig;
 import com.ziggfreed.common.instance.dungeon.layout.asset.PrefabPoolIndex;
+import com.ziggfreed.common.instance.dungeon.room.RoomFoes;
 import com.ziggfreed.common.instance.dungeon.room.RoomTurns;
 import com.ziggfreed.common.instance.dungeon.room.RunLogic;
 import com.ziggfreed.common.instance.world.CopyKey;
@@ -236,7 +241,8 @@ public final class GeneratedRuns {
             rooms.add(room(placed, catalogue, pools, frame));
         }
         Transform arrival = arrivalOf(layout, frame, dungeon);
-        RunLogic logic = prepareLogic(worldName, area, run, seed, layout, rooms, catalogue);
+        RoomFoes.Plan foes = planId == null ? RoomFoes.Plan.NONE : DungeonLayoutConfig.getInstance().foes(planId);
+        RunLogic logic = prepareLogic(worldName, area, run, seed, layout, rooms, catalogue, foes);
         long prepared = System.nanoTime();
         return new DungeonRun(area, run, seed, plan.id(), layout, frame, rooms, arrival,
                 (generated - start) / NANOS_PER_MILLI, (prepared - generated) / NANOS_PER_MILLI, logic);
@@ -244,14 +250,17 @@ public final class GeneratedRuns {
 
     /**
      * The run's room logic, prepared from its painted rooms: each room's anchor, turn, box and prefabs, whether its
-     * room file keeps its markers, and the rooms its doors join. A run whose logic cannot be prepared runs without it
-     * (warned), so the party still gets its rooms.
+     * room file keeps its markers, the rooms its doors join, and the foes the plan gives the role it fills
+     * ({@code Rosters}, {@code Foes}). A run whose logic cannot be prepared runs without it (warned), so the party
+     * still gets its rooms.
      */
     @Nonnull
     private static RunLogic prepareLogic(@Nonnull String worldName, int area, int run, long seed,
-            @Nonnull Layout layout, @Nonnull List<DungeonRun.Room> rooms, @Nonnull RoomCatalogue catalogue) {
+            @Nonnull Layout layout, @Nonnull List<DungeonRun.Room> rooms, @Nonnull RoomCatalogue catalogue,
+            @Nonnull RoomFoes.Plan foes) {
         try {
             List<RunLogic.Room> logicRooms = new ArrayList<>(rooms.size());
+            Map<Integer, RunLogic.FoeSite> sites = new HashMap<>();
             for (int i = 0; i < rooms.size(); i++) {
                 DungeonRun.Room room = rooms.get(i);
                 PlacedRoom placed = layout.rooms().get(i);
@@ -265,8 +274,12 @@ public final class GeneratedRuns {
                 logicRooms.add(new RunLogic.Room(room.index(), room.origin(), room.rotation().ordinal(), room.box(),
                         room.base(), room.overlay(), spec != null && spec.keepMarkers(), neighbours,
                         room.roomId() + " (" + room.prefabKey() + ")"));
+                RunLogic.FoeSite site = spec == null || foes.empty() ? null : foeSite(foes, placed, spec);
+                if (site != null) {
+                    sites.put(room.index(), site);
+                }
             }
-            return RunLogic.prepare(worldName, area, run, seed, logicRooms);
+            return RunLogic.prepare(worldName, area, run, seed, logicRooms, sites);
         } catch (Throwable t) {
             if (WARNED.add(("logic:" + layout.planId()).toLowerCase(Locale.ROOT))) {
                 SafeLog.warn(LOG + "the room logic of a run of the layout plan " + layout.planId() + " could not be "
@@ -274,6 +287,27 @@ public final class GeneratedRuns {
             }
             return RunLogic.none(area, run);
         }
+    }
+
+    /**
+     * The foes room {@code placed} raises, or null: the plan's rule for the role it fills and the roster its tags draw
+     * on, with its own box and the doors joining it to another room (a capped door, which leads nowhere, left out).
+     */
+    @Nullable
+    private static RunLogic.FoeSite foeSite(@Nonnull RoomFoes.Plan foes, @Nonnull PlacedRoom placed,
+            @Nonnull RoomSpec spec) {
+        RoomFoes.Rule rule = foes.ruleFor(List.of(placed.role()));
+        RoomFoes.Roster roster = rule == null ? null : foes.rosterFor(spec.tags());
+        if (rule == null || roster == null) {
+            return null;
+        }
+        List<DoorSpec> joined = new ArrayList<>();
+        for (PlacedRoom.DoorLink link : placed.doors()) {
+            if (link.room() >= 0 && !link.capped() && link.door() >= 0 && link.door() < spec.doors().size()) {
+                joined.add(spec.doors().get(link.door()));
+            }
+        }
+        return new RunLogic.FoeSite(rule, roster, spec.box(), joined, foes.bars());
     }
 
     /** One placed room as the painter reads it: in world blocks, its variant's prefab loaded. */

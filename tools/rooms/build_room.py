@@ -26,8 +26,13 @@ The spec (JSON, keys as below; every cell is anchor-relative, the anchor being t
   in the room file (an overlay's Closed doors too): the layout never enters the room through a door it seals, so the
   room's logic opening it is always the way on. "ExitOnly": true marks a door the room's logic seals some other way
   (an arena's way on, shut by its fight), with no block in it.
-- Props: {At, Slot}. Spawns: {At, Marker} (a manual spawn marker id, woken by the SealedCombat template). A spec
-  without an overlay that lists any writes "Keep": {"Markers": true} in its room file, so the room logic places them.
+- Props: {At, Slot}. Spawns: {At, Marker} (a manual spawn marker id, woken by the SealedCombat template or a fight's
+  script). A spec without an overlay that lists any writes "Keep": {"Markers": true} in its room file, so the room
+  logic places them.
+- Encounters: {At, Id} (an encounter script's entity: an arena's fight, placed with the room's logic). Points: {At,
+  Tags [..], Name?} (tagged points a fight's Points sensor finds, such as its health-pack spots).
+- A logic parameter written "$Key" reads the spec's own top-level Key (an arena's Pillars, say), so a mark is written
+  once.
 - Logic: {Template, ...params} from logic_templates.TEMPLATES; a template may place blocks of its own (braziers,
   plates, runes), which count as props. A template is handed the room's doors and its Box (an overlay's: the base
   room's), the region a room hint covers unless it names its own.
@@ -194,6 +199,33 @@ def spawn_marker_entity(spec_id, index, cell, marker):
     }}
 
 
+def encounter_entity(spec_id, index, cell, encounter_id):
+    """An encounter script's entity in vanilla's prefab shape (Hunt/Generic/Site's), standing on cell's floor: the room
+    logic places it with the room, a fresh UUID and no lineage of its own."""
+    u = uuid.uuid5(uuid.NAMESPACE_URL, "zc-room:%s:encounter:%d" % (spec_id, index))
+    return {"Components": {
+        "Nameplate": {"Text": encounter_id},
+        "HiddenFromAdventurePlayer": {},
+        "MarkedEntitySupport": {},
+        "Transform": {"Position": lt.vec(cell[0] + 0.5, cell[1], cell[2] + 0.5),
+                      "Rotation": {"Pitch": 0.0, "Yaw": 0.0, "Roll": 0.0}},
+        "Intangible": {},
+        "PrefabCopyable": {},
+        "Model": {"Model": {"Id": "Encounter_Marker", "Scale": 1.0, "Static": False}},
+        "UUID": {"UUID": {"$binary": base64.b64encode(u.bytes).decode("ascii"), "$type": "04"}},
+        "EncounterManager": {"EncounterId": encounter_id},
+    }}
+
+
+def point_entity(cell, name, tags):
+    """A tagged point (a Points sensor finds it by tag, such as a boss fight's health-pack spots), on cell's floor."""
+    return {"Components": {
+        "Transform": {"Position": lt.vec(cell[0] + 0.5, cell[1], cell[2] + 0.5),
+                      "Rotation": {"Pitch": 0.0, "Yaw": 0.0, "Roll": 0.0}},
+        "Point": {"Name": name, "Tags": {tag: "Empty" for tag in tags}},
+    }}
+
+
 def content_hash(doc):
     body = {k: doc.get(k) for k in ("anchorX", "anchorY", "anchorZ", "blocks", "fluids", "entities")}
     return hashlib.sha1(pio.dumps(body).encode("utf-8")).hexdigest()
@@ -259,7 +291,10 @@ class RoomBuild:
     # Cells
 
     def resolve(self, value):
-        """Every {X, Z, OnFloor: true} inside `value` becomes the floor cell the ground has there."""
+        """Every {X, Z, OnFloor: true} inside `value` becomes the floor cell the ground has there, and a "$Key" string
+        the spec's own top-level Key."""
+        if isinstance(value, str) and value.startswith("$") and value[1:] in self.spec:
+            return self.resolve(self.spec[value[1:]])
         if isinstance(value, list):
             return [self.resolve(v) for v in value]
         if not isinstance(value, dict):
@@ -339,6 +374,16 @@ class RoomBuild:
             if self.overlay and not self.ground.free(cell):
                 self.problems.append("spawn marker %s at %s stands in a cell the base fills" % (s["Marker"], cell))
             entities.append(spawn_marker_entity(spec["Id"], i, cell, s["Marker"]))
+        for i, e in enumerate(spec.get("Encounters", [])):
+            cell = pio.xyz_tuple(self.resolve(e["At"]))
+            if self.overlay and not self.ground.free(cell):
+                self.problems.append("encounter %s at %s stands in a cell the base fills" % (e["Id"], cell))
+            entities.append(encounter_entity(spec["Id"], i, cell, e["Id"]))
+        for i, p in enumerate(spec.get("Points", [])):
+            cell = pio.xyz_tuple(self.resolve(p["At"]))
+            if self.overlay and not self.ground.free(cell):
+                self.problems.append("point %s at %s stands in a cell the base fills" % (p.get("Tags"), cell))
+            entities.append(point_entity(cell, p.get("Name", "%s_Point_%d" % (spec["Id"], i)), p["Tags"]))
         ctx = {"doors": self.doors, "slot": self.palette.main_block, "name": spec["Id"] + "_",
                "box": self.room_box()}
         for i, logic in enumerate(spec.get("Logic", [])):

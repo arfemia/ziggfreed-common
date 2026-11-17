@@ -25,6 +25,7 @@ import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan.Branch;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan.Count;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan.Links;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan.Stratum;
+import com.ziggfreed.common.instance.dungeon.room.RoomFoes;
 
 /**
  * A dungeon layout plan file's codec: every leaf and group reads as written (folded where the generator folds it),
@@ -90,6 +91,36 @@ class DungeonLayoutAssetCodecTest {
         assertEquals(base.branches(), child.branches());
         assertEquals(base.bounds(), child.bounds());
         assertEquals(base.entry(), child.entry());
+    }
+
+    @Test
+    void theFoesReadAsWrittenAndATierKeepsTheRostersItDoesNotRestate() throws IOException {
+        DungeonLayoutAsset parent = decode("Deep", """
+                {
+                  "Rosters": [ { "AnyOf": ["Kit=Cursed_Crypt"], "Front": [" Skeleton_Fighter ", ""],
+                                 "Ranged": ["Skeleton_Archer"], "Elite": ["Wraith"],
+                                 "PartyScaled": ["Dungeon_Goblin_Mace"] } ],
+                  "Foes": [ { "Role": "Combat", "Count": 4, "PerExtraPlayer": 1, "Elite": 0.5 },
+                            { "Role": "Junction", "Sealed": false, "Count": 2, "PerExtraPlayer": 0.5 }, {} ],
+                  "Bars": " Rock_Crystal_Void_Block "
+                }
+                """, null);
+        RoomFoes.Plan plan = parent.foePlan();
+        assertEquals(1, plan.rosters().size());
+        RoomFoes.Roster roster = plan.rosters().get(0);
+        assertEquals(List.of("kit=cursed_crypt"), roster.anyOf(), "a roster's tags fold as a plan's do");
+        assertEquals(List.of("Skeleton_Fighter"), roster.front(), "a role is trimmed, a blank one dropped");
+        assertEquals(List.of(new RoomFoes.Rule("combat", true, 4, 1.0, 0.5),
+                new RoomFoes.Rule("junction", false, 2, 0.5, 0.0)), plan.rules(),
+                "Sealed defaults to true, Elite to 0, and a rule naming no role binds nothing");
+        assertEquals("Rock_Crystal_Void_Block", plan.bars());
+        assertNotNull(DungeonLayoutAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Rosters"));
+
+        RoomFoes.Plan tier = decode("Deep_Tier_2", "{ \"Foes\": [ { \"Role\": \"Combat\", \"Count\": 5 } ] }",
+                parent).foePlan();
+        assertEquals(plan.rosters(), tier.rosters(), "a tier writing no Rosters shares its parent's");
+        assertEquals(List.of(new RoomFoes.Rule("combat", true, 5, 0.0, 0.0)), tier.rules());
+        assertEquals("Rock_Crystal_Void_Block", tier.bars());
     }
 
     private static void assertStoneRun(@Nonnull LayoutPlan plan) {
