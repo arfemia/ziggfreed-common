@@ -35,6 +35,8 @@ import com.ziggfreed.common.validation.Finding;
  *       layout.</li>
  *   <li>{@code OVERLAY_POOL} (ERROR): a room with an {@code Overlay} whose {@code Prefab} or {@code Overlay} is a pool;
  *       the overlay's cells were fitted to one piece, so another variant would put them on its walls.</li>
+ *   <li>{@code NO_WAY_IN} (ERROR): a room whose every door with a facing is exit-only, so no room can join onto it;
+ *       only a room with role {@code Entry} (placed first, joined onto nothing) or {@code Cap} may be so.</li>
  * </ul>
  *
  * <p>A reference another pack may fill is a WARNING, per the library's rule; a file contradicting itself is an
@@ -54,6 +56,7 @@ public final class RoomCatalogueAudit {
     public static final String PLAN_ROLE = "PLAN_ROLE";
     public static final String ENTRY_BOUNDS = "ENTRY_BOUNDS";
     public static final String OVERLAY_POOL = "OVERLAY_POOL";
+    public static final String NO_WAY_IN = "NO_WAY_IN";
 
     private RoomCatalogueAudit() {
     }
@@ -127,6 +130,11 @@ public final class RoomCatalogueAudit {
         for (String kind : uncapped) {
             out.add(Finding.warning(DOMAIN, CAP_KIND, "No usable Cap room closes a '" + kind + "' door, so " + effect
                     + ".", id));
+        }
+        if (room.usableDoorCount() > 0 && room.enterableDoorCount() == 0 && !room.hasRole(RoomSpec.ENTRY_ROLE)
+                && !room.hasRole(RoomSpec.CAP_ROLE)) {
+            out.add(Finding.error(DOMAIN, NO_WAY_IN, "Every door is ExitOnly, so no room can join onto it and it is "
+                    + "never placed; give it a door it can be entered by, or the role Entry.", id));
         }
         if (room.hasRole(RoomSpec.CAP_ROLE) && room.usableDoorCount() != 1) {
             out.add(Finding.warning(DOMAIN, CAP_DOORS, "A Cap room needs exactly one door with a Facing; this one has "

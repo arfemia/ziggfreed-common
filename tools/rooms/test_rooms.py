@@ -11,7 +11,9 @@
 - Every logic template's volumes, as the sample specs stamp them, use only trigger-volume Types, keys, event names and
   enum values the engine's own codecs read (the release source's builtin TriggerVolumes plugin, read once), and
   CommonLib's own Types the keys their sources declare; a missing source skips the check with the reason.
-- The overlay placer never puts a block on a cell the base fills, and never lets a volume write one there.
+- The overlay placer never puts a block on a cell the base fills, and never lets a volume write one there; a door
+  a spec seals is written ExitOnly; a door cut into a sealed base writes air only over its declared opening.
+- A rune order puts a wrong rune out at every step, the first included; a room hint is said once per player.
 """
 import filecmp
 import os
@@ -336,6 +338,22 @@ class OverlayPlacer(unittest.TestCase):
         room = rb.room()
         self.assertEqual((room["Prefab"], room["Overlay"]), ("Test.Base", "Test.Overlay"))
         self.assertEqual(room["Fill"], "Rock_Stone", "the base room's Fill carries over")
+        self.assertIs(room["Doors"][0].get("ExitOnly"), True, "a sealed door is one the layout never enters by")
+
+    def test_a_tall_block_writes_its_filler_cells(self):
+        doc = pio.load_json(PALETTE)
+        doc["Slots"]["Tall"] = {"Block": "Rock_Stone", "Height": 3}
+        rb = build_room.RoomBuild(overlay_spec(Props=[{"At": {"X": -2, "Z": -5, "OnFloor": True}, "Slot": "Tall"}]),
+                                  build_room.Palette(doc), self.base, SYNTHETIC_ROOM)
+        rb.run()
+        blocks = {(b["x"], b["y"], b["z"]): b for b in rb.prefab()["blocks"]}
+        own = blocks[(-2, 1, -5)]
+        self.assertNotIn("filler", own, "the block's own cell is no filler")
+        for k in (1, 2):
+            above = blocks[(-2, 1 + k, -5)]
+            self.assertEqual((above["name"], above["filler"]), (own["name"], k << 10),
+                             "the cell %d above is the block's filler, as the engine packs it" % k)
+        self.assertNotIn((-2, 4, -5), blocks, "a block three cells tall writes two fillers, no more")
 
     def test_a_block_on_a_filled_cell_is_refused(self):
         cases = {
@@ -351,6 +369,25 @@ class OverlayPlacer(unittest.TestCase):
             with self.subTest(what):
                 with self.assertRaises(build_room.BuildError):
                     self.build(spec)
+
+    def test_a_cut_door_carves_air_only_in_its_declared_opening(self):
+        south = {"At": {"X": 0, "Y": 0, "Z": 0}, "Facing": "South", "Kind": "Test"}
+        east = {"At": {"X": 3, "Y": 0, "Z": -3}, "Facing": "East", "Kind": "Test", "Width": 1, "Height": 2, "Cut": True}
+        rb = self.build(overlay_spec(Doors=[south, east]))
+        self.assertEqual(rb.problems, [])
+        self.assertEqual(sorted(rb.cuts), [(3, 1, -3), (3, 2, -3)], "the cut is the declared opening and no more")
+        self.assertTrue(all(self.base.solid_at(c) for c in rb.cuts), "the cut opens the base's own wall")
+        free = build_room.BaseGround(self.base).free_cells
+        self.assertEqual(sorted(c for c in rb.slots if c not in free and c not in rb.cuts), [],
+                         "every other overlay block still stands on a free cell")
+        listed = {(b["x"], b["y"], b["z"]): b["name"] for b in rb.prefab()["blocks"]}
+        self.assertEqual([listed[c] for c in sorted(rb.cuts)], [pio.EMPTY_BLOCK] * 2,
+                         "the overlay lists the cut as air, which the painter writes over the base")
+        cut = [d for d in rb.room()["Doors"] if d["Facing"] == "East"]
+        self.assertEqual(len(cut), 1, "the cut door is one of the room's doors")
+        self.assertNotIn("ExitOnly", cut[0], "a cut door is a way in")
+        with self.assertRaises(build_room.BuildError):
+            self.build(overlay_spec(Doors=[south, dict(east, Closed="Bars")]))
 
     def test_a_volume_writing_into_a_filled_cell_is_a_problem(self):
         spec = overlay_spec(Logic=[{"Template": "MemoryClue", "Canvas": {"X": 1, "Y": 2, "Z": -3},
@@ -368,6 +405,52 @@ class OverlayPlacer(unittest.TestCase):
             rb = build_sample(name, self.palette, assets)
             self.assertEqual(rb.problems, [], name)
             self.assert_on_free_cells(rb, rb.base, name)
+
+
+class PuzzleLogic(unittest.TestCase):
+    def ctx(self):
+        palette = build_room.Palette(pio.load_json(PALETTE))
+        return {"doors": [], "slot": palette.main_block, "name": "T_", "box": ((-5, 0, -5), (5, 5, 5))}
+
+    def test_a_wrong_first_rune_is_put_out(self):
+        params = {"Runes": [{"X": 0, "Y": 1, "Z": -2}, {"X": 2, "Y": 1, "Z": -2}, {"X": 4, "Y": 1, "Z": -2}],
+                  "Glyphs": ["Rune_A", "Rune_B", "Rune_C"], "Lit": ["Rune_A_Lit", "Rune_B_Lit", "Rune_C_Lit"],
+                  "Variants": [[2, 0, 1]], "Milestone": ""}
+        made = lt.rune_order(params, self.ctx())
+        controller = [tv for _, tv in lt.volumes(made.entities) if tv["Name"].startswith("T_Runes_")][0]
+        for k, rune in enumerate([2, 0, 1]):
+            wrong = [c.get("Entry", 0) for c in controller["Conditions"]
+                     if c.get("TagKey") == "Rune" and c.get("Comparison") == "NotEquals" and c["TagValue"] == str(rune)]
+            self.assertEqual(len(wrong), 1, "step %d has a wrong-rune entry" % k)
+            entry = wrong[0]
+            self.assertIn(str(k), [c["TagValue"] for c in controller["Conditions"]
+                                   if c.get("Entry", 0) == entry and c.get("TagKey") == "Step"])
+            puts_out = [e for e in controller["Effects"] if e.get("Entry", 0) == entry and e["Type"] == "ReplaceBlockType"]
+            self.assertEqual(len(puts_out), 3, "a wrong rune at step %d puts every rune out" % k)
+
+    def test_a_door_lock_fills_exactly_its_doorway(self):
+        ctx = self.ctx()
+        opening = [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 1, 0), (1, 2, 0), (-1, 2, 0)]
+        ctx["doors"] = [{"Opening": opening}]
+        made = lt.skill_lock({"Lock": {"Door": 0}, "Param": "MMO_Level_MINING", "Min": 10,
+                              "HintKey": "server.test.lock"}, ctx)
+        self.assertEqual(sorted(made.blocks), sorted(opening), "the lock stands in every doorway cell, no other")
+        tv = made.entities[0]["Components"]["TriggerVolume"]
+        swapped = sorted((e["Offset"]["X"], e["Offset"]["Y"], e["Y"]) for e in tv["Effects"]
+                         if e["Type"] == "ReplaceBlockType")
+        self.assertEqual(len(swapped), 3, "opening it swaps the doorway column by column")
+
+    def test_a_room_hint_is_said_once_per_player(self):
+        made = lt.room_hint({"HintKey": "server.test.hint"}, self.ctx())
+        tv = made.entities[0]["Components"]["TriggerVolume"]
+        self.assertEqual([(e["Event"], e["Type"], e["Message"]) for e in tv["Effects"]],
+                         [("ENTER", "SendMessage", "server.test.hint")])
+        self.assertGreaterEqual(tv["Cooldown"], 3600.0, "a per-player cooldown longer than a run")
+        self.assertNotIn("CooldownMode", tv, "the engine's default cooldown is per entity")
+        plates = lt.pressure_plates({"Plates": [{"X": 0, "Y": 1, "Z": 0}], "HintKey": "server.test.plates"},
+                                    self.ctx())
+        self.assertEqual(sum(1 for _, v in lt.volumes(plates.entities) if v["Name"] == "T_Hint"), 1,
+                         "a puzzle's HintKey stamps the room hint")
 
 
 if __name__ == "__main__":

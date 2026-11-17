@@ -186,3 +186,11 @@ run.failed.wipe = Your whole party fell in {0}. The run failed.
 
 # Records' Boss Fights, for a fight fought inside a dungeon. {0} is the fight's name, {1} the dungeon's.
 records.fight = {0} in {1}
+
+# The skill lock blocks' names (Server/Item/Items/Dungeon_Locks), each a way a room keeps a secret shut until a player
+# with the right skill uses it.
+lock.cracked_wall.name = Cracked Wall
+lock.root_wall.name = Root Wall
+lock.sunken_chest.name = Sunken Chest
+lock.rubble_heap.name = Rubble Heap
+lock.glowing_bloom.name = Glowing Bloom
