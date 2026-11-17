@@ -4,6 +4,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -41,10 +42,11 @@ public final class HitReads {
     /**
      * The native {@code Tags} key an effect carries to give its wearer's classless hits a damage class
      * ({@code "Tags": { "ZigHitClass": ["Charged"] }}, its first value a damage class name): while the attacker wears it,
-     * a hit whose own damage names no class (the game's held axe swing) reads as that class to every
-     * {@code Hit.Classes} read, a conditional stat's and a proc's alike. A hit that names its own class keeps it, a
-     * damage-over-time tick (a hit with no calculator) is never given one, and the engine's own damage class (what armor's
-     * class enhancement reads) is never touched, so the tag changes only what a {@code Hit.Classes} read hears.
+     * a hit whose own damage names no class (the engine's {@code UNKNOWN}, as the game's held axe swing's) reads as that
+     * class to every {@code Hit.Classes} read, a conditional stat's and a proc's alike ({@link #classFor}). A hit that
+     * names its own class keeps it, a damage-over-time tick (a hit with no calculator) is never given one, and the
+     * engine's own damage class (what armor's class enhancement reads) is never touched, so the tag changes only what a
+     * {@code Hit.Classes} read hears.
      */
     public static final String CLASS_TAG = "ZigHitClass";
 
@@ -194,10 +196,8 @@ public final class HitReads {
         }
         last.source = damage.getSource();
         last.target = target;
-        last.damageClass = classOf(sequence);
-        if (last.damageClass == null && sequence != null) {
-            last.damageClass = taggedClass(accessor, damage);
-        }
+        last.damageClass = classFor(sequence != null, isOverTime(damage), calculatorClass(sequence),
+                () -> taggedClass(accessor, damage));
         last.later = sequence != null && laterInSwing(damage);
         // An attacker with no id is never noted, so it never reads as a first hit (it would on every hit).
         UUID attacker = target != null && damage.getSource() instanceof Damage.EntitySource entity
@@ -258,13 +258,32 @@ public final class HitReads {
         return null;
     }
 
+    /**
+     * The class a hit reads as, lower-cased, or null for none. Pure. A hit with no calculator, or a damage-over-time
+     * tick, has none. Otherwise it is the calculator's own class, unless that is {@code UNKNOWN}: the engine gives a
+     * damage that names no class {@code UNKNOWN}, never null, and a {@code Classes} entry never names it, so it reads
+     * as no class, and the hit takes the class its attacker's tagged effect gives ({@link #CLASS_TAG}; {@code tagged}
+     * is asked only then).
+     */
     @Nullable
-    private static String classOf(@Nullable DamageCalculatorSystems.DamageSequence sequence) {
+    static String classFor(boolean hasCalculator, boolean overTime, @Nullable DamageClass own,
+            @Nonnull Supplier<String> tagged) {
+        if (!hasCalculator || overTime) {
+            return null;
+        }
+        if (own != null && own != DamageClass.UNKNOWN) {
+            return own.name().toLowerCase(Locale.ROOT);
+        }
+        return tagged.get();
+    }
+
+    /** The class the hit's calculator names (the engine's {@code UNKNOWN} for none), or null with no calculator. */
+    @Nullable
+    private static DamageClass calculatorClass(@Nullable DamageCalculatorSystems.DamageSequence sequence) {
         if (sequence == null) {
             return null;
         }
         DamageCalculator calculator = sequence.getDamageCalculator();
-        DamageClass damageClass = calculator == null ? null : calculator.getDamageClass();
-        return damageClass == null ? null : damageClass.name().toLowerCase(Locale.ROOT);
+        return calculator == null ? null : calculator.getDamageClass();
     }
 }
