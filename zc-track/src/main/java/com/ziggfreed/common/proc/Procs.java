@@ -718,6 +718,7 @@ public final class Procs {
         HeldEffects.forget(ref);
         GuardBreaks.forget(ref);
         ThrownLandings.forget(ref);
+        ProjectileMisses.forget(ref);
     }
 
     // ==================== The reads every part shares ====================

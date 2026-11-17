@@ -381,6 +381,9 @@ final class ProcSystems {
                 if (ProcConfig.getInstance().asksRoots()) {
                     ChainRoots.started(holder, chain, root, nanos);
                 }
+                if (Procs.listens(ProcTrigger.PROJECTILE_MISS)) {
+                    ProjectileMisses.chainStarted(holder, chain, event.getContext(), nanos);
+                }
                 if (chain.getChainId() < 0 && !MoveProofs.takeHandedBack(holder, root, nanos)) {
                     return;
                 }

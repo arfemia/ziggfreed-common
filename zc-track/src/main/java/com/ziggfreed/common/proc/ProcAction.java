@@ -63,6 +63,7 @@ public final class ProcAction {
     @Nullable protected GuardCost guardCost;
     @Nullable protected Reflect reflect;
     @Nullable protected Strike strike;
+    @Nullable protected ReturnThrown returnThrown;
 
     public static final BuilderCodec<ProcAction> CODEC = BuilderCodec.builder(ProcAction.class, ProcAction::new)
             .appendInherited(new KeyedCodec<>("Area", Area.CODEC, false),
@@ -124,6 +125,11 @@ public final class ProcAction {
             .documentation("Strike the target (with an Area, each foe reached) as the holder's own hit, through the "
                     + "engine's own damage: with ByAmount, the moment's own amount (a Kill's overkill, a hit's "
                     + "damage). It spares nothing a plain hit would not.").add()
+            .appendInherited(new KeyedCodec<>("ReturnThrown", ReturnThrown.CODEC, false),
+                    (o, v) -> o.returnThrown = v, o -> o.returnThrown, (o, p) -> o.returnThrown = p.returnThrown)
+            .documentation("For ProjectileMiss: hand the holder back one of the item the projectile was thrown from "
+                    + "(a thrown spear), as it left their hand, after Delay seconds; into their inventory as a "
+                    + "pickup goes, at their feet when it is full, and nothing once they died or left.").add()
             .build();
 
     public ProcAction() {
@@ -143,12 +149,13 @@ public final class ProcAction {
     @Nullable public GuardCost guardCost() { return guardCost; }
     @Nullable public Reflect reflect() { return reflect; }
     @Nullable public Strike strike() { return strike; }
+    @Nullable public ReturnThrown returnThrown() { return returnThrown; }
 
     /** Does it name no group at all (an Area alone does nothing)? */
     public boolean isEmpty() {
         return applyEffect == null && removeEffect == null && changeStat == null && counter == null
                 && push == null && taunt == null && !breakGuard() && runInteraction == null && heal == null
-                && soak == null && guardCost == null && reflect == null && strike == null;
+                && soak == null && guardCost == null && reflect == null && strike == null && returnThrown == null;
     }
 
     /**
@@ -600,6 +607,33 @@ public final class ProcAction {
         @Nullable
         public FactorFormula seconds() {
             return seconds;
+        }
+    }
+
+    /**
+     * The ReturnThrown group: for ProjectileMiss, the holder gets back one of the item the projectile was thrown from,
+     * the stack as it left their hand (its durability and metadata kept), after {@code Delay} seconds: into their
+     * inventory the way a picked-up item goes, with the game's own pickup notice, and at their feet when it is full.
+     * Nothing comes back to a holder who died or left before the wait ends, and nothing for a projectile that came
+     * from no held item.
+     */
+    public static final class ReturnThrown {
+
+        @Nullable protected FactorFormula delay;
+
+        public static final BuilderCodec<ReturnThrown> CODEC = BuilderCodec.builder(ReturnThrown.class,
+                        ReturnThrown::new)
+                .appendInherited(new KeyedCodec<>("Delay", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.delay = v, o -> o.delay, (o, p) -> o.delay = p.delay)
+                .documentation("The seconds before the item comes back, a formula. At once when unauthored.").add()
+                .build();
+
+        public ReturnThrown() {
+        }
+
+        @Nullable
+        public FactorFormula delay() {
+            return delay;
         }
     }
 

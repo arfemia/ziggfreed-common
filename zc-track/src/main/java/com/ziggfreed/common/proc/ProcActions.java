@@ -13,6 +13,7 @@ import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.ChangeVelocityType;
 import com.hypixel.hytale.protocol.InteractionState;
 import com.hypixel.hytale.protocol.InteractionType;
@@ -24,10 +25,12 @@ import com.hypixel.hytale.server.core.entity.damage.DamageDataComponent;
 import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.entity.knockback.KnockbackComponent;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
+import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
@@ -35,13 +38,16 @@ import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.cast.WorldTasks;
 import com.ziggfreed.common.effect.EffectAdds;
 import com.ziggfreed.common.effect.control.AggroControl;
 import com.ziggfreed.common.effect.control.StunControl;
 import com.ziggfreed.common.effect.duration.EffectDurations;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.health.HealthUtil;
+import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.interaction.NativeChainFire;
+import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.stats.condition.EffectFamilies;
@@ -89,6 +95,9 @@ final class ProcActions {
             }
             if (action.reflect() != null) {
                 guarded("Reflect", () -> reflect(moment, action.reflect(), strength, context));
+            }
+            if (action.returnThrown() != null) {
+                guarded("ReturnThrown", () -> returnThrown(moment, action.returnThrown(), context));
             }
             List<Ref<EntityStore>> aims = aims(moment, action.area());
             runSelf(action, moment, strength, context, healSource);
@@ -778,6 +787,36 @@ final class ProcActions {
     private static boolean holdsGuard(@Nonnull InteractionChain chain) {
         InteractionType type = chain.getType();
         return type == InteractionType.Secondary || type == InteractionType.Wielding;
+    }
+
+    /**
+     * Hand the holder back the item a missed projectile was thrown from ({@code moment.thrown()}), once its wait is
+     * over, on their world's thread: a holder who left meanwhile is dropped by the wait itself ({@code WorldTasks}), one
+     * who is dead gets nothing, and the rest goes in as a picked-up item goes, the part that does not fit dropped at
+     * their feet.
+     */
+    private static void returnThrown(@Nonnull ProcMoment moment, @Nonnull ProcAction.ReturnThrown group,
+            @Nonnull FactorContext context) {
+        ItemStack thrown = moment.thrown();
+        if (thrown == null || thrown.isEmpty()) {
+            return;
+        }
+        double seconds = group.delay() == null ? 0.0 : Procs.evaluate(group.delay(), context);
+        long delayMs = Double.isFinite(seconds) ? Math.max(0L, Math.round(seconds * 1000.0)) : 0L;
+        Ref<EntityStore> holder = moment.holder();
+        WorldTasks.later(holder, delayMs, store -> handBack(store, holder, thrown));
+    }
+
+    /** {@code thrown} into {@code holder}'s inventory as a pickup, the rest at their feet; nothing when they died. */
+    static void handBack(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> holder,
+            @Nonnull ItemStack thrown) {
+        if (store.getComponent(holder, DeathComponent.getComponentType()) != null) {
+            return;
+        }
+        ItemStack rest = GroundSpillSinks.pickedUp(holder, store).offer(thrown);
+        if (rest != null && !rest.isEmpty()) {
+            NativeLootService.spawnAtFeet(holder, List.of(rest));
+        }
     }
 
     private static void runInteraction(@Nonnull ProcMoment moment, @Nonnull ProcAction.RunInteraction run) {

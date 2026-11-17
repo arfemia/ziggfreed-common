@@ -318,6 +318,11 @@ public final class ProcValidator {
             out.add(Finding.warning(DOMAIN, MOMENT_ONLY, "proc '" + id + "' names Projectiles on " + trigger.id()
                     + ", which only ProjectileMiss reads, so it never runs", id));
         }
+        if (trigger != ProcTrigger.PROJECTILE_MISS
+                && proc.actions().stream().anyMatch(action -> action.returnThrown() != null)) {
+            out.add(Finding.warning(DOMAIN, MOMENT_ONLY, "proc '" + id + "' writes ReturnThrown on " + trigger.id()
+                    + ", which carries no thrown item (only ProjectileMiss does), so it hands nothing back", id));
+        }
     }
 
     /**
