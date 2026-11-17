@@ -2,8 +2,9 @@
   "$Comment": [
     "The sample boss arena for build_room.py: a hall whose fight (the encounter script Zc_Encounter_Example, standing in",
     "the middle) closes both doorways as it begins and opens them as the boss falls or the fight resets (ArenaDoors), with",
-    "four pillars a charging boss wearing Zig_Staggered crashes into, cracking and then shattering them (CrashPillars), and",
-    "two tagged health-pack points. The arena tag is the script's own and plain, never @room. Cells are relative to the",
+    "four pillars a charging boss wearing Zig_Staggered crashes into, cracking and then shattering them and telling the",
+    "players near through a feedback moment as each shatters (CrashPillars; any moment ids do for the sample), a volume",
+    "marking every player inside the hall for a WakeInArena fight (ArenaWake), and two tagged health-pack points. The arena tag is the script's own and plain, never @room. Cells are relative to the",
     "prefab anchor, the south doorway's floor cell; North is -Z."
   ],
   "Id": "Zc_Sample_Arena",
@@ -47,8 +48,9 @@
   ],
   "Logic": [
     {"Template": "ArenaDoors", "Tag": "Zc_Sample_Arena", "Doors": [0, 1]},
-    {"Template": "CrashPillars", "Tag": "Zc_Sample_Arena", "Pillars": "$Pillars", "Effect": "Zig_Staggered",
+    {"Template": "ArenaWake", "Inset": 2},
+    {"Template": "CrashPillars", "Tag": "Zc_Sample_Arena", "Pillars": "$Pillars", "Reach": 2, "Effect": "Zig_Staggered",
      "Crash": "Root_Interrupt_All", "Cracked": "Rock_Stone_Cobble", "Stump": "Rock_Stone_Cobble_Half",
-     "CrackVfx": "Block_Break_Dust"}
+     "CrackVfx": "Block_Break_Dust", "ShatterMoment": "Encounter_Phase_Changed", "LastMoment": "Encounter_Wiped"}
   ]
 }

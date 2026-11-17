@@ -40,6 +40,7 @@ import com.ziggfreed.common.instance.dungeon.gen.DungeonPainters;
 import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
 import com.ziggfreed.common.instance.dungeon.gen.ZigDungeonWorldGenProvider;
 import com.ziggfreed.common.instance.dungeon.kit.ZigCheckpointEffect;
+import com.ziggfreed.common.instance.dungeon.kit.ZigFeedbackEffect;
 import com.ziggfreed.common.instance.dungeon.kit.ZigHasEffectCondition;
 import com.ziggfreed.common.instance.dungeon.kit.ZigRunMilestoneEffect;
 import com.ziggfreed.common.instance.dungeon.omen.OmenMobs;
@@ -346,6 +347,8 @@ public final class InstanceBootstrap {
                 ZigCheckpointEffect.class, ZigCheckpointEffect.codec());
         plugin.getCodecRegistry(TriggerEffect.CODEC).register(ZigRunMilestoneEffect.TYPE_NAME,
                 ZigRunMilestoneEffect.class, ZigRunMilestoneEffect.codec());
+        plugin.getCodecRegistry(TriggerEffect.CODEC).register(ZigFeedbackEffect.TYPE_NAME,
+                ZigFeedbackEffect.class, ZigFeedbackEffect.codec());
         plugin.getCodecRegistry(TriggerCondition.CODEC).register(ZigHasEffectCondition.TYPE_NAME,
                 ZigHasEffectCondition.class, ZigHasEffectCondition.codec());
         try {

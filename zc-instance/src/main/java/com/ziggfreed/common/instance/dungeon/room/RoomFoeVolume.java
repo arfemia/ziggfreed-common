@@ -31,8 +31,9 @@ import com.ziggfreed.common.instance.dungeon.layout.Facing;
  *
  * <p>A sealed fight: the first player in seals every doorway's air with the plan's bars and wakes the foes; once none
  * of them stands, the doorways open, the room says {@code Cleared} and the run counts {@code Room_Cleared}. If every
- * player leaves first (fallen, sent to a checkpoint), the doorways open anyway and the clear still counts when the last
- * foe falls. An open pack wakes as the first player comes in, and counts nothing.
+ * player leaves first (fallen, sent to a checkpoint), the doorways open anyway, and the clear counts once a player
+ * stands in the room again with none of its foes left: the volume reads its foes only while a player is inside it. An
+ * open pack wakes as the first player comes in, and counts nothing.
  */
 final class RoomFoeVolume {
 

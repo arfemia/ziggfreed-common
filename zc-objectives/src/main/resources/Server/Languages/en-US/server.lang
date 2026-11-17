@@ -13,6 +13,7 @@ customUI.triggerVolumeEffectEditor.conditionType.ZigRequires = Requires
 customUI.triggerVolumeEffectEditor.conditionType.ZigHasEffect = Wears Effect
 customUI.triggerVolumeEffectEditor.effectType.ZigCheckpoint = Dungeon Checkpoint
 customUI.triggerVolumeEffectEditor.effectType.ZigRunMilestone = Dungeon Milestone
+customUI.triggerVolumeEffectEditor.effectType.ZigFeedback = Show Feedback
 
 customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.RespawnOffset = Respawn Offset
 customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.RespawnYaw = Respawn Yaw
@@ -29,3 +30,13 @@ customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Id = Milestone
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Placement = Placement
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Id.tooltip = What happened: Room_Cleared, Puzzle_Solved or Secret_Found, which the results list, or any name of your own.
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Placement.tooltip = Counts once per run under this name. Leave it empty to count this volume on its own.
+
+customUI.triggerVolumeEffectEditor.field.ZigFeedback.Moment = Moment
+customUI.triggerVolumeEffectEditor.field.ZigFeedback.Radius = Radius
+customUI.triggerVolumeEffectEditor.field.ZigFeedback.Moment.tooltip = The feedback moment to show, by its file name. Leave it empty to show nothing.
+customUI.triggerVolumeEffectEditor.field.ZigFeedback.Radius.tooltip = How far from where it fired a player is shown it, in blocks. Set it to 0 to show it only to the player who set it off.
+
+customUI.triggerVolumeEffectEditor.field.ZigHasEffect.Effect = Effect
+customUI.triggerVolumeEffectEditor.field.ZigHasEffect.Wears = Wears It
+customUI.triggerVolumeEffectEditor.field.ZigHasEffect.Effect.tooltip = The effect to look for on whoever set the volume off.
+customUI.triggerVolumeEffectEditor.field.ZigHasEffect.Wears.tooltip = On, the condition holds while they wear the effect. Off, while they do not.

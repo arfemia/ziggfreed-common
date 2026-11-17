@@ -1085,19 +1085,61 @@ def arena_doors(params, ctx):
     return out
 
 
+def pillar_boxes(pillars, reach):
+    """Each pillar's watch box, (lo, hi) cells: the pillar `reach` blocks wider on every side and at least three cells
+    tall, so a creature pressed against it is inside. Where two boxes would overlap (pillars closer than twice the
+    reach), both stop at the gap between the pillars along the axis that parts them most, the lower one taking the
+    smaller half, so one crash is ever caught by one pillar. A pair parted on neither horizontal axis (one stacked over
+    the other) is refused."""
+    boxes = []
+    for p in pillars:
+        plo, phi = region(p)
+        boxes.append([[plo[0] - reach, plo[1], plo[2] - reach], [phi[0] + reach, max(phi[1], plo[1] + 2), phi[2] + reach]])
+    cells = [region(p) for p in pillars]
+    for i in range(len(pillars)):
+        for j in range(i + 1, len(pillars)):
+            a, b = boxes[i], boxes[j]
+            if any(a[1][k] < b[0][k] or b[1][k] < a[0][k] for k in range(3)):
+                continue
+            (alo, ahi), (blo, bhi) = cells[i], cells[j]
+            best = None
+            for k in (0, 2):
+                if ahi[k] < blo[k]:
+                    gap, low, high = blo[k] - ahi[k] - 1, i, j
+                elif bhi[k] < alo[k]:
+                    gap, low, high = alo[k] - bhi[k] - 1, j, i
+                else:
+                    continue
+                if best is None or gap > best[0]:
+                    best = (gap, k, low, high)
+            if best is None:
+                raise ValueError("pillars %d and %d overlap on both horizontal axes" % (i, j))
+            gap, k, low, high = best
+            low_face, high_face = cells[low][1][k], cells[high][0][k]
+            boxes[low][1][k] = min(boxes[low][1][k], low_face + gap // 2)
+            boxes[high][0][k] = max(boxes[high][0][k], high_face - (gap - gap // 2))
+    return [(tuple(lo), tuple(hi)) for lo, hi in boxes]
+
+
 def crash_pillars(params, ctx):
     """Pillars a charging creature crashes into (the Gobliterator's barrel breakdown, R683): each pillar stands in a
-    volume a block wider than itself that watches the creatures in it, and one wearing the charging mark (Effect, which
-    the creature's charge puts on it) runs the crash interaction (Crash: a root interaction run on that creature, such as
-    a stun and a weak-spot window). The first crash cracks the pillar (its blocks turn to Cracked), a crash once it has
+    volume wider than itself that watches the creatures in it, and one wearing the charging mark (Effect, which the
+    creature's charge puts on it) runs the crash interaction (Crash: a root interaction run on that creature, such as a
+    stun and a weak-spot window). The first crash cracks the pillar (its blocks turn to Cracked), a crash once it has
     settled shatters it (a Stump on its base row, air above), and a shattered pillar stops nothing. The fight's Reset
     (its encounter script signals the arena tag) stands every pillar up again.
+
+    A volume sees a creature by the middle of its footprint, so Reach must cover the creature's half-width past the
+    pillar's face: a 1.2-wide half-width needs Reach 2. Two pillars closer than twice the Reach share the gap between
+    them (pillar_boxes), so one crash cracks one pillar.
 
     params: Pillars [{Min, Max}], Effect (the charging mark), Crash (a root interaction id), Tag (the script's ArenaTag),
     Pillar (the palette slot the pillars are built of; default Pillar), Cracked and Stump (block ids), Reach (blocks
     either side of a pillar the volume watches; default 1), Settle (seconds a cracked pillar takes before it can
-    shatter; default 3), Interval (seconds between looks; default 0.2), and the optional CrackSound, CrackVfx,
-    ShatterSound and ShatterVfx."""
+    shatter; default 3), Interval (seconds between looks; default 0.2), the optional CrackSound, CrackVfx,
+    ShatterSound and ShatterVfx, and the optional ShatterMoment and LastMoment (FeedbackMoment ids shown, through
+    ZigFeedback, to the players within MomentRadius blocks, default 32, of the crash: one as a pillar shatters while
+    others stand, the other as the last one does)."""
     tag = params["Tag"]
     if tag.endswith(ROOM) or tag.endswith(RUN):
         raise ValueError("an arena tag is the fight's own, plain: an encounter script's signal is never scoped")
@@ -1106,44 +1148,85 @@ def crash_pillars(params, ctx):
     reach = int(params.get("Reach", 1))
     settle = float(params.get("Settle", 3.0))
     interval = float(params.get("Interval", 0.2))
-    crash = effect("RunRootInteraction", "TICK", 1, RootInteraction=params["Crash"], InteractionType="Secondary",
-                   EquipSlot=0)
+    radius = float(params.get("MomentRadius", 32.0))
+    member = "CrashPillar" + ROOM
+    pillars = params["Pillars"]
+    # Entries run in order each tick: the two notices (2, 3) read the pillars before the shatter (4) marks this one.
+    crack_e, last_e, shatter_note_e, shatter_e, reset_e = 1, 2, 3, 4, 5
     out = Logic()
-    for i, p in enumerate(params["Pillars"]):
+    for i, (p, (lo, hi)) in enumerate(zip(pillars, pillar_boxes(pillars, reach))):
         plo, phi = region(p)
-        lo = (plo[0] - reach, plo[1], plo[2] - reach)
-        hi = (phi[0] + reach, max(phi[1], plo[1] + 2), phi[2] + reach)
         base_hi = (phi[0], plo[1], phi[2])
         mid = ((plo[0] + phi[0]) // 2, plo[1], (plo[2] + phi[2]) // 2)
-        effects = [dict(crash, Entry=1),
-                   swap_cells("TICK", lo, plo, phi, [pillar], cracked, entry=1),
-                   set_own_tag("TICK", "State", "Cracking", entry=1),
-                   set_own_tag("TICK", "State", "Cracked", entry=1, delay=settle)]
-        effects += cue("TICK", params, "Crack", lo, mid, entry=1)
-        effects += [dict(crash, Entry=2),
-                    swap_cells("TICK", lo, plo, base_hi, [pillar, cracked], stump, entry=2),
-                    set_own_tag("TICK", "State", "Shattered", entry=2)]
+        crash = effect("RunRootInteraction", "TICK", 0, RootInteraction=params["Crash"], InteractionType="Secondary",
+                       EquipSlot=0)
+        effects = [dict(crash, Entry=crack_e),
+                   swap_cells("TICK", lo, plo, phi, [pillar], cracked, entry=crack_e),
+                   set_own_tag("TICK", "State", "Cracking", entry=crack_e),
+                   set_own_tag("TICK", "State", "Cracked", entry=crack_e, delay=settle)]
+        effects += cue("TICK", params, "Crack", lo, mid, entry=crack_e)
+        conditions = []
+        notices = []
+        if params.get("LastMoment"):
+            notices.append((last_e, params["LastMoment"], False))
+        if params.get("ShatterMoment") and len(pillars) > 1:
+            notices.append((shatter_note_e, params["ShatterMoment"], True))
+        for entry, moment, others_stand in notices:
+            effects.append(effect("ZigFeedback", "TICK", entry, Moment=moment, Radius=radius))
+            if len(pillars) > 1:
+                # Every other pillar already shattered, or (Inverted) not yet: this one still reads Cracked here.
+                conditions.append(condition("TagCondition", "TICK", entry, Source="Radius", TagKey="State",
+                                            Comparison="Exactly", CompareAgainst="Value", TagValue="Shattered",
+                                            Inverted=others_stand, MatchKey=member, MatchValue="", Radius=REACH,
+                                            Center=CENTER_VOLUME, MinimumCount=len(pillars) - 1))
+        effects += [dict(crash, Entry=shatter_e),
+                    swap_cells("TICK", lo, plo, base_hi, [pillar, cracked], stump, entry=shatter_e),
+                    set_own_tag("TICK", "State", "Shattered", entry=shatter_e)]
         if phi[1] > plo[1]:
             effects.append(swap_cells("TICK", lo, (plo[0], plo[1] + 1, plo[2]), phi, [pillar, cracked], EMPTY,
-                                      entry=2))
-        effects += cue("TICK", params, "Shatter", lo, mid, entry=2)
+                                      entry=shatter_e))
+        effects += cue("TICK", params, "Shatter", lo, mid, entry=shatter_e)
         for e in effects:
             if e["Event"] == "TICK":
                 e["Interval"] = interval
-        effects += [swap_cells("SIGNAL_RECEIVED", lo, plo, phi, [cracked, stump, EMPTY], pillar, entry=3),
-                    set_own_tag("SIGNAL_RECEIVED", "State", "Intact", entry=3)]
-        conditions = []
-        for entry, state in ((1, "Intact"), (2, "Cracked")):
+        # A crack's delayed Cracked can land after a reset: a second Intact past Settle wins over it.
+        effects += [swap_cells("SIGNAL_RECEIVED", lo, plo, phi, [cracked, stump, EMPTY], pillar, entry=reset_e),
+                    set_own_tag("SIGNAL_RECEIVED", "State", "Intact", entry=reset_e),
+                    set_own_tag("SIGNAL_RECEIVED", "State", "Intact", entry=reset_e, delay=settle + 0.25)]
+        entries = [(crack_e, "Intact"), (shatter_e, "Cracked")] + [(entry, "Cracked") for entry, _, _ in notices]
+        for entry, state in entries:
             conditions.append(condition("ZigHasEffect", "TICK", entry, Effect=params["Effect"]))
             conditions.append(tag_is("TICK", "State", state, entry=entry))
-        conditions += event_any("SIGNAL_RECEIVED", ["Reset"], 3)
+        conditions += event_any("SIGNAL_RECEIVED", ["Reset"], reset_e)
         out.entities.append(volume_entity("%sPillar_%d" % (ctx["name"], i), lo, box_size(lo, hi), effects, conditions,
-                                          {tag: "Pillar", "State": "Intact"}, targets=("Npc",)))
+                                          {tag: "Pillar", member: "Pillar", "State": "Intact"}, targets=("Npc",)))
+    return out
+
+
+def arena_wake(params, ctx):
+    """Marks every player inside an arena (the room's Box, Inset blocks in from each side wall, so a player standing in a
+    doorway is not yet inside): while they stand in it they wear Mark, a short effect renewed every Interval seconds,
+    so it lapses Seconds after they leave. An encounter script built on Zc_Encounter_Base with WakeInArena true wakes
+    its boss only for a player wearing it, never for one just outside the door.
+
+    params: Mark (an effect id; default Zig_In_Arena), Inset (default 2), Seconds (default 2), Interval (default 1)."""
+    if not ctx.get("box"):
+        raise ValueError("ArenaWake covers the room's Box, and the room has none")
+    inset = int(params.get("Inset", 2))
+    (x0, y0, z0), (x1, y1, z1) = ctx["box"]
+    lo, hi = (x0 + inset, y0, z0 + inset), (x1 - inset, y1, z1 - inset)
+    if lo[0] > hi[0] or lo[2] > hi[2]:
+        raise ValueError("ArenaWake's Inset %d leaves nothing of the room's Box" % inset)
+    mark = effect("EntityEffect", "TICK", interval=float(params.get("Interval", 1.0)),
+                  Effect=params.get("Mark", "Zig_In_Arena"), Mode="Apply", Duration=float(params.get("Seconds", 2.0)))
+    out = Logic()
+    out.entities.append(volume_entity(ctx["name"] + "Wake", lo, box_size(lo, hi), [mark]))
     return out
 
 
 TEMPLATES = {
     "ArenaDoors": arena_doors,
+    "ArenaWake": arena_wake,
     "CrashPillars": crash_pillars,
     "RoomHint": room_hint,
     "SealedCombat": sealed_combat,

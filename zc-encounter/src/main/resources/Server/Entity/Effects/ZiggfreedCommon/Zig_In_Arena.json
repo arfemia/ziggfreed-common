@@ -1,0 +1,6 @@
+{
+  "$Comment": "An unseen mark a player wears while standing inside a boss arena: the room tools' ArenaWake volume covers the arena and renews it every second, so it lapses a moment after the player steps out. An encounter script built on Zc_Encounter_Base with WakeInArena true raises its boss only for a player wearing it, so the fight never starts for someone outside the door. Duration is the lapse; keep it longer than the volume's renewal.",
+  "Duration": 2.0,
+  "OverlapBehavior": "Overwrite",
+  "Debuff": false
+}

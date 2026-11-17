@@ -1,10 +1,12 @@
 package com.ziggfreed.common.effect.control;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.assetstore.AssetRegistry;
 import com.hypixel.hytale.builtin.npccombatactionevaluator.evaluator.CombatActionEvaluator;
 import com.hypixel.hytale.component.ComponentAccessor;
@@ -13,6 +15,7 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.entity.InteractionChain;
 import com.hypixel.hytale.server.core.entity.InteractionManager;
+import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
@@ -72,6 +75,14 @@ public final class StunControl {
 
     /** The game's own immunity effect, which the {@code Immunity} stat puts on at its {@code Max}. */
     public static final String IMMUNE_EFFECT = "Immune";
+
+    /**
+     * The native {@code Tags} key an effect carries to make whoever wears it immune to stuns with no look of its own
+     * ({@code "Tags": { "ZigStunImmune": ["Yes"] }}, any value): a boss only its fight may stun wears one. Every stun
+     * that asks {@link #isImmune} passes such an entity over; a stun its fight deals itself writes past it
+     * ({@code ZigStun}'s {@code IgnoreImmune}, or {@link #stun} called directly).
+     */
+    public static final String STUN_IMMUNE_TAG = "ZigStunImmune";
 
     /** The game's own stat the diminishing ramp writes. */
     public static final String IMMUNITY_STAT = "Immunity";
@@ -189,11 +200,34 @@ public final class StunControl {
     }
 
     /**
-     * Whether {@code target} wears the game's {@value #IMMUNE_EFFECT} effect, which a stun should pass over (the
-     * {@code EffectCondition} vanilla's bomb wraps its stun in). False whenever it cannot tell.
+     * Whether {@code target} is immune to stuns, which a stun should pass over: it wears the game's
+     * {@value #IMMUNE_EFFECT} effect (the {@code EffectCondition} vanilla's bomb wraps its stun in), or an effect tagged
+     * {@value #STUN_IMMUNE_TAG}. False whenever it cannot tell.
      */
     public static boolean isImmune(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target) {
-        return usable(target) && NativeEffectUtil.has(accessor, target, IMMUNE_EFFECT);
+        return usable(target) && (NativeEffectUtil.has(accessor, target, IMMUNE_EFFECT) || wearsStunImmunity(accessor, target));
+    }
+
+    /** Whether {@code target} wears an effect tagged {@value #STUN_IMMUNE_TAG}, read off each active effect's Tags. */
+    private static boolean wearsStunImmunity(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> target) {
+        try {
+            EffectControllerComponent effects = accessor.getComponent(target, EffectControllerComponent.getComponentType());
+            if (effects == null) {
+                return false;
+            }
+            for (ActiveEntityEffect active : effects.getActiveEffects().values()) {
+                EntityEffect effect = EntityEffect.getAssetMap().getAsset(active.getEntityEffectIndex());
+                AssetExtraInfo.Data data = effect == null ? null : EntityEffect.CODEC.getData(effect);
+                Map<String, String[]> tags = data == null ? null : data.getRawTags();
+                if (tags != null && tags.containsKey(STUN_IMMUNE_TAG)) {
+                    return true;
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[control] could not read a target's stun immunity: " + t.getMessage());
+        }
+        return false;
     }
 
     /**

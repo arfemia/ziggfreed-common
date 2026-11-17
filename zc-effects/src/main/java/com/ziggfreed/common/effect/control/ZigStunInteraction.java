@@ -28,7 +28,8 @@ import com.ziggfreed.common.interaction.type.InteractionOutcome;
  *
  * <p>Written where vanilla's bomb writes its {@code EffectCondition} + {@code ChangeStat Immunity} +
  * {@code Interrupt} + {@code ApplyEffect Stun} run, it is that whole run in one node, plus what no asset can say: a
- * creature's current combat action ends and its attacks hold for the stun. An {@code Immune} target is passed over;
+ * creature's current combat action ends and its attacks hold for the stun. An immune target ({@link
+ * StunControl#isImmune}) is passed over unless {@code IgnoreImmune} is written true;
  * a landed stun adds {@code ImmunityRamp} to the target's {@code Immunity}, so repeated stuns earn a window of
  * immunity. {@code Diminish} (off unless written) also shrinks each stun by the Immunity the target already carries
  * ({@link StunControl#immunityShare}, read before this landing ramps it, then {@link StunControl#diminished}), so a
@@ -54,6 +55,8 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
     protected Double immunityRamp;
     @Nullable
     protected Boolean diminish;
+    @Nullable
+    protected Boolean ignoreImmune;
 
     /** Lazy holder: an eager codec would class-init {@code Interaction}, which throws outside a live server. */
     private static final class Holder {
@@ -88,6 +91,13 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
                         + " already carries, so an entity stunned again soon is stunned less each time until it turns"
                         + " Immune. False when unauthored: the stun lasts its full Duration.")
                 .add()
+                .appendInherited(new KeyedCodec<>("IgnoreImmune", Codec.BOOLEAN),
+                        (i, v) -> i.ignoreImmune = v, i -> i.ignoreImmune, (i, p) -> i.ignoreImmune = p.ignoreImmune)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: the stun lands even on an entity that is immune to stuns (wearing Immune, or an"
+                        + " effect tagged ZigStunImmune), for a stun a fight itself deals, such as a boss crashing into"
+                        + " a pillar while no player's stun can touch him. False when unauthored.")
+                .add()
                 .build();
     }
 
@@ -119,6 +129,11 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
         return Boolean.TRUE.equals(diminish);
     }
 
+    /** Does the stun land on an immune entity? False unless written true. */
+    boolean ignoresImmunity() {
+        return Boolean.TRUE.equals(ignoreImmune);
+    }
+
     /** Only the server stuns; a simulated pass would stun twice. */
     @Override
     protected void simulateFirstRun(@Nonnull InteractionType interactionType, @Nonnull InteractionContext ctx,
@@ -135,7 +150,7 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
                 return false;
             }
             Ref<EntityStore> target = ControlTargets.resolve(ctx, entity, InteractionTarget.TARGET);
-            if (target == null || StunControl.isImmune(buffer, target)) {
+            if (target == null || (!ignoresImmunity() && StunControl.isImmune(buffer, target))) {
                 return true;
             }
             // Diminish: the share is read before this landing ramps it, the one formula every shrinking control keeps.

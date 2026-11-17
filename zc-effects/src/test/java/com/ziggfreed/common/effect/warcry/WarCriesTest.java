@@ -9,8 +9,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * A war cry read off an effect's own tags ({@link WarCries#of}): the tag names the rally, every number left out is the
- * game's own goblin war cry's, a number that does not read keeps its default, and a range comes out in order.
+ * A war cry read off an effect's own tags ({@link WarCries#of}): the tag names the rally, every number left out takes
+ * its default, a number that does not read keeps its default, and a range comes out in order.
  * Untagged: nothing here builds an engine item.
  */
 class WarCriesTest {
@@ -23,10 +23,11 @@ class WarCriesTest {
     }
 
     @Test
-    void theTagAloneTakesTheGamesOwnNumbers() {
+    void theTagAloneTakesTheDefaults() {
         WarCries.Cry cry = WarCries.of(Map.of("zigwarcry", new String[] {" Zig_Rallied "}));
         assertNotNull(cry, "the key is matched without regard to case");
-        assertEquals(new WarCries.Cry("Zig_Rallied", null, 10.0, 18.0, 25.0, 1.0), cry);
+        assertEquals(new WarCries.Cry("Zig_Rallied", null, WarCries.DEFAULT_RADIUS, WarCries.DEFAULT_EVERY_MIN,
+                WarCries.DEFAULT_EVERY_MAX, WarCries.DEFAULT_DELAY), cry);
     }
 
     @Test
@@ -44,7 +45,7 @@ class WarCriesTest {
                 "ZigWarCryRadius", new String[] {"far"},
                 "ZigWarCryEvery", new String[] {"15"}));
         assertNotNull(odd);
-        assertEquals(10.0, odd.radius(), "a number that does not read keeps its default");
+        assertEquals(WarCries.DEFAULT_RADIUS, odd.radius(), "a number that does not read keeps its default");
         assertEquals(15.0, odd.everyMin());
         assertEquals(15.0, odd.everyMax(), "one number is the whole range");
     }

@@ -17,6 +17,12 @@
     "zc:reset and returns to Intro, so the same entity runs the fight again the next time a player comes",
     "near.",
     "",
+    "Who wakes it and who is in it. The boss rises for a player within SensorRange; with WakeInArena true that",
+    "player must also wear WakeMark, which an ArenaWake volume (tools/rooms) puts on whoever stands inside the arena,",
+    "so a player outside the door never starts the fight. Members, the bar and the music reach every player within",
+    "ArenaRange (SensorRange when smaller), and the empty-arena reset waits until no living player stands within it,",
+    "so set ArenaRange to cover the arena's far corners and ledges.",
+    "",
     "Phases. A fight with more than one hands Phase2Transition a transition macro (Zc_Phase_At_Health,",
     "its numbers through _ForwardedModifiers), which moves the fight to Phase_2 and runs Phase2Behavior",
     "there; Phase3Transition and Phase3Behavior go on to Phase_3 the same way. EveryPhase runs beside each",
@@ -24,7 +30,7 @@
     "Every slot left $Null does nothing, so a one-phase fight writes none of them. Each phase keeps the",
     "same defeat check.",
     "",
-    "The arena reset (ArenaReset true): a wipe (every player in SensorRange down) or an arena left with no",
+    "The arena reset (ArenaReset true): a wipe (every player in the arena's range down) or an arena left with no",
     "living player for EmptyArenaSeconds runs the game's own Encounter_Macro_Reset_Arena: it waits until no",
     "fallen player still lies in the arena, removes the boss and every creature of ResetGroups, tells the",
     "arena's volumes Reset, stops the music and goes back to Intro, where zc:reset tells the library and",
@@ -86,7 +92,19 @@
     },
     "SensorRange": {
       "Value": 30,
-      "Description": "How close a player has to stand to count as a member of the fight."
+      "Description": "How close a player has to come for the boss to rise, and to count as a member of the fight unless ArenaRange reaches further."
+    },
+    "ArenaRange": {
+      "Value": 0,
+      "Description": "How far from the encounter entity a player counts as a member of the fight and keeps the arena from an empty reset; SensorRange when smaller, so 0 leaves it SensorRange. Set it to reach the arena's far corners and ledges."
+    },
+    "WakeInArena": {
+      "Value": false,
+      "Description": "True: the boss rises only for a player wearing WakeMark, which an ArenaWake volume over the arena puts on whoever stands inside it, so the fight never starts for a player outside the door."
+    },
+    "WakeMark": {
+      "Value": "Zig_In_Arena",
+      "Description": "The effect a player inside the arena wears, read when WakeInArena is true."
     },
     "TargetRange": {
       "Value": 100,
@@ -167,7 +185,7 @@
         "BeaconRange": { "Compute": "TargetRange" },
         "RemoveGroups": { "Compute": "ResetGroups" },
         "RemoveRadius": { "Compute": "TargetRange" },
-        "ArenaRange": { "Compute": "SensorRange" },
+        "ArenaRange": { "Compute": "max(ArenaRange, SensorRange)" },
         "CorpseRange": { "Compute": "TargetRange" },
         "ResetOnEmptyArena": { "Compute": "ArenaReset" },
         "EmptyArenaSeconds": { "Compute": "EmptyArenaSeconds" },
@@ -227,7 +245,7 @@
     {
       "Sensor": {
         "Type": "Player",
-        "Range": { "Compute": "SensorRange" },
+        "Range": { "Compute": "max(ArenaRange, SensorRange)" },
         "Collector": {
           "Type": "EncounterMembers"
         }
@@ -314,6 +332,22 @@
                   },
                   {
                     "Type": "ZigRested"
+                  },
+                  {
+                    "Enabled": { "Compute": "!WakeInArena" },
+                    "Type": "Player",
+                    "Range": { "Compute": "SensorRange" }
+                  },
+                  {
+                    "Enabled": { "Compute": "WakeInArena" },
+                    "Type": "Player",
+                    "Range": { "Compute": "SensorRange" },
+                    "Filters": [
+                      {
+                        "Type": "EntityEffect",
+                        "EffectId": { "Compute": "WakeMark" }
+                      }
+                    ]
                   }
                 ]
               },
