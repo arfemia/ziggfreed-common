@@ -44,9 +44,9 @@ public final class HitReads {
      * ({@code "Tags": { "ZigHitClass": ["Charged"] }}, its first value a damage class name): while the attacker wears it,
      * a hit whose own damage names no class (the engine's {@code UNKNOWN}, as the game's held axe swing's) reads as that
      * class to every {@code Hit.Classes} read, a conditional stat's and a proc's alike ({@link #classFor}). A hit that
-     * names its own class keeps it, a damage-over-time tick (a hit with no calculator) is never given one, and the
-     * engine's own damage class (what armor's class enhancement reads) is never touched, so the tag changes only what a
-     * {@code Hit.Classes} read hears.
+     * names its own class keeps it, a damage-over-time tick is never given one (a tick carries its effect's calculator,
+     * and reads that calculator's own class as it always did), and the engine's own damage class (what armor's class
+     * enhancement reads) is never touched, so the tag changes only what a {@code Hit.Classes} read hears.
      */
     public static final String CLASS_TAG = "ZigHitClass";
 
@@ -67,6 +67,8 @@ public final class HitReads {
      */
     private static final class Meta {
         static final MetaKey<Integer> SWING_ORDER = Damage.META_REGISTRY.registerMetaObject();
+        /** The class the attacker's tag gave this damage, looked up once ({@code ""} for none). */
+        static final MetaKey<String> TAGGED_CLASS = Damage.META_REGISTRY.registerMetaObject();
     }
 
     private HitReads() {
@@ -208,10 +210,28 @@ public final class HitReads {
 
     /**
      * The class a classless hit takes from its attacker's effects ({@link #CLASS_TAG}): the first worn effect's tag
-     * value, lower-cased, or null when the attacker wears none or is no entity. Never throws.
+     * value, lower-cased, or null when the attacker wears none or is no entity. Looked up once per damage and kept on
+     * it, so every later read of the same damage takes the answer. Never throws.
      */
     @Nullable
     private static String taggedClass(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Damage damage) {
+        try {
+            String kept = damage.getIfPresentMetaObject(Meta.TAGGED_CLASS);
+            if (kept != null) {
+                return kept.isEmpty() ? null : kept;
+            }
+            String found = lookUpTag(accessor, damage);
+            damage.putMetaObject(Meta.TAGGED_CLASS, found == null ? "" : found);
+            return found;
+        } catch (Throwable ignored) {
+            // A meta store that cannot be read or written: looked up again on the next read.
+            return lookUpTag(accessor, damage);
+        }
+    }
+
+    /** {@link #taggedClass}'s lookup over the attacker's worn effects. Never throws. */
+    @Nullable
+    private static String lookUpTag(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Damage damage) {
         if (!(damage.getSource() instanceof Damage.EntitySource entity) || entity.getRef() == null
                 || !entity.getRef().isValid()) {
             return null;
@@ -259,22 +279,23 @@ public final class HitReads {
     }
 
     /**
-     * The class a hit reads as, lower-cased, or null for none. Pure. A hit with no calculator, or a damage-over-time
-     * tick, has none. Otherwise it is the calculator's own class, unless that is {@code UNKNOWN}: the engine gives a
-     * damage that names no class {@code UNKNOWN}, never null, and a {@code Classes} entry never names it, so it reads
-     * as no class, and the hit takes the class its attacker's tagged effect gives ({@link #CLASS_TAG}; {@code tagged}
-     * is asked only then).
+     * The class a hit reads as, lower-cased, or null for none. Pure. A hit with no calculator has none. Otherwise its
+     * calculator's own class wins, a damage-over-time tick's included (a tick carries its effect's calculator), unless
+     * that is {@code UNKNOWN}: the engine gives a damage that names no class {@code UNKNOWN}, never null, and a
+     * {@code Classes} entry never names it, so it reads as no class. Such a hit takes the class its attacker's tagged
+     * effect gives ({@link #CLASS_TAG}; {@code tagged} is asked only then), unless it is a damage-over-time tick, which
+     * never takes one.
      */
     @Nullable
     static String classFor(boolean hasCalculator, boolean overTime, @Nullable DamageClass own,
             @Nonnull Supplier<String> tagged) {
-        if (!hasCalculator || overTime) {
+        if (!hasCalculator) {
             return null;
         }
         if (own != null && own != DamageClass.UNKNOWN) {
             return own.name().toLowerCase(Locale.ROOT);
         }
-        return tagged.get();
+        return overTime ? null : tagged.get();
     }
 
     /** The class the hit's calculator names (the engine's {@code UNKNOWN} for none), or null with no calculator. */
