@@ -534,14 +534,12 @@ def render_layout(lib, layout, title):
 # The temple hub: its districts and the whole hub, from above and from the corners
 
 
-def hub_districts(folder):
-    """{id: district file} under `folder` (a HubDistricts folder), read whole."""
+def hub_districts(folders):
+    """{id: district file} under `folders` (one HubDistricts folder or a list, CommonLib's and a consumer's), read
+    whole; a later folder's file of the same id wins, as a later pack's does."""
     out = {}
-    for dirpath, dirnames, filenames in os.walk(folder):
-        dirnames.sort()
-        for fn in sorted(filenames):
-            if fn.endswith(".json"):
-                out[fn[:-5]] = pio.load_json(os.path.join(dirpath, fn))
+    for folder in ([folders] if isinstance(folders, str) else folders):
+        out.update(hubkit.district_files(folder))
     return out
 
 
@@ -606,11 +604,12 @@ def lot_scene(scene, lot, district, cells, floor):
     scene.add_cells(cells, (cx, 0, cz), hubkit.TURNS[face])
 
 
-def write_hub(out_dir, districts_dir, prefab_roots, server_roots, png=False, views=("SE", "NW")):
-    """Pictures of every district with a prefab (from above with its spots, and from `views`) and of the whole hub."""
+def write_hub(out_dir, districts_dirs, prefab_roots, server_roots, png=False, views=("SE", "NW")):
+    """Pictures of every district with a prefab (from above with its spots, and from `views`) and of the whole hub,
+    from one HubDistricts folder or a list of them."""
     os.makedirs(out_dir, exist_ok=True)
     info = blockinfo.BlockInfo(server_roots)
-    districts = hub_districts(districts_dir)
+    districts = hub_districts(districts_dirs)
     written = []
 
     def emit(name, svg):
@@ -671,8 +670,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="mode", required=True)
     h = sub.add_parser("hub")
-    h.add_argument("--districts", default=os.path.join(ZC_SERVER, "ZiggfreedCommon", "HubDistricts"),
-                   help="a HubDistricts folder (default CommonLib's own)")
+    h.add_argument("--districts", action="append", default=[],
+                   help="a consumer's HubDistricts folder (repeatable; CommonLib's own is always read first)")
     h.add_argument("--prefabs", action="append", default=[], help="a Server/Prefabs folder (repeatable; CommonLib's "
                    "own is always read)")
     h.add_argument("--server", action="append", default=[], help="a pack's Server folder whose items name blocks "
@@ -700,7 +699,8 @@ def main(argv=None):
         prefab_roots = [os.path.join(ZC_SERVER, "Prefabs")] + list(args.prefabs)
         servers = [vanilla, ZC_SERVER] + list(args.server)
         views = tuple(v.strip().upper() for v in args.views.split(",") if v.strip())
-        written = write_hub(args.out, args.districts, prefab_roots, servers, args.png, views)
+        districts = [os.path.join(ZC_SERVER, "ZiggfreedCommon", "HubDistricts")] + list(args.districts)
+        written = write_hub(args.out, districts, prefab_roots, servers, args.png, views)
         print("wrote %d pictures to %s" % (len(written), args.out))
     elif args.mode == "room":
         lib = Library(args.prefabs)

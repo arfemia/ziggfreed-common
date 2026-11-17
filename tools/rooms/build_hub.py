@@ -16,10 +16,13 @@ Every shipped district lays the same street block (STREET) as its Floor, so the 
 paving whatever stands on them; a district's prefab paves its own lot.
 
 The spot check: each district file's Anchors (Server/ZiggfreedCommon/HubDistricts/) must stand on a cell with ground
-under it and two cells of headroom, inside the lot, or the build fails naming the spot.
+under it and two cells of headroom, inside the lot, or the build fails naming the spot (hubkit.spot_problems).
+
+A consumer's district script imports hubkit and these shapes (column, pillar, tree, scatter, patches, foundation,
+planter, niche) and the palette names here, draws its own Canvas with its own stamp, and checks its own district files
+with hubkit.spot_problems; mmo-skills' tools/hub/build_hall.py is one.
 """
 import argparse
-import json
 import math
 import os
 import sys
@@ -616,50 +619,11 @@ DESIGNS = (("Concourse", concourse), ("Scaffold_Large", scaffold_large), ("Scaff
 # The spot check
 
 
-def district_files():
-    out = {}
-    for fn in sorted(os.listdir(DISTRICTS)):
-        if fn.endswith(".json"):
-            with open(os.path.join(DISTRICTS, fn), "r", encoding="utf-8-sig") as f:
-                out[fn[:-5]] = json.load(f)
-    return out
-
-
-def prefab_key(district):
-    base = ((district.get("Prefab") or {}).get("Base") or "")
-    return base.rsplit(".", 1)[-1] if base.startswith("ZiggfreedCommon.Hub.") else None
-
-
 def check_spots(canvases):
-    """Problems with each district's Anchors over the canvas its Prefab names, and a Floor other than STREET."""
-    problems = []
-    for did, district in district_files().items():
-        cv = canvases.get(prefab_key(district))
-        if cv is None:
-            continue
-        floor = (district.get("Prefab") or {}).get("Floor")
-        if floor != STREET:
-            problems.append("%s lays its streets in %s, not the hub's street block %s" % (did, floor, STREET))
-        for anchor in district.get("Anchors") or []:
-            at = anchor.get("At") or {}
-            x, y, z = int(at.get("X", 0)), int(at.get("Y", 0)), int(at.get("Z", 0))
-            name = anchor.get("Name")
-            if not cv.inside(x, y, z):
-                problems.append("%s: spot %s at %s lies outside the lot" % (did, name, (x, y, z)))
-                continue
-            below = cv.get(x, y - 1, z)
-            if not below or below == "Empty" or not solid(cv, below):
-                problems.append("%s: spot %s at %s has no ground under it (%s)" % (did, name, (x, y, z), below))
-            for dy in (0, 1):
-                here = cv.get(x, y + dy, z)
-                if here and here != "Empty" or (x, y + dy, z) in cv.fillers:
-                    problems.append("%s: spot %s at %s is blocked by %s at Y %d" % (did, name, (x, y, z), here,
-                                                                                    y + dy))
-    return problems
-
-
-def solid(cv, name):
-    return any(b[1][1] >= 0.99 for b in cv.info.get(name).boxes)
+    """Problems with each district's Anchors over the canvas its Prefab names, and a Floor other than STREET
+    (hubkit.spot_problems over CommonLib's own district files)."""
+    keyed = {"ZiggfreedCommon.Hub." + name: cv for name, cv in canvases.items()}
+    return hk.spot_problems(hk.district_files(DISTRICTS), keyed, STREET)
 
 
 def build(write=True):

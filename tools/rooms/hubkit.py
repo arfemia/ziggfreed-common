@@ -13,8 +13,11 @@ a consumer's district script imports it the same way.
   not offer (a Wall block such as the game's map panel turns only a quarter, a None block not at all). A block's front faces South (+Z) unturned (a painting hangs on
   the wall to its north and shows its picture south, Painting_4x2's box): one turn is the engine's yaw step (Rotation
   Ninety, (x, z) -> (z, -x)), which sends that front East.
-- `write` keeps build_room.py's guard: a prefab is replaced only while it carries this tool's stamp and still hashes to
-  it, so a prefab saved from the game's editor or edited by hand is never overwritten.
+- `write` keeps build_room.py's guard: a prefab is replaced only while it carries its script's stamp (the Canvas's
+  `stamp`, build_hub.py's unless a consumer's script names its own) and still hashes to it, so a prefab saved from the
+  game's editor or edited by hand is never overwritten.
+- `spot_problems` checks a district file's Anchors over the canvas its Prefab names: every spot inside the lot, on
+  ground, with two cells of headroom, and the district's Floor the hub's street block.
 """
 import hashlib
 import os
@@ -42,10 +45,11 @@ def facing(front):
 
 
 class Canvas:
-    def __init__(self, info, span, name, below=4, above=48):
+    def __init__(self, info, span, name, below=4, above=48, stamp=STAMP_VALUE):
         self.info = info
         self.span = span
         self.name = name
+        self.stamp = stamp
         self.lo = -(span // 2)
         self.hi = span - span // 2 - 1
         self.below = below
@@ -124,7 +128,7 @@ class Canvas:
                 e["filler"] = filler
             entries.append((cell, e))
         doc = pio.prefab_doc((0, 0, 0), entries)
-        doc[STAMP_KEY] = STAMP_VALUE
+        doc[STAMP_KEY] = self.stamp
         doc["zcDistrict"] = self.name
         doc[HASH_KEY] = content_hash(doc)
         return doc
@@ -183,8 +187,8 @@ def content_hash(doc):
     return hashlib.sha1(pio.dumps(body).encode("utf-8")).hexdigest()
 
 
-def may_overwrite(path):
-    """None when the prefab may be (re)written, else why not."""
+def may_overwrite(path, stamp=STAMP_VALUE):
+    """None when the prefab may be (re)written by the script stamping `stamp`, else why not."""
     if not os.path.isfile(path):
         return None
     try:
@@ -193,15 +197,65 @@ def may_overwrite(path):
         return "it does not parse, so it was not written by this tool"
     if doc.get(HAND_BUILT_KEY):
         return "it is marked hand-built (%s)" % HAND_BUILT_KEY
-    if doc.get(STAMP_KEY) != STAMP_VALUE:
-        return "it carries no %s stamp, so it was built or saved by hand" % STAMP_KEY
+    if doc.get(STAMP_KEY) != stamp:
+        return "it carries no %s stamp of %s, so it was built or saved by hand" % (STAMP_KEY, stamp)
     if doc.get(HASH_KEY) != content_hash(doc):
         return "its blocks changed since this tool wrote it"
     return None
 
 
 def write(canvas, path):
-    why = may_overwrite(path)
+    why = may_overwrite(path, canvas.stamp)
     if why:
         raise DrawError("refusing to overwrite %s: %s" % (path, why))
     return pio.write_json(path, canvas.doc())
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The spot check
+
+
+def district_files(folder):
+    """{id: district file} for every .json under `folder` (a HubDistricts folder), the filename its id."""
+    out = {}
+    for dirpath, dirnames, filenames in os.walk(folder):
+        dirnames.sort()
+        for fn in sorted(filenames):
+            if fn.endswith(".json"):
+                out[fn[:-5]] = pio.load_json(os.path.join(dirpath, fn))
+    return out
+
+
+def solid(canvas, name):
+    """Does the block `name` fill its cell's full height somewhere (ground a character can stand on)?"""
+    return any(b[1][1] >= 0.99 for b in canvas.info.get(name).boxes)
+
+
+def spot_problems(districts, canvases, street):
+    """Problems with each district's Anchors over the canvas its Prefab.Base names (`canvases` keyed by that dot-form
+    key; a district whose base is not among them is skipped), and a Floor other than the hub's `street` block."""
+    problems = []
+    for did, district in sorted(districts.items()):
+        prefab = district.get("Prefab") or {}
+        cv = canvases.get((prefab.get("Base") or "").strip())
+        if cv is None:
+            continue
+        if prefab.get("Floor") != street:
+            problems.append("%s lays its streets in %s, not the hub's street block %s" % (did, prefab.get("Floor"),
+                                                                                        street))
+        for anchor in district.get("Anchors") or []:
+            at = anchor.get("At") or {}
+            x, y, z = int(at.get("X", 0)), int(at.get("Y", 0)), int(at.get("Z", 0))
+            name = anchor.get("Name")
+            if not cv.inside(x, y, z):
+                problems.append("%s: spot %s at %s lies outside the lot" % (did, name, (x, y, z)))
+                continue
+            below = cv.get(x, y - 1, z)
+            if not below or below == "Empty" or not solid(cv, below):
+                problems.append("%s: spot %s at %s has no ground under it (%s)" % (did, name, (x, y, z), below))
+            for dy in (0, 1):
+                here = cv.get(x, y + dy, z)
+                if here and here != "Empty" or (x, y + dy, z) in cv.fillers:
+                    problems.append("%s: spot %s at %s is blocked by %s at Y %d" % (did, name, (x, y, z), here,
+                                                                                    y + dy))
+    return problems

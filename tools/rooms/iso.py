@@ -20,7 +20,9 @@ import tempfile
 
 COS = math.cos(math.radians(30))
 SIN = 0.5
-VIEWS = {"SE": 0, "NE": 1, "NW": 2, "SW": 3}
+# Turns that bring each corner to +X +Z: one step maps (x, z) to (z, -x), so the world's south-west (-X +Z) arrives
+# there after one, its north-west after two and its north-east after three.
+VIEWS = {"SE": 0, "SW": 1, "NW": 2, "NE": 3}
 BROWSERS = (
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
