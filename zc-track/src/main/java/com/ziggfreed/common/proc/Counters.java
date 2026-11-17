@@ -452,16 +452,17 @@ public final class Counters {
             Set<Integer> boundStats = new HashSet<>();
             boolean anyBound = false;
             for (CounterAsset.PerStack row : def.asset().perStack()) {
-                int index = StatIndexCache.resolve(row.stat());
+                // A write: a retired id lands on each successor, at its alias's scale.
+                List<StatIndexCache.Landing> landings = StatIndexCache.landingsOf(row.stat());
                 if (row.bound()) {
                     anyBound = true;
-                    if (index != StatIndexCache.UNRESOLVED) {
-                        boundStats.add(index);
+                    for (StatIndexCache.Landing landing : landings) {
+                        boundStats.add(landing.index());
                     }
                     continue;
                 }
-                if (index != StatIndexCache.UNRESOLVED) {
-                    sums.merge(index, row.amount() * state.stacks, Double::sum);
+                for (StatIndexCache.Landing landing : landings) {
+                    sums.merge(landing.index(), row.amount() * landing.scale() * state.stacks, Double::sum);
                 }
             }
             for (Map.Entry<Integer, Double> sum : sums.entrySet()) {

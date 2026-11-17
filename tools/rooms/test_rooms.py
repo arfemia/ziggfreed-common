@@ -434,7 +434,7 @@ class PuzzleLogic(unittest.TestCase):
         ctx = self.ctx()
         opening = [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 1, 0), (1, 2, 0), (-1, 2, 0)]
         ctx["doors"] = [{"Opening": opening}]
-        made = lt.skill_lock({"Lock": {"Door": 0}, "Param": "MMO_Level_MINING", "Min": 10,
+        made = lt.skill_lock({"Lock": {"Door": 0}, "Param": "Level_Mining", "Min": 10,
                               "HintKey": "server.test.lock"}, ctx)
         self.assertEqual(sorted(made.blocks), sorted(opening), "the lock stands in every doorway cell, no other")
         tv = made.entities[0]["Components"]["TriggerVolume"]

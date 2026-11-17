@@ -31,6 +31,9 @@ import com.ziggfreed.common.util.SafeLog;
  * a refund the points the drain took, not the cost again: a {@code Percent} cost's points move with the stat's size.
  * These move the stat's value, never a modifier (a value is what a cost spends), through
  * {@code EntityStatMap.addStatValue}, which syncs to the client. World thread, a store or a command buffer.
+ *
+ * <p>A cost naming a retired stat id draws on its one successor ({@code StatIndexCache.resolveCurrent}): a pool is
+ * one stat, read and spent together, so an id retired onto several stats or at a scale names no pool.
  */
 public final class ResourceCosts {
 
@@ -128,7 +131,7 @@ public final class ResourceCosts {
         String stat = cost.stat();
         try {
             EntityStatMap stats = statsOf(accessor, ref, stat);
-            int index = StatIndexCache.resolve(stat);
+            int index = StatIndexCache.resolveCurrent(stat);
             EntityStatValue value = stats == null ? null : stats.get(index);
             if (value == null) {
                 return 0.0;
@@ -160,7 +163,7 @@ public final class ResourceCosts {
         String id = stat.trim();
         try {
             EntityStatMap stats = statsOf(accessor, ref, id);
-            int index = StatIndexCache.resolve(id);
+            int index = StatIndexCache.resolveCurrent(id);
             EntityStatValue value = stats == null ? null : stats.get(index);
             if (value == null) {
                 return 0.0;
@@ -181,7 +184,7 @@ public final class ResourceCosts {
             @Nonnull Ref<EntityStore> ref, @Nullable String stat) {
         try {
             EntityStatMap stats = statsOf(accessor, ref, stat);
-            return stats == null ? null : stats.get(StatIndexCache.resolve(stat));
+            return stats == null ? null : stats.get(StatIndexCache.resolveCurrent(stat));
         } catch (Throwable t) {
             SafeLog.warn("[resource] reading " + stat + " failed: " + t.getMessage());
             return null;
@@ -195,7 +198,7 @@ public final class ResourceCosts {
         if (stat == null || !ref.isValid()) {
             return null;
         }
-        if (StatIndexCache.resolve(stat) == StatIndexCache.UNRESOLVED) {
+        if (StatIndexCache.resolveCurrent(stat) == StatIndexCache.UNRESOLVED) {
             StatIndexCache.warnUnknownOnce(stat);
             return null;
         }

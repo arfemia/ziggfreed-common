@@ -46,18 +46,21 @@ public final class GrantFamilies {
     }
 
     /**
-     * The families the stat {@code statId} names in its {@value #TAG} tag, as written; empty when it names none, the
-     * stat is not loaded, or the stat store cannot be read (a unit-test JVM).
+     * The families the stat {@code statId} names in its {@value #TAG} tag, as written (a retired id's first loaded
+     * successor's); empty when it names none, the stat is not loaded, or the stat store cannot be read (a unit-test
+     * JVM).
      */
     @Nonnull
     public static List<String> ofStat(@Nullable String statId) {
         if (statId == null || statId.isBlank()) {
             return List.of();
         }
-        int index = StatIndexCache.resolve(statId.trim());
-        if (index == StatIndexCache.UNRESOLVED) {
+        // A retired id's grant lands on every successor; the first loaded one names the family a world switch reads.
+        List<StatIndexCache.Landing> landings = StatIndexCache.landingsOf(statId.trim());
+        if (landings.isEmpty()) {
             return List.of();
         }
+        int index = landings.get(0).index();
         try {
             EntityStatType type = EntityStatType.getAssetMap().getAsset(index);
             AssetExtraInfo.Data data = type == null ? null : EntityStatType.CODEC.getData(type);

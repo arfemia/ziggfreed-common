@@ -249,7 +249,7 @@ public final class ItemReadings {
      *
      * <p>{@code 0} when the item authors nothing toward that channel, which is a real answer about a
      * real item. Null when there is no usable stack, no {@code statId}, or no channel is registered
-     * under that id.
+     * under that id (a retired id reads its one successor, {@code StatIndexCache.resolveCurrent}).
      */
     @Nullable
     public static Double statTotal(@Nullable ItemStack stack, @Nullable String statId) {
@@ -270,7 +270,7 @@ public final class ItemReadings {
         if (item == null || id == null || id.isEmpty()) {
             return null;
         }
-        int index = StatIndexCache.resolve(id);
+        int index = StatIndexCache.resolveCurrent(id);
         return index == StatIndexCache.UNRESOLVED ? null : statTotal(item, index);
     }
 

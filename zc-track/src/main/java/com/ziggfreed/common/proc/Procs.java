@@ -750,11 +750,14 @@ public final class Procs {
         }
     }
 
-    /** A stat's reading off its maximum, where gear, effects and picks raise it; 0 when it is not there. */
+    /**
+     * A stat's reading off its maximum, where gear, effects and picks raise it (a retired id's one successor,
+     * {@code StatIndexCache.resolveCurrent}); 0 when it is not there.
+     */
     static double statPoints(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId) {
         try {
-            int index = StatIndexCache.resolve(statId);
+            int index = StatIndexCache.resolveCurrent(statId);
             if (index == StatIndexCache.UNRESOLVED) {
                 return 0.0;
             }

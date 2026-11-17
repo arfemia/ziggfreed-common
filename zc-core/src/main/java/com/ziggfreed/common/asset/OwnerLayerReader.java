@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -81,6 +82,21 @@ public final class OwnerLayerReader {
             @Nonnull Class<T> assetClass, @Nonnull AssetBuilderCodec<String, T> codec,
             @Nonnull AbstractKeyedAssetConfig<T> config, @Nonnull String noun,
             @Nonnull Function<T, String> missingMod) {
+        apply(logTag, file, assetClass, codec, config, noun, missingMod, UnaryOperator.identity());
+    }
+
+    /**
+     * {@link #apply(String, Path, Class, AssetBuilderCodec, AbstractKeyedAssetConfig, String, Function)} for a store
+     * whose entries are filed under an id that may have moved: {@code idOf} answers the id an entry's key (trimmed,
+     * lower-cased) is filed under now, so a store keyed by stat id files an override written under a renamed stat's
+     * old id as the new id's (zc-entity's {@code StatIndexCache.currentId}). Every other rule is the same.
+     *
+     * @param idOf the id an owner key names in the store today; identity for a store whose ids never move
+     */
+    public static <T extends JsonAsset<String>> void apply(@Nonnull String logTag, @Nonnull Path file,
+            @Nonnull Class<T> assetClass, @Nonnull AssetBuilderCodec<String, T> codec,
+            @Nonnull AbstractKeyedAssetConfig<T> config, @Nonnull String noun,
+            @Nonnull Function<T, String> missingMod, @Nonnull UnaryOperator<String> idOf) {
 
         // Drop the previous layer FIRST: every entry below resolves its own base out of the pack
         // layer, and leaving the last read's answers in place would stack one override on another.
@@ -100,7 +116,7 @@ public final class OwnerLayerReader {
             if (OwnerFiles.isReservedKey(key)) {
                 continue; // $Comment, $SchemaVersion and friends are file-level, not entries
             }
-            String id = key.trim().toLowerCase(Locale.ROOT);
+            String id = idOf.apply(key.trim().toLowerCase(Locale.ROOT)).toLowerCase(Locale.ROOT);
             if (refused.containsKey(id)) {
                 dropped.add(refused.get(id)); // an override goes with the pack file the mod gate refused
                 continue;

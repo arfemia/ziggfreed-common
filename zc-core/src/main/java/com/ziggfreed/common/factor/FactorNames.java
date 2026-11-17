@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.registry.RegistryLedger;
+import com.ziggfreed.common.stats.StatAliases;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -77,15 +78,18 @@ public final class FactorNames {
 
     /**
      * The name for {@code factorId} (narrowed by {@code param} when the requirement authored one),
-     * or {@code null} when no folded file names it.
+     * or {@code null} when no folded file names it. A {@code param} naming a stat retired onto one
+     * successor at scale 1 ({@link StatAliases#soleSuccessor}: a renamed stat) is named as that
+     * successor, so a requirement written before a rename reads as the one written after it.
      */
     @Nullable
     public static Message name(@Nullable String factorId, @Nullable String param) {
         if (factorId == null || factorId.isBlank()) {
             return null;
         }
-        return name(factorId, param, DerivedFactorConfig.getInstance().all(), LangCatalog::has,
-                PARAM_NAMERS.get(RegistryLedger.normalize(factorId)));
+        String successor = StatAliases.soleSuccessor(param == null ? null : param.trim());
+        return name(factorId, successor != null ? successor : param, DerivedFactorConfig.getInstance().all(),
+                LangCatalog::has, PARAM_NAMERS.get(RegistryLedger.normalize(factorId)));
     }
 
     /**

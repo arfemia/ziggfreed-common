@@ -23,8 +23,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>{@link #set} is idempotent by construction: it re-derives the {@link StaticModifier} it
  * would write and skips the actual {@code putModifier} call when an equal one is already present
  * (native {@link StaticModifier#equals}), so it is safe to call unconditionally on a hot path
- * without spamming redundant writes. World-thread, try-guarded; a missing stat map / unresolved
- * channel is a silent no-op.
+ * without spamming redundant writes. World-thread, try-guarded; a missing stat map is a silent
+ * no-op, and a write to a channel nothing loads names that channel once
+ * ({@link StatIndexCache#warnUnknownOnce}, the latch every reader shares) and writes nothing.
  */
 public final class StatMirror {
 
@@ -33,13 +34,17 @@ public final class StatMirror {
 
     /**
      * Write-or-replace an additive {@code MAX} modifier of {@code value} under {@code key} on
-     * {@code statId}. No-op when the stat is unregistered, the entity has no stat map, or an
-     * equal modifier is already present under {@code key}.
+     * {@code statId} (a retired id's one successor at scale 1, {@link StatIndexCache#resolveCurrent},
+     * so a mirror an author named before a rename writes the new stat). No-op when the stat is
+     * unregistered (or retired onto several stats or at a scale; named once in the log, so a writer
+     * landing a stat no file ships is never silent), the entity has no stat map, or an equal modifier
+     * is already present under {@code key}.
      */
     public static void set(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId, @Nonnull String key, double value) {
-        int idx = StatIndexCache.resolve(statId);
+        int idx = StatIndexCache.resolveCurrent(statId);
         if (idx == StatIndexCache.UNRESOLVED) {
+            StatIndexCache.warnUnknownOnce(statId);
             return;
         }
         EntityStatMap stats = store.getComponent(ref, EntityStatsModule.get().getEntityStatMapComponentType());
@@ -58,10 +63,13 @@ public final class StatMirror {
         }
     }
 
-    /** Remove the EXACT-key modifier from {@code statId}. Safe if absent / stat unregistered. */
+    /**
+     * Remove the EXACT-key modifier from {@code statId}, resolved as {@link #set} resolves it. Safe if
+     * absent / stat unregistered.
+     */
     public static void remove(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId, @Nonnull String key) {
-        int idx = StatIndexCache.resolve(statId);
+        int idx = StatIndexCache.resolveCurrent(statId);
         if (idx == StatIndexCache.UNRESOLVED) {
             return;
         }

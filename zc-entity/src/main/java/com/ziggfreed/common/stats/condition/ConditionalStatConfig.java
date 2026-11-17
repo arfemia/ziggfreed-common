@@ -7,6 +7,7 @@ import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.asset.OwnerLayerReader;
+import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.util.OwnerFiles;
 
 /**
@@ -38,10 +39,14 @@ public final class ConditionalStatConfig extends AbstractKeyedAssetConfig<Condit
         directory = dir;
     }
 
-    /** (Re)read the owner file into the owner layer. From the store's own load event, after the packs. */
+    /**
+     * (Re)read the owner file into the owner layer. From the store's own load event, after the packs. The file is keyed
+     * by stat id, so an entry under a stat id retired onto one successor applies as that successor's override, the old
+     * id named once ({@link StatIndexCache#currentId}).
+     */
     public static void reloadOwner() {
         OwnerLayerReader.apply("condition", directory.resolve(OWNER_FILE), ConditionalStatAsset.class,
-                ConditionalStatAsset.CODEC, INSTANCE, "conditional stat");
+                ConditionalStatAsset.CODEC, INSTANCE, "conditional stat", asset -> null, StatIndexCache::currentId);
     }
 
     @Override

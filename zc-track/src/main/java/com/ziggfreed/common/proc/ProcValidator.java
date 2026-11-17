@@ -12,10 +12,10 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
-import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.EffectFamilyConfig;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.track.pick.TrackPicks;
@@ -69,11 +69,23 @@ public final class ProcValidator {
     public static final String REACH_NOBODY = "REACH_NOBODY";
     public static final String MOMENT_ONLY = "MOMENT_ONLY";
 
-    /** What the audit asks of the server: each answers whether an id is known here. */
+    /**
+     * What the audit asks of the server: each answers whether an id is known here. {@code stat} asks of a stat read or
+     * spent as one pool (a held effect's stat, a soak's {@code Onto}), {@code written} of a stat written (a
+     * {@code ChangeStat}, a counter's row), which a retired id writes on each of its successors.
+     */
     public record Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
             @Nonnull Predicate<String> interaction, @Nonnull Predicate<String> family,
             @Nonnull Predicate<String> line, @Nonnull BiPredicate<String, String> pick,
-            @Nonnull Predicate<String> cause) {
+            @Nonnull Predicate<String> cause, @Nonnull Predicate<String> written) {
+
+        /** A vocabulary that asks one stat question of reads and writes alike. */
+        public Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
+                @Nonnull Predicate<String> interaction, @Nonnull Predicate<String> family,
+                @Nonnull Predicate<String> line, @Nonnull BiPredicate<String, String> pick,
+                @Nonnull Predicate<String> cause) {
+            this(effect, stat, interaction, family, line, pick, cause, stat);
+        }
 
         /** A vocabulary that knows every damage cause (one that asks nothing of a weakness's causes). */
         public Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
@@ -86,18 +98,23 @@ public final class ProcValidator {
     private ProcValidator() {
     }
 
-    /** The walk over every folded file, against the loaded assets, the damage lines and the picks. Never throws. */
+    /**
+     * The walk over every folded file, against the loaded assets, the damage lines and the picks. A retired stat id
+     * whose successor loads passes with the one retired warning (one successor for a read, every one for a write); one
+     * that resolves to nothing stays an ERROR. Never throws.
+     */
     @Nonnull
     public static List<Finding> audit() {
         try {
             Vocabulary vocabulary = new Vocabulary(
                     id -> EntityEffect.getAssetMap().getIndex(id) != AssetMapWithIndexes.NOT_FOUND,
-                    id -> EntityStatType.getAssetMap().getIndex(id) != AssetMapWithIndexes.NOT_FOUND,
+                    id -> StatIndexCache.resolveCurrent(id) != StatIndexCache.UNRESOLVED,
                     id -> RootInteraction.getAssetMap().getAsset(id) != null,
                     id -> EffectFamilyConfig.getInstance().has(id),
                     TypedDamageBonuses::hasLine,
                     TrackPicks::knownOnTrack,
-                    id -> DamageCause.getAssetMap().getAsset(id) != null);
+                    id -> DamageCause.getAssetMap().getAsset(id) != null,
+                    StatIndexCache::resolvesForWrite);
             return audit(ProcConfig.getInstance().all(), CounterConfig.getInstance().all(),
                     HeldEffectConfig.getInstance().all(), vocabulary);
         } catch (Throwable t) {
@@ -186,7 +203,7 @@ public final class ProcValidator {
                 }
             }
             ProcAction.ChangeStat change = action.changeStat();
-            if (change != null && (change.stat() == null || !known.stat().test(change.stat()))) {
+            if (change != null && (change.stat() == null || !known.written().test(change.stat()))) {
                 out.add(Finding.error(DOMAIN, UNKNOWN_STAT, "proc '" + id + "' changes the stat '" + change.stat()
                         + "', which this server does not have", id));
             }
@@ -408,7 +425,7 @@ public final class ProcValidator {
             }
         }
         for (CounterAsset.PerStack row : counter.perStack()) {
-            if (!known.stat().test(row.stat())) {
+            if (!known.written().test(row.stat())) {
                 out.add(Finding.error(DOMAIN, UNKNOWN_STAT, "counter '" + id + "' raises the stat '" + row.stat()
                         + "', which this server does not have", id));
             }

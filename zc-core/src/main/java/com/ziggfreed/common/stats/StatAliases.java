@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -71,11 +72,33 @@ public final class StatAliases {
         return id != null && ALIASES.containsKey(id.toLowerCase(Locale.ROOT));
     }
 
+    /**
+     * Every retired id registered so far, lower-cased as they are keyed, in no order: a read-only copy, for an audit
+     * that walks the aliases (no target may itself be retired, since an alias is never followed twice).
+     */
+    @Nonnull
+    public static Set<String> retiredIds() {
+        return Set.copyOf(ALIASES.keySet());
+    }
+
     /** The ids {@code id} counts toward now: its successors when retired, else itself. */
     @Nonnull
     public static List<String> resolve(@Nonnull String id) {
         Alias alias = ALIASES.get(id.toLowerCase(Locale.ROOT));
         return alias != null ? alias.targets() : List.of(id);
+    }
+
+    /**
+     * The one id {@code id} reads as now: its successor when it is retired onto exactly one id at scale 1 (a rename),
+     * else null (a live id, or a retirement split between ids or scaled, which no single id stands for).
+     */
+    @Nullable
+    public static String soleSuccessor(@Nullable String id) {
+        if (id == null) {
+            return null;
+        }
+        Alias alias = ALIASES.get(id.toLowerCase(Locale.ROOT));
+        return alias != null && alias.targets().size() == 1 && alias.scale() == 1.0 ? alias.targets().get(0) : null;
     }
 
     /** What one point of {@code id} is worth on each id {@link #resolve} answers: its alias's scale, else 1. */

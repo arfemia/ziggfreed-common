@@ -52,8 +52,8 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "Reroll": { "Cost": { "Currencies": { "Bounty_Token": 25 } }, "MaxPerPeriod": 3 },
  *   "Grades": { "Skirmish": { "TitleKey": "board.grade.skirmish", "Color": "#c08a3a" } },
  *   "AcceptRequires": {
- *     "Normal": { "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_CombatLevel", "Min": 25 } ] },
- *     "Hard":   { "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_CombatLevel", "Min": 60 } ] } } }
+ *     "Normal": { "Factors": [ { "Factor": "hytale:stat", "Param": "CombatLevel", "Min": 25 } ] },
+ *     "Hard":   { "Factors": [ { "Factor": "hytale:stat", "Param": "CombatLevel", "Min": 60 } ] } } }
  * }</pre>
  *
  * <p>A board is the NOTICE: what it is called, how often the postings change, what shape one posting
