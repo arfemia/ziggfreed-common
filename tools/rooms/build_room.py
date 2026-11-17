@@ -83,6 +83,10 @@ class BuildError(Exception):
 
 
 class Palette:
+    """A theme's slots, each a block id, a {Block, State} object, or a weighted list of them. An object's Height (for a
+    block taller than one cell, such as a 2.8-block statue: 3) makes the builder write the cells above it as the
+    block's fillers, as a prefab of vanilla's lists them, since a painted cell gets no fillers of its own."""
+
     def __init__(self, doc):
         self.id = doc.get("Id", "")
         self.slots = doc["Slots"]
@@ -116,6 +120,13 @@ class Palette:
                 break
         ref = self._ref(chosen)
         return lt.prefab_name(ref, ref.state)
+
+    def height(self, slot):
+        """How many cells tall `slot`'s block stands: its object's Height, else 1."""
+        if slot == AIR:
+            return 1
+        value = self._value(slot)
+        return max(1, int(value.get("Height", 1))) if isinstance(value, dict) else 1
 
     def main_block(self, slot):
         """The slot's first block, with its state (what a volume's block swap names)."""
@@ -456,7 +467,17 @@ class RoomBuild:
         blocks = []
         for cell in sorted(self.slots):
             slot = self.slots[cell]
-            blocks.append((cell, {"name": self.palette.block(slot, cell)}))
+            name = self.palette.block(slot, cell)
+            blocks.append((cell, {"name": name}))
+            for k in range(1, self.palette.height(slot)):
+                above = (cell[0], cell[1] + k, cell[2])
+                if above in self.slots:
+                    raise BuildError("%s at %s stands %d cells tall, but the overlay also writes %s"
+                                     % (slot, cell, self.palette.height(slot), above))
+                if self.overlay and not self.ground.free(above):
+                    raise BuildError("%s at %s stands %d cells tall, but the base fills %s"
+                                     % (slot, cell, self.palette.height(slot), above))
+                blocks.append((above, {"name": name, "filler": pio.pack_filler(0, k, 0)}))
         doc = pio.prefab_doc((0, 0, 0), blocks, entities=self.entities)
         doc[STAMP_KEY] = STAMP_VALUE
         doc["zcSpec"] = self.spec["Id"]

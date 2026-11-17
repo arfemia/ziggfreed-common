@@ -340,6 +340,21 @@ class OverlayPlacer(unittest.TestCase):
         self.assertEqual(room["Fill"], "Rock_Stone", "the base room's Fill carries over")
         self.assertIs(room["Doors"][0].get("ExitOnly"), True, "a sealed door is one the layout never enters by")
 
+    def test_a_tall_block_writes_its_filler_cells(self):
+        doc = pio.load_json(PALETTE)
+        doc["Slots"]["Tall"] = {"Block": "Rock_Stone", "Height": 3}
+        rb = build_room.RoomBuild(overlay_spec(Props=[{"At": {"X": -2, "Z": -5, "OnFloor": True}, "Slot": "Tall"}]),
+                                  build_room.Palette(doc), self.base, SYNTHETIC_ROOM)
+        rb.run()
+        blocks = {(b["x"], b["y"], b["z"]): b for b in rb.prefab()["blocks"]}
+        own = blocks[(-2, 1, -5)]
+        self.assertNotIn("filler", own, "the block's own cell is no filler")
+        for k in (1, 2):
+            above = blocks[(-2, 1 + k, -5)]
+            self.assertEqual((above["name"], above["filler"]), (own["name"], k << 10),
+                             "the cell %d above is the block's filler, as the engine packs it" % k)
+        self.assertNotIn((-2, 4, -5), blocks, "a block three cells tall writes two fillers, no more")
+
     def test_a_block_on_a_filled_cell_is_refused(self):
         cases = {
             "a prop in a wall": overlay_spec(Props=[{"At": {"X": -3, "Y": 1, "Z": -2}, "Slot": "Light"}]),

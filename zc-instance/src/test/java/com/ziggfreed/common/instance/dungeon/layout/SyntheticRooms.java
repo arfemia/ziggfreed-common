@@ -25,6 +25,8 @@ final class SyntheticRooms {
     /** The first stratum's fill, and the arenas' own, which wins over it. */
     static final String STRATUM_FILL = "Rock_Stone";
     static final String ARENA_FILL = "Rock_Basalt";
+    /** The tag every arena carries, which a plan's {@code Apart} rule can bind. */
+    static final String ARENA_TAG = "Arena";
 
     /** Every pool holds three variants but the ghost's, which holds none; a single prefab is one. */
     static final PoolIndex POOLS = prefab -> prefab.equals(GHOST_POOL) ? 0 : prefab.endsWith(".*") ? 3 : 1;
@@ -68,9 +70,10 @@ final class SyntheticRooms {
                     List.of("Combat"), stratum, 2, 0, 1, List.of(),
                     door(0, 0, -7, Facing.NORTH, "Small"), door(7, 0, 0, Facing.EAST, "Large"),
                     door(0, 0, 7, Facing.SOUTH, "Small"), door(-7, 0, 0, Facing.WEST, "Small")));
-            rooms.add(filled(room("arena_" + s, "Synthetic." + stratum + ".Arena", box(-10, 0, -10, 10, 10, 10),
-                    List.of("Combat", "Boss"), stratum, 1, 0.5, 1, List.of(),
-                    door(0, 0, -10, Facing.NORTH, "Large"), door(0, 0, 10, Facing.SOUTH, "Large")), ARENA_FILL));
+            rooms.add(filled(tagged(room("arena_" + s, "Synthetic." + stratum + ".Arena",
+                    box(-10, 0, -10, 10, 10, 10), List.of("Combat", "Boss"), stratum, 1, 0.5, 1, List.of(),
+                    door(0, 0, -10, Facing.NORTH, "Large"), door(0, 0, 10, Facing.SOUTH, "Large")), ARENA_TAG),
+                    ARENA_FILL));
             rooms.add(room("puzzle_" + s, "Synthetic." + stratum + ".Puzzle.*", box(-5, 0, -5, 5, 6, 5),
                     List.of("Puzzle"), stratum, 1, 0.2, 1, List.of("Clue"),
                     door(0, 0, -5, Facing.NORTH, "Small", oneWayPuzzles), door(0, 0, 5, Facing.SOUTH, "Small"),
@@ -125,6 +128,16 @@ final class SyntheticRooms {
                         new Branch("Clue", Count.ONE, 1, null),
                         new Branch("Treasure", Count.ONE, 1, "Lock")),
                 new Cell(384, 64, 384), new Cell(160, 48, 200), 64);
+    }
+
+    /** {@code room} carrying one more tag. */
+    @Nonnull
+    static RoomSpec tagged(@Nonnull RoomSpec room, @Nonnull String tag) {
+        List<String> tags = new ArrayList<>(room.tags());
+        tags.add(tag);
+        return new RoomSpec(room.id(), room.prefab(), room.box(), room.doors(), room.roles(), tags, room.weight(),
+                room.depthMin(), room.depthMax(), room.needs(), room.keepMarkers(), room.keepContainers(),
+                room.fill());
     }
 
     /** {@code room} with its own fill block. */

@@ -43,6 +43,17 @@ public record Box(@Nonnull Cell min, @Nonnull Cell max) {
                 && min.z() <= other.max.z() && max.z() >= other.min.z();
     }
 
+    /**
+     * How far apart the nearest cells of the two boxes stand, centre to centre, in blocks: 0 when they share a cell,
+     * so every cell of one stands at least this far from every cell of the other.
+     */
+    public double distanceTo(@Nonnull Box other) {
+        long dx = Math.max(0, Math.max(other.min.x() - max.x(), min.x() - other.max.x()));
+        long dy = Math.max(0, Math.max(other.min.y() - max.y(), min.y() - other.max.y()));
+        long dz = Math.max(0, Math.max(other.min.z() - max.z(), min.z() - other.max.z()));
+        return Math.sqrt((double) (dx * dx + dy * dy + dz * dz));
+    }
+
     /** Whether every cell of this box lies in {@code outer}. */
     public boolean within(@Nonnull Box outer) {
         return outer.contains(min) && outer.contains(max);

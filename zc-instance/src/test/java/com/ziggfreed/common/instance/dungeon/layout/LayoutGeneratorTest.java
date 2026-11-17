@@ -36,7 +36,9 @@ import com.ziggfreed.common.instance.dungeon.layout.PlacedRoom.Part;
  * block, all inside the bounds, every door joined or capped face to face with its own kind, the entry on the plan's
  * entry cell, each room's fill its own else its stratum's, every gate before the end it guards, the rooms a tree,
  * every required branch there, no room entered by an exit-only door); a room with exit-only doors is entered only by
- * its other doors and left by them; a plan too big for its bounds relaxes, optional branches first and then counts; a
+ * its other doors and left by them; rooms sharing a plan's Apart tag stand at least its distance apart, which they
+ * would not without it; a room a MaxPerRun rule matches stands no more often than its Max, which it would without
+ * it; a plan too big for its bounds relaxes, optional branches first and then counts; a
  * plan that cannot be met says why; and a door turned four quarter turns comes home, each turn the engine's own
  * prefab turn. Untagged: nothing here builds an engine item.
  */
@@ -142,6 +144,117 @@ public class LayoutGeneratorTest {
         int left = leftByAnExit;
         assertTrue(placed > 0 && left > 0, () -> "the one-way puzzles are placed (" + placed
                 + ") and left by an exit-only door (" + left + ")");
+    }
+
+    @Test
+    void roomsSharingAnApartTagStandAtLeastItsBlocksApart() {
+        RoomCatalogue catalogue = SyntheticRooms.catalogue();
+        List<Stratum> strata = List.of(new Stratum(List.of("Ruins", "Crypt"), SyntheticRooms.STRATUM_FILL),
+                new Stratum(List.of("Void"), null));
+        List<Beat> path = List.of(new Beat("Entry", Count.ONE, -1), new Beat("Combat", new Count(3, 3), -1),
+                new Beat("Boss", Count.ONE, -1), new Beat("Combat", new Count(2, 2), -1),
+                new Beat("Boss", Count.ONE, 1), new Beat("Vault", Count.ONE, -1));
+        int blocks = 20;
+        LayoutPlan loose = new LayoutPlan("Arenas_Anywhere", List.of(SyntheticRooms.TAG), strata, path, null,
+                List.of(), new Cell(384, 64, 384), new Cell(160, 48, 200), 64);
+        LayoutPlan apart = new LayoutPlan("Arenas_Apart", List.of(SyntheticRooms.TAG), strata, path, null,
+                List.of(), new Cell(384, 64, 384), new Cell(160, 48, 200), 64,
+                List.of(new LayoutPlan.Apart(SyntheticRooms.ARENA_TAG, blocks)), List.of());
+        List<String> problems = new ArrayList<>();
+        int nearWithout = 0;
+        for (int i = 0; i < 1_000; i++) {
+            long seed = SplitMix64.mix(i + 303L);
+            LayoutResult free = LayoutGenerator.generate(loose, catalogue, seed);
+            if (free.ok() && nearestArenas(free.layout(), catalogue) < blocks) {
+                nearWithout++;
+            }
+            LayoutResult kept = LayoutGenerator.generate(apart, catalogue, seed);
+            if (!kept.ok()) {
+                problems.add("seed " + seed + ": no layout: " + kept.failure());
+                continue;
+            }
+            for (String problem : problemsOf(kept.layout(), apart, catalogue)) {
+                problems.add("seed " + seed + ": " + problem);
+            }
+            double nearest = nearestArenas(kept.layout(), catalogue);
+            if (nearest < blocks) {
+                problems.add("seed " + seed + ": two arenas stand " + nearest + " blocks apart");
+            }
+        }
+        assertTrue(problems.isEmpty(), () -> problems.size() + " problems: "
+                + problems.subList(0, Math.min(10, problems.size())));
+        int near = nearWithout;
+        assertTrue(near > 0, "without the rule some arenas stand nearer than " + blocks + " blocks, so the rule is "
+                + "what keeps them apart");
+    }
+
+    @Test
+    void aRoomAMaxPerRunRuleMatchesStandsNoMoreOftenThanItsMax() {
+        RoomCatalogue catalogue = SyntheticRooms.catalogue();
+        List<Stratum> strata = List.of(new Stratum(List.of("Ruins", "Crypt"), SyntheticRooms.STRATUM_FILL));
+        List<Beat> path = List.of(new Beat("Entry", Count.ONE, -1), new Beat("Combat", new Count(2, 2), -1),
+                new Beat("Vault", Count.ONE, -1));
+        LayoutPlan repeats = new LayoutPlan("Fights_Repeat", List.of(SyntheticRooms.TAG), strata, path, null,
+                List.of(), new Cell(384, 64, 384), new Cell(160, 48, 200), 64);
+        LayoutPlan once = new LayoutPlan("Fights_Once", List.of(SyntheticRooms.TAG), strata, path, null, List.of(),
+                new Cell(384, 64, 384), new Cell(160, 48, 200), 64, List.of(),
+                List.of(new LayoutPlan.MaxPerRun("Combat", null, 1)));
+        List<String> problems = new ArrayList<>();
+        int repeatedWithout = 0;
+        for (int i = 0; i < 1_000; i++) {
+            long seed = SplitMix64.mix(i + 505L);
+            LayoutResult free = LayoutGenerator.generate(repeats, catalogue, seed);
+            if (free.ok() && mostOfOneCombatRoom(free.layout(), catalogue) > 1) {
+                repeatedWithout++;
+            }
+            LayoutResult kept = LayoutGenerator.generate(once, catalogue, seed);
+            if (!kept.ok()) {
+                problems.add("seed " + seed + ": no layout: " + kept.failure());
+                continue;
+            }
+            for (String problem : problemsOf(kept.layout(), once, catalogue)) {
+                problems.add("seed " + seed + ": " + problem);
+            }
+            if (mostOfOneCombatRoom(kept.layout(), catalogue) > 1) {
+                problems.add("seed " + seed + ": a fight room stands twice");
+            }
+        }
+        assertTrue(problems.isEmpty(), () -> problems.size() + " problems: "
+                + problems.subList(0, Math.min(10, problems.size())));
+        int repeated = repeatedWithout;
+        assertTrue(repeated > 0, "without the rule some run meets one fight room twice, so the rule is what stops it");
+    }
+
+    /** The most times one room filling the Combat role stands in {@code layout}. */
+    private static int mostOfOneCombatRoom(@Nonnull Layout layout, @Nonnull RoomCatalogue catalogue) {
+        Map<String, Integer> placed = new HashMap<>();
+        for (PlacedRoom room : layout.rooms()) {
+            if (catalogue.room(room.roomId()).hasRole("Combat")) {
+                placed.merge(room.roomId(), 1, Integer::sum);
+            }
+        }
+        int most = 0;
+        for (int n : placed.values()) {
+            most = Math.max(most, n);
+        }
+        return most;
+    }
+
+    /** The least distance between two rooms of {@code layout} carrying the arena tag; infinity for fewer than two. */
+    private static double nearestArenas(@Nonnull Layout layout, @Nonnull RoomCatalogue catalogue) {
+        List<PlacedRoom> arenas = new ArrayList<>();
+        for (PlacedRoom room : layout.rooms()) {
+            if (catalogue.room(room.roomId()).carries(SyntheticRooms.ARENA_TAG)) {
+                arenas.add(room);
+            }
+        }
+        double nearest = Double.POSITIVE_INFINITY;
+        for (int a = 0; a < arenas.size(); a++) {
+            for (int b = a + 1; b < arenas.size(); b++) {
+                nearest = Math.min(nearest, arenas.get(a).box().distanceTo(arenas.get(b).box()));
+            }
+        }
+        return nearest;
     }
 
     @Test

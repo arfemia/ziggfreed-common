@@ -978,7 +978,10 @@ def skill_lock(params, ctx):
     Lock, a block whose Use does nothing, such as CommonLib's Zc_Lock_* blocks), Opened (the slot the cells become; default
     air), Factor (default hytale:stat), Param (the stat a skill's level reads as, upper case after its prefix, such as
     MMO_Level_MINING), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
-    opens it, required), Milestone (default Secret_Found), Signal, OpenSound, OpenVfx.
+    opens it, required), Level (the level the hint names; default Min), Milestone (default Secret_Found), Signal,
+    OpenSound, OpenVfx.
+    The lock's volume carries the level as its Level tag, and the engine binds a volume's tags as named params of the
+    line it sends, so HintKey's value names it as {Level} (no digit in the lang file): the level is written once, here.
     Opening swaps each Lock piece on its own, so a block of the lock's kind the room already has beside the lock
     stays put."""
     pieces = []
@@ -1010,9 +1013,13 @@ def skill_lock(params, ctx):
         effects.append(milestone("BLOCK_USED", ms))
     conditions = [tag_is("BLOCK_USED", "State", "Locked"),
                   condition("ZigRequires", "BLOCK_USED", Requires=requires)]
+    tags = {"State": "Locked"}
+    level = params.get("Level", params.get("Min"))
+    if level is not None:
+        tags["Level"] = "%d" % int(level)
     out = Logic(blocks={c: slot for c in cells})
     out.entities.append(volume_entity(ctx["name"] + "Skill_Lock", lo, box_size(lo, hi), effects, conditions,
-                                      {"State": "Locked"}, rejections=[message("BLOCK_USED", params["HintKey"])]))
+                                      tags, rejections=[message("BLOCK_USED", params["HintKey"])]))
     return out
 
 
