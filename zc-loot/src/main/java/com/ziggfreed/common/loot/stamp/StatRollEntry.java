@@ -1,5 +1,11 @@
 package com.ziggfreed.common.loot.stamp;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -11,7 +17,7 @@ import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorFormula;
 
 /**
- * ONE candidate outcome of a stat roll: {@code {Stat, Points, Weight, Always}}.
+ * ONE candidate outcome of a stat roll: {@code {Stat, AlsoStats, Points, Weight, Always}}.
  *
  * <pre>{@code
  * { "Stat": "Damage", "Points": { "Min": 2, "Max": 6 }, "Weight": 3 }
@@ -29,6 +35,10 @@ import com.ziggfreed.common.factor.FactorFormula;
  *
  * <p>The stat id is opaque here: this engine never interprets what a stat means, it only rolls a
  * number for it and holds that number inside the budget. The registered stamper does the rest.
+ *
+ * <p>{@code AlsoStats} names further stats the SAME rolled points land on, for two stats that count as one
+ * outcome (a resistance to a type and to the type a mod files under it): one draw, one value, a line on each.
+ * Each line counts toward the budget on its own.
  */
 public final class StatRollEntry {
 
@@ -39,6 +49,7 @@ public final class StatRollEntry {
     public static final double DEFAULT_POINTS = 1.0;
 
     @Nullable protected String stat;
+    @Nullable protected String[] alsoStats;
     @Nullable protected Points points;
     @Nullable protected Double weight;
     @Nullable protected Boolean always;
@@ -54,6 +65,10 @@ public final class StatRollEntry {
                         (o, v) -> o.stat = v, o -> o.stat, (o, p) -> o.stat = p.stat)
                 .documentation("Which stat this entry awards points in. Opaque to the roll engine; whatever "
                         + "writes the stamp on this server decides what it does.").add()
+                .appendInherited(new KeyedCodec<>("AlsoStats", new ArrayCodec<>(Codec.STRING, String[]::new), false),
+                        (o, v) -> o.alsoStats = v, o -> o.alsoStats, (o, p) -> o.alsoStats = p.alsoStats)
+                .documentation("More stats the same rolled points land on, one line each, for stats that count as "
+                        + "one outcome. Omit for Stat alone. Each line counts toward the budget.").add()
                 .appendInherited(new KeyedCodec<>("Points", Points.codec(editorDropdownDataSetId), false),
                         (o, v) -> o.points = v, o -> o.points, (o, p) -> o.points = p.points)
                 .documentation("How many points a hit on this entry is worth. Omit for 1.").add()
@@ -76,8 +91,16 @@ public final class StatRollEntry {
     @Nonnull
     public static StatRollEntry of(@Nullable String stat, @Nullable Points points, @Nullable Double weight,
             @Nullable Boolean always) {
+        return of(stat, null, points, weight, always);
+    }
+
+    /** Java-side factory with {@code AlsoStats}; sets the same fields the codec fills. */
+    @Nonnull
+    public static StatRollEntry of(@Nullable String stat, @Nullable String[] alsoStats, @Nullable Points points,
+            @Nullable Double weight, @Nullable Boolean always) {
         StatRollEntry e = new StatRollEntry();
         e.stat = stat;
+        e.alsoStats = alsoStats;
         e.points = points;
         e.weight = weight;
         e.always = always;
@@ -87,6 +110,35 @@ public final class StatRollEntry {
     @Nullable
     public String getStat() {
         return stat;
+    }
+
+    @Nullable
+    public String[] getAlsoStats() {
+        return alsoStats;
+    }
+
+    /**
+     * Every stat a hit on this entry writes: {@code Stat} first, then each {@code AlsoStats} id in order, blanks and
+     * repeats (without regard to case) left out. Empty for a blank entry.
+     */
+    @Nonnull
+    public List<String> statIds() {
+        if (isBlank()) {
+            return List.of();
+        }
+        if (alsoStats == null || alsoStats.length == 0) {
+            return List.of(stat);
+        }
+        List<String> out = new ArrayList<>(1 + alsoStats.length);
+        Set<String> seen = new HashSet<>();
+        out.add(stat);
+        seen.add(stat.toLowerCase(Locale.ROOT));
+        for (String id : alsoStats) {
+            if (id != null && !id.isBlank() && seen.add(id.toLowerCase(Locale.ROOT))) {
+                out.add(id);
+            }
+        }
+        return out;
     }
 
     @Nullable

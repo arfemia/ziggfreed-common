@@ -38,6 +38,13 @@ import com.ziggfreed.common.asset.EditorSchema;
  * <p>Like every table of this shape, {@code Entries} REPLACES rather than appends when a file
  * carries a {@code Parent}: a child that authors any entries discards the ones it inherited. Add
  * extra outcomes inline at the consuming site instead.
+ *
+ * <p>{@code EntrySource} names code that adds outcomes for each roll from what is being stamped and
+ * who is stamping it ({@link RollPoolConfig.NamedSource}, registered by a running mod under that
+ * name): the outcomes that depend on the item, say a weapon's own skill. The pool draws its own
+ * {@code Entries} and the source's together. With no mod answering to the name, or the key removed,
+ * the pool rolls its own {@code Entries} alone, so an owner switches the code's part off by deleting
+ * one line.
  */
 public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, RollPoolAsset>> {
 
@@ -49,6 +56,7 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
     private AssetExtraInfo.Data data;
 
     @Nullable private StatRollEntry[] entries;
+    @Nullable private String entrySource;
     @Nullable private String stampName;
     @Nullable private String quality;
 
@@ -80,6 +88,12 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
                     (a, v) -> a.entries = v, a -> a.entries, (a, parent) -> a.entries = parent.entries)
             .documentation("The candidate outcomes this pool offers. Authoring this in a file with a Parent "
                     + "REPLACES the parent's entries entirely rather than adding to them.").add()
+            .appendInherited(new KeyedCodec<>("EntrySource", Codec.STRING, false),
+                    (a, v) -> a.entrySource = v, a -> a.entrySource, (a, parent) -> a.entrySource = parent.entrySource)
+            .documentation("The name of an entry source a running mod registers, which adds outcomes for each roll "
+                    + "from what is being stamped and who is stamping it (a weapon's own skill, say). They are drawn "
+                    + "together with Entries. Omit it, or name a source no running mod registers, and the pool rolls "
+                    + "its Entries alone.").add()
             .build();
 
     /**
@@ -103,14 +117,15 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
     }
 
     /**
-     * This pool with {@code entries} in place of its own, everything else (id, rename, rarity)
-     * kept: the copy {@link RollPoolConfig#resolve} answers when an entry source adds to a pool.
+     * This pool with {@code entries} in place of its own, everything else (id, source name, rename,
+     * rarity) kept: the copy {@link RollPoolConfig#resolve} answers when an entry source adds to a pool.
      */
     @Nonnull
     RollPoolAsset withEntries(@Nullable StatRollEntry[] entries) {
         RollPoolAsset p = new RollPoolAsset();
         p.id = id;
         p.data = data;
+        p.entrySource = entrySource;
         p.stampName = stampName;
         p.quality = quality;
         p.entries = entries;
@@ -137,5 +152,11 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable
     public StatRollEntry[] getEntries() {
         return entries;
+    }
+
+    /** The name of the entry source this pool asks for each roll, or null when it names none. */
+    @Nullable
+    public String getEntrySource() {
+        return entrySource;
     }
 }
