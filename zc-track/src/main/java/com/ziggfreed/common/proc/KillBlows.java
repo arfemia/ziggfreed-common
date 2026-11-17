@@ -47,16 +47,30 @@ final class KillBlows {
      * 0 when either is not known. Never throws.
      */
     static double overkill(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> slain) {
-        if (slain == null || !slain.isValid()) {
-            return 0.0;
-        }
+        return overkill(blow(accessor, slain));
+    }
+
+    /** The overkill of {@code blow}, a killing blow: its amount less the health noted on it, 0 when not known. */
+    static double overkill(@Nullable Damage blow) {
         try {
-            DeathComponent death = accessor.getComponent(slain, DeathComponent.getComponentType());
-            Damage blow = death == null ? null : death.getDeathInfo();
             Float before = blow == null ? null : blow.getIfPresentMetaObject(Meta.HEALTH_BEFORE);
             return before == null ? 0.0 : overkill(blow.getAmount(), before);
         } catch (Throwable t) {
             return 0.0;
+        }
+    }
+
+    /** The blow that slew {@code slain} (the engine's {@code DeathComponent.getDeathInfo}), or null when not known. */
+    @Nullable
+    static Damage blow(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> slain) {
+        if (slain == null || !slain.isValid()) {
+            return null;
+        }
+        try {
+            DeathComponent death = accessor.getComponent(slain, DeathComponent.getComponentType());
+            return death == null ? null : death.getDeathInfo();
+        } catch (Throwable t) {
+            return null;
         }
     }
 

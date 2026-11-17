@@ -1,0 +1,11 @@
+{
+  "$Comment": "A goblin builder on the temple hub, one of the temple's own goblin lab repairers as a thin Variant of the game's Template_Temple_Goblin_Lab_Repair_Static: he stands on his spot and hammers at the goblin pipe right in front of him, with the lab's clangs and sparks. Modify keeps his pipe from ever bursting (BurstChance 0, and no alarm), since a hub full of builders would otherwise go off like the lab, and gives him the hub's own name. The NPC placements Zc_Hub_Builder (the Concourse's unfinished corner) and Zc_Hub_Builder_Large (every empty large lot) stand him on a district's Builder spot, which each district authors two blocks in front of a pipe.",
+  "Type": "Variant",
+  "Reference": "Template_Temple_Goblin_Lab_Repair_Static",
+  "Modify": {
+    "NameTranslationKey": "ziggfreedcommon.hub.builder.name",
+    "BurstChance": 0,
+    "BurstAlarmEnabled": false,
+    "IsMemory": false
+  }
+}

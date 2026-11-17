@@ -26,6 +26,7 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.entity.knockback.KnockbackComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
@@ -55,8 +56,8 @@ import com.ziggfreed.common.stats.condition.ZigFoeFamilyCondition;
  * block's stamina cost cut through the engine's own drain multiplier; a projectile's coming hit turned back at its
  * shooter through the engine's own damage; a counter changed; a push or pull through the
  * engine's velocity (a creature pushed is watched for its landing, {@link ThrownLandings}); a creature taunted onto the
- * holder (zc-effects' {@code AggroControl}); a guard broken; a
- * RootInteraction queued on the holder or the target as a server chain. An entry's {@code Area} aims its target groups
+ * holder (zc-effects' {@code AggroControl}); a guard broken; a strike dealt as the holder's own hit through the engine's
+ * own damage (a Kill's overkill carried on); a RootInteraction queued on the holder or the target as a server chain. An entry's {@code Area} aims its target groups
  * at each one reached in turn (with an {@code Arc}, those ahead of the holder only). World thread; each action is
  * guarded on its own, so one that fails costs only itself.
  */
@@ -174,6 +175,9 @@ final class ProcActions {
                     GuardBreaks.broke(moment.holder(), on, System.nanoTime());
                 }
             });
+        }
+        if (action.strike() != null) {
+            guarded("Strike", () -> strike(moment, on, action.strike(), strength, context));
         }
     }
 
@@ -650,6 +654,51 @@ final class ProcActions {
         Damage back = new Damage(new Damage.EntitySource(holder), damage.getDamageCauseIndex(), (float) amount);
         back.putMetaObject(Damage.INTERACTION_TYPE, CHAIN_TYPE);
         DamageSystems.executeDamage(shooter, buffer, back);
+    }
+
+    /**
+     * Strike {@code on} as the holder's own hit: the {@code Amount}, times the moment's amount when {@code ByAmount},
+     * times the strength unless {@code Scaled} is false, of the {@code Cause}'s type (the moment's own hit's when it
+     * writes none, else {@link ProcAction.Strike#DEFAULT_CAUSE}), through the engine's own damage, marked a proc's own
+     * ({@link #CHAIN_TYPE}) so no proc or counter answers it, and a strike's own ({@link ProcMarks#markStrike}) so a kill
+     * it lands is no Kill moment either. The engine's damage steps all run on it, so it spares nothing a plain hit would
+     * not. The holder is never struck.
+     */
+    private static void strike(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
+            @Nonnull ProcAction.Strike strike, double strength, @Nonnull FactorContext context) {
+        Ref<EntityStore> holder = moment.holder();
+        if (!on.isValid() || Nearby.same(on, holder) || strike.amount() == null) {
+            return;
+        }
+        double amount = strikeAmount(Procs.evaluate(strike.amount(), context), strike.byAmount(), moment.amount(),
+                strike.scaled(), strength);
+        int cause = strikeCause(moment, strike);
+        if (!(amount > 0.0) || cause == AssetMapWithIndexes.NOT_FOUND) {
+            return;
+        }
+        Damage hit = new Damage(new Damage.EntitySource(holder), cause, (float) amount);
+        hit.putMetaObject(Damage.INTERACTION_TYPE, CHAIN_TYPE);
+        ProcMarks.markStrike(hit);
+        DamageSystems.executeDamage(on, moment.accessor(), hit);
+    }
+
+    /**
+     * What a strike deals: the amount, times the moment's amount when {@code byAmount}, times the strength when
+     * {@code scaled}, never below 0. Pure.
+     */
+    static double strikeAmount(double amount, boolean byAmount, double momentAmount, boolean scaled, double strength) {
+        double dealt = statAmount(amount * (byAmount ? momentAmount : 1.0), scaled, strength);
+        return Double.isFinite(dealt) ? Math.max(0.0, dealt) : 0.0;
+    }
+
+    /** The damage cause index a strike deals: its own Cause, else the moment's hit's, else Physical. */
+    private static int strikeCause(@Nonnull ProcMoment moment, @Nonnull ProcAction.Strike strike) {
+        String written = strike.cause();
+        Damage carried = moment.damage();
+        if (written == null && carried != null) {
+            return carried.getDamageCauseIndex();
+        }
+        return DamageCause.getAssetMap().getIndex(written != null ? written : ProcAction.Strike.DEFAULT_CAUSE);
     }
 
     /** What a reflected hit deals: the coming hit times the share times the proc's strength, never below 0. Pure. */

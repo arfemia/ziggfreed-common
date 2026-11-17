@@ -1,11 +1,11 @@
 {
-  "$Comment": "The scaffolding on every small lot of the temple hub that no district claims: cobblestone ground, a fence post at each corner and a goblin sign at the front. It names no lot, so any district that claims a lot takes its place there.",
+  "$Comment": "The scaffolding on every small lot of the temple hub that no district claims: a fenced plot with an iron frame going up, a few courses of stone, crates and a sign at the way in saying something new opens there soon. It names no lot, so any district that claims a lot takes its place there. Its prefab is drawn by tools/rooms/build_hub.py; rebuild it there rather than editing the prefab. Floor is the hub's street block, which every district shares so the streets match.",
   "Lot": {
     "Size": "Small",
     "FillsEmpty": true
   },
   "Prefab": {
     "Base": "ZiggfreedCommon.Hub.Scaffold_Small",
-    "Floor": "Rock_Stone_Cobble"
+    "Floor": "Rock_Ledge_Brick"
   }
 }

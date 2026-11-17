@@ -1,0 +1,10 @@
+{
+  "$Comment": "Makes Damage_LaterTarget conditional: a conditional damage bonus in whole percent points (10 is +10%) on its holder's direct hits on the second foe a swing reaches and every one after it. A hit with no swing behind it (a projectile's, a burn or poison tick) reads as a first, and OverTime false keeps a tick out besides.",
+  "Hit": {
+    "LaterTarget": true,
+    "OverTime": false
+  },
+  "Pays": {
+    "Damage": {}
+  }
+}

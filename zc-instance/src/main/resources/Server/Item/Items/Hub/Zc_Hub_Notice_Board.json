@@ -1,0 +1,59 @@
+{
+  "$Comment": "A notice board on the temple hub's Concourse, two pairs either side of the south avenue behind the arrival: the game's map panel, which a player reads with F on the game's lore page, saying notices go up here later. Each pair has its own spots in the Concourse's file (Board_1 to Board_4), where a later board stands its character or its page. It hangs between a block below and a block above. It has no Gathering, so nobody breaks it, no recipe and no category, and is a Variant, so the creative library hides it.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.hub.board.notice.name",
+    "Description": "ziggfreedcommon.hub.board.notice.description"
+  },
+  "Icon": "Icons/ItemsGenerated/Deco_Map.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Item",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Miscellaneous/Map.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Miscellaneous/Map_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "HitboxType": "Window",
+    "VariantRotation": "Wall",
+    "Flags": {},
+    "Support": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "Up": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
+    "InteractionHint": "server.interactionHints.read",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "OpenCustomUI",
+            "Page": {
+              "Id": "BlockLore",
+              "TextAlignment": "Left"
+            }
+          }
+        ]
+      }
+    },
+    "BlockParticleSetId": "Stone",
+    "TextureComputedColor": "#D4CB9C"
+  },
+  "Tags": {
+    "Type": [
+      "Deco"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}

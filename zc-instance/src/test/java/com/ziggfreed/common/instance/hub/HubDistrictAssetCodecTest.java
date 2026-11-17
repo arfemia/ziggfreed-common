@@ -64,7 +64,16 @@ class HubDistrictAssetCodecTest {
             "/Server/NPC/Roles/Passive/Zc_Hub_Doorkeeper.json",
             "/Server/NPC/Roles/Passive/Zc_Hub_Porter.json",
             "/Server/ZiggfreedCommon/Dialogues/ZiggfreedCommon/Zc_Hub_Doorkeeper.json",
-            "/Server/ZiggfreedCommon/Dialogues/ZiggfreedCommon/Zc_Hub_Porter.json");
+            "/Server/ZiggfreedCommon/Dialogues/ZiggfreedCommon/Zc_Hub_Porter.json",
+            "/Server/NPC/Roles/Passive/Zc_Hub_Builder.json",
+            "/Server/Item/Items/Hub/Zc_Hub_Door_Temple.json",
+            "/Server/Item/Items/Hub/Zc_Hub_Door_Overworld.json",
+            "/Server/Item/Items/Hub/Zc_Hub_Map_Board.json",
+            "/Server/Item/Items/Hub/Zc_Hub_Notice_Board.json",
+            "/Server/Item/Items/Hub/Zc_Hub_Sign_Building.json",
+            "/Server/Item/Items/Hub/Zc_Hub_Lore_Welcome.json",
+            "/Server/Item/Items/Hub/Zc_Hub_Lore_Work_Order.json",
+            "/Server/Item/Items/Hub/Zc_Hub_Lore_Kweebec.json");
 
     @Test
     void everyLeafRoundTripsThroughTheCodec() throws IOException {

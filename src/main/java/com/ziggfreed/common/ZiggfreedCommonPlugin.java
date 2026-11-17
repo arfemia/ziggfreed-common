@@ -146,6 +146,7 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
+import com.ziggfreed.common.ui.route.RouteBootstrap;
 import com.ziggfreed.common.util.RetiredLibrarySettings;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.util.ZigScheduler;
@@ -445,6 +446,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Authoring Tools tab's tools run (registered before any item decodes), the Inspect Tool and its wizard, and
         // /zigauthor. The tab, the tools and their root interaction are assets zc-presentation ships.
         AuthoringBootstrap.install(this);
+        // The ZigOpen interaction Type (zc-presentation's ui/route), registered before any asset decodes: a block, a pad
+        // or an item opens any destination a mod registered, in the same words a placement's press-F writes. The temple
+        // hub's pads are zc-instance assets that run it.
+        RouteBootstrap.install(this);
         // The quest editor on that kit: the Quest wizard and the Quest Tool, which the progression admin page and
         // /zigauthor open too. Its tool item is an asset zc-objectives ships.
         QuestEditorBootstrap.install();

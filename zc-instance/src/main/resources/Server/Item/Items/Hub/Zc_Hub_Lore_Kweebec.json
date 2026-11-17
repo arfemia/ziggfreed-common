@@ -1,0 +1,62 @@
+{
+  "$Comment": "A Kweebec's note on its stand in the Concourse's north-west garden: the temple's Kweebecs on the goblins' building, for a smile. A goblin note in the game's own shape (the temple's goblin pages, read with F on the game's lore page), but fixed in place: it carries no Lore_Note family, so the temple's rule that lets a player pick a note up passes it by and every player can read it, and it has no Gathering, recipe or category and is a Variant, so nobody breaks it and the creative library hides it.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.hub.lore.kweebec.name",
+    "Description": "ziggfreedcommon.hub.lore.kweebec.description"
+  },
+  "Icon": "Icons/ItemsGenerated/Template_Lore_Note_Goblin_Pages.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Item",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Miscellaneous/Note_Goblin_Pages.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Miscellaneous/Note_Golbin_Journal_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "HitboxType": "Block_Flat",
+    "VariantRotation": "NESW",
+    "Support": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
+    "InteractionHint": "server.interactionHints.read",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "OpenCustomUI",
+            "Page": {
+              "Id": "BlockLore",
+              "TextAlignment": "Left"
+            }
+          }
+        ]
+      }
+    },
+    "Particles": [
+      {
+        "SystemId": "Lore_Note_Glow",
+        "TargetEntityPart": "Entity"
+      }
+    ],
+    "BlockParticleSetId": "Dust",
+    "BlockSoundSetId": "Cloth",
+    "PhysicalMaterialId": "Cloth",
+    "ParticleColor": "#D4B0AD",
+    "TextureComputedColor": "#AA8D8B"
+  },
+  "Tags": {
+    "Type": [
+      "Deco"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Items_Paper"
+}

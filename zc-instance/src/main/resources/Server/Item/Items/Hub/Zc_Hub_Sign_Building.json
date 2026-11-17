@@ -1,0 +1,60 @@
+{
+  "$Comment": "The sign at the way into every empty lot of the temple hub: the goblins' own sign, which a player reads with F (the game's lore page, the same one the temple's notes open), saying that something new opens there soon. The scaffolding prefabs place it (tools/rooms/build_hub.py). It has no Gathering, so nobody breaks it, no recipe and no category, and is a Variant, so the creative library hides it.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.hub.sign.building.name",
+    "Description": "ziggfreedcommon.hub.sign.building.description"
+  },
+  "Icon": "Icons/ItemsGenerated/Furniture_Goblin_Sign.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Block",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Decorative_Sets/Goblin/Sign.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Decorative_Sets/Goblin/Sign_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "HitboxType": "Plant_Tall_Medium",
+    "VariantRotation": "NESW",
+    "Flags": {},
+    "Support": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
+    "InteractionHint": "server.interactionHints.read",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "OpenCustomUI",
+            "Page": {
+              "Id": "BlockLore",
+              "TextAlignment": "Left"
+            }
+          }
+        ]
+      }
+    },
+    "BlockParticleSetId": "Wood",
+    "BlockSoundSetId": "Wood",
+    "PhysicalMaterialId": "Wood",
+    "ParticleColor": "#775c31",
+    "TextureComputedColor": "#372E1F"
+  },
+  "Tags": {
+    "Type": [
+      "Furniture"
+    ],
+    "Family": [
+      "Goblin"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}

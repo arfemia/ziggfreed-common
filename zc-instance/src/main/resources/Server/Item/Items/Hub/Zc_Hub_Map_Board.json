@@ -1,0 +1,59 @@
+{
+  "$Comment": "The temple hub's map board, straight ahead of the arrival on the Concourse: the game's map panel (the board its own bounty prototype stands on), which a player reads with F on the game's lore page, saying where they are and how the hub grows. It hangs between a block below and a block above, as the game's map does. The Concourse's Map spot stands in front of it for whatever later shows the live map there. It has no Gathering, so nobody breaks it, no recipe and no category, and is a Variant, so the creative library hides it.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.hub.board.map.name",
+    "Description": "ziggfreedcommon.hub.board.map.description"
+  },
+  "Icon": "Icons/ItemsGenerated/Deco_Map.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Item",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Miscellaneous/Map.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Miscellaneous/Map_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "HitboxType": "Window",
+    "VariantRotation": "Wall",
+    "Flags": {},
+    "Support": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "Up": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
+    "InteractionHint": "server.interactionHints.read",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "OpenCustomUI",
+            "Page": {
+              "Id": "BlockLore",
+              "TextAlignment": "Left"
+            }
+          }
+        ]
+      }
+    },
+    "BlockParticleSetId": "Stone",
+    "TextureComputedColor": "#D4CB9C"
+  },
+  "Tags": {
+    "Type": [
+      "Deco"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}
