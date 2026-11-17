@@ -14,6 +14,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.ziggfreed.common.asset.EditorDataSets;
@@ -25,16 +26,16 @@ import com.ziggfreed.common.factor.FactorFormula;
  * itself ({@code Soak} on a coming hit, {@code GuardCost} on a block), then those aimed at the holder ({@code OnSelf}
  * true: {@code RemoveEffect}, {@code ApplyEffect}, {@code ChangeStat}, {@code Heal}, {@code Push}), then those aimed at
  * the target ({@code RemoveEffect}, {@code ApplyEffect}, {@code ChangeStat}, {@code Heal}, {@code Push},
- * {@code Taunt}, {@code BreakGuard}), then {@code Counter}, then {@code RunInteraction}; entries run in the order
- * written. A group aims at the moment's target unless it writes {@code OnSelf} true; one aimed at a target the moment
- * has none of does nothing. An entry's {@code Area} aims its target groups at every foe (or every ally) in reach
+ * {@code Taunt}, {@code BreakGuard}, {@code Strike}), then {@code Counter}, then {@code RunInteraction}; entries run in
+ * the order written. A group aims at the moment's target unless it writes {@code OnSelf} true; one aimed at a target the
+ * moment has none of does nothing. An entry's {@code Area} aims its target groups at every foe (or every ally) in reach
  * instead, each in turn, and runs its {@code RunInteraction} once for each; its {@code OnSelf} groups run once, and its
  * {@code Counter} once too, except a per-foe ({@code PerTarget}) counter's, which changes the stacks about each one
  * reached.
  *
  * <p><b>Strength.</b> The proc's strength scales what an action gives the world, once: an applied effect's damage
- * multiplier, a stat change and a heal (unless it writes {@code Scaled: false}, as a refund of a cost does). A counter's
- * add is never scaled (a stack counts a moment; a stored share of a hit is scaled where it is spent, by the effect that
+ * multiplier, a stat change, a heal and a strike (unless it writes {@code Scaled: false}, as a refund of a cost does). A
+ * counter's add is never scaled (a stack counts a moment; a stored share of a hit is scaled where it is spent, by the effect that
  * spends it), nor is a push (a distance), a taunt's time, a soak or a guard's cost (shares of what the moment is).
  *
  * <pre>{@code
@@ -61,6 +62,7 @@ public final class ProcAction {
     @Nullable protected Soak soak;
     @Nullable protected GuardCost guardCost;
     @Nullable protected Reflect reflect;
+    @Nullable protected Strike strike;
 
     public static final BuilderCodec<ProcAction> CODEC = BuilderCodec.builder(ProcAction.class, ProcAction::new)
             .appendInherited(new KeyedCodec<>("Area", Area.CODEC, false),
@@ -117,6 +119,11 @@ public final class ProcAction {
                     (o, v) -> o.reflect = v, o -> o.reflect, (o, p) -> o.reflect = p.reflect)
             .documentation("For HitIncoming: a projectile's coming hit is turned back at whoever shot it, dealt to "
                     + "them as the holder's own hit of the same damage type. Runs first, beside Soak.").add()
+            .appendInherited(new KeyedCodec<>("Strike", Strike.CODEC, false),
+                    (o, v) -> o.strike = v, o -> o.strike, (o, p) -> o.strike = p.strike)
+            .documentation("Strike the target (with an Area, each foe reached) as the holder's own hit, through the "
+                    + "engine's own damage: with ByAmount, the moment's own amount (a Kill's overkill, a hit's "
+                    + "damage). It spares nothing a plain hit would not.").add()
             .build();
 
     public ProcAction() {
@@ -135,12 +142,75 @@ public final class ProcAction {
     @Nullable public Soak soak() { return soak; }
     @Nullable public GuardCost guardCost() { return guardCost; }
     @Nullable public Reflect reflect() { return reflect; }
+    @Nullable public Strike strike() { return strike; }
 
     /** Does it name no group at all (an Area alone does nothing)? */
     public boolean isEmpty() {
         return applyEffect == null && removeEffect == null && changeStat == null && counter == null
                 && push == null && taunt == null && !breakGuard() && runInteraction == null && heal == null
-                && soak == null && guardCost == null && reflect == null;
+                && soak == null && guardCost == null && reflect == null && strike == null;
+    }
+
+    /**
+     * The Strike group: a hit the holder deals the target, through the engine's own damage as the holder's hit, marked
+     * a proc's own so no proc or counter answers it: {@code Amount}, times the moment's amount when {@code ByAmount}
+     * (a Kill's overkill, a hit's damage), times the proc's strength unless {@code Scaled} says not, of {@code Cause}'s
+     * damage type. It spares nothing a plain hit would not: the target's armor, resistances and invulnerability all
+     * apply, and a strike on the holder themselves is never dealt.
+     */
+    public static final class Strike {
+
+        /** The damage type a strike deals when it writes none and its moment carries no hit. */
+        public static final String DEFAULT_CAUSE = "Physical";
+
+        @Nullable protected FactorFormula amount;
+        @Nullable protected Boolean byAmount;
+        @Nullable protected String cause;
+        @Nullable protected Boolean scaled;
+
+        public static final BuilderCodec<Strike> CODEC = BuilderCodec.builder(Strike.class, Strike::new)
+                .appendInherited(new KeyedCodec<>("Amount", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
+                .documentation("The damage dealt, a formula, times the proc's strength unless Scaled says not. "
+                        + "Nothing when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("ByAmount", Codec.BOOLEAN, false),
+                        (o, v) -> o.byAmount = v, o -> o.byAmount, (o, p) -> o.byAmount = p.byAmount)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: Amount is multiplied by the moment's amount (a Kill's overkill, the damage of a "
+                        + "hit dealt), so 1 deals all of it. False when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Cause", Codec.STRING, false),
+                        (o, v) -> o.cause = v, o -> o.cause, (o, p) -> o.cause = p.cause)
+                .metadata(EditorSchema.assetRef(DamageCause.class))
+                .documentation("The damage type dealt, a damage cause id. The moment's own hit's type when "
+                        + "unauthored, else Physical.").add()
+                .appendInherited(new KeyedCodec<>("Scaled", Codec.BOOLEAN, false),
+                        (o, v) -> o.scaled = v, o -> o.scaled, (o, p) -> o.scaled = p.scaled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("False: the damage is never multiplied by the proc's strength. True when "
+                        + "unauthored.").add()
+                .build();
+
+        public Strike() {
+        }
+
+        @Nullable
+        public FactorFormula amount() {
+            return amount;
+        }
+
+        public boolean byAmount() {
+            return Boolean.TRUE.equals(byAmount);
+        }
+
+        /** The damage type as written, or null when unauthored or blank. */
+        @Nullable
+        public String cause() {
+            return cause == null || cause.isBlank() ? null : cause.trim();
+        }
+
+        public boolean scaled() {
+            return scaled == null || scaled;
+        }
     }
 
     /**
