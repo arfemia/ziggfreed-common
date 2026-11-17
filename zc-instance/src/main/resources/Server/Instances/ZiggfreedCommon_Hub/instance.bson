@@ -1,0 +1,56 @@
+{
+  "$Comment": "The temple hub: one shared copy every way in lands in (its InstanceKey pins the world name, as the game's own goblin temple does), built afresh each time it opens by the ZigHub world generator from the hub districts in force (Server/ZiggfreedCommon/HubDistricts/), so it ships no chunk files. Players arrive at the Concourse's centre, the spawn point below, one block above the hub's floor at Y 128. It closes 20 seconds after its last player leaves, as the temple does, and its folder goes with it. RespawnWhenTargeted lets a way back into it (from a district with its own instance) open a fresh copy when this one has closed. Its gameplay config, ZiggfreedCommon_Hub, takes every protection from the Forgotten Temple's. The doorkeeper in the temple and any block or item with the game's TeleportInstance (InstanceName ZiggfreedCommon_Hub, InstanceKey instance-ziggfreedcommon-hub, PersonalReturnPoint true) lead here.",
+  "Version": 4,
+  "GameMode": "Adventure",
+  "WorldGen": {
+    "Type": "ZigHub"
+  },
+  "ChunkStorage": {
+    "Type": "Hytale"
+  },
+  "SpawnProvider": {
+    "Id": "Global",
+    "SpawnPoint": {
+      "X": 0.5,
+      "Y": 129.0,
+      "Z": 0.5,
+      "Pitch": 0.0,
+      "Yaw": 0.0,
+      "Roll": 0.0
+    }
+  },
+  "GameplayConfig": "ZiggfreedCommon_Hub",
+  "IsPvpEnabled": false,
+  "IsSpawningNPC": true,
+  "IsSpawnMarkersEnabled": true,
+  "IsCompassUpdating": true,
+  "IsObjectiveMarkersEnabled": false,
+  "IsGameTimePaused": true,
+  "GameTime": "0001-01-01T08:00:00.090953998Z",
+  "ClientEffects": {
+    "SunAngleDegrees": 130,
+    "SunHeightPercent": 33
+  },
+  "IsSavingPlayers": true,
+  "DeleteOnRemove": true,
+  "DeleteOnUniverseStart": true,
+  "Plugin": {
+    "Instance": {
+      "InstanceKey": "instance-ziggfreedcommon-hub",
+      "RespawnWhenTargeted": true,
+      "Discovery": {
+        "TitleKey": "ziggfreedcommon.hub.discovery.title",
+        "SubtitleKey": "ziggfreedcommon.hub.discovery.subtitle",
+        "Display": true,
+        "AlwaysDisplay": true,
+        "Major": true
+      },
+      "RemovalConditions": [
+        {
+          "Type": "WorldEmpty",
+          "TimeoutSeconds": 20
+        }
+      ]
+    }
+  }
+}

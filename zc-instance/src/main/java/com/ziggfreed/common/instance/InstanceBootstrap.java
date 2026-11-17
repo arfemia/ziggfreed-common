@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.event.events.player.RemovedPlayerFromWorldEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.universe.world.events.StartWorldEvent;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.hypixel.hytale.server.core.universe.world.worldgen.provider.IWorldGenProvider;
 import com.ziggfreed.common.cast.WorldEvictors;
@@ -43,6 +44,8 @@ import com.ziggfreed.common.instance.dungeon.kit.ZigHasEffectCondition;
 import com.ziggfreed.common.instance.dungeon.kit.ZigRunMilestoneEffect;
 import com.ziggfreed.common.instance.dungeon.omen.OmenMobs;
 import com.ziggfreed.common.instance.dungeon.omen.RunOmens;
+import com.ziggfreed.common.instance.hub.HubMarkers;
+import com.ziggfreed.common.instance.hub.ZigHubWorldGenProvider;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
 import com.ziggfreed.common.instance.leaderboard.command.ZigLeaderboardCommand;
@@ -55,6 +58,7 @@ import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodOwnerLayers
 import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
 import com.ziggfreed.common.instance.portal.PortalDungeonRuns;
 import com.ziggfreed.common.instance.world.InstanceWorlds;
+import com.ziggfreed.common.instance.world.TravelDestinations;
 import com.ziggfreed.common.interaction.type.InteractionTypeSpec;
 import com.ziggfreed.common.interaction.type.InteractionTypes;
 import com.ziggfreed.common.loot.claim.ClaimAddedEvent;
@@ -295,6 +299,37 @@ public final class InstanceBootstrap {
             plugin.getEntityStoreRegistry().registerSystem(new OmenMobs());
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the omens could not be wired, so no room reads an omen and no creature takes one", t);
+        }
+    }
+
+    /**
+     * The temple hub: the {@code ZigHub} world generator Type its template names, registered into the engine's own
+     * {@code IWorldGenProvider.CODEC} before any world loads, and the {@code Instance} and {@code Overworld}
+     * destinations, the doorkeeper's and the hub's doors, before any asset decodes (a failed registration of either
+     * throws here, at setup: the template or the conversations naming them would fail to load); and a copy's start,
+     * which puts its districts' markers on its map. The
+     * district store registers with the other framework stores. Registration only.
+     */
+    public static void registerHub(@Nonnull JavaPlugin plugin) {
+        try {
+            plugin.getCodecRegistry(IWorldGenProvider.CODEC).register(ZigHubWorldGenProvider.TYPE,
+                    ZigHubWorldGenProvider.class, ZigHubWorldGenProvider.CODEC);
+        } catch (RuntimeException | Error e) {
+            SafeLog.warn("[hub] the hub's world generator Type " + ZigHubWorldGenProvider.TYPE
+                    + " could not be registered", e);
+            throw e;
+        }
+        // A destination that fails to register throws too: the doorkeeper's and the porter's conversations name both.
+        try {
+            TravelDestinations.register();
+        } catch (RuntimeException | Error e) {
+            SafeLog.warn("[hub] the Instance and Overworld destinations could not be registered", e);
+            throw e;
+        }
+        try {
+            plugin.getEventRegistry().registerGlobal(StartWorldEvent.class, HubMarkers::onWorldStart);
+        } catch (Throwable t) {
+            SafeLog.warn("[hub] a hub copy's map markers could not be wired", t);
         }
     }
 

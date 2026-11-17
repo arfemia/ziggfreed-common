@@ -63,6 +63,8 @@ import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.instance.InstanceBootstrap;
 import com.ziggfreed.common.instance.claims.RewardChestValidator;
 import com.ziggfreed.common.instance.dungeon.DungeonValidator;
+import com.ziggfreed.common.instance.hub.HubAnchors;
+import com.ziggfreed.common.instance.hub.HubValidator;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
@@ -90,7 +92,9 @@ import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
+import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
+import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.objectives.authoring.AchievementEditorBootstrap;
 import com.ziggfreed.common.objectives.authoring.QuestEditorBootstrap;
@@ -384,6 +388,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         InstanceBootstrap.installSpoils(this);
         InstanceBootstrap.registerParty(this);
         InstanceBootstrap.registerDungeons(this);
+        // The temple hub: its world generator Type, the Instance and Overworld destinations its doors open, and its
+        // map markers as a copy starts; then the seams only this root can fill (the placement engine's hub spots).
+        InstanceBootstrap.registerHub(this);
+        registerHubSeams();
         // The dungeon room kit: the ZigCheckpoint and ZigRunMilestone trigger-volume effects, before any volume or
         // prefab decodes, and the death count a run's results read.
         InstanceBootstrap.registerRoomKit(this);
@@ -726,6 +734,25 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
+     * The hub's named spots span two modules that cannot see each other: an NPC placement (zc-dialogue) stands on a
+     * spot of a hub district (zc-instance) through the {@code ziggfreedcommon:hub} anchor provider, which the root
+     * registers as a plain type adapter over {@code HubAnchors.resolve}, and the hub audit reads which placements stand
+     * on hub spots off the placement store. Neither side decides anything here.
+     */
+    private void registerHubSeams() {
+        try {
+            AnchorResolverRegistry.register(HubAnchors.PROVIDER, HubAnchors.OWNER, request ->
+                    HubAnchors.resolve(request.world(), request.params()).stream()
+                            .map(spot -> new AnchorPosition(AnchorPosition.AnchorKind.CUSTOM,
+                                    HubAnchors.instanceId(spot), spot.x(), spot.y(), spot.z(), spot.yaw()))
+                            .toList());
+            HubValidator.placementAnchors(() -> NpcPlacementConfig.getInstance().customAnchorParams(HubAnchors.PROVIDER));
+        } catch (Throwable t) {
+            SafeLog.warn("[hub] the hub's spots could not be handed to the placement engine", t);
+        }
+    }
+
+    /**
      * The critical hit word (R896) spans two modules that cannot see each other: the crit step (zc-entity) asks each
      * attacker's own Settings switch (zc-presentation), and the Settings tab offers that switch only while the owner's
      * {@code CritText} is on.
@@ -775,7 +802,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * loot, gear sets, calendar events and their spawns, titles (the walk that builds the progression
      * runtime first, so no Title reward goes unchecked), Almanac pages, stats and the board sections that
      * name them, derived factors, NPC identities,
-     * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons, reward chests, the
+     * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons, reward chests, the hub's
+     * districts, the
      * conversations (claiming the first join's run too, as placements do), reputations and tracks (whose own
      * boot hooks then stand down, so an error prints once); and, always,
      * the once-per-boot warning for a loaded pack whose ziggfreed-common range this version fails
@@ -801,6 +829,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                             () -> NpcPlacementConfig.getInstance().claimLateFindings()),
                     new BootAudit.Pass(DungeonValidator.LOG_LABEL, DungeonValidator::audit),
                     new BootAudit.Pass(RewardChestValidator.LOG_LABEL, RewardChestValidator::audit),
+                    new BootAudit.Pass(HubValidator.LOG_LABEL, HubValidator::audit),
                     new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings),
                     new BootAudit.Pass(ReputationValidator.LOG_LABEL, ReputationValidator::audit),
                     new BootAudit.Pass(TrackValidator.LOG_LABEL, TrackValidator::audit),

@@ -1,0 +1,20 @@
+{
+  "$Comment": "The temple hub's Concourse, where players arrive: the middle lot, laid in smooth chalk brick with a lantern on a pillar at each corner of the landing. Its porter stands on the Porter spot (the placement Zc_Hub_Porter) and sends players back to the temple or out to the overworld. This is a first shell, enough to walk in and out; the real Concourse replaces its prefab. A server owner can move it to another lot or switch it off in mods/ziggfreedcommon/hub-districts.json: players then arrive on the scaffolding, and when the Concourse stands nowhere at all the porter waits a few blocks ahead of the arrival.",
+  "Lot": {
+    "Id": "Concourse",
+    "Size": "Large"
+  },
+  "Prefab": {
+    "Base": "ZiggfreedCommon.Hub.Concourse_Stub",
+    "Floor": "Rock_Chalk_Brick_Smooth"
+  },
+  "Anchors": [
+    { "Name": "Arrival", "At": { "X": 0, "Y": 1, "Z": 0 }, "Yaw": 0 },
+    { "Name": "Porter", "At": { "X": 0, "Y": 1, "Z": -8 }, "Yaw": 180 }
+  ],
+  "Marker": {
+    "Icon": "Spawn.png",
+    "NameKey": "ziggfreedcommon.hub.marker.concourse",
+    "Anchor": "Arrival"
+  }
+}

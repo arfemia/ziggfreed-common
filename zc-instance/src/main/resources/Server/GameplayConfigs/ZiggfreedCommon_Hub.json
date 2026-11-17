@@ -1,0 +1,4 @@
+{
+  "$Comment": "The gameplay of the temple hub (the ZiggfreedCommon_Hub instance): the game's own ForgottenTemple config as its Parent, so every protection the temple has, the hub has too. Nobody breaks, places or gathers a block (lore notes can still be read), beds do nothing, nobody takes damage, a death keeps every item and respawns at the hub's arrival, and a player who falls below Y 110 is brought back to it, which is why the hub's floor sits at Y 128. Benches and other blocks with a use still work. Write something here only to make the hub differ from the temple, and mind that a World group written here replaces the temple's whole World group.",
+  "Parent": "ForgottenTemple"
+}

@@ -1,0 +1,15 @@
+{
+  "$Comment": "The temple hub's doorkeeper, standing in the Forgotten Temple on the open side of the landing, ten blocks along negative X from the temple's arrival spot (the hosts and the guide other mods stand there keep their own spots). Press F opens its conversation, whose answer sends the player into the hub's shared copy through the Instance destination; leaving the hub by its porter brings them back here. The temple is a place nobody can fight or build in, so the doorkeeper is a placed character and never a block. Retune the spot in mods/ziggfreedcommon/npc-placements.json, or switch the way in off there with { \"Zc_Hub_Doorkeeper\": { \"Enabled\": false } }.",
+  "Name": "Zc_Hub_Doorkeeper",
+  "Enabled": true,
+  "Where": { "GameplayConfig": [ "ForgottenTemple" ] },
+  "Identity": { "Role": "Zc_Hub_Doorkeeper" },
+  "Anchor": {
+    "WorldSpawn": {
+      "Offset": { "X": -10, "Z": -2 },
+      "Yaw": 180.0
+    }
+  },
+  "Lifecycle": { "KeepAlive": true, "Respawn": true, "Fortify": true },
+  "Interact": { "Dialogue": "Zc_Hub_Doorkeeper" }
+}
