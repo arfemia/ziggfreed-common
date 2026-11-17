@@ -18,19 +18,32 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * block a break was about, what names the move behind it: the RootInteraction a cast's chain started from
  * ({@code root}) and the ability a consumer names for its own cast ({@code ability}), the effect an effect moment is
  * about ({@code effect}), what the moment costs the holder ({@code cost}: on Blocked, the stamina their guard is
- * about to pay for the block; on a consumer's Cast or Dodge, the stamina it spent, 0 when another pool paid it; 0 on
- * every other moment), and what a
- * ProjectileMiss is about ({@code projectile}, the projectile's asset id). World thread; the command buffer is the
- * producing system's, null outside one.
+ * about to pay for the block; on a consumer's Cast or Dodge, what it spent from the pool it names; 0 on every other
+ * moment), what a ProjectileMiss is about ({@code projectile}, the projectile's asset id), and the stat that cost is
+ * drawn from ({@code costStat}, an entity stat id; null reads as {@value #STAMINA}, the pool a block's cost and every
+ * moment that names none pays from). World thread; the command buffer is the producing system's, null outside one.
  */
 public record ProcMoment(@Nonnull ProcTrigger trigger, @Nonnull Store<EntityStore> store,
         @Nullable CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> holder,
         @Nullable Ref<EntityStore> target, @Nullable Damage damage, double amount, @Nullable String blockId,
         @Nullable String root, @Nullable String ability, @Nullable EffectSeen effect, double cost,
-        @Nullable String projectile) {
+        @Nullable String projectile, @Nullable String costStat) {
+
+    /** The pool a moment's {@code cost} is drawn from when it names none. */
+    public static final String STAMINA = "Stamina";
 
     /** The effect an EffectLanded or EffectEnded moment is about: its id, and whether it is on a foe. */
     public record EffectSeen(@Nonnull String id, boolean onFoe) {
+    }
+
+    /** A moment whose cost, if any, is stamina. */
+    public ProcMoment(@Nonnull ProcTrigger trigger, @Nonnull Store<EntityStore> store,
+            @Nullable CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> holder,
+            @Nullable Ref<EntityStore> target, @Nullable Damage damage, double amount, @Nullable String blockId,
+            @Nullable String root, @Nullable String ability, @Nullable EffectSeen effect, double cost,
+            @Nullable String projectile) {
+        this(trigger, store, commandBuffer, holder, target, damage, amount, blockId, root, ability, effect, cost,
+                projectile, null);
     }
 
     /** A moment about no projectile. */
@@ -81,10 +94,23 @@ public record ProcMoment(@Nonnull ProcTrigger trigger, @Nonnull Store<EntityStor
         return trigger.struck() && !trigger.taken() ? damage : null;
     }
 
+    /**
+     * What the moment cost the holder from the pool {@code stat} names: {@code cost} when the moment's own pool is that
+     * stat (any case; a moment naming none pays from {@value #STAMINA}), else 0. So a give-back reads only what was
+     * spent from the pool it gives to: a cast paid in health gives no stamina back.
+     */
+    public double costIn(@Nullable String stat) {
+        if (stat == null || stat.isBlank() || !(cost > 0.0)) {
+            return 0.0;
+        }
+        String pool = costStat == null || costStat.isBlank() ? STAMINA : costStat.trim();
+        return pool.equalsIgnoreCase(stat.trim()) ? cost : 0.0;
+    }
+
     /** The same moment about {@code other} (the target a proc sought, or one foe of an area). */
     @Nonnull
     ProcMoment about(@Nullable Ref<EntityStore> other) {
         return new ProcMoment(trigger, store, commandBuffer, holder, other, damage, amount, blockId, root, ability,
-                effect, cost, projectile);
+                effect, cost, projectile, costStat);
     }
 }

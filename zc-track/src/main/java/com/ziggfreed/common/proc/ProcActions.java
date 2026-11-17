@@ -382,7 +382,8 @@ final class ProcActions {
         if (stats == null) {
             return;
         }
-        double authored = Procs.evaluate(change.amount(), context) * (change.byCost() ? moment.cost() : 1.0);
+        // ByCost gives back only what the moment spent from this same stat (a cast paid in health gives no stamina).
+        double authored = Procs.evaluate(change.amount(), context) * (change.byCost() ? moment.costIn(stat) : 1.0);
         double amount = statAmount(authored, change.scaled(), strength);
         if (amount != 0.0 && Double.isFinite(amount)) {
             stats.addStatValue(index, (float) amount);
@@ -548,7 +549,7 @@ final class ProcActions {
             return;
         }
         double add = counterAdd(change.add() == null ? 0.0 : Procs.evaluate(change.add(), context), change.byAmount(),
-                moment.amount()) * (change.byCost() ? moment.cost() : 1.0);
+                moment.amount()) * (change.byCost() ? moment.costIn(ProcMoment.STAMINA) : 1.0);
         double consume = change.consume() == null ? 0.0 : Procs.evaluate(change.consume(), context);
         Counters.change(moment, def, add, consume, change.clear(), context);
     }

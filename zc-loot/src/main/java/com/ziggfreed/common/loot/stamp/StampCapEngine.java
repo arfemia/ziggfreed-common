@@ -12,6 +12,7 @@ import java.util.function.DoubleSupplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.util.WeightedPick;
@@ -46,7 +47,8 @@ public final class StampCapEngine {
     /**
      * Resolve {@code spec} against what {@code inspection} says the item already carries.
      *
-     * @param lookup where factor readings come from (a snapshot, or a fixture map in a test)
+     * @param lookup where factor readings come from (a snapshot, or a fixture map in a test); its
+     *               {@link FactorLookup#context() moment} is what the pool's named source is handed
      * @param sample a fresh {@code [0,1)} number per draw; inject a pinned one to test
      */
     @Nonnull
@@ -55,7 +57,7 @@ public final class StampCapEngine {
         if (spec == null) {
             return StampPlan.NOTHING;
         }
-        List<StatRollEntry> candidates = candidates(spec);
+        List<StatRollEntry> candidates = candidates(spec, lookup.context());
         if (candidates.isEmpty()) {
             return StampPlan.NOTHING;
         }
@@ -77,14 +79,21 @@ public final class StampCapEngine {
 
     /**
      * The candidate entries: the referenced {@link RollPoolAsset}'s entries first (its authored
-     * ones, then every registered entry source's, through {@link RollPoolConfig#poolOf}), then the
-     * spec's own inline ones. A pool id nothing answers to contributes nothing rather than failing
-     * the stamp - the validator reports it where it is cheap to fix.
+     * ones, then its named source's and every registered entry source's, through
+     * {@link RollPoolConfig#poolOf}), then the spec's own inline ones. A pool id nothing answers to
+     * contributes nothing rather than failing the stamp - the validator reports it where it is cheap
+     * to fix. Read about no moment, so the pool's named source is handed an empty context.
      */
     @Nonnull
     public static List<StatRollEntry> candidates(@Nonnull StampSpec spec) {
+        return candidates(spec, null);
+    }
+
+    /** {@link #candidates(StampSpec)} for a roll at {@code roll}, which the pool's named source is handed. */
+    @Nonnull
+    public static List<StatRollEntry> candidates(@Nonnull StampSpec spec, @Nullable FactorContext roll) {
         List<StatRollEntry> out = new ArrayList<>();
-        RollPoolAsset pool = RollPoolConfig.getInstance().poolOf(spec);
+        RollPoolAsset pool = RollPoolConfig.getInstance().poolOf(spec, roll);
         if (pool != null && pool.getEntries() != null) {
             out.addAll(Arrays.asList(pool.getEntries()));
         }
@@ -156,7 +165,8 @@ public final class StampCapEngine {
 
     /**
      * Each chosen entry rolled to whole points: a uniform draw inside {@code [Min, Max]} plus the
-     * entry's weighted factor terms, rounded. An entry that rounds to zero or less is dropped here -
+     * entry's weighted factor terms, rounded, landing on its {@code Stat} and each of its
+     * {@code AlsoStats} at that one value. An entry that rounds to zero or less is dropped here -
      * writing a zero-point stat would leave a line on the item that means nothing.
      */
     @Nonnull
@@ -173,7 +183,9 @@ public final class StampCapEngine {
             }
             int whole = (int) Math.round(value);
             if (whole > 0) {
-                out.add(new StatRoll(entry.getStat(), whole));
+                for (String statId : entry.statIds()) {
+                    out.add(new StatRoll(statId, whole));
+                }
             }
         }
         return out;
