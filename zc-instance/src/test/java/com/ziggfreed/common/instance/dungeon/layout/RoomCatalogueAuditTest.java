@@ -21,8 +21,8 @@ import com.ziggfreed.common.validation.Severity;
 /**
  * The catalogue audit flags each way a kit can keep a plan from making layouts (an empty pool, a door facing
  * nowhere, a box that does not hold its doors, a door kind no cap closes, a cap with more than one door, a need no
- * room fills, a plan role no room fills, a plan entry outside its bounds, an overlay over a pool or naming one) at its
- * tier, and a clean kit not at all.
+ * room fills, a plan role no room fills, a plan entry outside its bounds, an overlay over a pool or naming one, a room
+ * with no door to be entered by) at its tier, and a clean kit not at all.
  */
 class RoomCatalogueAuditTest {
 
@@ -58,6 +58,10 @@ class RoomCatalogueAuditTest {
                 List.of("Answer"), door(0, 0, -2, Facing.NORTH, "Small")));
         rooms.add(overlaid("layered", "Audit.Layered.*", "Audit.Layered_Overlay"));
         rooms.add(overlaid("spread", "Audit.Spread", "Audit.Spread_Overlay.*"));
+        rooms.add(room("one_way", "Audit.One_Way", box(-2, 0, -2, 2, 3, 2), List.of("Puzzle"), null, 1, 0, 1,
+                List.of(), door(0, 0, -2, Facing.NORTH, "Small", true), door(0, 0, 2, Facing.SOUTH, "Small", true)));
+        rooms.add(room("way_out", "Audit.Way_Out", box(-2, 0, -2, 2, 3, 2), List.of("Entry"), null, 1, 0, 1,
+                List.of(), door(0, 0, -2, Facing.NORTH, "Small", true)));
         LayoutPlan plan = new LayoutPlan("Audit_Plan", List.of(SyntheticRooms.TAG), List.of(),
                 List.of(new Beat("Entry", Count.ONE, -1), new Beat("Dragon", Count.ONE, -1)), null, List.of(),
                 null, null, 0);
@@ -79,7 +83,9 @@ class RoomCatalogueAuditTest {
         assertFlagged(findings, RoomCatalogueAudit.ENTRY_BOUNDS, "outside_plan", Severity.ERROR);
         assertFlagged(findings, RoomCatalogueAudit.OVERLAY_POOL, "layered", Severity.ERROR);
         assertFlagged(findings, RoomCatalogueAudit.OVERLAY_POOL, "spread", Severity.ERROR);
-        assertEquals(11, findings.size(), () -> "each fault once, nothing else: " + findings);
+        assertFlagged(findings, RoomCatalogueAudit.NO_WAY_IN, "one_way", Severity.ERROR);
+        assertEquals(12, findings.size(), () -> "each fault once, nothing else (an entry may be one-way): "
+                + findings);
     }
 
     /** A combat room painted as {@code prefab} with {@code overlay} on top. */

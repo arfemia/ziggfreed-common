@@ -90,6 +90,25 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
         return out;
     }
 
+    /**
+     * The {@code Custom} anchor's {@code Params} of every folded placement standing on {@code provider} (matched
+     * without regard to case), keyed by placement id: what the mod owning that provider audits its spots against. A
+     * fresh map on every call.
+     */
+    @Nonnull
+    public Map<String, Map<String, String>> customAnchorParams(@Nonnull String provider) {
+        Map<String, Map<String, String>> out = new LinkedHashMap<>();
+        for (Map.Entry<String, NpcPlacementAsset> entry : all().entrySet()) {
+            NpcPlacementAsset.Anchor anchor = entry.getValue() == null ? null : entry.getValue().getAnchor();
+            NpcPlacementAsset.Anchor.Custom custom = anchor == null ? null : anchor.getCustom();
+            String named = custom == null ? null : custom.getProvider();
+            if (named != null && named.trim().equalsIgnoreCase(provider.trim())) {
+                out.put(entry.getKey(), new LinkedHashMap<>(custom.getParams()));
+            }
+        }
+        return out;
+    }
+
     @Override
     public synchronized void loadDefaults(@Nonnull Map<String, NpcPlacementAsset> jarDefaults) {
         super.loadDefaults(jarDefaults);

@@ -24,7 +24,10 @@
     {"At": {"X": -15, "Y": 0, "Z": -20}, "Facing": "West", "Kind": "Sample"}
   ],
   "Logic": [
-    {"Template": "BrazierRelay", "Braziers": [{"X": -12, "Y": 1, "Z": -3}, {"X": 12, "Y": 1, "Z": -3}], "Opens": [1]},
+    {"Template": "BrazierRelay", "Braziers": [{"X": -12, "Y": 1, "Z": -3}, {"X": 12, "Y": 1, "Z": -3}], "Opens": [1],
+     "HintKey": "server.sample.relay.hint"},
+    {"Template": "RoomHint", "HintKey": "server.sample.room.hint",
+     "Region": {"Min": {"X": -14, "Y": 1, "Z": -39}, "Max": {"X": 14, "Y": 9, "Z": -1}}},
     {"Template": "CarriedCoreSource", "At": {"X": -12, "Y": 1, "Z": -10}},
     {"Template": "CarriedCoreSocket", "Region": {"Min": {"X": 10, "Y": 1, "Z": -12}, "Max": {"X": 12, "Y": 3, "Z": -10}},
      "Socket": {"X": 11, "Y": 2, "Z": -11}, "HintKey": "server.sample.core.hint", "Opens": [2]},

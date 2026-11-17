@@ -35,7 +35,9 @@ import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
  *   "Links": { "Role": "Corridor", "Count": { "Min": 0, "Max": 2 } },
  *   "Branches": [ { "Role": "Treasure", "Count": { "Min": 0, "Max": 2 }, "Gate": "Puzzle" } ],
  *   "Bounds": { "X": 512, "Y": 128, "Z": 512, "Entry": { "Y": 120 } },
- *   "MaxTries": 64
+ *   "MaxTries": 64,
+ *   "Apart": [ { "Tag": "Arena", "Blocks": 100 } ],
+ *   "MaxPerRun": [ { "Role": "Puzzle", "Max": 1 } ]
  * }
  * }</pre>
  *
@@ -56,6 +58,8 @@ public final class DungeonLayoutAsset implements JsonAssetWithMap<String, Defaul
     @Nullable private Branch[] branches;
     @Nullable private Bounds bounds;
     @Nullable private Integer maxTries;
+    @Nullable private Apart[] apart;
+    @Nullable private MaxPerRun[] maxPerRun;
 
     public static final AssetBuilderCodec<String, DungeonLayoutAsset> CODEC = AssetBuilderCodec.builder(
                     DungeonLayoutAsset.class,
@@ -93,6 +97,21 @@ public final class DungeonLayoutAsset implements JsonAssetWithMap<String, Defaul
             .metadata(EditorSchema.defaultValue((long) LayoutPlan.DEFAULT_MAX_TRIES))
             .documentation("How many seeds a run tries before it relaxes the plan (optional branches dropped, then "
                     + "every count at its least), and again at each relaxed step. Unauthored means 64.").add()
+            .appendInherited(new KeyedCodec<>("Apart", new ArrayCodec<>(Apart.CODEC, Apart[]::new), false),
+                    (a, v) -> a.apart = v, a -> a.apart, (a, p) -> a.apart = p.apart)
+            .documentation("Distances rooms sharing a tag keep: two rooms that both carry a rule's Tag stand with "
+                    + "their nearest blocks at least its Blocks apart, such as two boss arenas whose fights reach "
+                    + "far round them. A layout that cannot keep one is retried on another seed, and relaxing the "
+                    + "plan never loosens one. Unauthored, rooms only never share a block. This is ONE leaf: "
+                    + "authoring it replaces an inherited list whole.").add()
+            .appendInherited(new KeyedCodec<>("MaxPerRun", new ArrayCodec<>(MaxPerRun.CODEC, MaxPerRun[]::new), false),
+                    (a, v) -> a.maxPerRun = v, a -> a.maxPerRun, (a, p) -> a.maxPerRun = p.maxPerRun)
+            .documentation("How many times one room may stand in a run: each room a rule matches (by its Role, its "
+                    + "Tag, or both) is placed at most Max times, counted per room, so a run of puzzles meets every "
+                    + "puzzle it can before one repeats. A layout that cannot keep one is retried on another seed, "
+                    + "and relaxing the plan never loosens one, so keep each beat's count within the rooms that can "
+                    + "fill it. Unauthored, a room may stand any number of times. This is ONE leaf: authoring it "
+                    + "replaces an inherited list whole.").add()
             .build();
 
     public DungeonLayoutAsset() {
@@ -144,9 +163,26 @@ public final class DungeonLayoutAsset implements JsonAssetWithMap<String, Defaul
                         at.getY() == null ? size.y() / 2 : at.getY(), at.getZ() == null ? size.z() / 2 : at.getZ());
             }
         }
+        List<LayoutPlan.Apart> apartList = new ArrayList<>();
+        if (apart != null) {
+            for (Apart rule : apart) {
+                if (rule != null && rule.tag != null && rule.blocks != null) {
+                    apartList.add(new LayoutPlan.Apart(rule.tag, rule.blocks));
+                }
+            }
+        }
+        List<LayoutPlan.MaxPerRun> maxList = new ArrayList<>();
+        if (maxPerRun != null) {
+            for (MaxPerRun rule : maxPerRun) {
+                if (rule != null) {
+                    maxList.add(new LayoutPlan.MaxPerRun(rule.role, rule.tag, rule.max == null ? 1 : rule.max));
+                }
+            }
+        }
         return new LayoutPlan(id == null ? "" : id,
                 rooms == null || rooms.tags == null ? List.of() : Arrays.asList(rooms.tags), strataList, beats,
-                linkPlan, branchList, size, entry, maxTries == null ? LayoutPlan.DEFAULT_MAX_TRIES : maxTries);
+                linkPlan, branchList, size, entry, maxTries == null ? LayoutPlan.DEFAULT_MAX_TRIES : maxTries,
+                apartList, maxList);
     }
 
     private static int size(@Nullable Integer authored, int fallback) {
@@ -311,6 +347,60 @@ public final class DungeonLayoutAsset implements JsonAssetWithMap<String, Defaul
                 .build();
 
         public Links() {
+        }
+    }
+
+    // ==================== Apart ====================
+
+    /** One distance rooms sharing a tag keep. */
+    public static final class Apart {
+
+        @Nullable protected String tag;
+        @Nullable protected Integer blocks;
+
+        public static final BuilderCodec<Apart> CODEC = BuilderCodec.builder(Apart.class, Apart::new)
+                .appendInherited(new KeyedCodec<>("Tag", Codec.STRING, false),
+                        (o, v) -> o.tag = v, o -> o.tag, (o, p) -> o.tag = p.tag)
+                .documentation("The tag the rule binds, matched without regard to case against a room's Tags as "
+                        + "the engine expands them (a key, a value, or Key=Value): Arena binds every room with an "
+                        + "Arena tag, whatever its value. A rule with no Tag binds nothing.").add()
+                .appendInherited(new KeyedCodec<>("Blocks", Codec.INTEGER, false),
+                        (o, v) -> o.blocks = v, o -> o.blocks, (o, p) -> o.blocks = p.blocks)
+                .documentation("The least distance, in blocks, between the nearest blocks of two rooms that both "
+                        + "carry the Tag. A rule with no Blocks, or 0, binds nothing.").add()
+                .build();
+
+        public Apart() {
+        }
+    }
+
+    // ==================== MaxPerRun ====================
+
+    /** How many times each room a rule matches may stand in one run. */
+    public static final class MaxPerRun {
+
+        @Nullable protected String role;
+        @Nullable protected String tag;
+        @Nullable protected Integer max;
+
+        public static final BuilderCodec<MaxPerRun> CODEC = BuilderCodec.builder(MaxPerRun.class, MaxPerRun::new)
+                .appendInherited(new KeyedCodec<>("Role", Codec.STRING, false),
+                        (o, v) -> o.role = v, o -> o.role, (o, p) -> o.role = p.role)
+                .documentation("The role a room must fill for the rule to count it, matched without regard to case "
+                        + "against its Roles, such as Puzzle. Unauthored, any role.").add()
+                .appendInherited(new KeyedCodec<>("Tag", Codec.STRING, false),
+                        (o, v) -> o.tag = v, o -> o.tag, (o, p) -> o.tag = p.tag)
+                .documentation("A tag a room must carry for the rule to count it, matched as a plan's Rooms.Tags "
+                        + "are (a key, a value, or Key=Value). Unauthored, any tags. A rule naming neither a Role nor "
+                        + "a Tag binds nothing.").add()
+                .appendInherited(new KeyedCodec<>("Max", Codec.INTEGER, false),
+                        (o, v) -> o.max = v, o -> o.max, (o, p) -> o.max = p.max)
+                .metadata(EditorSchema.defaultValue(1L))
+                .documentation("How many times each matched room may stand in one run. Unauthored, or less than 1, "
+                        + "means 1.").add()
+                .build();
+
+        public MaxPerRun() {
         }
     }
 

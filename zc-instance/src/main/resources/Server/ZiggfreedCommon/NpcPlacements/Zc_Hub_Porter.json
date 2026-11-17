@@ -1,0 +1,15 @@
+{
+  "$Comment": "The temple hub's porter, on the Concourse's Porter spot: a Custom anchor on the hub's own spots (Provider ziggfreedcommon:hub, Params District and Anchor), so it follows the Concourse to whatever lot it stands on. OrArrival stands it a few blocks ahead of the arrival instead whenever the Concourse stands nowhere (switched off, or moved to a lot it cannot have), so players always have a way out. Where names the hub's gameplay config, so it stands in every hub copy and nowhere else. Press F opens its conversation: back to the temple sends the player back where they stood beside the doorkeeper (or into the temple when they came some other way), and out to the overworld leaves every instance for where they stood before the temple.",
+  "Name": "Zc_Hub_Porter",
+  "Enabled": true,
+  "Where": { "GameplayConfig": [ "ZiggfreedCommon_Hub" ] },
+  "Identity": { "Role": "Zc_Hub_Porter" },
+  "Anchor": {
+    "Custom": {
+      "Provider": "ziggfreedcommon:hub",
+      "Params": { "District": "Zc_Hub_Concourse", "Anchor": "Porter", "OrArrival": true }
+    }
+  },
+  "Lifecycle": { "KeepAlive": true, "Respawn": true, "Fortify": true },
+  "Interact": { "Dialogue": "Zc_Hub_Porter" }
+}

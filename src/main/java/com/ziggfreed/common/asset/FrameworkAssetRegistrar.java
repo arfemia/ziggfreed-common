@@ -59,6 +59,9 @@ import com.ziggfreed.common.instance.dungeon.omen.DungeonOmenAsset;
 import com.ziggfreed.common.instance.dungeon.omen.DungeonOmenConfig;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
+import com.ziggfreed.common.instance.hub.HubDistrictAsset;
+import com.ziggfreed.common.instance.hub.HubDistrictConfig;
+import com.ziggfreed.common.instance.hub.HubDistrictOwnerLayers;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutConfig;
 import com.ziggfreed.common.instance.leaderboard.statboard.RecordGroupAsset;
@@ -613,6 +616,21 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, RewardChestAsset, DefaultAssetMap<String, RewardChestAsset>> ev) -> {
                     RewardChestConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     RewardChestOwnerLayers.reload();
+                });
+
+        // --- Hub districts (Pattern A) - one district of the temple hub per file: the fixed lot it stands on, its
+        //     prefabs and floor, its named spots, its map marker. Every hub copy is laid out from them as it opens.
+        //     The library ships the Concourse and the two scaffolding placeholders, zc-instance's resources. Owner
+        //     layer mods/ziggfreedcommon/hub-districts.json, read here once the packs have landed. A top-level
+        //     Requires follows the mod gate. ---
+        AssetStoreRegistrar.registerStore(HubDistrictAsset.class,
+                new DefaultAssetMap<String, HubDistrictAsset>(), HubDistrictAsset.TYPE_ROOT,
+                HubDistrictAsset::getId, HubDistrictAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HubDistrictAsset.class,
+                (LoadedAssetsEvent<String, HubDistrictAsset, DefaultAssetMap<String, HubDistrictAsset>> ev) -> {
+                    HubDistrictConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(
+                            HubDistrictConfig.MOD_GATE_STORE, ev.getAssetMap(), d -> GateSpec.missingMod(d.requires())));
+                    HubDistrictOwnerLayers.reload();
                 });
 
         // --- Camera sequences - a short camera move per file (keyframes from an origin the caller gives),
