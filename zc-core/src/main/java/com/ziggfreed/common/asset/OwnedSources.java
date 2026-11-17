@@ -33,6 +33,9 @@ import com.ziggfreed.common.util.SafeLog;
  *       floods the log and never fails because one contributor did.</li>
  * </ul>
  *
+ * <p>A store whose file NAMES the one source it reads (a roll pool's {@code EntrySource}) keeps those in their own
+ * instance, keyed by the name, and asks only the named one ({@link #collectFrom}) under the same rules.
+ *
  * <p>The store owning an instance decides what a source is asked and where its answer goes (after
  * which file content, into which leaf). A source is code, not content: a store keeps its authored
  * view free of it, so the source's owner validates what it adds.
@@ -83,23 +86,26 @@ public final class OwnedSources<S> {
             @Nonnull Function<String, String> describe) {
         List<T> out = new ArrayList<>();
         for (Map.Entry<String, S> entry : sources.entrySet()) {
-            Collection<? extends T> answer;
-            try {
-                answer = ask.apply(entry.getValue());
-            } catch (Throwable t) {
-                if (warnedOwners.add(entry.getKey())) {
-                    report(entry.getKey(), describe, t);
-                }
-                continue;
-            }
-            if (answer == null) {
-                continue;
-            }
-            for (T element : answer) {
-                if (element != null) {
-                    out.add(element);
-                }
-            }
+            askInto(entry.getKey(), entry.getValue(), ask, describe, out);
+        }
+        return out;
+    }
+
+    /**
+     * {@code owner}'s source alone answering {@code ask}, under the same rules as {@link #collect}: a null answer and
+     * a null element add nothing, and a source that throws adds nothing and is reported once through
+     * {@code describe}. Empty when {@code owner} (matched without regard to case) has no source, so a store whose
+     * file NAMES the source it reads asks it here and reads only its own content when nothing answers to the name.
+     */
+    @Nonnull
+    public <T> List<T> collectFrom(@Nonnull String owner,
+            @Nonnull Function<? super S, ? extends Collection<? extends T>> ask,
+            @Nonnull Function<String, String> describe) {
+        String key = owner.toLowerCase(Locale.ROOT);
+        List<T> out = new ArrayList<>();
+        S source = sources.get(key);
+        if (source != null) {
+            askInto(key, source, ask, describe, out);
         }
         return out;
     }
@@ -107,6 +113,32 @@ public final class OwnedSources<S> {
     /** Route failing-source warnings to {@code sink} (null restores the log). A test seam. */
     public void warnInto(@Nullable Consumer<String> sink) {
         this.warn = sink != null ? sink : SafeLog::warn;
+    }
+
+    /**
+     * One source's answer appended to {@code out}: nulls skipped, and a throw adding nothing and warned once for
+     * {@code key} until its owner registers again.
+     */
+    private <T> void askInto(@Nonnull String key, @Nonnull S source,
+            @Nonnull Function<? super S, ? extends Collection<? extends T>> ask,
+            @Nonnull Function<String, String> describe, @Nonnull List<T> out) {
+        Collection<? extends T> answer;
+        try {
+            answer = ask.apply(source);
+        } catch (Throwable t) {
+            if (warnedOwners.add(key)) {
+                report(key, describe, t);
+            }
+            return;
+        }
+        if (answer == null) {
+            return;
+        }
+        for (T element : answer) {
+            if (element != null) {
+                out.add(element);
+            }
+        }
     }
 
     private void report(@Nonnull String owner, @Nonnull Function<String, String> describe,
