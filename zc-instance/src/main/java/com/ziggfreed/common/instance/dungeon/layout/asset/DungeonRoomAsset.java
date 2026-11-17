@@ -234,6 +234,7 @@ public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultA
         @Nullable protected Vec3i at;
         @Nullable protected String facing;
         @Nullable protected String kind;
+        @Nullable protected Boolean exitOnly;
 
         public static final BuilderCodec<Door> CODEC = BuilderCodec.builder(Door.class, Door::new)
                 .appendInherited(new KeyedCodec<>("At", Vec3i.CODEC, false),
@@ -250,6 +251,13 @@ public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultA
                 .metadata(EditorSchema.defaultValue(DEFAULT_KIND))
                 .documentation("The socket's kind, matched without regard to case: only doors of the same kind "
                         + "join, such as a kit's door size. Unauthored means Default.").add()
+                .appendInherited(new KeyedCodec<>("ExitOnly", Codec.BOOLEAN, false),
+                        (o, v) -> o.exitOnly = v, o -> o.exitOnly, (o, p) -> o.exitOnly = p.exitOnly)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Whether the room may only be left by this door: a layout never enters the room "
+                        + "through it, though the next room, a branch or a cap may join it. A puzzle's sealed way "
+                        + "on is exit-only, so the party always comes in by an open door. A room needs at least one "
+                        + "door that is not, unless its role is Entry or Cap. Unauthored means false.").add()
                 .build();
 
         public Door() {
@@ -257,7 +265,8 @@ public final class DungeonRoomAsset implements JsonAssetWithMap<String, DefaultA
 
         @Nonnull
         DoorSpec toSpec() {
-            return new DoorSpec(cell(at), Facing.parse(facing), kind == null ? DEFAULT_KIND : kind);
+            return new DoorSpec(cell(at), Facing.parse(facing), kind == null ? DEFAULT_KIND : kind,
+                    Boolean.TRUE.equals(exitOnly));
         }
     }
 

@@ -45,22 +45,24 @@ import com.ziggfreed.common.instance.dungeon.layout.asset.PrefabPoolIndex;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Writes a run's rooms into one generating chunk, on a painter thread, the way vanilla's own world generator writes
- * a prefab ({@code ChunkGeneratorExecution.setBlock}): block, rotation, filler, support, the cell's block entity
- * (cloned) and its fluid. Each room is written in three passes, every one clipped to the room's {@code Box}
- * (a block a piece holds outside its box is never written, so it never lands in a neighbour):
+ * Writes a job's pieces (a run's rooms, a hub's districts: {@link PaintJob}) into one generating chunk, on a painter
+ * thread, the way vanilla's own world generator writes a prefab ({@code ChunkGeneratorExecution.setBlock}): block,
+ * rotation, filler, support, the cell's block entity (cloned) and its fluid. Each piece is written in three passes,
+ * every one clipped to the piece's {@code Box} (a block a piece holds outside its box is never written, so it never
+ * lands in a neighbour):
  * <ol>
- *   <li>its base prefab, then its overlay on top when the room names one ({@link RoomOverlays}), then every
- *       {@code Prefab_Spawner_Block} child either holds, one prefab of the child's pool picked from the run's seed
+ *   <li>its base prefab, then each overlay on top in order (a room's one, {@link RoomOverlays}), then every
+ *       {@code Prefab_Spawner_Block} child they hold, one prefab of the child's pool picked from the job's seed
  *       and the child's place, so every chunk the child crosses makes the same pick (vanilla's own expansion,
  *       {@code PrefabPasteUtil.generateChild}, to the same depth);</li>
- *   <li>a {@code Block_Spawner_Block} cell is resolved here, from the run's seed, to the block its table picks, so no
+ *   <li>a {@code Block_Spawner_Block} cell is resolved here, from the job's seed, to the block its table picks, so no
  *       spawner is left for the engine to wake later (a woken spawner dirties its section, which then stays loaded
- *       until the copy closes); a container is painted as air unless the room keeps its containers;</li>
- *   <li>every cell of the box the passes left unlisted (a listed air cell counts as listed) takes the room's fill
+ *       until the copy closes); a container is painted as air unless the piece keeps its containers;</li>
+ *   <li>every cell of the box the passes left unlisted (a listed air cell counts as listed) takes the piece's fill
  *       block, so a piece cut to sit in solid rock shows no holes in an empty world.</li>
  * </ol>
- * Entities are left for the room logic: the painter never places one. Nothing here touches a store or a world.
+ * Entities are left for someone else (a room's logic): the painter never places one. Nothing here touches a store or
+ * a world.
  */
 final class RoomPainter {
 
@@ -87,7 +89,7 @@ final class RoomPainter {
                     walk.block(x, y, z, blockId, holder, support, rotation, filler, fluidId, fluidLevel);
 
     private static final IPrefabBuffer.EntityConsumer<Walk> ENTITIES =
-            (x, z, holders, walk) -> walk.run.entitiesLeft.addAndGet(holders == null ? 0 : holders.length);
+            (x, z, holders, walk) -> walk.job.entitiesLeft(holders == null ? 0 : holders.length);
 
     private static final IPrefabBuffer.ChildConsumer<Walk> CHILDREN =
             (x, y, z, path, fitHeightmap, inheritSeed, inheritHeightCondition, weights, rotation, walk) ->
@@ -96,13 +98,13 @@ final class RoomPainter {
     private RoomPainter() {
     }
 
-    /** Paint every room of {@code run} that reaches into the chunk starting at {@code (baseX, baseZ)}. */
-    static void paint(@Nonnull GeneratedChunk chunk, int baseX, int baseZ, @Nonnull DungeonRun run,
+    /** Paint every piece of {@code job} that reaches into the chunk starting at {@code (baseX, baseZ)}. */
+    static void paint(@Nonnull GeneratedChunk chunk, int baseX, int baseZ, @Nonnull PaintJob job,
             @Nonnull PrefabPoolIndex pools) {
         Holder<ChunkStore>[] sections = chunk.getSections();
         int topY = sections.length * ChunkUtil.SIZE - 1;
-        for (DungeonRun.Room room : run.rooms) {
-            Box box = room.box();
+        for (PaintPiece piece : job.pieces()) {
+            Box box = piece.box();
             Clip clip = new Clip(Math.max(box.min().x(), baseX), Math.max(box.min().y(), ChunkUtil.MIN_Y),
                     Math.max(box.min().z(), baseZ), Math.min(box.max().x(), baseX + ChunkUtil.SIZE - 1),
                     Math.min(box.max().y(), topY), Math.min(box.max().z(), baseZ + ChunkUtil.SIZE - 1));
@@ -110,33 +112,35 @@ final class RoomPainter {
                 continue;
             }
             try {
-                paintRoom(chunk, baseX, baseZ, run, room, clip, pools);
+                paintPiece(chunk, baseX, baseZ, job, piece, clip, pools);
             } catch (Throwable t) {
-                warnOnce("room:" + room.prefabKey(), LOG + "the room " + room.roomId() + " (" + room.prefabKey()
-                        + ") could not be painted into a chunk at " + baseX + " " + baseZ + " of run " + run.run
-                        + " in area " + run.area + "; it stays partly unpainted there", t);
+                warnOnce("piece:" + piece.label(), LOG + "the " + piece.label() + " could not be painted into a "
+                        + "chunk at " + baseX + " " + baseZ + " of " + job.describe()
+                        + "; it stays partly unpainted there", t);
             }
         }
     }
 
-    private static void paintRoom(@Nonnull GeneratedChunk chunk, int baseX, int baseZ, @Nonnull DungeonRun run,
-            @Nonnull DungeonRun.Room room, @Nonnull Clip clip, @Nonnull PrefabPoolIndex pools) {
+    private static void paintPiece(@Nonnull GeneratedChunk chunk, int baseX, int baseZ, @Nonnull PaintJob job,
+            @Nonnull PaintPiece piece, @Nonnull Clip clip, @Nonnull PrefabPoolIndex pools) {
         Mask mask = MASKS.get().reset(clip);
         List<Child> children = new ArrayList<>();
-        Walk base = new Walk(chunk, baseX, baseZ, clip, mask, run, room, pools, room.origin().x(),
-                room.origin().y(), room.origin().z(), room.rotation(), 0, mix(run.seed, room.origin().x(),
-                room.origin().y(), room.origin().z()), children);
-        room.base().forEach(COLUMNS, BLOCKS, ENTITIES, CHILDREN, base);
-        IPrefabBuffer overlay = room.overlay();
-        if (overlay != null) {
-            Walk top = new Walk(chunk, baseX, baseZ, clip, mask, run, room, pools, room.origin().x(),
-                    room.origin().y(), room.origin().z(), room.rotation(), 0, mix(run.seed ^ OVERLAY_SALT,
-                    room.origin().x(), room.origin().y(), room.origin().z()), children);
-            overlay.forEach(COLUMNS, BLOCKS, ENTITIES, CHILDREN, top);
+        int ox = piece.origin().x();
+        int oy = piece.origin().y();
+        int oz = piece.origin().z();
+        Walk base = new Walk(chunk, baseX, baseZ, clip, mask, job, piece, pools, ox, oy, oz, piece.rotation(), 0,
+                mix(job.seed(), ox, oy, oz), children);
+        piece.base().forEach(COLUMNS, BLOCKS, ENTITIES, CHILDREN, base);
+        List<IPrefabBuffer> overlays = piece.overlays();
+        for (int i = 0; i < overlays.size(); i++) {
+            // The first overlay keeps the salt a room's one overlay always had, so a run paints as it did.
+            Walk top = new Walk(chunk, baseX, baseZ, clip, mask, job, piece, pools, ox, oy, oz, piece.rotation(), 0,
+                    mix(job.seed() ^ (OVERLAY_SALT + i), ox, oy, oz), children);
+            overlays.get(i).forEach(COLUMNS, BLOCKS, ENTITIES, CHILDREN, top);
         }
         expand(children, base);
-        if (room.fillBlock() >= 0) {
-            fill(chunk, baseX, baseZ, clip, mask, room.fillBlock());
+        if (piece.fillBlock() >= 0) {
+            fill(chunk, baseX, baseZ, clip, mask, piece.fillBlock());
         }
     }
 
@@ -150,17 +154,17 @@ final class RoomPainter {
                 parent.mask.set(child.x(), child.y(), child.z());
                 parent.write(child.x(), child.y(), child.z(), BlockType.EMPTY_ID, null, -1,
                         RotationTuple.NONE_INDEX, FillerBlockUtil.NO_FILLER, Fluid.EMPTY_ID, 0);
-                parent.run.childrenExpanded.incrementAndGet();
+                parent.job.childExpanded();
             }
             Path pick = pick(child, parent);
             if (pick == null) {
                 continue;
             }
             List<Child> grandchildren = new ArrayList<>();
-            Walk walk = new Walk(parent.chunk, parent.baseX, parent.baseZ, parent.clip, parent.mask, parent.run,
-                    parent.room, parent.pools, child.x(), child.y(), child.z(), child.rotation(), child.depth(),
-                    mix(parent.run.seed, child.x(), child.y(), child.z()), grandchildren);
-            parent.run.child(pick).forEach(COLUMNS, BLOCKS, ENTITIES, CHILDREN, walk);
+            Walk walk = new Walk(parent.chunk, parent.baseX, parent.baseZ, parent.clip, parent.mask, parent.job,
+                    parent.piece, parent.pools, child.x(), child.y(), child.z(), child.rotation(), child.depth(),
+                    mix(parent.job.seed(), child.x(), child.y(), child.z()), grandchildren);
+            parent.job.child(pick).forEach(COLUMNS, BLOCKS, ENTITIES, CHILDREN, walk);
             expand(grandchildren, walk);
         }
     }
@@ -178,7 +182,7 @@ final class RoomPainter {
                     + ", which resolves to no prefab a loaded pack ships; it is left empty", null);
             return null;
         }
-        Random random = new Random(mix(parent.run.seed, child.x(), child.y(), child.z()));
+        Random random = new Random(mix(parent.job.seed(), child.x(), child.y(), child.z()));
         PrefabWeights weights = child.weights();
         if (weights != null && weights.size() > 0 && pool.size() > 1) {
             List<String> keys = parent.pools.keys(child.path());
@@ -311,7 +315,7 @@ final class RoomPainter {
         }
     }
 
-    /** One walk of one prefab buffer into one chunk, clipped to one room. */
+    /** One walk of one prefab buffer into one chunk, clipped to one piece. */
     private static final class Walk extends PrefabBufferCall {
         final GeneratedChunk chunk;
         final GeneratedBlockChunk blocks;
@@ -320,8 +324,8 @@ final class RoomPainter {
         final int baseZ;
         final Clip clip;
         final Mask mask;
-        final DungeonRun run;
-        final DungeonRun.Room room;
+        final PaintJob job;
+        final PaintPiece piece;
         final PrefabPoolIndex pools;
         final int ox;
         final int oy;
@@ -330,7 +334,7 @@ final class RoomPainter {
         final List<Child> children;
 
         Walk(@Nonnull GeneratedChunk chunk, int baseX, int baseZ, @Nonnull Clip clip, @Nonnull Mask mask,
-                @Nonnull DungeonRun run, @Nonnull DungeonRun.Room room, @Nonnull PrefabPoolIndex pools, int ox, int oy,
+                @Nonnull PaintJob job, @Nonnull PaintPiece piece, @Nonnull PrefabPoolIndex pools, int ox, int oy,
                 int oz, @Nonnull PrefabRotation rotation, int depth, long seed, @Nonnull List<Child> children) {
             super(new Random(seed), rotation);
             this.chunk = chunk;
@@ -340,8 +344,8 @@ final class RoomPainter {
             this.baseZ = baseZ;
             this.clip = clip;
             this.mask = mask;
-            this.run = run;
-            this.room = room;
+            this.job = job;
+            this.piece = piece;
             this.pools = pools;
             this.ox = ox;
             this.oy = oy;
@@ -390,7 +394,7 @@ final class RoomPainter {
             BlockType type = id == BlockType.EMPTY_ID ? null : BlockType.getAssetMap().getAsset(id);
             BlockSpawner spawner = spawnerOf(type, state);
             if (spawner != null) {
-                Resolved resolved = resolve(spawner, wx, wy, wz, turn, run.seed);
+                Resolved resolved = resolve(spawner, wx, wy, wz, turn, job.seed());
                 id = resolved == null ? BlockType.EMPTY_ID : resolved.blockId();
                 type = resolved == null ? null : resolved.type();
                 turn = resolved == null ? RotationTuple.NONE_INDEX : resolved.rotation();
@@ -398,7 +402,7 @@ final class RoomPainter {
                 fill = FillerBlockUtil.NO_FILLER;
                 supportValue = -1;
             }
-            if (!room.keepContainers() && containerOf(type, state)) {
+            if (!piece.keepContainers() && containerOf(type, state)) {
                 id = BlockType.EMPTY_ID;
                 type = null;
                 turn = RotationTuple.NONE_INDEX;

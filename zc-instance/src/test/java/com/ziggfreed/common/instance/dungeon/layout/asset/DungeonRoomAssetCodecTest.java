@@ -39,7 +39,7 @@ class DungeonRoomAssetCodecTest {
               "Overlay": " ZiggfreedCommon.Rooms.Stone_Room_Overlay ",
               "Box": { "Min": { "X": -8, "Z": -8 }, "Max": { "X": 8, "Y": 9, "Z": 8 } },
               "Doors": [ { "At": { "Z": -8 }, "Facing": "north", "Kind": "Stone_Small" },
-                         { "At": { "X": 8 }, "Facing": "East" },
+                         { "At": { "X": 8 }, "Facing": "East", "ExitOnly": true },
                          { "At": { "Z": 8 }, "Facing": "Up", "Kind": "Stone_Small" } ],
               "Roles": ["Combat", " puzzle ", "COMBAT"],
               "Tags": { "Kit": ["Zc_Kit_Stone"], "Stratum": ["Ruins"] },
@@ -115,9 +115,10 @@ class DungeonRoomAssetCodecTest {
         assertEquals(new Box(new Cell(-8, 0, -8), new Cell(8, 9, 8)), spec.box(), "an unauthored axis is 0");
         assertEquals(List.of(
                         new DoorSpec(new Cell(0, 0, -8), Facing.NORTH, "stone_small"),
-                        new DoorSpec(new Cell(8, 0, 0), Facing.EAST, DoorSpec.DEFAULT_KIND),
+                        new DoorSpec(new Cell(8, 0, 0), Facing.EAST, DoorSpec.DEFAULT_KIND, true),
                         new DoorSpec(new Cell(0, 0, 8), null, "stone_small")),
-                spec.doors(), "a facing reads without regard to case, an unknown one as none; a kind folds");
+                spec.doors(), "a facing reads without regard to case, an unknown one as none; a kind folds; "
+                        + "ExitOnly reads, unauthored as false");
         assertEquals(List.of("combat", "puzzle"), spec.roles(), "roles fold, trimmed, a repeat dropped");
         assertEquals(6, spec.tags().size(), () -> "each key, value and Key=Value: " + spec.tags());
         assertTrue(spec.carries("Zc_Kit_Stone") && spec.carries("Kit") && spec.carries("Kit=Zc_Kit_Stone"));

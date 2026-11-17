@@ -24,6 +24,7 @@ import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
 import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.instance.hub.HubDistrictConfig;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.trigger.BonusRowConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
@@ -111,6 +112,8 @@ class FrameworkModGateWiringTest {
         GATED.put("ProcAsset", new Gated("Procs", "ProcConfig", ProcConfig.MOD_GATE_STORE));
         GATED.put("CounterAsset", new Gated("Counters", "CounterConfig", CounterConfig.MOD_GATE_STORE));
         GATED.put("HeldEffectAsset", new Gated("HeldEffects", "HeldEffectConfig", HeldEffectConfig.MOD_GATE_STORE));
+        GATED.put("HubDistrictAsset",
+                new Gated("HubDistricts", "HubDistrictConfig", HubDistrictConfig.MOD_GATE_STORE));
     }
 
     /**
@@ -167,6 +170,9 @@ class FrameworkModGateWiringTest {
                     Path.of("zc-track", "src", "main", "java", "com", "ziggfreed", "common", "proc",
                             "ProcOwnerLayers.java"),
                     "public static void reloadHeldEffects()", "GateSpec.missingMod("),
+            new OwnerReader("HubDistrictAsset", "HubDistrictOwnerLayers.reload();",
+                    module("zc-instance", "instance", "hub", "HubDistrictOwnerLayers.java"),
+                    "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("NpcPlacementAsset", "NpcPlacementOverrides.getInstance().applyOwnerLayer();",
                     module("zc-dialogue", "npc", "placement", "asset", "NpcPlacementOverrides.java"),
                     "public void applyOwnerLayer()", "NpcPlacementAsset.Requires.missingMod("),
@@ -272,6 +278,7 @@ class FrameworkModGateWiringTest {
         assertEquals("Procs", ProcConfig.getInstance().modGateStore());
         assertEquals("Counters", CounterConfig.getInstance().modGateStore());
         assertEquals("HeldEffects", HeldEffectConfig.getInstance().modGateStore());
+        assertEquals("HubDistricts", HubDistrictConfig.getInstance().modGateStore());
     }
 
     @Test

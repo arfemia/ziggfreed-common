@@ -1,0 +1,42 @@
+{
+  "$Comment": "A dungeon skill lock, the cracked wall (Mining's): a full block of the game's cracked slate (the texture its slate trap wears). Using it does nothing on its own, so the use reaches the room's trigger volume, whose ZigRequires opens it for a player with the skill and whose RejectionEffects tell anyone else what opens it (the SkillLock room template, tools/rooms). It has no Gathering, so no survival player, creature or explosion can break it and it drops nothing; it has no recipe and no category and is a Variant, so the creative library hides it. It needs no support, so it never falls.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.dungeon.lock.cracked_wall.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Trap_Slate.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Block",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Cube",
+    "Flags": {},
+    "Textures": [
+      {
+        "Sides": "BlockTextures/Rock_Slate_Cracked.png",
+        "UpDown": "BlockTextures/Rock_Slate_Cracked.png",
+        "Weight": 1
+      }
+    ],
+    "BlockParticleSetId": "Stone",
+    "BlockSoundSetId": "Stone",
+    "PhysicalMaterialId": "Stone",
+    "ParticleColor": "#262728",
+    "TextureComputedColor": "#272829",
+    "InteractionHint": "server.interactionHints.examine",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "Simple"
+          }
+        ]
+      }
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Dungeon_Lock"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Stone"
+}

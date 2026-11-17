@@ -39,6 +39,9 @@ public record RoomSpec(@Nonnull String id, @Nonnull String prefab, @Nonnull Box 
     /** The role of a room that closes one open door. */
     public static final String CAP_ROLE = "cap";
 
+    /** The role of a run's first room, which no room joins onto: it alone may have no door to be entered by. */
+    public static final String ENTRY_ROLE = "entry";
+
     /** The suffix that makes a prefab name a pool of every prefab in its folder. */
     public static final String POOL_SUFFIX = ".*";
 
@@ -100,6 +103,17 @@ public record RoomSpec(@Nonnull String id, @Nonnull String prefab, @Nonnull Box 
         int n = 0;
         for (DoorSpec door : doors) {
             if (door.usable()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** How many of its doors it can be entered by: those with a facing that are not exit-only. */
+    public int enterableDoorCount() {
+        int n = 0;
+        for (DoorSpec door : doors) {
+            if (door.enterable()) {
                 n++;
             }
         }

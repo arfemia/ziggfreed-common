@@ -1,0 +1,11 @@
+{
+  "$Comment": "The scaffolding on every large lot of the temple hub that no district claims: cobblestone ground, a fence post at each corner and a goblin sign at the front, the temple's goblin builders at work. It names no lot, so any district that claims a lot takes its place there. Give it a Parent and a new Prefab to change how unbuilt lots look.",
+  "Lot": {
+    "Size": "Large",
+    "FillsEmpty": true
+  },
+  "Prefab": {
+    "Base": "ZiggfreedCommon.Hub.Scaffold_Large",
+    "Floor": "Rock_Stone_Cobble"
+  }
+}

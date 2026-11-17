@@ -1,0 +1,18 @@
+{
+  "Name": "Zc_Hub_Doorkeeper",
+  "$Comment": "The temple hub's doorkeeper's conversation, which its placement (NpcPlacements/Zc_Hub_Doorkeeper.json) opens on press F: one line that says what the hub is, and an answer that goes in through the Instance destination, naming the hub's template, so every player lands in the one shared copy.",
+  "Start": { "Fallback": "greet" },
+  "Nodes": {
+    "greet": {
+      "TextKey": "ziggfreedcommon.hub.doorkeeper.greet",
+      "Options": [
+        {
+          "LabelKey": "ziggfreedcommon.hub.doorkeeper.opt.enter",
+          "Style": "accept",
+          "Open": { "Type": "Instance", "Instance": "ZiggfreedCommon_Hub" }
+        },
+        { "LabelKey": "ziggfreedcommon.hub.doorkeeper.opt.farewell", "Style": "farewell", "Close": true }
+      ]
+    }
+  }
+}

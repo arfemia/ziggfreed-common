@@ -1,0 +1,41 @@
+{
+  "$Comment": "A dungeon skill lock, the rubble heap (Excavation's): a full block of the game's gravel (Soil_Gravel's texture), so a heap of them chokes a passage. Using it does nothing on its own, so the use reaches the room's trigger volume, whose ZigRequires opens it for a player with the skill and whose RejectionEffects tell anyone else what opens it (the SkillLock room template, tools/rooms). It has no Gathering, so no survival player, creature or explosion can break it and it drops nothing; it has no recipe and no category and is a Variant, so the creative library hides it. It needs no support, so it never falls as loose gravel would.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.dungeon.lock.rubble_heap.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Soil_Gravel.png",
+  "Variant": true,
+  "PlayerAnimationsId": "Block",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Cube",
+    "Flags": {},
+    "Textures": [
+      {
+        "All": "BlockTextures/Soil_Gravel.png",
+        "Weight": 1
+      }
+    ],
+    "BlockParticleSetId": "Dirt",
+    "BlockSoundSetId": "Gravel",
+    "PhysicalMaterialId": "Dirt",
+    "ParticleColor": "#847e57",
+    "TextureComputedColor": "#736F4C",
+    "InteractionHint": "server.interactionHints.examine",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "Simple"
+          }
+        ]
+      }
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Dungeon_Lock"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Stone"
+}

@@ -7,13 +7,15 @@
 A room is drawn from one variant of its pool (`--variant`, default the first): north is up, one block a square. A
 column whose floor sits at the doors' level is a floor tile, a column with a block at head height is wall (darker),
 a column whose floor is lower or higher is tinted blue or orange by how far, and a column of carved air with nothing
-under it is hatched. Doors are arrows on their cell, pointing out, labelled with their Kind; the room's Box is the
+under it is hatched. Doors are arrows on their cell, pointing out, labelled with their Kind (hollow and marked exit
+when ExitOnly: the layout leaves the room by it, never enters); the room's Box is the
 dashed outline; trigger volumes are blue outlines with their names; spawn markers are red dots.
 
 A room with an Overlay draws its base piece, then the overlay over it: each overlay block an inset square in its
 block's colour outlined in magenta, or crossed out in red when it sits on a cell the base fills (which build_room.py
-refuses, so a red cross means the overlay prefab was edited by hand or the base piece changed), and the overlay's
-volumes and markers. Pass the folder the overlay prefab was built into as another --prefabs.
+refuses, so a red cross means the overlay prefab was edited by hand or the base piece changed), a column where the
+overlay writes air over the base (a door cut into a sealed piece) in orange dashes, and the overlay's volumes and
+markers. Pass the folder the overlay prefab was built into as another --prefabs.
 
 `rooms` writes three files per room file: <Id>.svg, <Id>.caps.svg (a Cap room of the door's Kind joined at every door,
 ghosted) and <Id>.joins.svg (another room of the door's Kind joined at every door, ghosted), and index.html showing
@@ -247,22 +249,30 @@ def door_level(room):
 
 
 def overlay_columns(base, overlay):
-    """(x, z) -> (top overlay block name, whether any overlay block in the column sits on a cell the base fills)."""
+    """(x, z) -> (top overlay block name, whether any overlay block in the column sits on a cell the base fills,
+    whether the overlay cuts the column: writes air over a cell the base fills, a door cut into a sealed piece)."""
     columns = {}
     for (x, y, z), b in sorted(overlay.blocks.items(), key=lambda kv: kv[0][1]):
         name = b.get("name")
-        if name == pio.EMPTY_BLOCK:
-            continue
         under = base.blocks.get((x, y, z)) if base is not None else None
-        clash = base is not None and (under is None or under.get("name") != pio.EMPTY_BLOCK or (x, y, z) in base.fluids)
-        _, before = columns.get((x, z), (None, False))
-        columns[(x, z)] = (name, before or clash)
+        # A block in the base's water (air under a fluid) is a spec's declared Submerged cell, never a clash.
+        filled = base is not None and (under is None or under.get("name") != pio.EMPTY_BLOCK)
+        top, before, cut = columns.get((x, z), (None, False, False))
+        if name == pio.EMPTY_BLOCK:
+            if filled:
+                columns[(x, z)] = (top, before, True)
+            continue
+        columns[(x, z)] = (name, before or filled, cut)
     return columns
 
 
 def draw_overlay(svg, base, overlay, origin, turns, materials=None):
-    for (x, z), (name, clash) in sorted(overlay_columns(base, overlay).items()):
+    for (x, z), (name, clash, cut) in sorted(overlay_columns(base, overlay).items()):
         wx, _, wz = place((x, 0, z), origin, turns)
+        if cut:
+            svg.rect(wx, wz, fill="#ffe0b2", stroke="#ef6c00", width=1.6, dash=True)
+            if name is None:
+                continue
         if clash:
             svg.rect(wx, wz, fill="#ffdddd", stroke="#d62728", width=1.6)
             svg.line(wx, wz, wx + 1, wz + 1, "#d62728", 1.6)
@@ -302,14 +312,15 @@ def draw_room(svg, room, prefab, origin=(0, 0, 0), turns=0, ghost=False, label=N
     for d in room.get("Doors") or []:
         at = place(pio.xyz_tuple(d["At"]), origin, turns)
         facing = pio.rotate_facing(d["Facing"], turns)
-        draw_door(svg, at, facing, d.get("Kind", "?"), ghost)
+        draw_door(svg, at, facing, d.get("Kind", "?"), ghost, bool(d.get("ExitOnly")))
     if prefab is not None and not ghost:
         draw_entities(svg, prefab, origin, turns)
     if overlay is not None and not ghost:
         draw_entities(svg, overlay, origin, turns)
 
 
-def draw_door(svg, at, facing, kind, ghost=False):
+def draw_door(svg, at, facing, kind, ghost=False, exit_only=False):
+    """A door's arrow, pointing out; an exit-only door (one the layout never enters by) is hollow and labelled exit."""
     vx, vz = pio.FACING_VEC[facing]
     cx, cz = at[0] + 0.5, at[2] + 0.5
     px, pz = -vz, vx
@@ -317,9 +328,11 @@ def draw_door(svg, at, facing, kind, ghost=False):
     base1 = (cx - vx * 0.3 + px * 0.7, cz - vz * 0.3 + pz * 0.7)
     base2 = (cx - vx * 0.3 - px * 0.7, cz - vz * 0.3 - pz * 0.7)
     col = hexrgb(kind_colour(kind))
-    svg.poly([tip, base1, base2], col, "#000", opacity=0.45 if ghost else 1.0)
+    svg.poly([tip, base1, base2], "#ffffff" if exit_only else col, col if exit_only else "#000",
+             opacity=0.45 if ghost else 1.0)
     if not ghost:
-        svg.text(cx + vx * 2.2, cz + vz * 2.2 + 0.3, kind, size=8, colour=col, anchor="middle")
+        svg.text(cx + vx * 2.2, cz + vz * 2.2 + 0.3, kind + (" (exit)" if exit_only else ""), size=8, colour=col,
+                 anchor="middle")
 
 
 def draw_entities(svg, prefab, origin, turns):
@@ -368,6 +381,7 @@ STANDARD_KEY = [
     ("#d62728", "spawn marker"),
     ("#c2185b", "overlay block (magenta outline)"),
     ("#ffdddd", "overlay block on a filled cell (red cross)"),
+    ("#ffe0b2", "door cut: overlay air over the base (orange dashes)"),
 ]
 
 
