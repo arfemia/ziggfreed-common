@@ -67,6 +67,7 @@ itemTooltip.stats.Damage_VsLowHealth = Damage to Badly Hurt Foes: {value}%
 itemTooltip.stats.Damage_VsPoisoned = Damage to Poisoned Foes: {value}%
 itemTooltip.stats.Damage_VsBurning = Damage to Burning Foes: {value}%
 itemTooltip.stats.Damage_VsAirborne = Damage to Airborne Foes: {value}%
+itemTooltip.stats.Damage_VsStunned = Damage to Stunned Foes: {value}%
 itemTooltip.stats.Damage_FirstHit = First Hit Damage: {value}%
 itemTooltip.stats.Damage_WhileAbove = Damage From Above: {value}%
 itemTooltip.stats.Damage_WhileFar = Damage at Range: {value}%
