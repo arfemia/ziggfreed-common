@@ -166,7 +166,7 @@ public final class BoundGrants {
      * over before: one no longer listed is taken off at once; one whose amount or shape changed under the same
      * conditions (a counter's stacks, a talent's rank) is written over at once while it is on, else taken off; a new
      * one waits for the next pass to read its conditions. A blank or unknown stat, or a zero or non-finite amount, is
-     * passed over. World thread.
+     * passed over; a retired stat id lands on each of its successors ({@code StatIndexCache.landingsOf}). World thread.
      */
     public static void set(@Nullable EntityStatMap stats, @Nonnull Ref<EntityStore> ref, @Nonnull String owner,
             @Nonnull List<Bound> bound) {
@@ -184,31 +184,32 @@ public final class BoundGrants {
             if (one.statId().isBlank() || !Float.isFinite(amount) || amount == 0.0f) {
                 continue;
             }
-            int index = StatIndexCache.resolve(one.statId());
-            if (index == StatIndexCache.UNRESOLVED) {
-                StatIndexCache.warnUnknownOnce(one.statId());
-                continue;
-            }
-            String key = MODIFIER_PREFIX + owner + ":" + one.id();
-            Entry entry = new Entry(key, index, one.statId(), one.modifier(), one.conditions());
-            Entry old = before.get(key);
-            if (old != null && old.sameAs(entry)) {
-                // A modifier that stayed the same keeps its state.
-                entry.on = old.on;
-            } else if (old != null && old.on && stats != null) {
-                if (old.conditions == entry.conditions) {
-                    // Same conditions, which held at the last pass: written over now, so the stat never drops a tick.
-                    if (old.stat != entry.stat) {
+            // A retired id lands on each successor at its alias's scale, each under a key of its own.
+            for (StatIndexCache.Landing landing : StatIndexCache.landingsOf(one.statId())) {
+                String key = MODIFIER_PREFIX + owner + ":" + one.id()
+                        + (landing.statId().equals(one.statId()) ? "" : ":" + landing.statId());
+                Entry entry = new Entry(key, landing.index(), landing.statId(), landing.scaled(one.modifier()),
+                        one.conditions());
+                Entry old = before.get(key);
+                if (old != null && old.sameAs(entry)) {
+                    // A modifier that stayed the same keeps its state.
+                    entry.on = old.on;
+                } else if (old != null && old.on && stats != null) {
+                    if (old.conditions == entry.conditions) {
+                        // Same conditions, which held at the last pass: written over now, so the stat never drops a
+                        // tick.
+                        if (old.stat != entry.stat) {
+                            stats.removeModifier(old.stat, old.key);
+                        }
+                        stats.putModifier(entry.stat, entry.key, entry.modifier);
+                        entry.on = true;
+                    } else {
+                        // Other conditions: taken off, and the next pass reads them.
                         stats.removeModifier(old.stat, old.key);
                     }
-                    stats.putModifier(entry.stat, entry.key, entry.modifier);
-                    entry.on = true;
-                } else {
-                    // Other conditions: taken off, and the next pass reads them.
-                    stats.removeModifier(old.stat, old.key);
                 }
+                now.put(key, entry);
             }
-            now.put(key, entry);
         }
         for (Entry old : before.values()) {
             if (!now.containsKey(old.key) && old.on && stats != null) {
@@ -286,7 +287,7 @@ public final class BoundGrants {
         if (!HIT_AWARE.containsKey(attacker)) {
             return 0.0;
         }
-        return hitPoints(accessor, attacker, StatIndexCache.resolve(statId), damage);
+        return hitPoints(accessor, attacker, StatIndexCache.resolveCurrent(statId), damage);
     }
 
     /**
@@ -320,7 +321,7 @@ public final class BoundGrants {
         if (entries == null) {
             return false;
         }
-        int stat = StatIndexCache.resolve(statId);
+        int stat = StatIndexCache.resolveCurrent(statId);
         for (Entry entry : entries) {
             if (entry.stat == stat && entry.additiveOnMax()) {
                 return true;
@@ -420,7 +421,7 @@ public final class BoundGrants {
         if (!BY_REF.containsKey(ref)) {
             return 0.0;
         }
-        return onPoints(ref, StatIndexCache.resolve(statId), names);
+        return onPoints(ref, StatIndexCache.resolveCurrent(statId), names);
     }
 
     /**
@@ -459,7 +460,7 @@ public final class BoundGrants {
         if (!BY_REF.containsKey(ref)) {
             return 0.0;
         }
-        return offPoints(accessor, ref, StatIndexCache.resolve(statId), standsIn);
+        return offPoints(accessor, ref, StatIndexCache.resolveCurrent(statId), standsIn);
     }
 
     /**

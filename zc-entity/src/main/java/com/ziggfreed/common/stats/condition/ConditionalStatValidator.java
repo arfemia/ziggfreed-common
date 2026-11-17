@@ -9,8 +9,7 @@ import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 
-import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
-import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
+import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -38,23 +37,39 @@ public final class ConditionalStatValidator {
     private ConditionalStatValidator() {
     }
 
-    /** The walk over every folded file, against the loaded stats and the registered damage lines. */
+    /**
+     * The walk over every folded file, against the loaded stats and the registered damage lines. A retired stat id
+     * passes with the one retired warning: a file's own stat when its one successor loads (the pass reads it), an
+     * {@code Onto} when every successor loads (the fold writes each).
+     */
     @Nonnull
     public static List<Finding> audit() {
         try {
             return audit(ConditionalStatConfig.getInstance().all(),
-                    id -> EntityStatType.getAssetMap().getIndex(id) != AssetMapWithIndexes.NOT_FOUND,
-                    TypedDamageBonuses::hasLine);
+                    id -> StatIndexCache.resolveCurrent(id) != StatIndexCache.UNRESOLVED,
+                    StatIndexCache::resolvesForWrite, TypedDamageBonuses::hasLine);
         } catch (Throwable t) {
             SafeLog.warn("[condition] the conditional stat audit failed: " + t.getMessage(), t);
             return List.of();
         }
     }
 
-    /** The audit over {@code files}, with the stat and damage-line vocabularies passed in. Pure. */
+    /** The audit over {@code files}, one stat vocabulary for a file's own stat and its {@code Onto} stats. Pure. */
     @Nonnull
     public static List<Finding> audit(@Nonnull Map<String, ConditionalStatAsset> files,
             @Nonnull Predicate<String> statKnown, @Nonnull Predicate<String> lineKnown) {
+        return audit(files, statKnown, statKnown, lineKnown);
+    }
+
+    /**
+     * The audit over {@code files}, with the vocabularies passed in: {@code statKnown} for a file's own stat (read),
+     * {@code ontoKnown} for each stat its {@code Onto} folds into (written), {@code lineKnown} for the damage lines.
+     * Pure.
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Map<String, ConditionalStatAsset> files,
+            @Nonnull Predicate<String> statKnown, @Nonnull Predicate<String> ontoKnown,
+            @Nonnull Predicate<String> lineKnown) {
         List<Finding> out = new ArrayList<>();
         Map<String, String> firstFileByStat = new HashMap<>();
         for (Map.Entry<String, ConditionalStatAsset> entry : files.entrySet()) {
@@ -83,7 +98,7 @@ public final class ConditionalStatValidator {
                         + " is left out", id));
             }
             for (String onto : pays.onto()) {
-                if (!statKnown.test(onto)) {
+                if (!ontoKnown.test(onto)) {
                     out.add(Finding.warning(DOMAIN, UNKNOWN_ONTO, "conditional stat file '" + id + "' folds onto '"
                             + onto + "', which this server does not have", id));
                 }

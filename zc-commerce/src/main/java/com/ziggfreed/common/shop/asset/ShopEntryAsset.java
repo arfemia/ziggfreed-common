@@ -40,7 +40,7 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *   "Listing": { "Category": "boosts", "SortOrder": 20 },
  *   "Cost": { "Currencies": { "Bounty_Token": 150 } },
  *   "Limits": { "Daily": 3 },
- *   "Requires": { "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_Level_MINING", "Min": 1 } ] },
+ *   "Requires": { "Factors": [ { "Factor": "hytale:stat", "Param": "Level_Mining", "Min": 1 } ] },
  *   "Rewards": [ { "Kind": "Mmo_Boost_Token",
  *                  "Params": { "Skill": "MINING", "Multiplier": "3.0", "DurationMinutes": "20" } } ] }
  * }</pre>

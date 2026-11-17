@@ -3,7 +3,6 @@ package com.ziggfreed.common.effect.duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -239,13 +238,9 @@ public final class EffectDurations {
             return 0.0;
         }
         double sum = 0.0;
-        List<String> counted = new ArrayList<>();
+        List<Integer> counted = new ArrayList<>();
         for (EffectFamilies.DurationRule rule : rules) {
-            String stat = rule.addedBy();
-            if (stat != null && !counted.contains(stat.toLowerCase(Locale.ROOT))) {
-                counted.add(stat.toLowerCase(Locale.ROOT));
-                sum += readMax(stats, stat);
-            }
+            sum += readOnce(stats, rule.addedBy(), counted);
         }
         return sum;
     }
@@ -258,13 +253,9 @@ public final class EffectDurations {
             return 0.0;
         }
         double sum = 0.0;
-        List<String> counted = new ArrayList<>();
+        List<Integer> counted = new ArrayList<>();
         for (EffectFamilies.DurationRule rule : rules) {
-            String stat = rule.cutBy();
-            if (stat != null && !counted.contains(stat.toLowerCase(Locale.ROOT))) {
-                counted.add(stat.toLowerCase(Locale.ROOT));
-                sum += readMax(stats, stat);
-            }
+            sum += readOnce(stats, rule.cutBy(), counted);
         }
         return sum;
     }
@@ -280,11 +271,18 @@ public final class EffectDurations {
         return cap;
     }
 
-    private static double readMax(@Nonnull EntityStatMap stats, @Nonnull String statId) {
-        int index = StatIndexCache.resolve(statId);
-        if (index == StatIndexCache.UNRESOLVED) {
+    /**
+     * {@code statId}'s maximum (a family file's stat, so a retired id reads its one successor,
+     * {@code StatIndexCache.resolveCurrent}), 0 for none, or for a stat already in {@code counted}, which it joins: a
+     * rule naming a renamed id and one naming its successor count it once.
+     */
+    private static double readOnce(@Nonnull EntityStatMap stats, @Nullable String statId,
+            @Nonnull List<Integer> counted) {
+        int index = statId == null ? StatIndexCache.UNRESOLVED : StatIndexCache.resolveCurrent(statId);
+        if (index == StatIndexCache.UNRESOLVED || counted.contains(index)) {
             return 0.0;
         }
+        counted.add(index);
         EntityStatValue value = stats.get(index);
         double max = value == null ? 0.0 : value.getMax();
         return Double.isFinite(max) ? max : 0.0;

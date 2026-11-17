@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 import javax.annotation.Nonnull;
@@ -18,6 +19,7 @@ import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.stats.EquipStatBridge.StatKey;
 import com.ziggfreed.common.stats.EquipStatBridge.UtilityPlan;
 import com.ziggfreed.common.stats.EquipStatBridge.UtilityPut;
+import com.ziggfreed.common.stats.StatIndexCache.Landing;
 import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 
@@ -92,6 +94,25 @@ public final class GearSetPlan {
     @Nonnull
     public static Int2ObjectMap<StaticModifier[]> resolve(@Nonnull GearSetAsset.Tier tier,
             @Nonnull ToIntFunction<String> indexOf, @Nonnull Consumer<String> onUnknownStat) {
+        return resolve(tier, statId -> {
+            int index = indexOf.applyAsInt(statId);
+            if (index < 0) {
+                onUnknownStat.accept(statId);
+                return List.of();
+            }
+            return List.of(new Landing(statId, index, 1.0));
+        });
+    }
+
+    /**
+     * A tier's authored stat block with each channel landed through {@code landingsOf}, as a write lands
+     * ({@code StatIndexCache.landingsOf}: a retired channel on each of its successors, an additive amount times the
+     * alias's scale); a channel landing nowhere is left out (the lookup names it), never a throw. Lines landing on one
+     * index concatenate.
+     */
+    @Nonnull
+    public static Int2ObjectMap<StaticModifier[]> resolve(@Nonnull GearSetAsset.Tier tier,
+            @Nonnull Function<String, List<Landing>> landingsOf) {
         Int2ObjectMap<StaticModifier[]> out = new Int2ObjectOpenHashMap<>();
         for (Map.Entry<String, StatModifierSpec[]> entry : tier.statModifiers().entrySet()) {
             String statId = entry.getKey();
@@ -99,22 +120,19 @@ public final class GearSetPlan {
             if (statId == null || statId.isBlank() || specs == null || specs.length == 0) {
                 continue;
             }
-            int index = indexOf.applyAsInt(statId.trim());
-            if (index < 0) {
-                onUnknownStat.accept(statId.trim());
-                continue;
-            }
-            List<StaticModifier> modifiers = new ArrayList<>(specs.length);
-            StaticModifier[] already = out.get(index);
-            if (already != null) {
-                Collections.addAll(modifiers, already);
-            }
-            for (StatModifierSpec spec : specs) {
-                if (spec != null) {
-                    modifiers.add(spec.toModifier());
+            for (Landing landing : landingsOf.apply(statId.trim())) {
+                List<StaticModifier> modifiers = new ArrayList<>(specs.length);
+                StaticModifier[] already = out.get(landing.index());
+                if (already != null) {
+                    Collections.addAll(modifiers, already);
                 }
+                for (StatModifierSpec spec : specs) {
+                    if (spec != null) {
+                        modifiers.add(landing.scaled(spec.toModifier()));
+                    }
+                }
+                out.put(landing.index(), modifiers.toArray(StaticModifier[]::new));
             }
-            out.put(index, modifiers.toArray(StaticModifier[]::new));
         }
         return out;
     }

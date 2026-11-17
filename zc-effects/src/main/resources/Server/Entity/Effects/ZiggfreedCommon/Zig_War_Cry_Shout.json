@@ -1,0 +1,18 @@
+{
+  "$Comment": "The tell of a war cry (Zig_War_Cry): the shouting creature rears up (its Alerted animation, where its model has one), roars with the game's enrage sound and flares red for the second before the rally lands. Duration matches a cry's ZigWarCryDelay.",
+  "Duration": 1.0,
+  "Debuff": false,
+  "OverlapBehavior": "Overwrite",
+  "ApplicationEffects": {
+    "EntityAnimationId": "Alerted",
+    "WorldSoundEventId": "SFX_Ability_Enrage",
+    "EntityTopTint": "#ff5a3c",
+    "Particles": [
+      {
+        "SystemId": "Buff_Enrage",
+        "TargetNodeName": "Chest",
+        "PositionOffset": { "Y": -1 }
+      }
+    ]
+  }
+}

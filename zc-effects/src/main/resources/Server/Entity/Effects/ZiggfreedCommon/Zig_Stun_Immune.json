@@ -1,0 +1,10 @@
+{
+  "$Comment": "Immune to every stun but its own fight's, with nothing to show: put it on a boss (a combat brain's EntityEffects, or any ApplyEffect), or make it a boss effect's Parent. Its ZigStunImmune tag makes the library's stuns (ZigStun, a proc's control, a consumer's own) pass the wearer over, and its values name the game's own stun effects the wearer sheds the tick they land: Stun (the stun bomb) and Root (the root wand). Add an effect id to the list in a copy of your own to shed another. A fight stuns its boss through it with ZigStun's IgnoreImmune, or the library's own stun effects, which are never shed. It lasts until taken off.",
+  "Infinite": true,
+  "Debuff": false,
+  "OverlapBehavior": "Ignore",
+  "RemovalBehavior": "Infinite",
+  "Tags": {
+    "ZigStunImmune": ["Stun", "Root"]
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "$Comment": "What a war cry (Zig_War_Cry) puts on the foes it reaches: the game's own goblin war cry, Dungeon_Goblin_Enraged, its Parent, so +25% damage and +25% speed for 8 seconds with a red tint and aura. Ship a file with this id to change every war cry's rally, or name another effect in a cry's ZigWarCry tag.",
+  "Parent": "Dungeon_Goblin_Enraged"
+}

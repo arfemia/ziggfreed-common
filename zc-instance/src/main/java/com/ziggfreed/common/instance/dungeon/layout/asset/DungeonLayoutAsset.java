@@ -2,6 +2,7 @@ package com.ziggfreed.common.instance.dungeon.layout.asset;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -20,6 +21,7 @@ import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.Vec3i;
 import com.ziggfreed.common.instance.dungeon.layout.Cell;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
+import com.ziggfreed.common.instance.dungeon.room.RoomFoes;
 
 /**
  * One layout plan, as a file: {@code Server/ZiggfreedCommon/DungeonLayouts/<Id>.json}, native {@code Parent} for every
@@ -60,6 +62,9 @@ public final class DungeonLayoutAsset implements JsonAssetWithMap<String, Defaul
     @Nullable private Integer maxTries;
     @Nullable private Apart[] apart;
     @Nullable private MaxPerRun[] maxPerRun;
+    @Nullable private Roster[] rosters;
+    @Nullable private FoeRule[] foes;
+    @Nullable private String bars;
 
     public static final AssetBuilderCodec<String, DungeonLayoutAsset> CODEC = AssetBuilderCodec.builder(
                     DungeonLayoutAsset.class,
@@ -112,6 +117,25 @@ public final class DungeonLayoutAsset implements JsonAssetWithMap<String, Defaul
                     + "and relaxing the plan never loosens one, so keep each beat's count within the rooms that can "
                     + "fill it. Unauthored, a room may stand any number of times. This is ONE leaf: authoring it "
                     + "replaces an inherited list whole.").add()
+            .appendInherited(new KeyedCodec<>("Rosters", new ArrayCodec<>(Roster.CODEC, Roster[]::new), false),
+                    (a, v) -> a.rosters = v, a -> a.rosters, (a, p) -> a.rosters = p.rosters)
+            .documentation("The creatures a run's rooms raise, by the rooms' tags: a room draws on the first roster "
+                    + "whose AnyOf names one of its tags, so each stratum or kit fights with its own. The rooms that "
+                    + "raise them, and how many, are Foes. Unauthored, no room raises any. This is ONE leaf: "
+                    + "authoring it replaces an inherited list whole, so a tier's plan with Parent shares its "
+                    + "rosters by writing none.").add()
+            .appendInherited(new KeyedCodec<>("Foes", new ArrayCodec<>(FoeRule.CODEC, FoeRule[]::new), false),
+                    (a, v) -> a.foes = v, a -> a.foes, (a, p) -> a.foes = p.foes)
+            .documentation("Which rooms raise foes from the Rosters and how many: each rule names the role a room "
+                    + "fills in the run and sizes its foes for the party. A room with no rule, or whose tags fit no "
+                    + "roster, raises none. This is ONE leaf: authoring it replaces an inherited list whole, so "
+                    + "each tier's plan writes its own counts.").add()
+            .appendInherited(new KeyedCodec<>("Bars", Codec.STRING, false),
+                    (a, v) -> a.bars = v, a -> a.bars, (a, p) -> a.bars = p.bars)
+            .metadata(EditorSchema.assetRef(BlockType.class))
+            .documentation("The block a sealed room's doorways close with while its foes stand, filling only the "
+                    + "air of each doorway. Unauthored, a sealed room closes no doorway and only counts its "
+                    + "clear.").add()
             .build();
 
     public DungeonLayoutAsset() {
@@ -187,6 +211,37 @@ public final class DungeonLayoutAsset implements JsonAssetWithMap<String, Defaul
 
     private static int size(@Nullable Integer authored, int fallback) {
         return authored == null || authored <= 0 ? fallback : authored;
+    }
+
+    /** The plan's foes as the room logic reads them ({@code Rosters}, {@code Foes}, {@code Bars}): folded. */
+    @Nonnull
+    public RoomFoes.Plan foePlan() {
+        List<RoomFoes.Roster> rosterList = new ArrayList<>();
+        if (rosters != null) {
+            for (Roster roster : rosters) {
+                if (roster != null) {
+                    rosterList.add(new RoomFoes.Roster(listOf(roster.anyOf), listOf(roster.front),
+                            listOf(roster.ranged), listOf(roster.elite), new HashSet<>(listOf(roster.partyScaled))));
+                }
+            }
+        }
+        List<RoomFoes.Rule> ruleList = new ArrayList<>();
+        if (foes != null) {
+            for (FoeRule rule : foes) {
+                if (rule != null && rule.role != null && !rule.role.isBlank()) {
+                    ruleList.add(new RoomFoes.Rule(rule.role, rule.sealed == null || rule.sealed,
+                            rule.count == null ? 0 : rule.count,
+                            rule.perExtraPlayer == null ? 0.0 : rule.perExtraPlayer,
+                            rule.elite == null ? 0.0 : rule.elite));
+                }
+            }
+        }
+        return new RoomFoes.Plan(rosterList, ruleList, bars);
+    }
+
+    @Nonnull
+    private static List<String> listOf(@Nullable String[] values) {
+        return values == null ? List.of() : Arrays.asList(values);
     }
 
     // ==================== Rooms ====================
@@ -401,6 +456,95 @@ public final class DungeonLayoutAsset implements JsonAssetWithMap<String, Defaul
                 .build();
 
         public MaxPerRun() {
+        }
+    }
+
+    // ==================== Rosters ====================
+
+    /** The creatures the rooms with any of some tags raise. */
+    public static final class Roster {
+
+        @Nullable protected String[] anyOf;
+        @Nullable protected String[] front;
+        @Nullable protected String[] ranged;
+        @Nullable protected String[] elite;
+        @Nullable protected String[] partyScaled;
+
+        public static final BuilderCodec<Roster> CODEC = BuilderCodec.builder(Roster.class, Roster::new)
+                .appendInherited(new KeyedCodec<>("AnyOf", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.anyOf = v, o -> o.anyOf, (o, p) -> o.anyOf = p.anyOf)
+                .documentation("The room tags this roster serves, matched as a plan's Rooms.Tags are (a key, a "
+                        + "value, or Key=Value), such as Kit=Cursed_Crypt. A room takes the first roster naming one "
+                        + "of its tags. Unauthored or empty, every room.").add()
+                .appendInherited(new KeyedCodec<>("Front", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.front = v, o -> o.front, (o, p) -> o.front = p.front)
+                .metadata(EditorSchema.assetRef("NPCRole"))
+                .documentation("The roles most of a room's foes are drawn from, by NPC role id, each pick as likely "
+                        + "as the next.").add()
+                .appendInherited(new KeyedCodec<>("Ranged", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.ranged = v, o -> o.ranged, (o, p) -> o.ranged = p.ranged)
+                .metadata(EditorSchema.assetRef("NPCRole"))
+                .documentation("The roles every fourth foe is drawn from: archers, casters, fliers. Unauthored, every "
+                        + "foe comes from Front.").add()
+                .appendInherited(new KeyedCodec<>("Elite", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.elite = v, o -> o.elite, (o, p) -> o.elite = p.elite)
+                .metadata(EditorSchema.assetRef("NPCRole"))
+                .documentation("The roles a room's one elite is drawn from, when its rule's Elite chance comes up. "
+                        + "Unauthored, a room never has one.").add()
+                .appendInherited(new KeyedCodec<>("PartyScaled", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.partyScaled = v, o -> o.partyScaled, (o, p) -> o.partyScaled = p.partyScaled)
+                .metadata(EditorSchema.assetRef("NPCRole"))
+                .documentation("Roles that already grow with the party by themselves (the game's own dungeon goblins "
+                        + "count the players near them as they first fight): never drawn for a foe a bigger party "
+                        + "adds, so a party never pays twice.").add()
+                .build();
+
+        public Roster() {
+        }
+    }
+
+    // ==================== Foes ====================
+
+    /** How the rooms filling one role raise their foes. */
+    public static final class FoeRule {
+
+        @Nullable protected String role;
+        @Nullable protected Boolean sealed;
+        @Nullable protected Integer count;
+        @Nullable protected Double perExtraPlayer;
+        @Nullable protected Double elite;
+
+        public static final BuilderCodec<FoeRule> CODEC = BuilderCodec.builder(FoeRule.class, FoeRule::new)
+                .appendInherited(new KeyedCodec<>("Role", Codec.STRING, false),
+                        (o, v) -> o.role = v, o -> o.role, (o, p) -> o.role = p.role)
+                .documentation("The role a room fills in the run, such as Combat or Junction. A rule with none "
+                        + "binds nothing.").add()
+                .appendInherited(new KeyedCodec<>("Sealed", Codec.BOOLEAN, false),
+                        (o, v) -> o.sealed = v, o -> o.sealed, (o, p) -> o.sealed = p.sealed)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("True: the first player in seals the room's doorways (with the plan's Bars) and wakes "
+                        + "its foes, and the doorways open, and the run counts Room_Cleared, once none of them "
+                        + "stands; if every player leaves the room first, its doorways open anyway. False: an open "
+                        + "pack that wakes as the first player comes in. Unauthored means true.").add()
+                .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
+                        (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
+                .metadata(EditorSchema.defaultValue(0L))
+                .documentation("How many foes the room raises for one player, an elite aside.").add()
+                .appendInherited(new KeyedCodec<>("PerExtraPlayer", Codec.DOUBLE, false),
+                        (o, v) -> o.perExtraPlayer = v, o -> o.perExtraPlayer,
+                        (o, p) -> o.perExtraPlayer = p.perExtraPlayer)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("How many more foes each player past the first adds, rounded down over the party "
+                        + "(0.5 is one per two players), counting the run's party as the room is placed, up to "
+                        + "five players.").add()
+                .appendInherited(new KeyedCodec<>("Elite", Codec.DOUBLE, false),
+                        (o, v) -> o.elite = v, o -> o.elite, (o, p) -> o.elite = p.elite)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("The chance, 0 to 1, that one elite from the roster's Elite list joins the room's "
+                        + "foes, rolled from the run's seed.").add()
+                .build();
+
+        public FoeRule() {
         }
     }
 

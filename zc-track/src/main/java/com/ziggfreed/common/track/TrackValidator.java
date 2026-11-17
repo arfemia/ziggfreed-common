@@ -168,7 +168,8 @@ public final class TrackValidator {
             List<Finding> out = new ArrayList<>(audit(TrackConfig.getInstance().all().values(),
                     TrackCurveConfig.getInstance().all().values(),
                     id -> TrackCategoryConfig.getInstance().category(id) != null,
-                    id -> StatIndexCache.resolve(id) != StatIndexCache.UNRESOLVED,
+                    id -> StatIndexCache.resolveCurrent(id) != StatIndexCache.UNRESOLVED,
+                    StatIndexCache::resolvesForWrite,
                     kind -> RewardKinds.shared().isRegistered(kind)));
             out.addAll(auditDerived(TrackConfig.getInstance().all().values()));
             for (Map.Entry<String, TrackAsset> entry : TrackConfig.getInstance().all().entrySet()) {
@@ -201,7 +202,7 @@ public final class TrackValidator {
                         TrackAsset track = TrackConfig.getInstance().live(id);
                         return track == null ? -1 : track.pointsPerLevel();
                     },
-                    id -> StatIndexCache.resolve(id) != StatIndexCache.UNRESOLVED));
+                    StatIndexCache::resolvesForWrite));
             out.addAll(auditTrees(TrackConfig.getInstance().liveTracks(), TrackPicks.all().values(), id -> {
                 TrackPickAsset file = TrackPickConfig.getInstance().resolve(id);
                 return file != null && (!file.isEnabled() || TrackPicks.pick(id) == null);
@@ -232,6 +233,22 @@ public final class TrackValidator {
     public static List<Finding> audit(@Nonnull Collection<TrackAsset> tracks, @Nonnull Collection<TrackCurveAsset> curves,
             @Nonnull Predicate<String> categoryKnown, @Nonnull Predicate<String> statKnown,
             @Nonnull Predicate<String> kindKnown) {
+        return audit(tracks, curves, categoryKnown, statKnown, statKnown, kindKnown);
+    }
+
+    /**
+     * The pure core, a track's mirror stat (one stat the level is written to) and its point grants (a grant lands on
+     * each successor of a retired id) asked apart.
+     *
+     * @param categoryKnown whether a category id names a loaded category
+     * @param mirrorKnown   whether a mirror stat id resolves to one loaded stat
+     * @param grantKnown    whether a granted stat id lands whole
+     * @param kindKnown     whether a reward kind id is registered
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<TrackAsset> tracks, @Nonnull Collection<TrackCurveAsset> curves,
+            @Nonnull Predicate<String> categoryKnown, @Nonnull Predicate<String> mirrorKnown,
+            @Nonnull Predicate<String> grantKnown, @Nonnull Predicate<String> kindKnown) {
         List<Finding> out = new ArrayList<>();
         Map<String, TrackCurveAsset> byId = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (TrackCurveAsset curve : curves) {
@@ -246,15 +263,15 @@ public final class TrackValidator {
         };
         for (TrackAsset track : tracks) {
             if (track != null && track.getId() != null) {
-                auditTrack(track, tableOf, categoryKnown, statKnown, kindKnown, out);
+                auditTrack(track, tableOf, categoryKnown, mirrorKnown, grantKnown, kindKnown, out);
             }
         }
         return out;
     }
 
     private static void auditTrack(@Nonnull TrackAsset track, @Nonnull Function<String, CurveTable> tableOf,
-            @Nonnull Predicate<String> categoryKnown, @Nonnull Predicate<String> statKnown,
-            @Nonnull Predicate<String> kindKnown, @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> categoryKnown, @Nonnull Predicate<String> mirrorKnown,
+            @Nonnull Predicate<String> grantKnown, @Nonnull Predicate<String> kindKnown, @Nonnull List<Finding> out) {
         String id = track.getId();
         if (!TrackAsset.usableId(id)) {
             out.add(Finding.error(DOMAIN, RESERVED_CHARACTER, "track '" + id + "' has '" + TrackAsset.RUN_SEPARATOR
@@ -284,12 +301,12 @@ public final class TrackValidator {
                     id));
         }
         String stat = track.mirrorStat();
-        if (stat != null && !statKnown.test(stat)) {
+        if (stat != null && !mirrorKnown.test(stat)) {
             out.add(Finding.warning(DOMAIN, UNKNOWN_MIRROR_STAT, "track '" + id + "' mirrors its level onto the "
                     + "stat '" + stat + "', which is not registered here, so nothing is written", id));
         }
         for (Grant grant : track.pointsGrants()) {
-            if (grant instanceof StatGrant granted && granted.stat() != null && !statKnown.test(granted.stat())) {
+            if (grant instanceof StatGrant granted && granted.stat() != null && !grantKnown.test(granted.stat())) {
                 out.add(Finding.warning(DOMAIN, UNKNOWN_GRANT_STAT, "track '" + id + "' grants the stat '"
                         + granted.stat() + "' for each point spent, which is not registered here, so that grant "
                         + "raises nothing", id));

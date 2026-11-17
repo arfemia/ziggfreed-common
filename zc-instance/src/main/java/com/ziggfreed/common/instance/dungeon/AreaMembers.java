@@ -362,8 +362,8 @@ public final class AreaMembers {
     /**
      * In a generated dungeon, which room of their run {@code member} stands in now, read off their cached transform
      * (no store); that room's logic and its neighbours' are placed, each once per run, on the copy's world thread
-     * ({@link RunLogic#activate}). A member between rooms keeps the room they stood in last. On the ticker, after
-     * {@link #settle}, outside this list's lock.
+     * ({@link RunLogic#activate}), a room's foes sized for the run's party as it stands then. A member between rooms
+     * keeps the room they stood in last. On the ticker, after {@link #settle}, outside this list's lock.
      */
     private static void learnRoom(@Nonnull Member member, @Nullable PlayerRef player) {
         World world = member.world;
@@ -380,7 +380,7 @@ public final class AreaMembers {
             return;
         }
         member.room = room;
-        logic.activate(world, room);
+        logic.activate(world, room, DungeonRuns.shared().partySize(member.area));
     }
 
     /** The copy {@code member} arrived in, else the one their teleport was waiting on, else null. */

@@ -200,7 +200,7 @@ public final class HytaleFactors {
         if (statId == null || !ctx.hasLiveSubject()) {
             return null;
         }
-        int index = StatIndexCache.resolve(statId);
+        int index = StatIndexCache.resolveCurrent(statId);
         if (index == StatIndexCache.UNRESOLVED) {
             StatIndexCache.warnUnknownOnce(statId);
             return null;
@@ -230,7 +230,7 @@ public final class HytaleFactors {
         if (statId == null || !ctx.hasLiveSubject()) {
             return null;
         }
-        int index = StatIndexCache.resolve(statId);
+        int index = StatIndexCache.resolveCurrent(statId);
         if (index == StatIndexCache.UNRESOLVED) {
             StatIndexCache.warnUnknownOnce(statId);
             return null;
@@ -515,7 +515,7 @@ public final class HytaleFactors {
         if (statId == null || !ctx.hasItem()) {
             return null;
         }
-        if (StatIndexCache.resolve(statId) == StatIndexCache.UNRESOLVED) {
+        if (StatIndexCache.resolveCurrent(statId) == StatIndexCache.UNRESOLVED) {
             StatIndexCache.warnUnknownOnce(statId);
             return null;
         }

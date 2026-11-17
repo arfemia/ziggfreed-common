@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.ledger.FeatTally;
 import com.ziggfreed.common.encounter.ledger.ParticipationShares;
+import com.ziggfreed.common.encounter.seam.RunScale;
 import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -54,6 +55,8 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     @Nullable private String ownerKey;
     @Nullable private String difficulty;
     private double healthMultiplier = 1.0;
+    /** The step of the run the fight stands in, asked once as its subject is first scaled; null until then. */
+    @Nullable private RunScale runScale;
     private boolean showMarker;
     @Nonnull private List<UUID> seedMembers = List.of();
 
@@ -170,6 +173,17 @@ public final class ZigEncounterRun implements Component<EntityStore> {
 
     public double healthMultiplier() {
         return healthMultiplier;
+    }
+
+    /** The step of the run the fight stands in (a dungeon tier's), or null when it has not been asked yet. */
+    @Nullable
+    public RunScale runScale() {
+        return runScale;
+    }
+
+    /** Keep the step the run-scale seam answered for this run. */
+    public void noteRunScale(@Nonnull RunScale scale) {
+        this.runScale = scale;
     }
 
     public boolean showMarker() {
@@ -507,6 +521,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         emptySinceMs = 0L;
         scaleApplied = false;
         lastScaleFactor = 1.0;
+        runScale = null;
         reconciledPhaseIndex = 0;
         markerPlaced = false;
         markerMovedAtMs = 0L;

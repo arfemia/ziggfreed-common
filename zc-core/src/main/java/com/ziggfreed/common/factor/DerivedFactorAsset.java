@@ -296,7 +296,7 @@ public final class DerivedFactorAsset
      *
      * <p>{@code StripPrefix}, {@code StripThrough} and {@code Case} are the bridge from a CHANNEL
      * spelling to an existing key family: many factors address a param by a technical id
-     * ({@code MMO_Level_MINING}, a compound {@code track:node}) while the names for that family
+     * ({@code Level_Mining}, a compound {@code track:node}) while the names for that family
      * already ship under friendlier keys ({@code ...skill.mining}, {@code ...node.title}). All
      * three transforms apply to the param BEFORE it drops into {@code KeyPattern} - the prefix is
      * stripped first, then everything through the delimiter, then the case fold runs - and none of
@@ -340,8 +340,8 @@ public final class DerivedFactorAsset
                                 (o, v) -> o.stripPrefix = v, o -> o.stripPrefix,
                                 (o, p) -> o.stripPrefix = p.stripPrefix)
                         .documentation("A prefix removed from the requirement's Param before it drops into "
-                                + "KeyPattern (e.g. \"MMO_Level_\" turns the channel MMO_Level_MINING into "
-                                + "MINING), so one pattern can point a whole channel family at name keys that "
+                                + "KeyPattern (e.g. \"Level_\" turns the channel Level_Mining into "
+                                + "Mining), so one pattern can point a whole channel family at name keys that "
                                 + "never carried the technical prefix. A param that does not start with it is "
                                 + "left alone. Compared case-insensitively; omit for no stripping.")
                         .add()

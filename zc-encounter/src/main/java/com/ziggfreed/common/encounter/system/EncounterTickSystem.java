@@ -32,6 +32,7 @@ import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.event.ResetReason;
 import com.ziggfreed.common.encounter.payout.EncounterDiscovery;
 import com.ziggfreed.common.encounter.run.AddScaling;
+import com.ziggfreed.common.encounter.run.DamageStep;
 import com.ziggfreed.common.encounter.run.EncounterChunkHold;
 import com.ziggfreed.common.encounter.run.EncounterLifecycle;
 import com.ziggfreed.common.encounter.run.EncounterMembership;
@@ -41,6 +42,7 @@ import com.ziggfreed.common.encounter.run.EncounterScaling;
 import com.ziggfreed.common.encounter.run.EncounterSubjects;
 import com.ziggfreed.common.encounter.run.EncounterWaves;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
+import com.ziggfreed.common.encounter.seam.RunScale;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
 import com.ziggfreed.common.encounter.wave.WaveDamage;
 import com.ziggfreed.common.encounter.wave.WaveRamp;
@@ -165,6 +167,11 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
             }
         }
 
+        // The run's step (a dungeon tier's), asked once per run, so the subject's scale and the adds read it.
+        if (!run.isConcluded()) {
+            EncounterScaling.runScaleOf(store, ref, run);
+        }
+
         // The health scale: once at the bind, again after each phase.
         if (subject != null && !run.isConcluded()) {
             scale(store, subject, run, row, memberRefs);
@@ -227,13 +234,18 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
                 : spec.healthPerPowerPoint();
         double power = EncounterScaling.powerFor(store, subject, memberRefs, perPower);
         int members = EncounterScaling.memberCount(memberRefs, run);
-        double factor = EncounterScaling.factor(spec, members, power, run.healthMultiplier());
+        double factor = EncounterScaling.factor(spec, members, power, EncounterScaling.runMultiplier(run));
         boolean changed = EncounterScaling.apply(store, subject, factor, first);
+        RunScale step = run.runScale() == null ? RunScale.NONE : run.runScale();
+        boolean damage = DamageStep.apply(store, subject, DamageStep.RUN_KEY, step.damagePercent());
         run.noteScale(factor);
         if (changed || first) {
             SafeLog.info(Encounters.LOG_PREFIX + " scale run=" + EncounterRun.shortId(run.runId()) + " factor="
                     + Math.round(factor * 100.0) / 100.0 + " members=" + members
-                    + (power > 0.0 ? " power=" + Math.round(power) : "") + (first ? " (applied)" : " (reconciled)"));
+                    + (power > 0.0 ? " power=" + Math.round(power) : "")
+                    + (step.none() ? "" : " run_step=x" + step.health() + (damage ? " damage=+"
+                            + step.damagePercent() + "%" : ""))
+                    + (first ? " (applied)" : " (reconciled)"));
         }
     }
 
@@ -262,9 +274,12 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
                 : EncounterScaling.addFactor(spec, members, EncounterScaling.powerFor(store, subject, memberRefs, perPower));
         WaveRules.Wave wave = EncounterWaves.standing(run);
         WaveRamp ramp = wave == null || run.endless() == null ? WaveRamp.NONE : run.endless().ramp();
-        double factor = wave == null ? party : party * ramp.health(wave);
+        // The run's step (a dungeon tier's) grows every add as it grows the subject, its damage under a key of its own.
+        RunScale runStep = run.isConcluded() || run.runScale() == null ? RunScale.NONE : run.runScale();
+        double factor = (wave == null ? party : party * ramp.health(wave)) * runStep.health();
         int damagePercent = wave == null ? 0 : WaveDamage.percentOf(ramp.damage(wave));
-        boolean scales = factor != 1.0 || damagePercent > 0;
+        int stepPercent = runStep.damagePercent();
+        boolean scales = factor != 1.0 || damagePercent > 0 || stepPercent > 0;
         int scaled = 0;
         for (Map.Entry<Ref<EntityStore>, Integer> waiting : pending.entrySet()) {
             Ref<EntityStore> add = waiting.getKey();
@@ -276,7 +291,8 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
             if (step == AddScaling.Step.APPLY) {
                 boolean health = factor != 1.0 && EncounterScaling.applyToAdd(store, add, factor);
                 boolean damage = damagePercent > 0 && WaveDamage.apply(store, add, damagePercent);
-                if (health || damage) {
+                boolean stepped = stepPercent > 0 && DamageStep.apply(store, add, DamageStep.RUN_KEY, stepPercent);
+                if (health || damage || stepped) {
                     scaled++;
                 }
             } else if (step == AddScaling.Step.WAIT) {
@@ -287,7 +303,8 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
             SafeLog.info(Encounters.LOG_PREFIX + " adds run=" + EncounterRun.shortId(run.runId()) + " scaled="
                     + scaled + " factor=" + Math.round(factor * 100.0) / 100.0 + " members=" + members
                     + (wave == null ? "" : " wave=" + wave.number() + (wave.boss() ? " (boss return "
-                            + wave.returns() + ")" : "") + " damage=+" + damagePercent + "%"));
+                            + wave.returns() + ")" : "") + " damage=+" + damagePercent + "%")
+                    + (runStep.none() ? "" : " run_step=x" + runStep.health() + " damage=+" + stepPercent + "%"));
         }
     }
 

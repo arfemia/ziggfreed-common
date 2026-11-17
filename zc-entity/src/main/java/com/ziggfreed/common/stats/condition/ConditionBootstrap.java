@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.health.HealthUtil;
+import com.ziggfreed.common.stats.RenamedStats;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 
 /**
@@ -17,7 +18,8 @@ import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
  * and a stat's regeneration may name them too; the holder pass, the first-hit record and the forgetting of an
  * entity that left; the damage route terms (the conditional payouts and the bound grants' hit term) and the healing
  * term the payouts ride; the marks that keep the effect family table in step with effect loads; the retired
- * conditional ids' aliases onto the plain stats a grant now binds ({@code ConditionalStats.RETIRED}); and the
+ * conditional ids' aliases onto the plain stats a grant now binds ({@code ConditionalStats.RETIRED}) and the renamed
+ * stats' onto their new ids ({@link RenamedStats}); and the
  * {@code ziggfreedcommon:station_stat} reading ({@link StationStatReading}) beside the station condition it reads.
  * Registration only. The two stores are the root's, with every framework store. A failed registration rethrows
  * (R700): every conditional stat would be gone.
@@ -31,6 +33,7 @@ public final class ConditionBootstrap {
     public static void install(@Nonnull PluginBase plugin) {
         try {
             ConditionalStats.registerRetiredAliases();
+            RenamedStats.register();
             var conditions = plugin.getCodecRegistry(Condition.CODEC);
             conditions.register(ZigNightCondition.TYPE_NAME, ZigNightCondition.class, ZigNightCondition.codec());
             conditions.register(ZigFoesNearCondition.TYPE_NAME, ZigFoesNearCondition.class,

@@ -66,7 +66,8 @@ public class ActionZigScaleTarget extends ActionBase {
                     : spec.healthPerPowerPoint();
             double power = EncounterScaling.powerFor(store, subject, members, perPower);
             int memberCount = EncounterScaling.memberCount(members, run);
-            double factor = EncounterScaling.factor(spec, memberCount, power, run.healthMultiplier());
+            EncounterScaling.runScaleOf(store, ref, run);
+            double factor = EncounterScaling.factor(spec, memberCount, power, EncounterScaling.runMultiplier(run));
             boolean changed = EncounterScaling.apply(store, subject, factor, !run.isScaleApplied());
             run.noteScale(factor);
             EncounterTypes.executed(EncounterTypes.SCALE_TARGET, "run=" + EncounterRun.shortId(run.runId())

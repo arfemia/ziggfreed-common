@@ -410,7 +410,7 @@ public final class GearSets {
                         bound.addAll(GearSetPlan.bound(tierRef, tier));
                     } else {
                         desired.add(new GearSetPlan.Desired(tierRef,
-                                GearSetPlan.resolve(tier, StatIndexCache::resolve, StatIndexCache::warnUnknownOnce)));
+                                GearSetPlan.resolve(tier, StatIndexCache::landingsOf)));
                     }
                     String effect = tier.effectId();
                     if (effect != null) {

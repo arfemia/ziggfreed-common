@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
+import com.ziggfreed.common.instance.dungeon.room.RoomFoes;
 
 /**
  * The dungeon layout plans in force ({@link DungeonLayoutAsset}), folded {@code defaults < pack < owner} like every
@@ -30,6 +31,13 @@ public final class DungeonLayoutConfig extends AbstractKeyedAssetConfig<DungeonL
     public LayoutPlan plan(@Nonnull String id) {
         DungeonLayoutAsset asset = resolve(id);
         return asset == null ? null : asset.toPlan();
+    }
+
+    /** The foes of the plan {@code id} names ({@code Rosters}, {@code Foes}, {@code Bars}); none when it names no plan. */
+    @Nonnull
+    public RoomFoes.Plan foes(@Nonnull String id) {
+        DungeonLayoutAsset asset = resolve(id);
+        return asset == null ? RoomFoes.Plan.NONE : asset.foePlan();
     }
 
     /** Every plan as the generator reads it, in id order. */

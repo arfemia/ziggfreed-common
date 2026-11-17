@@ -2,14 +2,19 @@ package com.ziggfreed.common.effect.control;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
+import com.hypixel.hytale.assetstore.event.RemovedAssetsEvent;
+import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers crowd control: the four native interaction Types ({@code ZigStun}, {@code ZigTaunt},
- * {@code ZigAggroDrop}, {@code ZigAggroSuppress}), the per-world aggro windows, the attitude provider and the
- * sweep. Registration only.
+ * {@code ZigAggroDrop}, {@code ZigAggroSuppress}), the per-world aggro windows, the attitude provider, the
+ * sweep, and the shedding of the game's own stuns from a stun-immune entity ({@link StunImmunitySystem}).
+ * Registration only.
  */
 public final class ControlBootstrap {
 
@@ -31,6 +36,18 @@ public final class ControlBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[control] the aggro windows could not be registered: taunts and aggro drops do nothing"
                     + " this boot", t);
+        }
+        try {
+            plugin.getEntityStoreRegistry().registerSystem(new StunImmunitySystem());
+            plugin.getEventRegistry().register(LoadedAssetsEvent.class, EntityEffect.class,
+                    (LoadedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) ->
+                            StunImmunity.markDirty());
+            plugin.getEventRegistry().register(RemovedAssetsEvent.class, EntityEffect.class,
+                    (RemovedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) ->
+                            StunImmunity.markDirty());
+        } catch (Throwable t) {
+            SafeLog.warn("[control] the stun shedding could not be registered: a stun-immune entity still takes the"
+                    + " game's own stuns this boot", t);
         }
     }
 
