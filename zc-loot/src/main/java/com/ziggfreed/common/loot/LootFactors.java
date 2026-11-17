@@ -107,6 +107,12 @@ public final class LootFactors {
             public GateQuery gateQuery() {
                 return about.gateQuery();
             }
+
+            @Nullable
+            @Override
+            public FactorContext context() {
+                return about.context();
+            }
         };
     }
 

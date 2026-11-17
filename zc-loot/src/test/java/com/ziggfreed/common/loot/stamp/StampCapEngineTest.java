@@ -141,6 +141,19 @@ class StampCapEngineTest {
         }
 
         @Test
+        void alsoStatsLandTheOneDrawOnEveryStatNamed() {
+            StatRollEntry linked = StatRollEntry.of("Resist_Main",
+                    new String[] {"Resist_Linked", "resist_main", " "},
+                    StatRollEntry.Points.of(2.0, 10.0, null), null, true);
+
+            StampPlan plan = StampCapEngine.resolve(spec(new StatRollEntry[] {linked}, null, null, null),
+                    StampInspection.empty(), FactorLookup.none(), samples(0.5));
+
+            assertEquals(List.of(new StatRoll("Resist_Main", 6), new StatRoll("Resist_Linked", 6)), plan.entries(),
+                    "one value on each stat named, a repeat or a blank adding no line");
+        }
+
+        @Test
         void anEntryThatRoundsToNothingIsDroppedRatherThanWrittenAsZero() {
             StampPlan plan = StampCapEngine.resolve(
                     spec(new StatRollEntry[] {entry("Damage", 0.2, 0.2, null, true)}, null, null, null),

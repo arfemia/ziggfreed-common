@@ -43,6 +43,17 @@ public interface FactorLookup {
     }
 
     /**
+     * The moment this lookup reads about (its player, its world, the item it is about), or null for a lookup that
+     * knows none. A roll pool's named entry source is handed it ({@code stamp/RollPoolConfig.NamedSource}), so code
+     * supplying a stamp's entries sees what is being stamped and who is stamping it. A lookup wrapping another
+     * answers the wrapped one's.
+     */
+    @Nullable
+    default FactorContext context() {
+        return null;
+    }
+
+    /**
      * Percent points this moment adds to every roll's written {@code Chance} ({@link RollEvaluator#effectiveChancePercent}),
      * before the 0..100 hold: a gathering moment's yield, say. 0 for an ordinary lookup; a roll that writes no
      * {@code Chance} is certain and takes nothing from it.
@@ -80,6 +91,12 @@ public interface FactorLookup {
                 return base.gateQuery();
             }
 
+            @Nullable
+            @Override
+            public FactorContext context() {
+                return base.context();
+            }
+
             @Override
             public double chanceBonusPercent() {
                 return bonus;
@@ -101,6 +118,12 @@ public interface FactorLookup {
             @Override
             public GateQuery gateQuery() {
                 return GateQuery.builder().context(ctx).local(registry).build();
+            }
+
+            @Nonnull
+            @Override
+            public FactorContext context() {
+                return ctx;
             }
         };
     }
