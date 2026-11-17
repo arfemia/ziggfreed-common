@@ -1,5 +1,5 @@
 {
-  "$Comment": "Makes DamageResist_All_AllyLow conditional: A conditional resistance in whole percent points, added to its holder's every resistance but Fall while an ally within 8 blocks is under half health.",
+  "$Comment": "Makes DamageResist_WhileAllyLow conditional: A conditional resistance in whole percent points, added to its holder's every resistance but Fall while an ally within 8 blocks is under half health.",
   "Holder": [
     {
       "Id": "ZigPlayersNear",

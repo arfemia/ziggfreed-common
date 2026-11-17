@@ -977,7 +977,7 @@ def skill_lock(params, ctx):
     it (a vanilla doorway is rarely a box), so the lock is the room's own way in; Lock_Slot (palette slot; default
     Lock, a block whose Use does nothing, such as CommonLib's Zc_Lock_* blocks), Opened (the slot the cells become; default
     air), Factor (default hytale:stat), Param (the stat a skill's level reads as, upper case after its prefix, such as
-    MMO_Level_MINING), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
+    Level_Mining), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
     opens it, required), Level (the level the hint names; default Min), Milestone (default Secret_Found), Signal,
     OpenSound, OpenVfx.
     The lock's volume carries the level as its Level tag, and the engine binds a volume's tags as named params of the

@@ -87,17 +87,30 @@ public final class StatIndexCache {
      */
     public static int resolveCurrent(@Nonnull String statId) {
         int idx = resolve(statId);
-        if (idx != UNRESOLVED || !StatAliases.isRetired(statId)) {
+        String successor = idx == UNRESOLVED ? StatAliases.soleSuccessor(statId) : null;
+        if (successor == null) {
             return idx;
         }
-        List<String> successors = StatAliases.resolve(statId);
-        if (successors.size() != 1 || StatAliases.scale(statId) != 1.0) {
-            return UNRESOLVED;
-        }
-        int successor = resolve(successors.get(0));
-        if (successor != UNRESOLVED) {
+        int successorIdx = resolve(successor);
+        if (successorIdx != UNRESOLVED) {
             warnRetiredOnce(statId);
         }
+        return successorIdx;
+    }
+
+    /**
+     * The id an owner override keyed by stat id files {@code statId}'s entry under: its one successor at scale 1 when
+     * it is retired so ({@link StatAliases#soleSuccessor}, the retired id named once through {@link #warnRetiredOnce}),
+     * else {@code statId} itself, so an owner's override written before a rename applies to the stat it now names.
+     * Never throws.
+     */
+    @Nonnull
+    public static String currentId(@Nonnull String statId) {
+        String successor = StatAliases.soleSuccessor(statId);
+        if (successor == null) {
+            return statId;
+        }
+        warnRetiredOnce(statId);
         return successor;
     }
 

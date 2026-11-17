@@ -34,7 +34,7 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  * The gather step: a player's hit on a block deals {@code 1 + P/100} times the engine's damage, P being the sum of
  * their {@code GatherSpeed}, each {@code GatherSpeed_<Family>} whose block family holds the block, {@code
  * GatherSpeed_Placed} on a block a player placed (the placed-block ledger's placed-by answer, whatever its guard
- * says), {@code GatherSpeed_Tall_Tree} on a log of a tall tree (the gather rules' {@code TallTree.Logs}), the {@code
+ * says), {@code GatherSpeed_TallTree} on a log of a tall tree (the gather rules' {@code TallTree.Logs}), the {@code
  * GatherRhythm} chain's steps and each stat a mod counts for the block ({@link GatherStatSources}), held at their
  * {@code GatherSpeedMax} (and never below {@value #MIN_PERCENT}). The engine's damage is its tool spec's power, so a
  * hit the tool cannot make (a tier it lacks, R625) is 0 and stays 0: speed never breaks a block early. A gather shape
@@ -59,7 +59,7 @@ public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, Dama
     public static final String PLACED_STAT = "GatherSpeed_Placed";
 
     /** Speed on a log of a tall tree. */
-    public static final String TALL_TREE_STAT = "GatherSpeed_Tall_Tree";
+    public static final String TALL_TREE_STAT = "GatherSpeed_TallTree";
 
     /** Speed for each step of the break chain. */
     public static final String RHYTHM_STAT = "GatherRhythm";

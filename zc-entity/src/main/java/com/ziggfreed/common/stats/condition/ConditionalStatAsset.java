@@ -25,7 +25,7 @@ import com.ziggfreed.common.asset.EditorSchema;
  * What makes a native entity stat a CONDITIONAL one (R757): the stat ({@code Stat}, else the file's own id) is an
  * ordinary {@code EntityStatType} that gear, an effect or a pick raises like any other, and this file says when it
  * counts and what it pays into. The library ships the stats and their files for its own families
- * ({@code Damage_VsUndead}, {@code DamageResist_All_Crowd}); a consumer ships its own the same way.
+ * ({@code Damage_VsUndead}, {@code DamageResist_WhileCrowded}); a consumer ships its own the same way.
  *
  * <pre>{@code
  * // Server/ZiggfreedCommon/ConditionalStats/Damage_WhileLoneFoe.json

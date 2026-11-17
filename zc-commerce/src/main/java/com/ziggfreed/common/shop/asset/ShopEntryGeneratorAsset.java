@@ -36,7 +36,7 @@ import com.ziggfreed.common.progress.asset.GeneratorSpec;
  *     "Cost": { "Currencies": { "Bounty_Token": "{tokens}", "Life_Essence": "{essence}" } },
  *     "Listing": { "Category": "conversion", "SortOrder": "{order}",
  *                  "Chains": [ { "Id": "{skill}", "Tier": 1 } ] },
- *     "Requires": { "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_Level_{skill}",
+ *     "Requires": { "Factors": [ { "Factor": "hytale:stat", "Param": "Level_{skill}",
  *                                  "Min": "{minLevel}" } ] },
  *     "Rewards": [ { "Kind": "Mmo_Xp", "Params": { "Skill": "{skill}", "Amount": "{xp}" } } ] } }
  * }</pre>
@@ -52,7 +52,7 @@ import com.ziggfreed.common.progress.asset.GeneratorSpec;
  *
  * <p><b>Substitution is textual and applies everywhere</b> in {@code Child}: every string value,
  * every object KEY, and {@code IdPattern}. Substituting a KEY is what lets a per-skill requirement
- * name its own stat channel ({@code "MMO_Level_{skill}"}) with no workaround. A value that is
+ * name its own stat channel ({@code "Level_{skill}"}) with no workaround. A value that is
  * exactly one token keeps that token's type, so {@code "Min": "{minLevel}"} lands as a number. A
  * token left unresolved is reported and that one offer is skipped rather than shipped half-written.
  *

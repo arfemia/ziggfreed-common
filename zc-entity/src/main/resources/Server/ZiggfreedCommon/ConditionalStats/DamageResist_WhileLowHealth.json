@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes DamageResist_WhileLowHealth conditional: A conditional resistance in whole percent points, added to its holder's every resistance but Fall while they are under half health.",
+  "Holder": [
+    {
+      "Id": "ZigStatPercent",
+      "Stat": "Health",
+      "Below": 50
+    }
+  ],
+  "Pays": {
+    "Onto": [ "DamageResist" ]
+  }
+}
