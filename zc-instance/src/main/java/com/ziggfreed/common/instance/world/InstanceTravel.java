@@ -27,8 +27,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A player's way between the overworld and the game's shared instances (the Forgotten Temple's copy, the temple hub's),
- * on the engine's own instance travel ({@code InstancesPlugin}), for a way in the engine's {@code TeleportInstance}
- * interaction cannot serve: a placed character's press-F or a conversation's answer, which run no interaction chain.
+ * on the engine's own instance travel ({@code InstancesPlugin}), for a way the engine's {@code TeleportInstance} and
+ * {@code ExitInstance} interactions cannot serve: a placed character's press-F, a conversation's answer, or a block
+ * that must keep the return chain (the temple hub's pads, through {@code TravelDestinations} and {@code ZigOpen}).
  *
  * <p><b>Return points.</b> The engine keeps each player's way back as a chain: their current return point, the world
  * they go back to on leaving the instance they are in, and beneath it the return points of the instances they came

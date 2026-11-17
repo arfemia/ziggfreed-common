@@ -36,6 +36,11 @@ import com.ziggfreed.common.util.SafeLog;
  * nothing on this server registered that destination's type. Deciding needs the server, hence
  * {@link WaitForDataFrom#Server}.
  *
+ * <p><b>The opener runs inside the interaction system.</b> A page opens there and then, as an item's own page does;
+ * a destination whose opener writes the player's components (a teleport, a payout) must queue that write on a world
+ * task of its own, since the store refuses a component write while the interaction system runs: the travel
+ * destinations do ({@code TravelDestinations}), as {@code ZigOpenSpoilsInteraction} defers its chest's open.
+ *
  * <p>The temple hub's two pads run it ({@code Zc_Hub_Door_Temple}, {@code Zc_Hub_Door_Overworld}).
  */
 public final class ZigOpenInteraction extends SimpleInstantInteraction {

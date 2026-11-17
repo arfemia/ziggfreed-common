@@ -30,8 +30,9 @@ import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 
 /**
- * Two moves a placed character's press-F or a conversation's answer can make, since neither runs an interaction chain
- * (a block or item uses the engine's own {@code TeleportInstance} and {@code ExitInstance} instead):
+ * Two moves a placed character's press-F, a conversation's answer or a block's {@code ZigOpen} (zc-presentation's
+ * interaction Type, which the temple hub's two pads run) can make, keeping the return chain the engine's own
+ * {@code ExitInstance} would leave pointing at the wrong world:
  * <ul>
  *   <li>{@code "Open": {"Type": "Instance", "Instance": "<template>"}} sends the player to that instance's shared copy,
  *       back where they stood if they came from it ({@link InstanceTravel#toInstance}): the temple hub's doorkeeper

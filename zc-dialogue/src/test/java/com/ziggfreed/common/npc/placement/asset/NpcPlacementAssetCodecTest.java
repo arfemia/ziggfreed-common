@@ -111,6 +111,19 @@ class NpcPlacementAssetCodecTest {
         assertNull(asset.getInteract(), "no Interact block authored means no destination on the asset");
     }
 
+    @Test
+    void pressFSwitchesOffOnlyWhenWrittenFalse() throws Exception {
+        NpcPlacementAsset scenery = decodeRoot("""
+                { "Interact": { "Enabled": false } }
+                """, "scenery");
+        assertFalse(scenery.getInteract().isEnabled(), "a character that is only part of the place opens nothing");
+
+        NpcPlacementAsset talker = decodeRoot("""
+                { "Interact": { "Dialogue": "hub_intro" } }
+                """, "talker");
+        assertTrue(talker.getInteract().isEnabled(), "unauthored, press-F opens what the placement names");
+    }
+
     // ==================== Interact under Parent ====================
 
     @Test
