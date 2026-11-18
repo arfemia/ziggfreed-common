@@ -10,8 +10,8 @@ import com.hypixel.hytale.event.IEvent;
 
 /**
  * The picks a player made on a track changed through zc: a choice made or a pick bought (one or several in order),
- * either undone, a respec, a prestige that remembered or cleared them, a saved build swapped in, or remembered takes
- * spent again. Fired once per change, on the player's own thread, after the record was
+ * either undone, a respec, a prestige that remembered or cleared them, a saved build swapped in, remembered takes
+ * spent again, or ranks past a pick's limit given back. Fired once per change, on the player's own thread, after the record was
  * kept and the player's grants rebuilt (so a reader sees the new modifiers), and only while something listens. A
  * change that moved nothing fires none.
  */
@@ -32,7 +32,9 @@ public final class ZigTrackPicksChangedEvent implements IEvent<Void> {
         /** A saved build was swapped in. */
         SWAPPED,
         /** Takes a Remember prestige put aside were spent again. */
-        RESPENT
+        RESPENT,
+        /** Ranks held past a pick's rank limit (its file now allows fewer) were given back, their points with them. */
+        LOWERED
     }
 
     @Nonnull private final UUID playerId;

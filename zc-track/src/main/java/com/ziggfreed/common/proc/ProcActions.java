@@ -310,7 +310,8 @@ final class ProcActions {
 
     /**
      * An ApplyEffect with {@code Control} landing on a foe: the wait per foe a stun keeps (zc-effects'
-     * {@code StunControl}). An {@code Immune} foe is passed over; a boss or an elite takes the effect with no owner, so
+     * {@code StunControl}). An {@code Immune} foe is passed over, and so is a boss or an elite when the group writes
+     * {@code SpareBossOrElite}; otherwise one takes the effect with no owner, so
      * the holder's length stats never reach one (bosses stay bosses); the length goes through the effect families'
      * Duration rules as it lands, then shrinks by the Immunity the foe already carries; and a landing adds the Ramp,
      * never scaled by the proc's strength.
@@ -325,6 +326,9 @@ final class ProcActions {
             return false;
         }
         boolean bossOrElite = ZigFoeFamilyCondition.inGroup(accessor, on, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP);
+        if (bossOrElite && control.spareBossOrElite()) {
+            return false;
+        }
         Ref<EntityStore> owner = bossOrElite ? null : moment.holder();
         float share = control.diminish() ? StunControl.immunityShare(accessor, on) : 0f;
         float lasting = StunControl.diminished(EffectDurations.lengthAsLanded(accessor, on, index, owner, seconds),

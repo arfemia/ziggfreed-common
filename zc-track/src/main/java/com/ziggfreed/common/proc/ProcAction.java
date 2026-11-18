@@ -686,8 +686,8 @@ public final class ProcAction {
                         + "more Immunity the target already carries (Diminish); each landing adds Ramp to that "
                         + "Immunity, so a foe held over and over turns Immune for a while; and a boss or an elite "
                         + "takes it with no owner, so nothing the holder's stats add to an effect's length reaches "
-                        + "one. It changes nothing on the holder (OnSelf) or a timeless effect. A plain effect when "
-                        + "unauthored.").add()
+                        + "one, or with SpareBossOrElite not at all. It changes nothing on the holder (OnSelf) or a "
+                        + "timeless effect. A plain effect when unauthored.").add()
                 .build();
 
         public ApplyEffect() {
@@ -742,6 +742,7 @@ public final class ProcAction {
 
         @Nullable protected Double ramp;
         @Nullable protected Boolean diminish;
+        @Nullable protected Boolean spareBossOrElite;
 
         public static final BuilderCodec<Control> CODEC = BuilderCodec.builder(Control.class, Control::new)
                 .appendInherited(new KeyedCodec<>("Ramp", Codec.DOUBLE, false),
@@ -755,9 +756,21 @@ public final class ProcAction {
                 .documentation("True: the effect lasts its time times 1 less the share of Immunity the target "
                         + "already carries, so it is shorter each time on a foe held again soon. True when "
                         + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>("SpareBossOrElite", Codec.BOOLEAN, false),
+                        (o, v) -> o.spareBossOrElite = v, o -> o.spareBossOrElite,
+                        (o, p) -> o.spareBossOrElite = p.spareBossOrElite)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: a boss or an elite (the Zig_Boss_Or_Elite NPC group) is passed over, so the "
+                        + "effect never holds one back while the rest of the action still lands on it. False when "
+                        + "unauthored: one takes the effect with no owner.").add()
                 .build();
 
         public Control() {
+        }
+
+        /** Is a boss or an elite passed over? False unless written true. */
+        public boolean spareBossOrElite() {
+            return Boolean.TRUE.equals(spareBossOrElite);
         }
 
         /** The Immunity a landing adds, never below 0. */
