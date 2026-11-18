@@ -127,9 +127,11 @@ public final class ProcAction {
                     + "damage). It spares nothing a plain hit would not.").add()
             .appendInherited(new KeyedCodec<>("ReturnThrown", ReturnThrown.CODEC, false),
                     (o, v) -> o.returnThrown = v, o -> o.returnThrown, (o, p) -> o.returnThrown = p.returnThrown)
-            .documentation("For ProjectileMiss: hand the holder back one of the item the projectile was thrown from "
-                    + "(a thrown spear), as it left their hand, after Delay seconds; into their inventory as a "
-                    + "pickup goes, at their feet when it is full, and nothing once they died or left.").add()
+            .documentation("For ProjectileMiss: Delay seconds after the projectile lands, take it out of the world "
+                    + "and hand the holder back one of the item it was thrown from (a thrown spear), as it left their "
+                    + "hand; into their inventory as a pickup goes, at their feet when it is full. Nothing for a throw "
+                    + "that spent no item (one that keeps it in hand), and nothing once they died, left or changed "
+                    + "worlds.").add()
             .build();
 
     public ProcAction() {
@@ -612,10 +614,12 @@ public final class ProcAction {
 
     /**
      * The ReturnThrown group: for ProjectileMiss, the holder gets back one of the item the projectile was thrown from,
-     * the stack as it left their hand (its durability and metadata kept), after {@code Delay} seconds: into their
+     * the stack as it left their hand (its durability and metadata kept), {@code Delay} seconds after it landed, the
+     * projectile still lying there taken out of the world as it comes back: into their
      * inventory the way a picked-up item goes, with the game's own pickup notice, and at their feet when it is full.
-     * Nothing comes back to a holder who died or left before the wait ends, and nothing for a projectile that came
-     * from no held item.
+     * Only what the throw spent comes back (a throw that keeps its item in hand gives nothing), never sooner than half
+     * a second after the miss. Nothing comes back to a holder who died, left or changed worlds before the wait ends,
+     * and nothing for a projectile that came from no held item.
      */
     public static final class ReturnThrown {
 
@@ -625,7 +629,9 @@ public final class ProcAction {
                         ReturnThrown::new)
                 .appendInherited(new KeyedCodec<>("Delay", FactorFormula.codec(EditorDataSets.FACTORS), false),
                         (o, v) -> o.delay = v, o -> o.delay, (o, p) -> o.delay = p.delay)
-                .documentation("The seconds before the item comes back, a formula. At once when unauthored.").add()
+                .documentation("The seconds from the landing before the item comes back, a formula, never under "
+                        + "half a second (the throw's own spend lands just after it). Half a second when unauthored.")
+                .add()
                 .build();
 
         public ReturnThrown() {

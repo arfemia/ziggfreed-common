@@ -68,12 +68,22 @@ public final class ThrowSpeeds {
         return 1.0 + held / 100.0;
     }
 
-    /** {@code shooter}'s {@value #THROW_SPEED} total, 0 when it carries none. */
-    static double points(@Nullable EntityStatMap stats) {
+    /**
+     * The launch speed multiplier the stat {@code statId}'s total on {@code stats} gives, read as whole percent points
+     * the way {@value #THROW_SPEED} is and held the same ({@link #factor}): 1 when the entity carries none of it or no
+     * stat of that id is loaded. A consumer's own launch (an ability's thrown projectile) reads its thrower's speed
+     * stat through this, so it obeys the same rule as the game's throws.
+     */
+    public static double factorOf(@Nullable EntityStatMap stats, @Nonnull String statId) {
+        return factor(points(stats, statId));
+    }
+
+    /** The total of the stat {@code statId} on {@code stats}, 0 when it carries none. */
+    static double points(@Nullable EntityStatMap stats, @Nonnull String statId) {
         if (stats == null) {
             return 0.0;
         }
-        int index = StatIndexCache.resolve(THROW_SPEED);
+        int index = StatIndexCache.resolve(statId);
         if (index == StatIndexCache.UNRESOLVED) {
             return 0.0;
         }
@@ -105,7 +115,8 @@ public final class ThrowSpeeds {
                 if (thrower == null || !thrower.isValid()) {
                     return;
                 }
-                double factor = factor(points(commandBuffer.getComponent(thrower, EntityStatMap.getComponentType())));
+                double factor = factorOf(commandBuffer.getComponent(thrower, EntityStatMap.getComponentType()),
+                        THROW_SPEED);
                 if (Math.abs(factor - 1.0) >= 0.005) {
                     PENDING.put(ref, factor);
                 }

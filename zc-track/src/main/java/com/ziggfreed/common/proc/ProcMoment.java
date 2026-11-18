@@ -24,7 +24,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * drawn from ({@code costStat}, an entity stat id; null reads as {@value #STAMINA}, the pool a block's cost and every
  * moment that names none pays from), and, on a ProjectileMiss, one of the item the projectile was thrown from as it
  * left the holder's hand ({@code thrown}: its id, durability and metadata, quantity 1; null when the projectile came
- * from no held item the library saw). World thread; the command buffer is the producing system's, null outside one.
+ * from no held item the library saw), whether or not the throw spent it ({@code ReturnThrown} gives one back only
+ * when it did). World thread; the command buffer is the producing system's, null outside one.
  */
 public record ProcMoment(@Nonnull ProcTrigger trigger, @Nonnull Store<EntityStore> store,
         @Nullable CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> holder,

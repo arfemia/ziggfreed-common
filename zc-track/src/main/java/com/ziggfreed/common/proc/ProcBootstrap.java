@@ -33,6 +33,9 @@ public final class ProcBootstrap {
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Jump());
         plugin.getEntityStoreRegistry().registerSystem(new KillBlows.Stamp());
         plugin.getEntityStoreRegistry().registerSystem(new ProjectileMisses.Left());
+        plugin.getEntityStoreRegistry().registerSystem(new ProjectileMisses.Landed());
+        plugin.getEntityStoreRegistry().registerSystem(new ProjectileMisses.Spent());
+        plugin.getEntityStoreRegistry().registerSystem(new ProjectileMisses.Dropped());
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.HolderPass());
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Left());
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Died());
