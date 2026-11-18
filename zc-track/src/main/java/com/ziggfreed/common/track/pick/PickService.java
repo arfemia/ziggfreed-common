@@ -17,7 +17,9 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.cost.Cost;
@@ -47,7 +49,7 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The one reader and writer of the picks a player makes on their tracks. Every write ({@link #choose},
  * {@link #take}, an admin's {@link #teach}, {@link #undo}, {@link #respec}, {@link #buyRespec}, {@link #swapLoadout},
- * {@link #respendRemembered}, {@link #spendInOrder}) is the live player's own world thread, keeps the record through
+ * {@link #respendRemembered}, {@link #spendInOrder}, {@link #holdToLimits}) is the live player's own world thread, keeps the record through
  * the track's store, moves the player's gate epoch (the {@code ziggfreedcommon:track_pick} and
  * {@code ziggfreedcommon:track_branch_spent} readings, Volatility Player), rebuilds the player's grants
  * ({@code TrackDerived.rebuild}) and fires {@code ZigTrackPicksChangedEvent}.
@@ -1079,6 +1081,75 @@ public final class PickService {
             GateEpochs.bumpPlayer(player);
             TrackEvents.firePicksChanged(player, def.id(), ZigTrackPicksChangedEvent.Change.PRESTIGE, null, null,
                     List.of());
+        }
+    }
+
+    /**
+     * Hold every pick {@code player} bought outright to its rank limit ({@code Repeat.Max}) on each track they climb:
+     * a pick whose file now allows fewer ranks than the player saved (five ranks folded into one) gives the ranks past
+     * its limit back, the newest first ({@code PickState.withinLimits}), and their points come back to spend again,
+     * since the points spent are read off the takes. A pick no longer live, or one a choice holds, is left as it is,
+     * so switching a pick back on gives it back whole; a {@code Cost.Price} paid for a rank given back is not returned,
+     * since no receipt outlives the undo window. For each track it lowers: kept, its undo window closed, the epoch
+     * moved, the grants rebuilt and {@code ZigTrackPicksChangedEvent} fired ({@code LOWERED}). Run at every ready
+     * settle and, for everyone online, after a pick fold. World thread.
+     *
+     * @return how many ranks it gave back, 0 when the player is not live or nothing was past a limit
+     */
+    public static int holdToLimits(@Nonnull UUID player) {
+        int given = 0;
+        for (TrackDef def : TrackService.defs()) {
+            if (def.asset().isDerived()) {
+                continue;
+            }
+            Climb climb = climb(player, def.id());
+            if (climb == null) {
+                continue;
+            }
+            String trackId = TrackKey.normalize(def.id());
+            PickState state = climb.record().picks();
+            PickState next = state.withinLimits(id -> {
+                TrackPicks.PickDef pick = TrackPicks.pick(id);
+                return pick == null || pick.isChoice() || !pick.trackId().equals(trackId)
+                        ? null : pick.asset().repeatMax();
+            });
+            if (next.equals(state) || !climb.store().put(climb.key(), climb.record().withPicks(next))) {
+                continue;
+            }
+            given += state.size() - next.size();
+            PickUndo.closeTrack(player, def.id());
+            changed(player, climb.with(climb.record().withPicks(next)), ZigTrackPicksChangedEvent.Change.LOWERED,
+                    null, null, List.of());
+        }
+        return given;
+    }
+
+    /** Queue {@link #holdToLimits} for every online player, each on their own world thread. Any thread. */
+    public static void holdAllOnlineToLimits() {
+        try {
+            Universe universe = Universe.get();
+            if (universe == null) {
+                return;
+            }
+            for (PlayerRef player : universe.getPlayers()) {
+                Ref<EntityStore> ref = player == null ? null : player.getReference();
+                UUID id = player == null ? null : player.getUuid();
+                if (ref == null || id == null || !ref.isValid()) {
+                    continue;
+                }
+                WorldEvictors.worldOf(ref).execute(() -> {
+                    try {
+                        holdToLimits(id);
+                    } catch (Throwable t) {
+                        SafeLog.warn("[track] a player's picks could not be held to their rank limits: "
+                                + t.getMessage());
+                    }
+                });
+            }
+        } catch (Throwable t) {
+            // FINE: a stopping world refuses every task, and its players are held to the limits at their next settle.
+            SafeLog.fine("[track] could not queue holding every online player's picks to their limits: "
+                    + t.getMessage());
         }
     }
 

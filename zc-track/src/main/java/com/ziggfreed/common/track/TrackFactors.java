@@ -186,8 +186,9 @@ public final class TrackFactors {
         return TrackService.read(TrackKey.player(playerId, trackId.trim()));
     }
 
+    /** The live player {@code ref} is, by id, or null for no player; also how a mirrored stat finds its climbs. */
     @Nullable
-    private static UUID playerOf(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref) {
+    static UUID playerOf(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref) {
         if (store == null || ref == null || !ref.isValid()) {
             return null;
         }

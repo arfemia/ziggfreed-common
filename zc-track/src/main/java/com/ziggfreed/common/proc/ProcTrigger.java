@@ -58,8 +58,8 @@ public enum ProcTrigger {
     THROWN_LANDING("ThrownLanding", "A creature the holder struck or pushed into the air lands again (the moment's "
             + "target is that creature, its amount the blocks it dropped; Thrown reads where it landed)", false,
             false),
-    PROJECTILE_MISS("ProjectileMiss", "A projectile the holder launched ends without striking a creature (it came "
-            + "to rest or was spent on the ground; Projectiles names which count)", false, false);
+    PROJECTILE_MISS("ProjectileMiss", "A projectile the holder launched lands without striking a creature (heard "
+            + "the moment it meets the ground or a wall; Projectiles names which count)", false, false);
 
     @Nonnull private final String id;
     @Nonnull private final String meaning;

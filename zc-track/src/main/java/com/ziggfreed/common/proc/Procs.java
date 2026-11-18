@@ -36,6 +36,7 @@ import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.progress.gate.GateQuery;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
+import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
@@ -718,6 +719,7 @@ public final class Procs {
         HeldEffects.forget(ref);
         GuardBreaks.forget(ref);
         ThrownLandings.forget(ref);
+        ProjectileMisses.forget(ref);
     }
 
     // ==================== The reads every part shares ====================
@@ -752,11 +754,18 @@ public final class Procs {
 
     /**
      * A stat's reading off its maximum, where gear, effects and picks raise it (a retired id's one successor,
-     * {@code StatIndexCache.resolveCurrent}); 0 when it is not there.
+     * {@code StatIndexCache.resolveCurrent}); 0 when it is not there. A stat its owner mirrors from a record
+     * ({@link MirroredStats}: a level, a track's mirror) reads that record instead, so a held effect's "stat above 0"
+     * on one asks the real value and no gear line on it counts.
      */
     static double statPoints(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId) {
         try {
+            MirroredStats.Claim mirrored = MirroredStats.claimOf(statId);
+            if (mirrored != null) {
+                Double real = MirroredStats.readAt(mirrored, ref, statId);
+                return real == null || !Double.isFinite(real) ? 0.0 : real;
+            }
             int index = StatIndexCache.resolveCurrent(statId);
             if (index == StatIndexCache.UNRESOLVED) {
                 return 0.0;
