@@ -324,6 +324,24 @@ public record PickState(@Nonnull Map<String, List<String>> slots, @Nonnull Map<S
         return new PickState(slots, next, remembered, sequence, rememberedTakes, loadouts, activeLoadout);
     }
 
+    /**
+     * This state with every pick bought outright held no more often than {@code limit} allows it (a pick it answers
+     * null for, one no longer live, left as it is): the takes past a limit leave from the newest end, as an undo's do,
+     * so a pick whose file now allows fewer ranks than were saved holds only those, and the points of the ranks it
+     * gave back come back with them (points spent are read off the takes). Itself when nothing is past a limit.
+     */
+    @Nonnull
+    public PickState withinLimits(@Nonnull Function<String, Integer> limit) {
+        PickState next = this;
+        for (Map.Entry<String, Integer> take : new TreeMap<>(takes).entrySet()) {
+            Integer max = limit.apply(take.getKey());
+            if (max != null && take.getValue() > Math.max(0, max)) {
+                next = next.withTakes(take.getKey(), Math.max(0, max) - take.getValue());
+            }
+        }
+        return next;
+    }
+
     /** This state with {@code takes} as the takes a Remember prestige keeps aside, in order. */
     @Nonnull
     public PickState withRememberedTakes(@Nonnull List<String> takes) {

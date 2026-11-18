@@ -27,7 +27,8 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  * so the gate moves with every take and every undo; and an undo takes the newest pick first, so a row that opened on
  * a take is always undone before the take that opened it. A Remember prestige puts the takes aside in the order they
  * were made (R641). A saved build (R736) replays its choices and takes interleaved as they were made, a swap away
- * after a partial load never loses a saved pick, and a node face taken since takes the saved face's place.
+ * after a partial load never loses a saved pick, and a node face taken since takes the saved face's place. A rank
+ * saved past a pick's limit is given back with its points.
  */
 class PickTreeTest {
 
@@ -68,6 +69,35 @@ class PickTreeTest {
         TrackPicks.PickDef stand = folded.byId().get("your_stand");
         assertEquals(List.of("your_rush"), stand.otherFaces(), "the faces sharing a Node on a track know each other");
         assertEquals(List.of(), folded.byId().get("your_root").otherFaces(), "a pick in no node has no other face");
+    }
+
+    /**
+     * A pick whose file now allows fewer ranks than a player saved (five ranks folded into one) gives the ranks past
+     * its limit back, the newest first, and their points with them; a pick no longer live is left whole.
+     */
+    @Test
+    void aRankPastItsLimitIsGivenBackWithItsPoints() throws IOException {
+        TrackPicks.Folded folded = fold();
+        List<TrackPicks.PickDef> onTrack = folded.byTrack().get("your_sample");
+        PickState saved = PickState.EMPTY.withTakes("Your_Toughness", 1).withTakes("Your_Footing", 1)
+                .withTakes("Your_Toughness", 2).withTakes("Your_Gone", 2);
+        Function<String, Integer> limits = id -> {
+            if (id.equals("your_toughness")) {
+                return 1;
+            }
+            TrackPicks.PickDef pick = folded.byId().get(id);
+            return pick == null ? null : pick.asset().repeatMax();
+        };
+        PickState held = saved.withinLimits(limits);
+        assertEquals(1, held.takesOf("Your_Toughness"), "lowered to its new limit");
+        assertEquals(List.of("your_toughness", "your_footing", "your_gone", "your_gone"), held.order(),
+                "the newest ranks leave, the oldest stays in its place");
+        assertEquals(2, held.takesOf("Your_Gone"), "a pick no longer live keeps its ranks for when it comes back");
+        TrackRecord before = new TrackRecord(0L, 0.0, 0, 0, Map.of()).withPicks(saved);
+        TrackRecord after = before.withPicks(held);
+        assertEquals(TrackPicks.spentOn("Your_Sample", onTrack, id -> before) - 2,
+                TrackPicks.spentOn("Your_Sample", onTrack, id -> after), "the two ranks' points come back");
+        assertEquals(held, held.withinLimits(limits), "nothing past a limit changes nothing");
     }
 
     @Test
