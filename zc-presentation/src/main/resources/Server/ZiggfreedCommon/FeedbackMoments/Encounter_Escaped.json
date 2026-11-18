@@ -1,0 +1,27 @@
+{
+  "$Comment": [
+    "What a member sees when a boss gets away: the fight's script sent zc:escaped before taking it away (a",
+    "timer ran out, say, or the party wiped and the script calls that an escape). The run pays nothing and",
+    "the boss does not rise again until the binding row's Timing.Rest has passed.",
+    "",
+    "This is the library's own neutral default; a mod's same-named file or the owner layer",
+    "replaces it, and the binding row's Feedback.Escaped leaf can point a fight elsewhere.",
+    "",
+    "The moment fires once per member the run saw and carries 'encounter' (the script id), 'title' (the",
+    "fight's name in the reader's language), 'members' and 'seconds' (how long the fight lasted). 'player'",
+    "is the member it is about.",
+    "",
+    "A plain Info notice, quiet like a wipe. Add a Sound for a sting, or a Broadcast to tell the arena."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.encounter.escaped",
+      "Args": ["title"]
+    },
+    "Secondary": {
+      "Key": "ziggfreedcommon.feedback.encounter.escaped.seconds",
+      "Args": ["seconds"]
+    },
+    "Tone": "Info"
+  }
+}

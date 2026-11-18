@@ -34,6 +34,15 @@ class EncounterSignalTest {
     }
 
     @Test
+    void theEscapeIsAReservedMomentNotTheAuthorsOwnBeat() {
+        EncounterSignal escaped = EncounterSignal.parse("zc:escaped");
+        assertEquals(EncounterSignal.Moment.ESCAPED, escaped.moment());
+        assertNull(escaped.detail());
+        assertTrue(escaped.isReserved());
+        assertEquals(EncounterSignal.Moment.ESCAPED, EncounterSignal.parse("ZC:Escaped").moment());
+    }
+
+    @Test
     void aWaveWithoutALabelStillCounts() {
         EncounterSignal wave = EncounterSignal.parse("zc:wave");
         assertEquals(EncounterSignal.Moment.WAVE, wave.moment());

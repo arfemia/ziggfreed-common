@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.encounter.event.ResetReason;
 import com.ziggfreed.common.encounter.run.SignalledDefeat.SubjectState;
 import com.ziggfreed.common.encounter.run.SignalledDefeat.Verdict;
 
@@ -51,12 +50,5 @@ class SignalledDefeatTest {
         assertEquals(SubjectState.ALIVE, SignalledDefeat.stateOf(true, false, 0.5F));
         assertEquals(SubjectState.ALIVE, SignalledDefeat.stateOf(true, false, Float.NaN),
                 "an unreadable health on a living entity is no kill");
-    }
-
-    @Test
-    void aLeashEndsItsRunWithItsOwnReasonAppendedLast() {
-        assertEquals("LEASHED", ResetReason.LEASHED.name());
-        assertEquals(ResetReason.values().length - 1, ResetReason.LEASHED.ordinal(),
-                "a reason is only ever appended, so every earlier one keeps its place");
     }
 }

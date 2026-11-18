@@ -67,11 +67,12 @@ public final class EncounterBindingAsset
     /** The target slot a subject is looked up in when a row names none. */
     public static final String DEFAULT_TARGET_SLOT = "Boss";
 
-    /** The moment ids the four feedback leaves read as when unauthored. */
+    /** The moment ids the five feedback leaves read as when unauthored. */
     public static final String DEFAULT_ENGAGED_MOMENT = "Encounter_Engaged";
     public static final String DEFAULT_PHASE_MOMENT = "Encounter_Phase_Changed";
     public static final String DEFAULT_DEFEATED_MOMENT = "Encounter_Defeated";
     public static final String DEFAULT_WIPED_MOMENT = "Encounter_Wiped";
+    public static final String DEFAULT_ESCAPED_MOMENT = "Encounter_Escaped";
 
     private String id;
     private AssetExtraInfo.Data data;
@@ -154,7 +155,7 @@ public final class EncounterBindingAsset
             .add()
             .appendInherited(new KeyedCodec<>("Feedback", Feedback.CODEC, false),
                     (a, v) -> a.feedback = v, a -> a.feedback, (a, p) -> a.feedback = p.feedback)
-            .documentation("The FeedbackMoment ids fired to each member at the four beats of a run.")
+            .documentation("The FeedbackMoment ids fired to each member at the five beats of a run.")
             .add()
             .appendInherited(new KeyedCodec<>("Discovery", Discovery.CODEC, false),
                     (a, v) -> a.discovery = v, a -> a.discovery, (a, p) -> a.discovery = p.discovery)
@@ -959,13 +960,14 @@ public final class EncounterBindingAsset
 
     // ==================== Feedback ====================
 
-    /** The FeedbackMoment ids fired to each member at the four beats of a run. */
+    /** The FeedbackMoment ids fired to each member at the five beats of a run. */
     public static final class Feedback {
 
         @Nullable protected String engaged;
         @Nullable protected String phaseChanged;
         @Nullable protected String defeated;
         @Nullable protected String wiped;
+        @Nullable protected String escaped;
 
         public static final BuilderCodec<Feedback> CODEC = BuilderCodec.builder(Feedback.class, Feedback::new)
                 .appendInherited(new KeyedCodec<>("Engaged", Codec.STRING, false),
@@ -990,6 +992,12 @@ public final class EncounterBindingAsset
                 .metadata(EditorSchema.defaultValue(DEFAULT_WIPED_MOMENT))
                 .documentation("The moment fired to each participant when the fight is lost.")
                 .add()
+                .appendInherited(new KeyedCodec<>("Escaped", Codec.STRING, false),
+                        (o, v) -> o.escaped = v, o -> o.escaped, (o, p) -> o.escaped = p.escaped)
+                .metadata(EditorSchema.defaultValue(DEFAULT_ESCAPED_MOMENT))
+                .documentation("The moment fired to each member the run saw when the script's zc:escaped beat "
+                        + "says the boss got away.")
+                .add()
                 .build();
 
         public Feedback() {
@@ -1013,6 +1021,11 @@ public final class EncounterBindingAsset
         @Nonnull
         public String wiped() {
             return orDefault(wiped, DEFAULT_WIPED_MOMENT);
+        }
+
+        @Nonnull
+        public String escaped() {
+            return orDefault(escaped, DEFAULT_ESCAPED_MOMENT);
         }
     }
 

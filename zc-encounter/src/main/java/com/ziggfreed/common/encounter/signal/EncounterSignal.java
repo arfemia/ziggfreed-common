@@ -17,7 +17,10 @@ import javax.annotation.Nullable;
  *   <li>{@code zc:cleared} - the wave standing has fallen: an endless wave run counts its waves by it;</li>
  *   <li>{@code zc:defeated} - the subject is down (beside ClearEncounterBossBar); with a subject
  *       bound that still lives, the library reads it as a leash and pays nothing;</li>
- *   <li>{@code zc:reset} - the script re-armed for the next run.</li>
+ *   <li>{@code zc:reset} - the script re-armed for the next run;</li>
+ *   <li>{@code zc:escaped} - the subject got away (sent before the script takes it away): the run pays
+ *       nothing, the binding row's rest is stamped so the boss does not rise again before it, and the row's
+ *       Escaped moment shows; the script's own defeat beat and reset then end the run as usual.</li>
  * </ul>
  *
  * <p>Any other {@code zc:<name>} is the author's own beat and surfaces as the generic signal event
@@ -43,8 +46,10 @@ public record EncounterSignal(@Nonnull Moment moment, @Nullable String detail, @
         DEFEATED("defeated"),
         RESET("reset"),
         CUSTOM(""),
+        /** Appended, so the moments before it keep their places. */
+        CLEARED("cleared"),
         /** Last, so the moments before it keep their places. */
-        CLEARED("cleared");
+        ESCAPED("escaped");
 
         private final String word;
 

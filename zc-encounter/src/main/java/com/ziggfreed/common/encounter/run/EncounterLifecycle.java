@@ -1,5 +1,6 @@
 package com.ziggfreed.common.encounter.run;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -52,8 +53,8 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The story of a run, told in order: engaged, then phases and waves, then defeated or wiped, then
- * reset. Every beat here settles the run's own state, writes ONE line under {@code [encounter]},
+ * The story of a run, told in order: engaged, then phases and waves, then defeated, wiped or escaped,
+ * then reset. Every beat here settles the run's own state, writes ONE line under {@code [encounter]},
  * fires the native event, and hands the payout layer whatever the binding row owes. Nothing here
  * decides when a beat happens; the script (through the signal system), the death system and the
  * tick do, and call in.
@@ -286,6 +287,42 @@ public final class EncounterLifecycle {
         args.put(EncounterFeedback.SECONDS_ARG, Math.round(elapsedSeconds));
         EncounterFeedback.fireWithShares(store, feedbackId(row, EncounterBindingAsset.Feedback::wiped,
                 EncounterBindingAsset.DEFAULT_WIPED_MOMENT), shares.participants(), args);
+    }
+
+    // ==================== escaped ====================
+
+    /**
+     * A script's {@code zc:escaped} beat: the subject got away. A run whose boss already fell, or one that never
+     * engaged, has nothing to escape from and ignores it. Otherwise the run settles as lost if it has not settled
+     * yet, so it pays nothing; it is marked escaped, so its reset carries {@link ResetReason#ESCAPED}; and the
+     * binding row's rest ({@code Timing.Rest}) is stamped even on a run a wipe already settled, so the boss does
+     * not rise again before it (a script that reads a wipe or an emptied arena as an escape keeps him gone too).
+     * The row's Escaped moment shows to every member the run saw. Nothing resets here: the script's own defeat
+     * beat, as it takes the subject away, finds the run settled and is ignored, and its reset ends the run.
+     * Latched: a second beat on the same run does nothing.
+     *
+     * @param commandBuffer the calling system's buffer, which the rest stamp lands through
+     */
+    public static void escape(@Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> encounterRef, @Nonnull ZigEncounterRun run, @Nonnull String encounterId) {
+        if (run.isDefeated() || !run.isEngaged() || !run.markEscaped()) {
+            return;
+        }
+        boolean settledHere = run.conclude(false);
+        long now = System.currentTimeMillis();
+        run.bindWorld(worldUuid(store));
+        EncounterBindingAsset row = EncounterBindingConfig.getInstance().forEncounter(encounterId);
+        List<UUID> members = new ArrayList<>(run.knownMembers());
+        double elapsedSeconds = run.elapsedMs(now) / 1000.0;
+        SafeLog.info(Encounters.LOG_PREFIX + " escaped run=" + EncounterRun.shortId(run.runId()) + " encounter="
+                + encounterId + " after " + Math.round(elapsedSeconds) + "s, members=" + members.size()
+                + " subject=" + (run.subjectMobId() == null ? "?" : run.subjectMobId())
+                + (settledHere ? "" : " (already lost)") + ": no payout, the rest is stamped");
+        EncounterRest.stamp(store, commandBuffer, encounterRef, run, encounterId, row);
+        Map<String, Object> args = baseArgs(run, encounterId, row, members.size(), now);
+        args.put(EncounterFeedback.SECONDS_ARG, Math.round(elapsedSeconds));
+        EncounterFeedback.fire(store, feedbackId(row, EncounterBindingAsset.Feedback::escaped,
+                EncounterBindingAsset.DEFAULT_ESCAPED_MOMENT), members, args);
     }
 
     // ==================== reset ====================

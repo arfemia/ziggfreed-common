@@ -12,8 +12,8 @@
     "tagged ArenaTag hear Engaged, the zc:engaged beat tells the library the fight is on, and the state",
     "moves to Fight. In Fight, the FightBehavior slot runs whatever macro a Variant hands it (Zc_Adds_Wave,",
     "say, or a macro of your own on the Hytale.Instruction.Encounter.Phase.Behavior interface), and the",
-    "moment the Target sensor loses the boss the defeat beat clears the bar, stops the music, releases the",
-    "slot, tells the arena's volumes Defeated and sends zc:defeated. Complete waits RearmSeconds, sends",
+    "moment the Target sensor loses the boss the defeat beat clears the bar, stops the music, clears any sky a",
+    "phase set (SetEncounterWeather), releases the slot, tells the arena's volumes Defeated and sends zc:defeated. Complete waits RearmSeconds, sends",
     "zc:reset and returns to Intro, so the same entity runs the fight again the next time a player comes",
     "near.",
     "",
@@ -33,7 +33,7 @@
     "The arena reset (ArenaReset true): a wipe (every player in the arena's range down) or an arena left with no",
     "living player for EmptyArenaSeconds runs the game's own Encounter_Macro_Reset_Arena: it waits until no",
     "fallen player still lies in the arena, removes the boss and every creature of ResetGroups, tells the",
-    "arena's volumes Reset, stops the music and goes back to Intro, where zc:reset tells the library and",
+    "arena's volumes Reset, stops the music, clears the fight's sky and goes back to Intro, where zc:reset tells the library and",
     "ResetBehavior has cleared the fight's own flags; the boss rises fresh the next time a player comes",
     "near. Off by default, so a fight without it stands as it was until the library leashes it.",
     "",
@@ -192,7 +192,7 @@
         "ResetTag": { "Compute": "ArenaTag" },
         "ResetRadius": { "Compute": "ArenaSignalRange" },
         "StopMusic": true,
-        "ClearWeather": false
+        "ClearWeather": true
       }
     },
     {
@@ -418,6 +418,9 @@
                   "Type": "StopEncounterMusic"
                 },
                 {
+                  "Type": "ClearEncounterWeather"
+                },
+                {
                   "Type": "ReleaseTarget",
                   "TargetSlot": { "Compute": "SubjectSlot" }
                 },
@@ -491,6 +494,9 @@
                   "Type": "StopEncounterMusic"
                 },
                 {
+                  "Type": "ClearEncounterWeather"
+                },
+                {
                   "Type": "ReleaseTarget",
                   "TargetSlot": { "Compute": "SubjectSlot" }
                 },
@@ -553,6 +559,9 @@
                 },
                 {
                   "Type": "StopEncounterMusic"
+                },
+                {
+                  "Type": "ClearEncounterWeather"
                 },
                 {
                   "Type": "ReleaseTarget",

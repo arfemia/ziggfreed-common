@@ -16,6 +16,8 @@
 - A rune order puts a wrong rune out at every step, the first included; a room hint is said once per player.
 - Two close crash pillars never watch the same cell, and a pillar's shatter notices read the others before it marks
   itself shattered.
+- A shifting floor's fallen section always rises again, and a settle's last write outlasts every write a crack still
+  has pending, so no section is left down.
 """
 import filecmp
 import os
@@ -492,6 +494,27 @@ class ArenaLogic(unittest.TestCase):
             self.assertFalse(counts[notices["None_Left"]]["Inverted"])
             self.assertTrue(counts[notices["Shattered"]]["Inverted"], "one of several: not every other one yet")
             self.assertTrue(counts[notices["Shattered"]]["MatchKey"].endswith(lt.ROOM), "it counts its own room's")
+
+    def test_a_fallen_section_always_rises_and_a_settle_outlasts_its_pending_writes(self):
+        sections = [{"Min": {"X": x, "Y": 0, "Z": 0}, "Max": {"X": x + 2, "Y": 0, "Z": 2}, "Slot": "Tile"}
+                    for x in (-6, 0)]
+        made = lt.shifting_floor({"Tag": "T_Arena", "Sections": sections, "Orders": [[0, 1], [1, 0]],
+                                  "Crack": "Rock_Stone_Cobble", "GlowBlock": "Rock_Crystal_Void_Block",
+                                  "Warn": 3, "Down": 24}, self.ctx())
+        floor = [tv for _, tv in lt.volumes(made.entities) if "_Section_" in tv["Name"]]
+        self.assertEqual(len(floor), 2)
+        for tv in floor:
+            swaps = {(tuple(e["FromBlockTypes"]), e["ToBlockType"], e["Delay"]) for e in tv["Effects"]
+                     if e["Type"] == "ReplaceBlockType" and e.get("Entry") == 1}
+            self.assertIn((("Rock_Stone_Cobble",), lt.EMPTY, 3.0), swaps, "only cracked stone falls")
+            self.assertIn(((lt.EMPTY,), "Rock_Stone_Brick_Smooth", 27.0), swaps, "every fall is followed by a rise")
+            pending = max(e["Delay"] for e in tv["Effects"] if e.get("Entry") == 1 and e["Type"] == "ModifyTags")
+            for entry in (2, 3, 4):
+                last = max(e["Delay"] for e in tv["Effects"] if e.get("Entry") == entry and e["Type"] == "ModifyTags")
+                self.assertGreater(last, pending, "a settle's last write lands after a crack's last pending one")
+        clocks = [tv for _, tv in lt.volumes(made.entities) if "_Clock_" in tv["Name"]]
+        self.assertEqual(sorted(tv["Tags"][lt.VARIANT_KEY] for tv in clocks), ["Floor:1", "Floor:2"],
+                         "one clock per order, so the run's seed picks one")
 
 
 if __name__ == "__main__":

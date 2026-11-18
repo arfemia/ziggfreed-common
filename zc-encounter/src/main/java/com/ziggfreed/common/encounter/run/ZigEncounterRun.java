@@ -74,6 +74,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     private int wavesCleared;
     private boolean concluded;
     private boolean defeated;
+    private boolean escaped;
     private boolean ended;
     @Nullable private UUID lastHitter;
     @Nonnull private ParticipationShares settledShares = ParticipationShares.EMPTY;
@@ -352,6 +353,20 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         return true;
     }
 
+    /** Whether the script said the subject got away ({@code zc:escaped}) before this run reset. */
+    public boolean isEscaped() {
+        return escaped;
+    }
+
+    /** Latch the escape; answers true only for the call that latched it. */
+    public boolean markEscaped() {
+        if (escaped) {
+            return false;
+        }
+        escaped = true;
+        return true;
+    }
+
     public boolean isEnded() {
         return ended;
     }
@@ -512,6 +527,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         endlessAskedAtMs = 0L;
         concluded = false;
         defeated = false;
+        escaped = false;
         lastHitter = null;
         settledShares = ParticipationShares.EMPTY;
         feats.clear();

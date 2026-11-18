@@ -90,7 +90,9 @@ public final class EncounterSignalSystem extends EntityEventSystem<EntityStore, 
             }
             case CLEARED -> EncounterLifecycle.waveCleared(store, ref, run, encounterId);
             case DEFEATED -> EncounterLifecycle.defeatSignalled(store, commandBuffer, ref, run, encounterId);
-            case RESET -> EncounterLifecycle.reset(store, ref, run, encounterId, ResetReason.RESET_SIGNAL, true);
+            case ESCAPED -> EncounterLifecycle.escape(store, commandBuffer, ref, run, encounterId);
+            case RESET -> EncounterLifecycle.reset(store, ref, run, encounterId,
+                    run.isEscaped() ? ResetReason.ESCAPED : ResetReason.RESET_SIGNAL, true);
             case WAVE, CUSTOM -> EncounterLifecycle.signal(store, ref, run, encounterId, signal);
         }
     }

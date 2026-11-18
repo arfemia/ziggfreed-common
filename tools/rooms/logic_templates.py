@@ -242,7 +242,8 @@ def message(event, key, entry=0):
 
 
 def cue(event, params, prefix, origin, cell, entry=0, delay=0.0):
-    """The optional sound and particles a caller names as <prefix>Sound and <prefix>Vfx, at `cell`."""
+    """The optional sound and particles a caller names as <prefix>Sound and <prefix>Vfx (drawn <prefix>VfxScale times
+    its own size; default 1), at `cell`."""
     out = []
     off = offset_of(origin, cell)
     centre = vec(off[0] + 0.5, off[1] + 0.5, off[2] + 0.5)
@@ -251,7 +252,8 @@ def cue(event, params, prefix, origin, cell, entry=0, delay=0.0):
                           Location="VolumeCenter", Offset=centre))
     if params.get(prefix + "Vfx"):
         out.append(effect("PlayVfx", event, entry, delay, ParticleSystem=params[prefix + "Vfx"], Anchor="Volume",
-                          Offset=centre, Scale=1.0, Rotation=vec(0, 0, 0), Duration=0.0))
+                          Offset=centre, Scale=float(params.get(prefix + "VfxScale", 1.0)), Rotation=vec(0, 0, 0),
+                          Duration=0.0))
     return out
 
 
@@ -345,17 +347,25 @@ def harm(params, defaults):
     return out
 
 
+def pulse_sequence(event, params, origin, at, warn, burst, entry=1):
+    """What a hazard cell does once it fires: Busy Yes and the Warn cue now, Hot Yes and the Burst cue `warn` seconds
+    on, Hot No `burst` seconds after that, and Busy No a moment later. Busy and Hot walk Yes and No, a change on every
+    write; a TICK conditioned on Hot Yes is what hurts. The cues sit at `at`, offset from the volume's corner `origin`."""
+    end = warn + burst
+    effects = [set_own_tag(event, "Busy", "Yes", entry=entry)]
+    effects += cue(event, params, "Warn", origin, at, entry=entry)
+    effects += [set_own_tag(event, "Hot", "Yes", entry=entry, delay=warn)]
+    effects += cue(event, params, "Burst", origin, at, entry=entry, delay=warn)
+    effects += [set_own_tag(event, "Hot", "No", entry=entry, delay=end),
+                set_own_tag(event, "Busy", "No", entry=entry, delay=end + SETTLE)]
+    return effects
+
+
 def pulse_cell(name, lo, hi, key, value, params, harm_effects, warn, burst):
     """One hazard cell. A Fire signal arms it unless it is already busy (several players' controllers can ask at once,
-    as in vanilla's Quadrant cells): it warns for `warn` seconds, is hot for `burst` seconds, then rests. Busy and Hot
-    walk Yes and No, a change on every write."""
-    end = warn + burst
-    effects = [set_own_tag("SIGNAL_RECEIVED", "Busy", "Yes", entry=1)]
-    effects += cue("SIGNAL_RECEIVED", params, "Warn", lo, lo, entry=1)
-    effects += [set_own_tag("SIGNAL_RECEIVED", "Hot", "Yes", entry=1, delay=warn)]
-    effects += cue("SIGNAL_RECEIVED", params, "Burst", lo, lo, entry=1, delay=warn)
-    effects += [set_own_tag("SIGNAL_RECEIVED", "Hot", "No", entry=1, delay=end),
-                set_own_tag("SIGNAL_RECEIVED", "Busy", "No", entry=1, delay=end + SETTLE)]
+    as in vanilla's Quadrant cells): it warns for `warn` seconds, is hot for `burst` seconds, then rests
+    (pulse_sequence)."""
+    effects = pulse_sequence("SIGNAL_RECEIVED", params, lo, lo, warn, burst)
     effects += harm_effects
     conditions = [
         event_tag_is("SIGNAL_RECEIVED", FIRE, entry=1),
@@ -472,20 +482,46 @@ def lever_door(params, ctx):
     return Logic([lever_volume, door_volume])
 
 
+def teleport_to(event, lo, cell, yaw, entry=0):
+    """Put whoever set the volume off on `cell`'s floor, facing `yaw`, relative to the volume's corner `lo`."""
+    pos = vec(cell[0] - lo[0] + 0.5, cell[1] - lo[1], cell[2] - lo[2] + 0.5)
+    return effect("Teleport", event, entry, Position=pos, World="", ResetVelocity=True, RelativeToEntity=False,
+                  RelativeToVolume=True, UseRotation=True, Rotation=vec(yaw, 0.0, 0.0))
+
+
 def fall_rescue(params, ctx):
-    """The fall rescue: a player who drops into the region is put back at the return cell, facing the way given.
+    """The fall rescue: a player who drops into the region is put back at the return cell, facing the way given, and
+    optionally loses a share of their health and is told why. Optionally, creatures that fall in too: one wearing
+    CreatureMark is set back on CreatureReturn (a boss that must never leave its arena), any other dies.
 
     params: Region {Min, Max} (cells), Return {X, Y, Z} (the cell the player's feet land in), Yaw (degrees; 0 faces
-    North, the engine's convention; default 0).
+    North, the engine's convention; default 0), Damage (a percent of the player's maximum health the fall costs;
+    default none), HintKey (a lang key the fallen player is told; default none), CreatureReturn {X, Y, Z} and
+    CreatureMark (an effect id; both or neither), CreatureYaw (default Yaw).
     The teleport's Rotation carries the yaw in X: TeleportEffect.toRotation builds Rotation3f(pitch = Y, yaw = X,
-    roll = Z) (TeleportEffect.java:133-138, Rotation3f.java:103), as vanilla's Deepworks fall teleports author it."""
+    roll = Z) (TeleportEffect.java:133-138, Rotation3f.java:103), as vanilla's Deepworks fall teleports author it; the
+    engine's Teleport moves any entity with a transform, so the creature branch is the same effect."""
     lo, hi = region(params["Region"])
-    ret = cell_of(params["Return"])
     yaw = float(params.get("Yaw", 0.0))
-    pos = vec(ret[0] - lo[0] + 0.5, ret[1] - lo[1], ret[2] - lo[2] + 0.5)
-    tp = effect("Teleport", "ENTER", Position=pos, World="", ResetVelocity=True, RelativeToEntity=False,
-                RelativeToVolume=True, UseRotation=True, Rotation=vec(yaw, 0.0, 0.0))
-    return Logic([volume_entity(ctx["name"] + "Rescue", lo, box_size(lo, hi), [tp])])
+    effects = []
+    if params.get("Damage"):
+        effects.append(effect("DamageEntity", "ENTER", Mode="PercentMax", Amount=float(params["Damage"])))
+    effects.append(teleport_to("ENTER", lo, cell_of(params["Return"]), yaw))
+    if params.get("HintKey"):
+        effects.append(message("ENTER", params["HintKey"]))
+    out = Logic([volume_entity(ctx["name"] + "Rescue", lo, box_size(lo, hi), effects)])
+    if bool(params.get("CreatureReturn")) != bool(params.get("CreatureMark")):
+        raise ValueError("FallRescue: give CreatureReturn and CreatureMark together, or neither")
+    if params.get("CreatureReturn"):
+        mark = params["CreatureMark"]
+        back = teleport_to("ENTER", lo, cell_of(params["CreatureReturn"]), float(params.get("CreatureYaw", yaw)),
+                           entry=1)
+        kill = effect("DamageEntity", "ENTER", 2, Mode="PercentMax", Amount=100.0)
+        conditions = [condition("ZigHasEffect", "ENTER", 1, Effect=mark),
+                      condition("ZigHasEffect", "ENTER", 2, Effect=mark, Wears=False)]
+        out.entities.append(volume_entity(ctx["name"] + "Rescue_Creature", lo, box_size(lo, hi), [back, kill],
+                                          conditions, targets=("Npc",)))
+    return out
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1224,9 +1260,233 @@ def arena_wake(params, ctx):
     return out
 
 
+def arena_tag_of(params):
+    """The fight's ArenaTag a template's volumes carry and hear, plain: an encounter script's signal is never scoped."""
+    tag = params["Tag"]
+    if tag.endswith(ROOM) or tag.endswith(RUN):
+        raise ValueError("an arena tag is the fight's own, plain: an encounter script's signal is never scoped")
+    return tag
+
+
+# What a fight's script tells every volume carrying its arena tag when the floor must stand whole again: the phase that
+# ends the shifting (Settle), the boss's fall (Defeated) and an arena reset (Reset).
+SETTLE_KEYS = ("Settle", "Defeated", "Reset")
+
+
+def centre_cell(lo, hi):
+    return ((lo[0] + hi[0]) // 2, lo[1], (lo[2] + hi[2]) // 2)
+
+
+def check_order(order, count, label, n):
+    order = [int(i) for i in order]
+    if len(set(order)) != len(order) or not all(0 <= i < count for i in order):
+        raise ValueError("%s: order %d must name each index at most once, each under %d" % (label, n, count))
+    return order
+
+
+def shifting_floor(params, ctx):
+    """A floor that shifts under a boss fight (the Heart of the Deep's): on each Shift the fight signals, the next
+    section in the run's order cracks (its stone turns to Crack), Warn seconds later drops away (only Crack turns to
+    air), and Down seconds after that rises again (only air turns back to its stone), so a fall still pending when the
+    floor settles finds nothing to drop. On every RuneEvery-th Shift from the first, the next rune pad in the run's rune
+    order glows (its pad blocks, not its plate, turn to GlowBlock) for Glow seconds; a creature wearing Ward that comes
+    onto a glowing pad has Breakdown run on it and the pad goes dark. Settle, Defeated and Reset (the fight's own
+    signals) put every section and pad back and start both orders over.
+
+    The orders are a ZigVariant group (Group): the run's seed picks one variant, so a day's seed shows everyone the
+    same floor. Each variant is a clock volume that walks Step 0, 1, ... on each Shift and tells one section (or one pad)
+    by its index; sections and pads carry their index under SectionKey and RuneKey (both @room).
+
+    params: Tag (the script's ArenaTag), Sections [{Min, Max, Slot}] (the sections that can fall, one layer each, the
+    template places each in its own palette Slot, so a risen section comes back as it fell), Orders [[section index,
+    ...], ...] (one per variant), Runes [{Min, Max, Plate {X, Y, Z}}] (rune pads, one layer; the template places the
+    Pad slot on every cell and the Plate slot on the plate), RuneOrders [[rune index, ...], ...] (one per variant, as
+    many as Orders), RuneEvery (default 3), Crack and GlowBlock (block ids), Pad and Plate (palette slots; defaults
+    those names), Ward (the effect a creature wears for a pad to break it down) and Breakdown (a root interaction id),
+    Warn (default 3), Down (default 24), Glow (default 15), RuneHeight (cells a pad's volume watches above it; default
+    4), Interval (seconds between a pad's looks; default 0.25), Group (default Floor), SectionKey (default
+    FloorSection@room), RuneKey (default FloorRune@room), Controller {X, Y, Z} (the clocks' cell; default the cell two
+    over the first section's corner), and the optional CrackSound, CrackVfx, FallSound, FallVfx, RiseSound, RiseVfx,
+    GlowSound, GlowVfx, BreakSound, BreakVfx (each a cue at the section's or pad's middle; a <cue>VfxScale sizes its
+    particles), and TimerVfx with TimerSeconds (default 8): a countdown particle shown that long before a pad goes
+    dark, such as the game's eight-second pie timer."""
+    tag = arena_tag_of(params)
+    sections = [(region(s), s.get("Slot", "Floor")) for s in params["Sections"]]
+    orders = params["Orders"]
+    check_variants(orders, "ShiftingFloor")
+    runes = [(region(r), cell_of(r["Plate"])) for r in params.get("Runes", [])]
+    rune_orders = params.get("RuneOrders", [])
+    if runes and len(rune_orders) != len(orders):
+        raise ValueError("ShiftingFloor: give one RuneOrder per Order, so every variant lights its runes")
+    if runes and not (params.get("Ward") and params.get("Breakdown")):
+        raise ValueError("ShiftingFloor: runes need a Ward (what the creature wears) and a Breakdown (what they run)")
+    every = int(params.get("RuneEvery", 3))
+    if every < 1:
+        raise ValueError("ShiftingFloor: RuneEvery is at least 1")
+    crack, glow_block = params["Crack"], params["GlowBlock"]
+    pad_slot, plate_slot = params.get("Pad", "Pad"), params.get("Plate", "Plate")
+    pad = ctx["slot"](pad_slot) if runes else None
+    warn = float(params.get("Warn", 3.0))
+    down = float(params.get("Down", 24.0))
+    glow = float(params.get("Glow", 15.0))
+    timer = float(params.get("TimerSeconds", 8.0))
+    height = int(params.get("RuneHeight", 4))
+    interval = float(params.get("Interval", 0.25))
+    group = params.get("Group", "Floor")
+    section_key = scoped(params.get("SectionKey", "FloorSection" + ROOM), "SectionKey")
+    rune_key = scoped(params.get("RuneKey", "FloorRune" + ROOM), "RuneKey")
+    sig = "SIGNAL_RECEIVED"
+    out = Logic()
+
+    def settle(lo, effects_for):
+        """Entries 2, 3, 4: each of SETTLE_KEYS runs effects_for(entry)."""
+        effects, conditions = [], []
+        for i, key in enumerate(SETTLE_KEYS):
+            effects += effects_for(2 + i)
+            conditions += event_any(sig, [key], 2 + i)
+        return effects, conditions
+
+    for i, ((lo, hi), slot) in enumerate(sections):
+        if lo[1] != hi[1]:
+            raise ValueError("ShiftingFloor: section %d must be one layer" % i)
+        stone = ctx["slot"](slot)
+        mid = centre_cell(lo, hi)
+        for c in box_cells(lo, hi):
+            out.blocks[c] = slot
+        rise = warn + down
+        effects = [swap_cells(sig, lo, lo, hi, [stone], crack, entry=1),
+                   set_own_tag(sig, "State", "Cracked", entry=1)]
+        effects += cue(sig, params, "Crack", lo, mid, entry=1)
+        effects += [swap_cells(sig, lo, lo, hi, [crack], EMPTY, entry=1, delay=warn),
+                    set_own_tag(sig, "State", "Fallen", entry=1, delay=warn)]
+        effects += cue(sig, params, "Fall", lo, mid, entry=1, delay=warn)
+        effects += [swap_cells(sig, lo, lo, hi, [EMPTY], stone, entry=1, delay=rise),
+                    set_own_tag(sig, "State", "Whole", entry=1, delay=rise)]
+        effects += cue(sig, params, "Rise", lo, mid, entry=1, delay=rise)
+        conditions = [event_tag_is(sig, "Fall", entry=1), tag_is(sig, "State", "Whole", entry=1)]
+        # A crack's delayed writes can land after a settle: a second Whole past the last of them wins over them.
+        more, more_conditions = settle(lo, lambda entry: [
+            swap_cells(sig, lo, lo, hi, [crack, EMPTY], stone, entry=entry),
+            set_own_tag(sig, "State", "Whole", entry=entry),
+            set_own_tag(sig, "State", "Whole", entry=entry, delay=rise + 0.25)])
+        out.entities.append(volume_entity("%sSection_%d" % (ctx["name"], i), lo, box_size(lo, hi), effects + more,
+                                          conditions + more_conditions,
+                                          {tag: "Section", section_key: str(i), "State": "Whole"}))
+
+    for r, ((lo, hi), plate) in enumerate(runes):
+        if lo[1] != hi[1]:
+            raise ValueError("ShiftingFloor: rune pad %d must be one layer" % r)
+        if plate not in box_cells(lo, hi):
+            raise ValueError("ShiftingFloor: rune pad %d's Plate lies outside its pad" % r)
+        for c in box_cells(lo, hi):
+            out.blocks[c] = plate_slot if c == plate else pad_slot
+        mid = centre_cell(lo, hi)
+        top = (hi[0], lo[1] + height, hi[2])
+        effects = [swap_cells(sig, lo, lo, hi, [pad], glow_block, entry=1),
+                   set_own_tag(sig, "Glow", "Yes", entry=1)]
+        effects += cue(sig, params, "Glow", lo, mid, entry=1)
+        effects += cue(sig, params, "Timer", lo, mid, entry=1, delay=max(0.0, glow - timer))
+        effects += [swap_cells(sig, lo, lo, hi, [glow_block], pad, entry=1, delay=glow),
+                    set_own_tag(sig, "Glow", "No", entry=1, delay=glow)]
+        brk = 5
+        effects += [effect("RunRootInteraction", "TICK", brk, interval=interval, RootInteraction=params["Breakdown"],
+                           InteractionType="Secondary", EquipSlot=0),
+                    swap_cells("TICK", lo, lo, hi, [glow_block], pad, entry=brk),
+                    set_own_tag("TICK", "Glow", "No", entry=brk)]
+        effects += cue("TICK", params, "Break", lo, mid, entry=brk)
+        for e in effects:
+            if e["Event"] == "TICK":
+                e["Interval"] = interval
+        conditions = [event_tag_is(sig, "Glow", entry=1), tag_is(sig, "Glow", "No", entry=1),
+                      condition("ZigHasEffect", "TICK", brk, Effect=params["Ward"]),
+                      tag_is("TICK", "Glow", "Yes", entry=brk)]
+        more, more_conditions = settle(lo, lambda entry: [
+            swap_cells(sig, lo, lo, hi, [glow_block], pad, entry=entry),
+            set_own_tag(sig, "Glow", "No", entry=entry),
+            set_own_tag(sig, "Glow", "No", entry=entry, delay=glow + 0.25)])
+        out.entities.append(volume_entity("%sRune_%d" % (ctx["name"], r), lo, box_size(lo, top), effects + more,
+                                          conditions + more_conditions,
+                                          {tag: "Rune", rune_key: str(r), "Glow": "No"}, targets=("Npc",)))
+
+    first = sections[0][0][0] if sections else runes[0][0][0]
+    ctl = controller_cell(params, (first[0], first[1] + 2, first[2]))
+
+    def clock(label, n, steps):
+        """A variant's clock: on Shift at Step k it runs steps[k] (a list of effects for that entry) and moves on to
+        k + 1, wrapping to 0; a settle starts it over."""
+        effects, conditions = [], []
+        for k, run in enumerate(steps):
+            entry = 10 + k
+            conditions += [event_tag_is(sig, "Shift", entry=entry), tag_is(sig, "Step", str(k), entry=entry)]
+            effects += [dict(e, Entry=entry) for e in run]
+            # Entries run in order on one signal: the step moves on a moment later, so no later entry reads it.
+            effects.append(set_own_tag(sig, "Step", str((k + 1) % len(steps)), entry=entry, delay=SETTLE))
+        more, more_conditions = settle(ctl, lambda entry: [
+            set_own_tag(sig, "Step", "0", entry=entry),
+            set_own_tag(sig, "Step", "0", entry=entry, delay=SETTLE + 0.25)])
+        tags = {tag: "Clock", "Step": "0"}
+        tags.update(variant_tag(group, n))
+        return cell_volume("%s%s_Clock_%d" % (ctx["name"], label, n), ctl, effects + more,
+                           conditions + more_conditions, tags)
+
+    for n, order in enumerate(orders, start=1):
+        order = check_order(order, len(sections), "ShiftingFloor Orders", n)
+        out.entities.append(clock("Floor", n, [[send_signal(sig, section_key, ["Fall"], match_value=str(i))]
+                                               for i in order]))
+        if runes:
+            rune_order = check_order(rune_orders[n - 1], len(runes), "ShiftingFloor RuneOrders", n)
+            steps = []
+            for j in range(every * len(rune_order)):
+                steps.append([send_signal(sig, rune_key, ["Glow"], match_value=str(rune_order[j // every]))]
+                             if j % every == 0 else [])
+            out.entities.append(clock("Runes", n, steps))
+    return out
+
+
+def arena_quadrants(params, ctx):
+    """A boss arena's turning hazard (the Heart of the Deep's last phase): the fight signals Fire with a value, and the
+    quarter whose number it names warns for Warn seconds (a haze and a rumble), then bursts for Burst seconds on whoever
+    of its Targets stands in it, at most once each (HarmInterval longer than Burst), then rests. The fight paces the
+    turn (one Fire per quarter, a few seconds apart); the quarters only answer, so a fight that stops signalling stops
+    them. A quarter already warning or bursting ignores a second Fire.
+
+    params: Tag (the script's ArenaTag), Quarters [{Min, Max}] (quarter i answers Fire with the value i + 1), Key (the
+    signal key; default Fire), Warn (default 3), Burst (default 0.6), HarmInterval (default 1), Damage (a percent of
+    maximum health; default 30), DamageMode (default PercentMax), Effect and EffectSeconds (optional), Push {X, Y, Z}
+    (default a knock-up, Y 10), Targets (default ["Player"]), WarnSound, WarnVfx, WarnVfxScale, BurstSound, BurstVfx,
+    BurstVfxScale (cues at the quarter's middle)."""
+    tag = arena_tag_of(params)
+    key = params.get("Key", FIRE)
+    if key.endswith(ROOM) or key.endswith(RUN):
+        raise ValueError("ArenaQuadrants: the Key is the fight's own signal key, plain")
+    warn = float(params.get("Warn", 3.0))
+    burst = float(params.get("Burst", 0.6))
+    every = float(params.get("HarmInterval", 1.0))
+    if every <= burst:
+        raise ValueError("ArenaQuadrants: HarmInterval must be longer than Burst, so a burst hurts each player once")
+    defaults = {"Damage": 30.0, "DamageMode": "PercentMax", "Push": {"X": 0, "Y": 10, "Z": 0}, "HarmInterval": every}
+    harm_effects = harm(params, defaults)
+    for e in harm_effects:
+        e["Interval"] = every
+    out = Logic()
+    for i, q in enumerate(params["Quarters"]):
+        lo, hi = region(q)
+        mid = centre_cell(lo, hi)
+        effects = pulse_sequence("SIGNAL_RECEIVED", params, lo, mid, warn, burst) + [dict(e) for e in harm_effects]
+        conditions = [event_tag_is("SIGNAL_RECEIVED", key, str(i + 1), entry=1),
+                      tag_is("SIGNAL_RECEIVED", "Busy", "Yes", entry=1, inverted=True),
+                      tag_is("TICK", "Hot", "Yes")]
+        out.entities.append(volume_entity("%sQuarter_%d" % (ctx["name"], i + 1), lo, box_size(lo, hi), effects,
+                                          conditions, {tag: "Quarter", "Busy": "No", "Hot": "No"},
+                                          targets=params.get("Targets", ["Player"])))
+    return out
+
+
 TEMPLATES = {
     "ArenaDoors": arena_doors,
+    "ArenaQuadrants": arena_quadrants,
     "ArenaWake": arena_wake,
+    "ShiftingFloor": shifting_floor,
     "CrashPillars": crash_pillars,
     "RoomHint": room_hint,
     "SealedCombat": sealed_combat,

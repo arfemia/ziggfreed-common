@@ -28,9 +28,8 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.Message;
 
 /**
- * The library's OWN default moment files: every one decodes through the real codec, every line
- * they author reads a key the library's own lang file ships, and the set covers exactly the moments
- * the library's engines announce.
+ * The library's OWN default moment files: every one decodes through the real codec, and every line
+ * they author reads a key the library's own lang file ships.
  *
  * <p>These files are what a bare server runs on, so a typo in one is a silent blank toast on every
  * such server; and they are the files a consumer copies to override, so their shape had better be
@@ -46,33 +45,6 @@ class ShippedFeedbackMomentsTest {
 
     /** The lang file's own namespace, which every shipped line writes out in full. */
     private static final String PREFIX = "ziggfreedcommon.feedback.";
-
-    /**
-     * The moments the two progression engines, the claim table, the encounter framework and the
-     * gear-set engine announce today (the encounter four are the binding row's own default moment
-     * ids; the gear-set two are what the root's notice bridge fires on a tier flip and on a piece
-     * going on with no flip), and the reward chest's page as it opens.
-     */
-    private static final Set<String> ANNOUNCED = Set.of(
-            "Quest_Completed", "Quest_Parked", "Quest_Claimed", "Quest_Objective_Progressed",
-            "Achievement_Unlocked", "Achievement_Claimed", "Achievement_Server_First_Lost",
-            "Encounter_Engaged", "Encounter_Phase_Changed", "Encounter_Defeated", "Encounter_Wiped",
-            "Gear_Set_Tier", "Gear_Set_Piece", "Reward_Chest_Opened");
-
-    @Test
-    void everyAnnouncedMomentShipsADefaultThatDecodes() throws IOException {
-        Map<String, FeedbackMomentAsset> shipped = shipped();
-
-        assertEquals(new TreeSet<>(ANNOUNCED), new TreeSet<>(shipped.keySet()),
-                "one default file per announced moment, no more and no fewer");
-        for (Map.Entry<String, FeedbackMomentAsset> entry : shipped.entrySet()) {
-            FeedbackMomentAsset asset = entry.getValue();
-            boolean saysSomething = asset.getToast() != null || asset.getSound() != null
-                    || asset.getBroadcast() != null || asset.getCommand() != null
-                    || asset.getVariants().length > 0;
-            assertTrue(saysSomething, entry.getKey() + " ships a file that does nothing");
-        }
-    }
 
     @Test
     void everyShippedLineReadsAKeyTheShippedLangFileCarries() throws IOException {

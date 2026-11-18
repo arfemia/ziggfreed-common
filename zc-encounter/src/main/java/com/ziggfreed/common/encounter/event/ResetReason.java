@@ -15,8 +15,14 @@ public enum ResetReason {
     /**
      * The script's {@code zc:defeated} beat came while the bound subject still lived (it ran past the
      * script's reach) or after it left the world without a death this library saw: a leash, not a
-     * kill, so the run was settled as a wipe, paid nothing, and reset. Last on purpose: a reason is
-     * only ever appended, so every earlier one keeps its place.
+     * kill, so the run was settled as a wipe, paid nothing, and reset. Appended: a reason is only ever
+     * appended, so every earlier one keeps its place.
      */
-    LEASHED
+    LEASHED,
+    /**
+     * The script's {@code zc:escaped} beat said the subject got away before the run reset: the run paid
+     * nothing and the binding row's rest was stamped, so the boss does not rise again before it. Last on
+     * purpose: a reason is only ever appended, so every earlier one keeps its place.
+     */
+    ESCAPED
 }
