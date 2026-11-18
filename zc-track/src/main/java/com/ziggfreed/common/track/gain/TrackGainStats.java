@@ -22,8 +22,9 @@ import com.ziggfreed.common.util.SafeLog;
  * one category ({@link #categoryStatFor}) and {@code TrackGain_<Track>} for one track ({@link #statFor}), spelled as
  * the category and the track file are named. A category's line has its own prefix so a track named like its category
  * (a Crafting track in the Crafting category) never shares a stat with every other track there. The library ships
- * {@value #GLOBAL_STAT} and the ceiling {@value #CEILING_STAT} (zc-entity's {@code Server/Entity/Stats/}); a pack that
- * wants gear to favour a category or a track ships that stat in the same shape, and one nobody ships counts nothing.
+ * {@value #GLOBAL_STAT} (zc-entity's {@code Server/Entity/Stats/}), whose file names the cap on the summed stats in
+ * its {@code ZigCeiling} tag (zc-entity's {@code CeilingTags}); a pack that wants gear to favour a category or a track
+ * ships that stat in the same shape, and one nobody ships counts nothing.
  * A reputation's standing reads its own two of this kind ({@code CategoryGain_Reputation} and {@code TrackGain_<Id>})
  * at zc-reputation's writer, never through this factor.
  *
@@ -44,10 +45,10 @@ public final class TrackGainStats {
     /** The per-category stat id prefix: {@code CategoryGain_<Category>}. */
     public static final String CATEGORY_PREFIX = "CategoryGain_";
 
-    /** The ceiling stat: the most the summed gain stats lift a gain, whole percent points. */
-    public static final String CEILING_STAT = "TrackGainMax";
-
-    /** The ceiling a player gets when the ceiling stat cannot be read: the shipped {@code TrackGainMax.json}'s Max. */
+    /**
+     * The cap on the summed gain stats when {@value #GLOBAL_STAT}'s file names none, whole percent points: the number
+     * the library ships in its tag.
+     */
     public static final double DEFAULT_CEILING = 1000.0;
 
     /** The lowest total that counts: at -100 a gain earns nothing, never a loss. */

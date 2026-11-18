@@ -81,7 +81,8 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
                 .appendInherited(new KeyedCodec<>("Seconds", FactorFormula.codec(EditorDataSets.FACTORS), false),
                         (o, v) -> o.seconds = v, o -> o.seconds, (o, p) -> o.seconds = p.seconds)
                 .documentation("Seconds before it can run again, a formula (a talent's rank shortens it), cut by "
-                        + "the holder's ProcCooldownCut stat held at ProcCooldownCutMax. 0 or less: no wait.").add()
+                        + "the holder's ProcCooldownCut stat held at the cap that stat's file names in its ZigCeiling "
+                        + "tag. 0 or less: no wait.").add()
                 .appendInherited(new KeyedCodec<>("PerTarget", Codec.BOOLEAN, false),
                         (o, v) -> o.perTarget = v, o -> o.perTarget, (o, p) -> o.perTarget = p.perTarget)
                 .metadata(EditorSchema.defaultValue(false))

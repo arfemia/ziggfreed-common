@@ -10,19 +10,22 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.CeilingTags;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.track.GainCall;
 
 /**
  * The {@value GainFactors#BONUS} factor (R734): the player's gain stats ({@link TrackGainStats}) for the track,
- * summed, held at their ceiling and paid as {@code 1 + percent / 100}. It sits in the track's {@code Gain.Additive}
+ * summed, held at their cap and paid as {@code 1 + percent / 100}. It sits in the track's {@code Gain.Additive}
  * group unless the track says otherwise, so it adds beside the boosts ({@code bonus + (boost - 1)}) rather than
  * multiplying them.
  *
  * <p>The stats it reads are resolved when the plan is built (the plan is built again on every epoch move, a stat
  * store load among them); their totals are read at each gain, since gear, an effect or a grant can move them at any
- * time with no epoch of their own. A gain costs one stat-map lookup and a read per resolved stat. With no player
- * entity (another kind of subject) it compiles to nothing.
+ * time with no epoch of their own. The cap is {@value TrackGainStats#GLOBAL_STAT}'s {@code ZigCeiling} tag, read at
+ * each gain that has points through {@link CeilingTags}, which keeps it until that stat's file loads again. A gain
+ * costs one stat-map lookup and a read per resolved stat. With no player entity (another kind of subject) it compiles
+ * to nothing.
  */
 final class BonusGainFactor implements GainFactor {
 
@@ -54,12 +57,11 @@ final class BonusGainFactor implements GainFactor {
         for (int i = 0; i < indices.length; i++) {
             indices[i] = resolved.get(i);
         }
-        int ceiling = StatIndexCache.resolve(TrackGainStats.CEILING_STAT);
-        return (call, amount) -> amount * multiplierFor(call, indices, ceiling);
+        return (call, amount) -> amount * multiplierFor(call, indices);
     }
 
     /** The multiplier the player's stats give right now: 1 when nothing can be read. */
-    private static double multiplierFor(@Nonnull GainCall call, @Nonnull int[] indices, int ceiling) {
+    private static double multiplierFor(@Nonnull GainCall call, @Nonnull int[] indices) {
         EntityStatMap stats = statsOf(call.ref());
         if (stats == null) {
             return 1.0;
@@ -71,8 +73,7 @@ final class BonusGainFactor implements GainFactor {
         if (points == 0.0) {
             return 1.0;
         }
-        double top = ceiling == StatIndexCache.UNRESOLVED ? TrackGainStats.DEFAULT_CEILING
-                : maxOf(stats, ceiling, TrackGainStats.DEFAULT_CEILING);
+        double top = CeilingTags.ceilingOf(TrackGainStats.GLOBAL_STAT, TrackGainStats.DEFAULT_CEILING);
         return TrackGainStats.multiplier(points, top);
     }
 

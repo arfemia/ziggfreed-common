@@ -1,8 +1,9 @@
 {
-  "$Comment": "Percent bonus to the carrier's movement speed, in whole percent points (20 is +20%). Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. ziggfreed-common carries the total to the engine as one hidden effect whose HorizontalSpeedMultiplier is 1 plus this percent, held between -90 and MoveSpeedMax, so it multiplies with every other speed effect the carrier has (a slow, a haste). Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "$Comment": "Percent bonus to the carrier's movement speed, in whole percent points (20 is +20%). Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. ziggfreed-common carries the total to the engine as one hidden effect whose HorizontalSpeedMultiplier is 1 plus this percent, held between -90 and the cap this file's ZigCeiling tag names (100, double speed at most; nothing raises it, and a server changes it by shipping this file with another value), so it multiplies with every other speed effect the carrier has (a slow, a haste). Base 0; Min is a generous negative so a subtractive modifier never clamps.",
   "InitialValue": 0.0,
   "Min": -1000.0,
   "Max": 0.0,
   "Shared": false,
-  "HideFromTooltip": false
+  "HideFromTooltip": false,
+  "Tags": { "ZigCeiling": [ "100" ] }
 }

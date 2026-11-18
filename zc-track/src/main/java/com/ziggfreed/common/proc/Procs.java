@@ -36,6 +36,7 @@ import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.progress.gate.GateQuery;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
+import com.ziggfreed.common.stats.CeilingTags;
 import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.BoundGrants;
@@ -61,7 +62,7 @@ import com.ziggfreed.common.util.SafeLog;
  * vocabulary (a talent's rank through {@code ziggfreedcommon:track_pick}, a stat through {@code hytale:stat}), and the
  * library's bounded families raise them for every proc at once, so gear and buffs reach them too (R757, R758):
  * {@value #CHANCE_STAT} (percent points on a rolled chance), {@value #STRENGTH_STAT} (percent on the strength),
- * {@value #COOLDOWN_CUT_STAT} (percent off a wait, held at {@value #COOLDOWN_CUT_MAX_STAT}) and
+ * {@value #COOLDOWN_CUT_STAT} (percent off a wait, held at the cap its file's {@code ZigCeiling} tag names) and
  * {@value #COUNTER_SIZE_STAT} (percent on a counter's size). Each reads off its stat's maximum.
  *
  * <p><b>A hit the holder dealt</b> (Hit, Crit, SprintHit, Finisher; {@code ProcMoment.dealt}). A {@code Holder}
@@ -90,16 +91,13 @@ public final class Procs {
     /** Whole percent points added to every proc's strength. */
     public static final String STRENGTH_STAT = "ProcStrength";
 
-    /** Whole percent points cut from every proc's wait. */
+    /** Whole percent points cut from every proc's wait; its file names the cap it is held to. */
     public static final String COOLDOWN_CUT_STAT = "ProcCooldownCut";
-
-    /** The ceiling {@value #COOLDOWN_CUT_STAT} is held to. */
-    public static final String COOLDOWN_CUT_MAX_STAT = "ProcCooldownCutMax";
 
     /** Whole percent points added to every counter's size. */
     public static final String COUNTER_SIZE_STAT = "CounterSize";
 
-    /** The cooldown-cut ceiling when its stat is not loaded; mirrors the shipped {@code ProcCooldownCutMax} asset. */
+    /** The cooldown-cut cap when {@value #COOLDOWN_CUT_STAT}'s file names none: the library's shipped number. */
     static final double FALLBACK_COOLDOWN_CUT_MAX = 50.0;
 
     /** How often a holder's pass reads its counters, held effects and crouch again: four times a second. */
@@ -432,7 +430,8 @@ public final class Procs {
         if (cooldown != null && cooldown.seconds() != null) {
             double seconds = evaluate(cooldown.seconds(), context);
             ProcCooldowns.stamp(holderId, def.key(), perTarget ? target : null, nanos, seconds,
-                    statPoints(accessor, holder, COOLDOWN_CUT_STAT, dealt), cooldownCeiling(accessor, holder));
+                    statPoints(accessor, holder, COOLDOWN_CUT_STAT, dealt),
+                    CeilingTags.ceilingOf(COOLDOWN_CUT_STAT, FALLBACK_COOLDOWN_CUT_MAX));
         }
     }
 
@@ -786,13 +785,6 @@ public final class Procs {
             @Nonnull String statId, @Nullable Damage dealt) {
         double points = statPoints(accessor, ref, statId);
         return dealt == null ? points : points + BoundGrants.hitPoints(accessor, ref, statId, dealt);
-    }
-
-    /** The holder's cooldown-cut ceiling: its {@value #COOLDOWN_CUT_MAX_STAT}, else the shipped default. */
-    private static double cooldownCeiling(@Nonnull ComponentAccessor<EntityStore> accessor,
-            @Nonnull Ref<EntityStore> holder) {
-        return StatIndexCache.resolve(COOLDOWN_CUT_MAX_STAT) == StatIndexCache.UNRESOLVED
-                ? FALLBACK_COOLDOWN_CUT_MAX : statPoints(accessor, holder, COOLDOWN_CUT_MAX_STAT);
     }
 
     /** Name a failure once at WARN, then at FINE. */

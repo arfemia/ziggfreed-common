@@ -25,6 +25,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.CeilingTags;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.BlockRuleSystems;
 import com.ziggfreed.common.world.SectionBlockCursor;
@@ -35,9 +36,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  * their {@code GatherSpeed}, each {@code GatherSpeed_<Family>} whose block family holds the block, {@code
  * GatherSpeed_Placed} on a block a player placed (the placed-block ledger's placed-by answer, whatever its guard
  * says), {@code GatherSpeed_TallTree} on a log of a tall tree (the gather rules' {@code TallTree.Logs}), the {@code
- * GatherRhythm} chain's steps and each stat a mod counts for the block ({@link GatherStatSources}), held at their
- * {@code GatherSpeedMax} (and never below {@value #MIN_PERCENT}). The engine's damage is its tool spec's power, so a
- * hit the tool cannot make (a tier it lacks, R625) is 0 and stays 0: speed never breaks a block early. A gather shape
+ * GatherRhythm} chain's steps and each stat a mod counts for the block ({@link GatherStatSources}), held at the cap
+ * {@code GatherSpeed}'s file names in its {@code ZigCeiling} tag ({@link CeilingTags}; never below
+ * {@value #MIN_PERCENT}). The engine's damage is its tool spec's power, so a hit the tool cannot make (a tier it lacks, R625) is 0 and stays 0: speed never breaks a block early. A gather shape
  * that breaks its first block at once ({@link GatherShapes#instantFor}) raises the hit to the block's whole health.
  *
  * <p>The client predicts no block damage (the server sends the block's health back), so the faster break needs
@@ -46,11 +47,8 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  */
 public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, DamageBlockEvent> {
 
-    /** The base speed stat every block reads, and the one a holder condition's stat pairs with. */
+    /** The base speed stat every block reads, which a holder condition's stat pairs with; its file names the cap. */
     public static final String SPEED_STAT = "GatherSpeed";
-
-    /** The ceiling stat. */
-    public static final String CEILING_STAT = "GatherSpeedMax";
 
     /** A family's speed stat is this prefix and the family's id. */
     public static final String FAMILY_PREFIX = "GatherSpeed_";
@@ -69,7 +67,7 @@ public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, Dama
 
     private static final String LOG_FAMILY_KEY = LOG_FAMILY.toLowerCase(Locale.ROOT);
 
-    /** The ceiling a player reads when the ceiling stat cannot be read. */
+    /** The cap when {@link #SPEED_STAT}'s file names none: the number the library ships in its tag. */
     public static final double FALLBACK_CEILING = 200.0;
 
     /** The slowest a hit can become: a tenth of its damage. */
@@ -122,7 +120,7 @@ public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, Dama
     }
 
     /**
-     * The percent a hit by {@code ref} on {@code blockId} at {@code pos} is sped up by, held at the breaker's ceiling.
+     * The percent a hit by {@code ref} on {@code blockId} at {@code pos} is sped up by, held at the cap.
      * World-thread only. 0 when the breaker carries no stat map.
      */
     public static double percentFor(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
@@ -155,7 +153,7 @@ public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, Dama
         if (rhythm != 0.0) {
             sum += rhythm * GatherChains.steps(playerId(store, ref), System.currentTimeMillis());
         }
-        return held(sum, GatherReads.ceiling(stats, CEILING_STAT, FALLBACK_CEILING));
+        return held(sum, CeilingTags.ceilingOf(SPEED_STAT, FALLBACK_CEILING));
     }
 
     /** {@code sum} held between {@value #MIN_PERCENT} and {@code ceiling}. Pure. */

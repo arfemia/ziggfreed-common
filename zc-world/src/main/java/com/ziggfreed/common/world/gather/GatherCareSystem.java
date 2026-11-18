@@ -27,26 +27,25 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.CeilingTags;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.BlockRuleSystems;
 
 /**
- * The care step: with {@code GatherCare} in a hundred (held at the player's {@code GatherCareMax}), a tool hit on a
- * block costs no durability. The engine charges the wear in one write after the hit lands, with no hook between, so
- * the step notes the held tool's durability as each hit starts and, once the world has run the hits, gives back what
+ * The care step: with {@code GatherCare} in a hundred (held at the cap its file's {@code ZigCeiling} tag names,
+ * {@link CeilingTags}), a tool hit on a block costs no durability. The engine charges the wear in one write after the
+ * hit lands, with no hook between, so the step notes the held tool's durability as each hit starts and, once the
+ * world has run the hits, gives back what
  * each cared hit lost and nothing more: two hits in one tick each read their own wear, from one start to the next. The
  * tool must be the same, still in the active hotbar slot, still whole. A hit that broke the tool is not undone, which is
  * why the stat is held under 100. A creative-mode hit, which wears nothing, is left alone.
  */
 public final class GatherCareSystem extends EntityEventSystem<EntityStore, DamageBlockEvent> {
 
-    /** The care stat. */
+    /** The care stat; its file names the cap. */
     public static final String CARE_STAT = "GatherCare";
 
-    /** Its ceiling stat. */
-    public static final String CEILING_STAT = "GatherCareMax";
-
-    /** The ceiling a player reads when the ceiling stat cannot be read. */
+    /** The cap when {@link #CARE_STAT}'s file names none: the number the library ships in its tag. */
     public static final double FALLBACK_CEILING = 75.0;
 
     private static final Set<Dependency<EntityStore>> DEPENDENCIES =
@@ -85,7 +84,7 @@ public final class GatherCareSystem extends EntityEventSystem<EntityStore, Damag
             }
             var stats = GatherReads.stats(store, ref);
             double care = Math.min(GatherReads.max(stats, CARE_STAT),
-                    GatherReads.ceiling(stats, CEILING_STAT, FALLBACK_CEILING));
+                    CeilingTags.ceilingOf(CARE_STAT, FALLBACK_CEILING));
             PlayerRef player = store.getComponent(ref, PlayerRef.getComponentType());
             World world = store.getExternalData().getWorld();
             if (!(care > 0.0) || player == null || world == null) {
