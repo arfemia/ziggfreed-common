@@ -30,6 +30,7 @@ itemTooltip.stats.DamageResistMax = Resistance Cap: {value}%
 itemTooltip.stats.TrackGain = Bonus XP: {value}%
 itemTooltip.stats.MoveSpeed = Movement Speed: {value}%
 itemTooltip.stats.KnockbackResist = Knockback Resistance: {value}%
+itemTooltip.stats.ThrowSpeed = Throw Speed: {value}%
 itemTooltip.stats.Regen_Health = Health Regen: {value}% a second
 itemTooltip.stats.Regen_Mana = Mana Regen: {value}% a second
 itemTooltip.stats.HealingPower = Healing Power: {value}%

@@ -13,6 +13,7 @@ import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.ChangeVelocityType;
 import com.hypixel.hytale.protocol.InteractionState;
 import com.hypixel.hytale.protocol.InteractionType;
@@ -23,18 +24,23 @@ import com.hypixel.hytale.server.core.entity.InteractionManager;
 import com.hypixel.hytale.server.core.entity.damage.DamageDataComponent;
 import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.knockback.KnockbackComponent;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
+import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.cast.WorldTasks;
 import com.ziggfreed.common.effect.EffectAdds;
 import com.ziggfreed.common.effect.control.AggroControl;
 import com.ziggfreed.common.effect.control.StunControl;
@@ -42,11 +48,14 @@ import com.ziggfreed.common.effect.duration.EffectDurations;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.interaction.NativeChainFire;
+import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.stats.condition.EffectFamilies;
 import com.ziggfreed.common.stats.condition.Nearby;
 import com.ziggfreed.common.stats.condition.ZigFoeFamilyCondition;
+import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * What a proc does ({@link ProcAction}), each through the engine's own call: an effect put on with the holder as its
@@ -72,6 +81,9 @@ final class ProcActions {
      */
     static final InteractionType CHAIN_TYPE = InteractionType.EntityStatEffect;
 
+    /** The payout a {@code ReturnThrown} hands over, named in the line a lost pile leaves. */
+    private static final String RETURN_SOURCE = "proc:return_thrown";
+
     private ProcActions() {
     }
 
@@ -89,6 +101,9 @@ final class ProcActions {
             }
             if (action.reflect() != null) {
                 guarded("Reflect", () -> reflect(moment, action.reflect(), strength, context));
+            }
+            if (action.returnThrown() != null) {
+                guarded("ReturnThrown", () -> returnThrown(moment, action.returnThrown(), context));
             }
             List<Ref<EntityStore>> aims = aims(moment, action.area());
             runSelf(action, moment, strength, context, healSource);
@@ -295,7 +310,8 @@ final class ProcActions {
 
     /**
      * An ApplyEffect with {@code Control} landing on a foe: the wait per foe a stun keeps (zc-effects'
-     * {@code StunControl}). An {@code Immune} foe is passed over; a boss or an elite takes the effect with no owner, so
+     * {@code StunControl}). An {@code Immune} foe is passed over, and so is a boss or an elite when the group writes
+     * {@code SpareBossOrElite}; otherwise one takes the effect with no owner, so
      * the holder's length stats never reach one (bosses stay bosses); the length goes through the effect families'
      * Duration rules as it lands, then shrinks by the Immunity the foe already carries; and a landing adds the Ramp,
      * never scaled by the proc's strength.
@@ -310,6 +326,9 @@ final class ProcActions {
             return false;
         }
         boolean bossOrElite = ZigFoeFamilyCondition.inGroup(accessor, on, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP);
+        if (bossOrElite && control.spareBossOrElite()) {
+            return false;
+        }
         Ref<EntityStore> owner = bossOrElite ? null : moment.holder();
         float share = control.diminish() ? StunControl.immunityShare(accessor, on) : 0f;
         float lasting = StunControl.diminished(EffectDurations.lengthAsLanded(accessor, on, index, owner, seconds),
@@ -778,6 +797,48 @@ final class ProcActions {
     private static boolean holdsGuard(@Nonnull InteractionChain chain) {
         InteractionType type = chain.getType();
         return type == InteractionType.Secondary || type == InteractionType.Wielding;
+    }
+
+    /**
+     * Hand the holder back the item the missed projectile being answered was thrown from
+     * ({@link ProjectileMisses#answering}), once its wait is over (never sooner than
+     * {@link ProjectileMisses#MIN_RETURN_MS}, so the throw's own spend is in), on their world's thread: a holder who
+     * left or changed worlds meanwhile is dropped by the wait itself ({@code WorldTasks}), one who is dead gets nothing,
+     * and a throw that spent nothing gives nothing ({@link ProjectileMisses.Thrown#claim}).
+     */
+    private static void returnThrown(@Nonnull ProcMoment moment, @Nonnull ProcAction.ReturnThrown group,
+            @Nonnull FactorContext context) {
+        ProjectileMisses.Thrown thrown = ProjectileMisses.answering();
+        if (thrown == null) {
+            return;
+        }
+        double seconds = group.delay() == null ? 0.0 : Procs.evaluate(group.delay(), context);
+        long delayMs = Math.max(ProjectileMisses.MIN_RETURN_MS, Math.round(Math.max(0.0, seconds) * 1000.0));
+        Ref<EntityStore> holder = moment.holder();
+        WorldTasks.later(holder, delayMs, store -> handBack(store, holder, thrown));
+    }
+
+    /**
+     * {@code thrown}'s item to the live {@code holder} through the library's one hand-over
+     * ({@code LootRewardKinds.handToPlayer}: where their pickup settings send it, with the game's pickup notice, the
+     * rest to the overflow policy, by default their feet), the projectile still lying where it landed taken out of
+     * the world first; nothing when they are dead or the throw spent nothing.
+     */
+    private static void handBack(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> holder,
+            @Nonnull ProjectileMisses.Thrown thrown) {
+        if (store.getComponent(holder, DeathComponent.getComponentType()) != null) {
+            return;
+        }
+        Subject subject = Subject.of(store.getComponent(holder, PlayerRef.getComponentType()),
+                store.getComponent(holder, Player.getComponentType()));
+        if (subject == null) {
+            return;
+        }
+        ItemStack item = thrown.claim();
+        if (item != null) {
+            thrown.takeFromWorld(store);
+            LootRewardKinds.handToPlayer(subject, RETURN_SOURCE, SafeLog::warn).build().spill(List.of(item));
+        }
     }
 
     private static void runInteraction(@Nonnull ProcMoment moment, @Nonnull ProcAction.RunInteraction run) {

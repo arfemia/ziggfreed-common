@@ -313,8 +313,10 @@ public final class TrackPicks {
     /**
      * A pick, option or track folded: the next ask folds again, the gate server epoch moves (a branch's
      * points, {@code ziggfreedcommon:track_branch_spent}, read the picks' {@code Branch} and {@code Cost}, so no
-     * verdict kept over the old files outlives them), and every online player's grants are rebuilt on their own
-     * world thread, so a pick switched off takes its grants off and a retuned option pays its new amount.
+     * verdict kept over the old files outlives them), every online player's picks are held to their rank limits
+     * ({@link PickService#holdToLimits}: a pick that now allows fewer ranks gives the rest back, with their points) and
+     * their grants rebuilt, each on their own world thread, so a pick switched off takes its grants off and a retuned
+     * option pays its new amount.
      */
     public static void invalidate() {
         synchronized (TrackPicks.class) {
@@ -322,6 +324,7 @@ public final class TrackPicks {
             authored = null;
         }
         GateEpochs.bumpServer();
+        PickService.holdAllOnlineToLimits();
         TrackDerived.rebuildAllOnline();
     }
 

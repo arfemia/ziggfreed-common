@@ -63,6 +63,7 @@ public final class ProcAction {
     @Nullable protected GuardCost guardCost;
     @Nullable protected Reflect reflect;
     @Nullable protected Strike strike;
+    @Nullable protected ReturnThrown returnThrown;
 
     public static final BuilderCodec<ProcAction> CODEC = BuilderCodec.builder(ProcAction.class, ProcAction::new)
             .appendInherited(new KeyedCodec<>("Area", Area.CODEC, false),
@@ -124,6 +125,13 @@ public final class ProcAction {
             .documentation("Strike the target (with an Area, each foe reached) as the holder's own hit, through the "
                     + "engine's own damage: with ByAmount, the moment's own amount (a Kill's overkill, a hit's "
                     + "damage). It spares nothing a plain hit would not.").add()
+            .appendInherited(new KeyedCodec<>("ReturnThrown", ReturnThrown.CODEC, false),
+                    (o, v) -> o.returnThrown = v, o -> o.returnThrown, (o, p) -> o.returnThrown = p.returnThrown)
+            .documentation("For ProjectileMiss: Delay seconds after the projectile lands, take it out of the world "
+                    + "and hand the holder back one of the item it was thrown from (a thrown spear), as it left their "
+                    + "hand; into their inventory as a pickup goes, at their feet when it is full. Nothing for a throw "
+                    + "that spent no item (one that keeps it in hand), and nothing once they died, left or changed "
+                    + "worlds.").add()
             .build();
 
     public ProcAction() {
@@ -143,12 +151,13 @@ public final class ProcAction {
     @Nullable public GuardCost guardCost() { return guardCost; }
     @Nullable public Reflect reflect() { return reflect; }
     @Nullable public Strike strike() { return strike; }
+    @Nullable public ReturnThrown returnThrown() { return returnThrown; }
 
     /** Does it name no group at all (an Area alone does nothing)? */
     public boolean isEmpty() {
         return applyEffect == null && removeEffect == null && changeStat == null && counter == null
                 && push == null && taunt == null && !breakGuard() && runInteraction == null && heal == null
-                && soak == null && guardCost == null && reflect == null && strike == null;
+                && soak == null && guardCost == null && reflect == null && strike == null && returnThrown == null;
     }
 
     /**
@@ -603,6 +612,37 @@ public final class ProcAction {
         }
     }
 
+    /**
+     * The ReturnThrown group: for ProjectileMiss, the holder gets back one of the item the projectile was thrown from,
+     * the stack as it left their hand (its durability and metadata kept), {@code Delay} seconds after it landed, the
+     * projectile still lying there taken out of the world as it comes back: into their
+     * inventory the way a picked-up item goes, with the game's own pickup notice, and at their feet when it is full.
+     * Only what the throw spent comes back (a throw that keeps its item in hand gives nothing), never sooner than half
+     * a second after the miss. Nothing comes back to a holder who died, left or changed worlds before the wait ends,
+     * and nothing for a projectile that came from no held item.
+     */
+    public static final class ReturnThrown {
+
+        @Nullable protected FactorFormula delay;
+
+        public static final BuilderCodec<ReturnThrown> CODEC = BuilderCodec.builder(ReturnThrown.class,
+                        ReturnThrown::new)
+                .appendInherited(new KeyedCodec<>("Delay", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.delay = v, o -> o.delay, (o, p) -> o.delay = p.delay)
+                .documentation("The seconds from the landing before the item comes back, a formula, never under "
+                        + "half a second (the throw's own spend lands just after it). Half a second when unauthored.")
+                .add()
+                .build();
+
+        public ReturnThrown() {
+        }
+
+        @Nullable
+        public FactorFormula delay() {
+            return delay;
+        }
+    }
+
     /** The ApplyEffect group. */
     public static final class ApplyEffect {
 
@@ -646,8 +686,8 @@ public final class ProcAction {
                         + "more Immunity the target already carries (Diminish); each landing adds Ramp to that "
                         + "Immunity, so a foe held over and over turns Immune for a while; and a boss or an elite "
                         + "takes it with no owner, so nothing the holder's stats add to an effect's length reaches "
-                        + "one. It changes nothing on the holder (OnSelf) or a timeless effect. A plain effect when "
-                        + "unauthored.").add()
+                        + "one, or with SpareBossOrElite not at all. It changes nothing on the holder (OnSelf) or a "
+                        + "timeless effect. A plain effect when unauthored.").add()
                 .build();
 
         public ApplyEffect() {
@@ -702,6 +742,7 @@ public final class ProcAction {
 
         @Nullable protected Double ramp;
         @Nullable protected Boolean diminish;
+        @Nullable protected Boolean spareBossOrElite;
 
         public static final BuilderCodec<Control> CODEC = BuilderCodec.builder(Control.class, Control::new)
                 .appendInherited(new KeyedCodec<>("Ramp", Codec.DOUBLE, false),
@@ -715,9 +756,21 @@ public final class ProcAction {
                 .documentation("True: the effect lasts its time times 1 less the share of Immunity the target "
                         + "already carries, so it is shorter each time on a foe held again soon. True when "
                         + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>("SpareBossOrElite", Codec.BOOLEAN, false),
+                        (o, v) -> o.spareBossOrElite = v, o -> o.spareBossOrElite,
+                        (o, p) -> o.spareBossOrElite = p.spareBossOrElite)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: a boss or an elite (the Zig_Boss_Or_Elite NPC group) is passed over, so the "
+                        + "effect never holds one back while the rest of the action still lands on it. False when "
+                        + "unauthored: one takes the effect with no owner.").add()
                 .build();
 
         public Control() {
+        }
+
+        /** Is a boss or an elite passed over? False unless written true. */
+        public boolean spareBossOrElite() {
+            return Boolean.TRUE.equals(spareBossOrElite);
         }
 
         /** The Immunity a landing adds, never below 0. */
