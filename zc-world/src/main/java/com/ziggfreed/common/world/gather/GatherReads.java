@@ -14,15 +14,14 @@ import com.hypixel.hytale.server.core.entity.movement.MovementStatesComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
-import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
 
 /**
  * The reads every gather step shares: a stat's folded maximum (the substrate every percent stat of the family
- * keeps, base 0 plus each modifier gear, an effect or a talent grant puts on it), a ceiling stat's value with its
- * shipped asset's {@code Max} as the fallback, one chance draw, and the breaker's stance and game mode. World-thread
- * only, as every entity read is.
+ * keeps, base 0 plus each modifier gear, an effect or a talent grant puts on it), one chance draw, and the breaker's
+ * stance and game mode. A step's cap is its base stat's {@code ZigCeiling} tag, read through zc-entity's
+ * {@code CeilingTags}. World-thread only, as every entity read is.
  */
 final class GatherReads {
 
@@ -57,29 +56,6 @@ final class GatherReads {
         }
         double max = value.getMax();
         return Double.isFinite(max) ? max : 0.0;
-    }
-
-    /**
-     * A ceiling stat's value on {@code stats}: its folded maximum when the entity holds it, else the shipped asset's
-     * own {@code Max}, else {@code fallback}.
-     */
-    static double ceiling(@Nullable EntityStatMap stats, @Nonnull String statId, double fallback) {
-        int index = StatIndexCache.resolve(statId);
-        if (index == StatIndexCache.UNRESOLVED) {
-            return fallback;
-        }
-        if (stats != null) {
-            EntityStatValue value = stats.get(index);
-            if (value != null && Double.isFinite(value.getMax())) {
-                return value.getMax();
-            }
-        }
-        try {
-            EntityStatType asset = EntityStatType.getAssetMap().getAsset(index);
-            return asset == null ? fallback : asset.getMax();
-        } catch (Throwable t) {
-            return fallback;
-        }
     }
 
     /** One draw: true with {@code percent} in a hundred, never at or below 0, always at or above 100. */

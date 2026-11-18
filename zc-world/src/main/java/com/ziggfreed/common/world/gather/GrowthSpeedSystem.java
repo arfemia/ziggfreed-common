@@ -31,15 +31,16 @@ import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.stats.CeilingTags;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 
 /**
  * The growth step: a farming block a player placed (a crop, a sapling, a fishing trap; who placed it is the
  * placed-block ledger's one answer, {@link PlacedBlockLedger#placerAt}: the engine's own record on the block, the
- * ledger's elsewhere) grows {@code GrowthSpeed} percent faster, held at the placer's {@code GrowthSpeedMax}, while
- * that player is in the same world. Every {@value #INTERVAL_SEC} seconds the step credits that share of the game time
- * that passed to the block's own growth clock (it moves the block's last growth tick back by it) and asks the engine to
+ * ledger's elsewhere) grows {@code GrowthSpeed} percent faster, held at the cap its file's {@code ZigCeiling} tag
+ * names ({@link CeilingTags}), while that player is in the same world. Every {@value #INTERVAL_SEC} seconds the step
+ * credits that share of the game time that passed to the block's own growth clock (it moves the block's last growth tick back by it) and asks the engine to
  * tick the block now, so the engine's own farming tick grows it, through every stage rule and modifier it applies,
  * only sooner. A block already at its last stage is left alone, so nothing is banked while a crop waits to be picked.
  *
@@ -48,13 +49,13 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  */
 public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
 
-    /** The growth stat, read off the block's placer. */
+    /** The growth stat, read off the block's placer; its file names the cap. */
     public static final String GROWTH_STAT = "GrowthSpeed";
 
-    /** Its ceiling stat. */
-    public static final String CEILING_STAT = "GrowthSpeedMax";
-
-    /** The ceiling a placer reads when the ceiling stat cannot be read: three times as fast at most. */
+    /**
+     * The cap when {@link #GROWTH_STAT}'s file names none, the number the library ships in its tag: three times as fast
+     * at most.
+     */
     public static final double FALLBACK_CEILING = 200.0;
 
     /** How often growth is credited, in seconds of server time. */
@@ -190,8 +191,7 @@ public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
     }
 
     /**
-     * The placer's growth rate in percent, held at their {@code GrowthSpeedMax}, when they stand in this store's world;
-     * 0 otherwise.
+     * The placer's growth rate in percent, held at the cap, when they stand in this store's world; 0 otherwise.
      */
     private static double rateOf(@Nonnull Store<ChunkStore> store, @Nonnull UUID planter) {
         try {
@@ -205,8 +205,7 @@ public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
                 return 0.0;
             }
             EntityStatMap stats = GatherReads.stats(entities, ref);
-            return Math.min(GatherReads.ceiling(stats, CEILING_STAT, FALLBACK_CEILING),
-                    GatherReads.max(stats, GROWTH_STAT));
+            return Math.min(CeilingTags.ceilingOf(GROWTH_STAT, FALLBACK_CEILING), GatherReads.max(stats, GROWTH_STAT));
         } catch (Throwable t) {
             return 0.0;
         }

@@ -4,11 +4,11 @@ import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
 
 /**
  * The movement stats (R706) and their bucket arithmetic: {@value #MOVE_SPEED} and {@value #KNOCKBACK_RESIST}, each in
- * whole percent points, with their ceiling stats {@value #MOVE_SPEED_MAX} and {@value #KNOCKBACK_RESIST_MAX}. All four
- * ship from zc-entity ({@code Server/Entity/Stats/}); anything that raises a stat raises them (an item's
- * {@code StatModifiers}, an effect's {@code RawStatModifiers}, a pick's grant). {@link MovementReconciler} carries
- * them to the engine as the native {@code ApplicationEffects.HorizontalSpeedMultiplier} and
- * {@code KnockbackMultiplier}, which only an effect can hold.
+ * whole percent points, each held at the cap its own file names in its {@code ZigCeiling} tag (zc-entity's
+ * {@code CeilingTags}). Both ship from zc-entity ({@code Server/Entity/Stats/}); anything that raises a stat raises
+ * them (an item's {@code StatModifiers}, an effect's {@code RawStatModifiers}, a pick's grant), and nothing raises a
+ * cap. {@link MovementReconciler} carries them to the engine as the native
+ * {@code ApplicationEffects.HorizontalSpeedMultiplier} and {@code KnockbackMultiplier}, which only an effect can hold.
  *
  * <p>The client multiplies a player's speed by each active effect's {@code HorizontalSpeedMultiplier} (vanilla's own
  * player slows, the charged bow shot and the ground slam's lock, ride that leaf alone), and the engine multiplies the
@@ -18,17 +18,11 @@ import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
  */
 public final class MovementStats {
 
-    /** Percent bonus to movement speed, whole points. */
+    /** Percent bonus to movement speed, whole points; its file names the most it adds. */
     public static final String MOVE_SPEED = "MoveSpeed";
 
-    /** The most {@link #MOVE_SPEED} adds, whole points (its asset's Max is the default ceiling). */
-    public static final String MOVE_SPEED_MAX = "MoveSpeedMax";
-
-    /** Percent of knockback shrugged off, whole points. */
+    /** Percent of knockback shrugged off, whole points; its file names the most it takes off. */
     public static final String KNOCKBACK_RESIST = "KnockbackResist";
-
-    /** The most {@link #KNOCKBACK_RESIST} takes off, whole points (its asset's Max is the default ceiling). */
-    public static final String KNOCKBACK_RESIST_MAX = "KnockbackResistMax";
 
     /** The slowest the speed stat makes a player: a tenth of their speed, never a stop. */
     public static final int SPEED_FLOOR = -90;
@@ -39,10 +33,10 @@ public final class MovementStats {
      */
     public static final int SPEED_CEILING_LIMIT = 500;
 
-    /** Default speed ceiling, the shipped {@code MoveSpeedMax.json}'s Max, used when the stat cannot be read. */
+    /** The speed cap when {@link #MOVE_SPEED}'s file names none: the number the library ships in its tag. */
     public static final double DEFAULT_SPEED_CEILING = 100.0;
 
-    /** Default knockback ceiling, the shipped {@code KnockbackResistMax.json}'s Max, used when the stat cannot be read. */
+    /** The knockback cap when {@link #KNOCKBACK_RESIST}'s file names none: the number the library ships in its tag. */
     public static final double DEFAULT_KNOCKBACK_CEILING = 80.0;
 
     /** The full knockback resistance: no knockback at all. */

@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
 import com.ziggfreed.common.effect.sync.StatEffectChannel;
+import com.ziggfreed.common.stats.CeilingTags;
 import com.ziggfreed.common.stats.StatIndexCache;
 
 /**
@@ -33,7 +34,8 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *
  * <p>zc-effects' {@code StatEffectSync} makes the comparison through this family's {@link #CHANNEL} for every carrier
  * (a player every tick, a creature a few times a second), after the engine recomputes item and effect stat
- * modifiers: four stat reads and one look at the active effects, and a reconcile only on a difference.
+ * modifiers: two stat reads, their two caps ({@link CeilingTags}, kept until the stat file loads again) and one look at
+ * the active effects, and a reconcile only on a difference.
  */
 public final class MovementReconciler {
 
@@ -58,7 +60,7 @@ public final class MovementReconciler {
     private static final RuntimeEffectGrid GRID = new RuntimeEffectGrid(EFFECT_PREFIX, PACK_KEY,
             bucket -> body(bucket.channel(), bucket.value()));
 
-    /** This family on the one stat-to-effect pass: four stat reads, then a reconcile only on a difference. */
+    /** This family on the one stat-to-effect pass: two stats and their caps, a reconcile only on a difference. */
     @Nonnull
     public static final StatEffectChannel CHANNEL = new StatEffectChannel("[movement]",
             "a carrier's speed and knockback", GRID) {
@@ -67,9 +69,9 @@ public final class MovementReconciler {
         protected List<RuntimeEffectGrid.Bucket> wanted(@Nonnull ComponentAccessor<EntityStore> accessor,
                 @Nonnull Ref<EntityStore> ref, @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
             int speed = MovementStats.speedBucket(points(stats, MovementStats.MOVE_SPEED, 0.0),
-                    points(stats, MovementStats.MOVE_SPEED_MAX, MovementStats.DEFAULT_SPEED_CEILING));
+                    CeilingTags.ceilingOf(MovementStats.MOVE_SPEED, MovementStats.DEFAULT_SPEED_CEILING));
             int knockback = MovementStats.knockbackBucket(points(stats, MovementStats.KNOCKBACK_RESIST, 0.0),
-                    points(stats, MovementStats.KNOCKBACK_RESIST_MAX, MovementStats.DEFAULT_KNOCKBACK_CEILING));
+                    CeilingTags.ceilingOf(MovementStats.KNOCKBACK_RESIST, MovementStats.DEFAULT_KNOCKBACK_CEILING));
             return desired(speed, knockback);
         }
     };

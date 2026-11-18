@@ -27,6 +27,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.CeilingTags;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.BlockRuleSystems;
 import com.ziggfreed.common.world.SectionBlockCursor;
@@ -34,8 +35,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 
 /**
  * The thrift step: with {@code BuildThrift} in a hundred, plus each {@code BuildThrift_<Family>} whose block family
- * holds the block and {@code BuildThrift_Shaped} on a shaped placement ({@link RecentPlacements}), held at the
- * player's {@code BuildThriftMax}, a block a player places is not used up: the engine's own place event is told not
+ * holds the block and {@code BuildThrift_Shaped} on a shaped placement ({@link RecentPlacements}), held at the cap
+ * {@code BuildThrift}'s file names in its {@code ZigCeiling} tag ({@link CeilingTags}), a block a player places is
+ * not used up: the engine's own place event is told not
  * to take it ({@code PlaceBlockEvent.setConsumeItem}). Only a block the {@value #ELIGIBLE_FAMILY} family holds is
  * ever spared, the cheap building blocks, and never one that can pop off or fall ({@link #canLoseSupport}: the block's
  * own native support rule, sand, a torch, a lantern on a floor), though one the game keeps standing once a player
@@ -50,11 +52,8 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  */
 public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
 
-    /** The base thrift stat. */
+    /** The base thrift stat; its file names the cap. */
     public static final String THRIFT_STAT = "BuildThrift";
-
-    /** Its ceiling stat. */
-    public static final String CEILING_STAT = "BuildThriftMax";
 
     /** A family's thrift stat is this prefix and the family's id. */
     public static final String FAMILY_PREFIX = "BuildThrift_";
@@ -65,7 +64,7 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
     /** The family that holds every block thrift may spare. */
     public static final String ELIGIBLE_FAMILY = "Thrift";
 
-    /** The ceiling a player reads when the ceiling stat cannot be read. */
+    /** The cap when {@link #THRIFT_STAT}'s file names none: the number the library ships in its tag. */
     public static final double FALLBACK_CEILING = 75.0;
 
     private static final Set<Dependency<EntityStore>> DEPENDENCIES =
@@ -195,7 +194,7 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
         });
     }
 
-    /** The chance in a hundred that placing {@code blockId} spares it, held at the placer's ceiling. */
+    /** The chance in a hundred that placing {@code blockId} spares it, held at the cap. */
     public static double percentFor(@Nullable EntityStatMap stats, @Nonnull String blockId, boolean shaped) {
         if (stats == null) {
             return 0.0;
@@ -208,6 +207,6 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
         if (shaped) {
             sum += GatherReads.max(stats, SHAPED_STAT);
         }
-        return Math.max(0.0, Math.min(GatherReads.ceiling(stats, CEILING_STAT, FALLBACK_CEILING), sum));
+        return Math.max(0.0, Math.min(CeilingTags.ceilingOf(THRIFT_STAT, FALLBACK_CEILING), sum));
     }
 }
