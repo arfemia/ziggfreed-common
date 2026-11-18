@@ -22,6 +22,7 @@ import com.ziggfreed.common.entity.HeldItemUtil;
 import com.ziggfreed.common.entity.ItemReadings;
 import com.ziggfreed.common.inventory.ItemLineage;
 import com.ziggfreed.common.match.NamePattern;
+import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
 
 /**
@@ -193,12 +194,19 @@ public final class HytaleFactors {
      * the only one that is an authoring mistake rather than a normal evaluation shape, so it is
      * named in the log once per channel id. Public so a consumer's own reading composed over a
      * stat ({@code ctx.withParam(statId)}) reads it exactly as {@code hytale:stat} does.
+     *
+     * <p>A stat its owner mirrors from a record ({@link MirroredStats}) reads the owner's record instead, never the
+     * fold, so no modifier on it (gear, an effect, a grant) moves the answer.
      */
     @Nullable
     public static Double resolveStat(@Nonnull FactorContext ctx) {
         String statId = trimmed(ctx.param());
         if (statId == null || !ctx.hasLiveSubject()) {
             return null;
+        }
+        MirroredStats.Claim mirrored = MirroredStats.claimOf(statId);
+        if (mirrored != null) {
+            return MirroredStats.read(mirrored, ctx);
         }
         int index = StatIndexCache.resolveCurrent(statId);
         if (index == StatIndexCache.UNRESOLVED) {

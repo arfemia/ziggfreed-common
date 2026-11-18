@@ -24,6 +24,7 @@ import com.ziggfreed.common.entity.HeldItemUtil;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.progress.gate.GateRuntime;
 import com.ziggfreed.common.progress.gate.GateValidator;
+import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -43,7 +44,9 @@ import com.ziggfreed.common.validation.Finding;
  *       the member count, {@code Held} or {@code Utility} above one), {@link #JOINS_A_LAYER};</li>
  *   <li>WARN {@link #UNKNOWN_SET_MEMBER}, {@link #UNKNOWN_STAT_ID}, {@link #DUPLICATE_TIER},
  *       {@link #MULTIPLICATIVE_ON_BASE_ZERO} (the token a consumer's item audit already uses for the
- *       same arithmetic, so one filter covers both), {@link #UNKNOWN_SET_EFFECT},
+ *       same arithmetic, so one filter covers both), {@link #MIRRORED_STAT_ON_GEAR} (a tier line on a stat its
+ *       owner mirrors from a record, {@link MirroredStats}: a token a consumer's item audit shares too),
+ *       {@link #UNKNOWN_SET_EFFECT},
  *       {@link #TOO_FEW_MEMBERS}, {@link #UNKNOWN_JOIN_TARGET}, {@link #JOIN_EFFECT_CLASH},
  *       {@link #UNKNOWN_SET_BADGE}, {@link #BADGE_WITHOUT_ICON}, {@link #BADGE_NOT_INFINITE},
  *       {@link #BADGE_ID_CLASH}, {@link #JOIN_BADGE_CLASH}, {@link #LAYER_INHERITS_TARGET_TIERS}, and the
@@ -73,6 +76,8 @@ public final class GearSetValidator {
     public static final String UNKNOWN_STAT_ID = "UNKNOWN_STAT_ID";
     public static final String DUPLICATE_TIER = "DUPLICATE_TIER";
     public static final String MULTIPLICATIVE_ON_BASE_ZERO = "MULTIPLICATIVE_ON_BASE_ZERO";
+    /** A tier line on a stat its owner mirrors from a record ({@link MirroredStats}), which no gear raises. */
+    public static final String MIRRORED_STAT_ON_GEAR = "MIRRORED_STAT_ON_GEAR";
     public static final String UNKNOWN_SET_EFFECT = "UNKNOWN_SET_EFFECT";
     public static final String TOO_FEW_MEMBERS = "TOO_FEW_MEMBERS";
     public static final String UNNAMED_SET = "UNNAMED_SET";
@@ -473,6 +478,13 @@ public final class GearSetValidator {
         if (!statKnown.test(stat)) {
             out.add(Finding.warning(DOMAIN, UNKNOWN_STAT_ID, where + " authors StatModifiers." + stat
                     + ", which is no registered stat channel, so that line is skipped", id));
+            return;
+        }
+        MirroredStats.Claim mirrored = MirroredStats.claimOf(stat);
+        if (mirrored != null) {
+            out.add(Finding.warning(DOMAIN, MIRRORED_STAT_ON_GEAR, where + " authors StatModifiers." + stat
+                    + ", which does nothing: " + mirrored.why() + ", so every reading of " + stat
+                    + " ignores gear. Drop the line", id));
             return;
         }
         if (specs == null || !anyMultiplicative(specs)) {

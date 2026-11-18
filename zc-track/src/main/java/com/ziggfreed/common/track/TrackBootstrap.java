@@ -139,13 +139,15 @@ public final class TrackBootstrap {
     }
 
     /**
-     * The plugin-free half: the readings, the reward kind and its chip, the objective target names, and the track
+     * The plugin-free half: the readings, the mirror stats' claim (a track's mirror reads its climb, never the stat's
+     * fold, {@link TrackMirrors}), the reward kind and its chip, the objective target names, and the track
      * lookup the {@code ZigLevel} item tag asks (zc-entity's {@code ItemLevelTags}), so a tag naming a track this
      * server does not run asks nothing. Not guarded: a failed registration throws here, at setup, rather than as a
      * reading or a reward kind an owner's file names and nothing answers later.
      */
     public static void registerVocabulary() {
         TrackFactors.contribute();
+        TrackMirrors.claim();
         ItemLevelTags.trackLookup(TrackAliases::readable);
         TrackRewardKind.registerInto(RewardKinds.shared());
         RewardChips.contribute(TrackRewardKind.chips());
