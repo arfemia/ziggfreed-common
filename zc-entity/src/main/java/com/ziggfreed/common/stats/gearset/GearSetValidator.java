@@ -475,16 +475,18 @@ public final class GearSetValidator {
             return;
         }
         String stat = statId.trim();
-        if (!statKnown.test(stat)) {
-            out.add(Finding.warning(DOMAIN, UNKNOWN_STAT_ID, where + " authors StatModifiers." + stat
-                    + ", which is no registered stat channel, so that line is skipped", id));
-            return;
-        }
+        // The claim first: a claimed reading needs no stat file (a skill's level ships none), so a line on one is
+        // named for what it is, never as an unknown id.
         MirroredStats.Claim mirrored = MirroredStats.claimOf(stat);
         if (mirrored != null) {
             out.add(Finding.warning(DOMAIN, MIRRORED_STAT_ON_GEAR, where + " authors StatModifiers." + stat
                     + ", which does nothing: " + mirrored.why() + ", so every reading of " + stat
                     + " ignores gear. Drop the line", id));
+            return;
+        }
+        if (!statKnown.test(stat)) {
+            out.add(Finding.warning(DOMAIN, UNKNOWN_STAT_ID, where + " authors StatModifiers." + stat
+                    + ", which is no registered stat channel, so that line is skipped", id));
             return;
         }
         if (specs == null || !anyMultiplicative(specs)) {

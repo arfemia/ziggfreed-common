@@ -431,7 +431,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return respec;
     }
 
-    /** The native stat the level is mirrored onto, trimmed, or null for none. */
+    /** The stat id the level is read as (and mirrored onto where it loads), trimmed, or null for none. */
     @Nullable
     public String mirrorStat() {
         return mirror == null ? null : blankToNull(mirror.stat);
@@ -848,7 +848,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         }
     }
 
-    /** The Mirror group: the native stat the level is written onto. */
+    /** The Mirror group: the stat id the level is read as, and written onto where that stat loads. */
     public static final class Mirror {
 
         @Nullable protected String stat;
@@ -858,9 +858,10 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .appendInherited(new KeyedCodec<>("Stat", Codec.STRING, false),
                         (o, v) -> o.stat = v, o -> o.stat, (o, p) -> o.stat = p.stat)
                 .metadata(EditorSchema.assetRef(EntityStatType.class))
-                .documentation("The native stat (an EntityStatType id) whose maximum carries the level, written "
-                        + "whenever it changes and again at login. A stat this server does not have is reported "
-                        + "and nothing is written.").add()
+                .documentation("The stat id the level is read as: hytale:stat on it answers this track's level "
+                        + "wherever it is read. Where an EntityStatType of that id loads, its maximum also carries "
+                        + "the level, written whenever it changes and again at login; where none loads, nothing is "
+                        + "written and the reading still answers, so a track needs no stat file for it.").add()
                 .appendInherited(new KeyedCodec<>("Current", Codec.BOOLEAN, false),
                         (o, v) -> o.current = v, o -> o.current, (o, p) -> o.current = p.current)
                 .metadata(EditorSchema.defaultValue(false))

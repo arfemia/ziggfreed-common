@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.EffectFamilyConfig;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
@@ -72,7 +73,9 @@ public final class ProcValidator {
     /**
      * What the audit asks of the server: each answers whether an id is known here. {@code stat} asks of a stat read or
      * spent as one pool (a held effect's stat, a soak's {@code Onto}), {@code written} of a stat written (a
-     * {@code ChangeStat}, a counter's row), which a retired id writes on each of its successors.
+     * {@code ChangeStat}, a counter's row), which a retired id writes on each of its successors. A held effect's stat
+     * that a consumer claims as a reading ({@code MirroredStats}) passes whatever {@code stat} answers, since its
+     * reading needs no stat file.
      */
     public record Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
             @Nonnull Predicate<String> interaction, @Nonnull Predicate<String> family,
@@ -150,7 +153,9 @@ public final class ProcValidator {
                 out.add(Finding.error(DOMAIN, UNKNOWN_EFFECT, "held effect '" + id + "' names the effect '"
                         + file.effect() + "', which this server does not have", id));
             }
-            if (file.stat() != null && !known.stat().test(file.stat())) {
+            // A held effect reads its stat as a value (Procs.statPoints), which asks the claim first: a claimed
+            // reading (a skill's level) answers with no stat file, so it is no unknown stat here.
+            if (file.stat() != null && !known.stat().test(file.stat()) && MirroredStats.claimOf(file.stat()) == null) {
                 out.add(Finding.error(DOMAIN, UNKNOWN_STAT, "held effect '" + id + "' holds on the stat '"
                         + file.stat() + "', which this server does not have", id));
             }

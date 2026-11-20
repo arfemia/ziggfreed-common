@@ -112,7 +112,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Stat` | `string` | `null` | The native stat (an EntityStatType id) whose maximum carries the level, written whenever it changes and again at login. A stat this server does not have is reported and nothing is written. |
+| `Stat` | `string` | `null` | The stat id the level is read as: hytale:stat on it answers this track's level wherever it is read. Where an EntityStatType of that id loads, its maximum also carries the level, written whenever it changes and again at login; where none loads, nothing is written and the reading still answers, so a track needs no stat file for it. |
 | `Current` | `boolean` | `null` | True writes the current climb's level, which a prestige starts again; false, or unauthored, writes the best level ever reached, which a prestige never lowers. |
 
 <a id="field-trackasset-prestige"></a>

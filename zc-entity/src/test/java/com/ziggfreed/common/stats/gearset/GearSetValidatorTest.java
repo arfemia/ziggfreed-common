@@ -187,7 +187,9 @@ class GearSetValidatorTest {
         MirroredStats.claim("probe", "Level_Probe"::equalsIgnoreCase, ctx -> 1.0, "the probe's level comes only from"
                 + " its record");
         try {
-            List<Finding> findings = GearSetValidator.audit(List.of(set), ALL_ITEMS, ALL_STATS, ALL_EFFECTS, BASE_TEN);
+            // A claimed reading needs no stat file, so the claim is asked before the id is called unknown.
+            List<Finding> findings = GearSetValidator.audit(List.of(set), ALL_ITEMS,
+                    id -> !"Level_Probe".equalsIgnoreCase(id), ALL_EFFECTS, BASE_TEN);
             assertEquals(List.of(GearSetValidator.MIRRORED_STAT_ON_GEAR), codes(findings));
             assertEquals(Severity.WARNING, findings.get(0).severity());
             assertTrue(findings.get(0).message().contains("comes only from its record"));

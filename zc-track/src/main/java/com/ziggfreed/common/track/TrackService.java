@@ -19,6 +19,7 @@ import com.ziggfreed.common.progress.gate.GateEpochs;
 import com.ziggfreed.common.progress.gate.GateQuery;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
+import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.StatMirror;
 import com.ziggfreed.common.track.asset.DerivedReading;
 import com.ziggfreed.common.track.asset.TrackAsset;
@@ -46,8 +47,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>A committed move</b> keeps the new record first. When a reading moved (the level, the best level or the
  * prestige count; {@link TrackChange#readingsMoved}) it then writes the level onto the track's {@code Mirror} stat
- * and moves the player's gate epoch, since the track readings are {@code Player}-volatile and a verdict kept over
- * them must be read again; a move inside one level (the value or its fraction alone) leaves both alone, which
+ * (where that stat loads; a reading no file ships is answered off the record alone) and moves the player's gate
+ * epoch, since the track readings are {@code Player}-volatile and a verdict kept over them must be read again; a move inside one level (the value or its fraction alone) leaves both alone, which
  * keeps a stream of small gains off the gate's hot path. Only then are the unlock Claims it owes worked out, so a
  * reward gated on the track's own reading reads the move that pays it, and written ({@link TrackUnlocks}: marks
  * saved first, a Claim that cannot be written put back and saved again), and {@code ZigTrackChangedEvent} fires.
@@ -743,10 +744,14 @@ public final class TrackService {
         return paid;
     }
 
-    /** Write {@code record}'s level onto the track's mirror stat, when it names one. World thread. */
+    /**
+     * Write {@code record}'s level onto the track's mirror stat, when it names one that loads. A {@code Mirror} may name
+     * a reading no file ships (every reading of it asks the claim, {@link TrackMirrors}, never the stat), so a stat that
+     * does not load is skipped quietly: there is no slot to keep in step and nothing has gone wrong. World thread.
+     */
     static void mirror(@Nonnull Ref<EntityStore> ref, @Nonnull TrackDef def, @Nonnull TrackRecord record) {
         String stat = def.asset().mirrorStat();
-        if (stat == null || !ref.isValid()) {
+        if (stat == null || !ref.isValid() || StatIndexCache.resolveCurrent(stat) == StatIndexCache.UNRESOLVED) {
             return;
         }
         int level = def.asset().mirrorsCurrent() ? def.level(record) : def.best(record);

@@ -14,19 +14,22 @@ import com.ziggfreed.common.factor.FactorProvider;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The stats a consumer MIRRORS from a record it keeps ({@link StatMirror}): a number whose truth is the record, so
- * a modifier from gear, an effect or a grant on the stat never counts.
+ * The stat ids a consumer answers from a record it keeps: a number whose truth is the record (a skill's level, a
+ * track's climb), so a modifier from gear, an effect or a grant never counts.
  *
- * <p>A mirrored stat is still an ordinary native stat (the engine folds every modifier on it, a tooltip may show
- * one), but every reading of it AS A VALUE asks the owner instead: {@code hytale:stat} answers the owner's
+ * <p>Every reading of a claimed id AS A VALUE asks the owner: {@code hytale:stat} answers the owner's
  * {@link Claim#reading()} for it ({@code HytaleFactors.resolveStat}), so a gate, a formula term or a threshold step
  * reads the record whatever is worn; {@code ziggfreedcommon:station_stat} reads exactly that, with no bound share
  * added or taken out, and {@code station_share} reads 0 on one ({@code condition/StationStatReading}); a proc's stat
  * ({@code Procs.statPoints}) and a consumer's own reader of an authored stat ({@link #claimOf}, {@link #readAt}) ask
- * the claim too. A stat read as something else (a pool a cost spends, an effect family's length stat, a conditional
- * stat's own payout) still reads its fold: a mirror is never one. And an audit of a surface that puts a stat on gear
- * (a gear set tier) warns on a line naming one, with the owner's own reason ({@link Claim#why()}), since that line
- * does nothing.
+ * the claim too. None of these looks the id up as a stat first, so a claimed id is a READING that needs no stat file:
+ * an owner may claim ids no stat type carries (a skill's level ships none), which costs no living entity a slot, and
+ * the audits that would call an id unknown (a gear set tier, a held effect, a track's {@code Mirror}) ask the claim
+ * first. Where a stat of the id does load, the owner may keep it in step ({@link StatMirror}) for a reader that reads
+ * it as something else (a pool a cost spends, an effect family's length stat, a conditional stat's own payout),
+ * which still reads its fold: a reading is never one. An audit of a surface that puts a stat on gear (a gear set
+ * tier) warns on a line naming a claimed id, with the owner's own reason ({@link Claim#why()}), since that line does
+ * nothing.
  *
  * <p>Claimed once at setup by the owner, matched on the stat's current id ({@link StatIndexCache#currentId}, so a
  * renamed id reads as its successor). With no claim, nothing changes: a zc-only server reads every stat as the

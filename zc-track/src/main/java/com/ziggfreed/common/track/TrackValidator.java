@@ -32,6 +32,7 @@ import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateRuntime;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.GateValidator;
+import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryConfig;
@@ -69,7 +70,10 @@ import com.ziggfreed.common.validation.Severity;
  *   <li>ERROR {@link #RESERVED_CHARACTER} (a track id with {@code @}: such a track is never usable),
  *       {@link #NO_CURVE}, {@link #PIECE_SHAPE} (a piece with both or neither of Hybrid and Floors),
  *       {@link #PIECE_WITHOUT_TO}, {@link #FLOORS_NOT_ASCENDING}, {@link #TOO_MANY_LEVELS};</li>
- *   <li>WARNING {@link #UNKNOWN_CURVE}, {@link #UNKNOWN_CATEGORY}, {@link #UNKNOWN_MIRROR_STAT},
+ *   <li>WARNING {@link #UNKNOWN_CURVE}, {@link #UNKNOWN_CATEGORY}, {@link #UNKNOWN_MIRROR_STAT} (from the pure core
+ *       only: a {@code Mirror} may name a reading no stat file ships, and every live track's own {@code Mirror} is
+ *       claimed, {@code TrackMirrors}, so the engine walk accepts every switched-on track's; a misspelled one shows
+ *       where content reads the intended id, which {@code hytale:stat} names once as unknown),
  *       {@link #UNKNOWN_REWARD_KIND} (an unknown id is a warning: its owner may register later or be a mod this
  *       server does not run), {@link #UNLOCK_WITHOUT_LEVEL}, {@link #UNLOCK_WITHOUT_REWARDS},
  *       {@link #DUPLICATE_UNLOCK_KEY} (two rows of one track known by one key: they share one record),
@@ -168,7 +172,11 @@ public final class TrackValidator {
             List<Finding> out = new ArrayList<>(audit(TrackConfig.getInstance().all().values(),
                     TrackCurveConfig.getInstance().all().values(),
                     id -> TrackCategoryConfig.getInstance().category(id) != null,
-                    id -> StatIndexCache.resolveCurrent(id) != StatIndexCache.UNRESOLVED,
+                    // A Mirror may name a reading no file ships: a claimed stat answers hytale:stat off its record
+                    // (TrackMirrors claims every live track's), and the mirror write is skipped where none loads. So a
+                    // switched-on track's Mirror always passes here, on a server running this library alone too.
+                    id -> StatIndexCache.resolveCurrent(id) != StatIndexCache.UNRESOLVED
+                            || MirroredStats.claimOf(id) != null,
                     StatIndexCache::resolvesForWrite,
                     kind -> RewardKinds.shared().isRegistered(kind)));
             out.addAll(auditDerived(TrackConfig.getInstance().all().values()));
@@ -241,7 +249,8 @@ public final class TrackValidator {
      * each successor of a retired id) asked apart.
      *
      * @param categoryKnown whether a category id names a loaded category
-     * @param mirrorKnown   whether a mirror stat id resolves to one loaded stat
+     * @param mirrorKnown   whether a mirror stat id resolves to one loaded stat or is a claimed reading (the engine
+     *                      walk accepts a claim, since a {@code Mirror} may name a reading no file ships)
      * @param grantKnown    whether a granted stat id lands whole
      * @param kindKnown     whether a reward kind id is registered
      */
