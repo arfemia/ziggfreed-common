@@ -182,7 +182,8 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
                 .appendInherited(new KeyedCodec<>("Weakness", Weakness.CODEC, false),
                         (o, v) -> o.weakness = v, o -> o.weakness, (o, p) -> o.weakness = p.weakness)
                 .documentation("The foe takes more of the named damage causes while it carries stacks: PerStack "
-                        + "percent for each stack, from anyone; never a boss or an elite. None when unauthored.").add()
+                        + "percent for each stack, from anyone; a boss or an elite only when its SpareBossOrElite is "
+                        + "false. None when unauthored.").add()
                 .build();
 
         public OnFoe() {
@@ -205,7 +206,9 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
 
     /**
      * The Weakness group: the damage causes a foe takes more of, and how much a stack. A boss or an elite (zc-entity's
-     * {@code Zig_Boss_Or_Elite} NPC group) never wears one: the look still shows on it, the weakness does not.
+     * {@code Zig_Boss_Or_Elite} NPC group) wears one only when its {@code SpareBossOrElite} says false: spared (the
+     * default), the look still shows on it and the weakness does not. The proc runtime's one boss-or-elite rule decides
+     * ({@code ProcActions.sparesBossOrElite}).
      */
     public static final class Weakness {
 
@@ -214,6 +217,7 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
 
         @Nullable protected String[] causes;
         @Nullable protected FactorFormula perStack;
+        @Nullable protected Boolean spareBossOrElite;
 
         public static final BuilderCodec<Weakness> CODEC = BuilderCodec.builder(Weakness.class, Weakness::new)
                 .appendInherited(new KeyedCodec<>("Causes", Codec.STRING_ARRAY, false),
@@ -225,11 +229,23 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
                         (o, v) -> o.perStack = v, o -> o.perStack, (o, p) -> o.perStack = p.perStack)
                 .documentation("The percent more each stack makes the foe take, a formula read on the holder (a "
                         + "talent's rank raises it); the whole is rounded to a whole percent and never passes 50. A "
-                        + "boss or an elite (the Zig_Boss_Or_Elite NPC group) is never weakened. Nothing when "
+                        + "boss or an elite is weakened only when SpareBossOrElite is false. Nothing when "
                         + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>("SpareBossOrElite", Codec.BOOLEAN, false),
+                        (o, v) -> o.spareBossOrElite = v, o -> o.spareBossOrElite,
+                        (o, p) -> o.spareBossOrElite = p.spareBossOrElite)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("True: a boss or an elite (the Zig_Boss_Or_Elite NPC group) is passed over, so it "
+                        + "wears the look and never the weakness. False: one takes the weakness like any other foe. "
+                        + "True when unauthored.").add()
                 .build();
 
         public Weakness() {
+        }
+
+        /** Is a boss or an elite passed over? True unless written false. */
+        public boolean spareBossOrElite() {
+            return spareBossOrElite == null || spareBossOrElite;
         }
 
         @Nonnull

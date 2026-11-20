@@ -1,6 +1,7 @@
 package com.ziggfreed.common.proc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -185,6 +186,17 @@ class ProcValidatorTest {
         List<Finding> findings = ProcValidator.audit(Map.of("a", wide), Map.of(), Map.of(), KNOWN);
         assertEquals(Set.of(ProcValidator.AREA_TOO_WIDE), codes(findings, Severity.WARNING));
         assertEquals(ProcAction.Area.RADIUS_CAP, wide.actions().get(0).area().radius());
+    }
+
+    @Test
+    void aWeakness_passesABossOver_unlessItWritesSpareBossOrEliteFalse() throws IOException {
+        CounterAsset unwritten = counter("{ \"PerTarget\": true, \"OnFoe\": {"
+                + " \"Weakness\": { \"Causes\": [ \"Void\" ], \"PerStack\": { \"Base\": 2 } } } }");
+        CounterAsset reaches = counter("{ \"PerTarget\": true, \"OnFoe\": {"
+                + " \"Weakness\": { \"Causes\": [ \"Void\" ], \"PerStack\": { \"Base\": 2 },"
+                + " \"SpareBossOrElite\": false } } }");
+        assertTrue(unwritten.onFoe().weakness().spareBossOrElite(), "unwritten, a boss or an elite is passed over");
+        assertFalse(reaches.onFoe().weakness().spareBossOrElite(), "written false, the weakness reaches one");
     }
 
     @Test

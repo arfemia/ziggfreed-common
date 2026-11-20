@@ -88,7 +88,8 @@ public final class ProcAction {
             .appendInherited(new KeyedCodec<>("Push", Push.CODEC, false),
                     (o, v) -> o.push = v, o -> o.push, (o, p) -> o.push = p.push)
             .documentation("Move the target away from the holder (a negative Force pulls it in), through the "
-                    + "engine's own velocity, which a player's client and a creature's knockback scale both "
+                    + "engine's own velocity carrying the game's own knockback settings (those a weapon hit's "
+                    + "knockback writes), which a player's client and a creature's knockback scale both "
                     + "honour.").add()
             .appendInherited(new KeyedCodec<>("Taunt", Taunt.CODEC, false),
                     (o, v) -> o.taunt = v, o -> o.taunt, (o, p) -> o.taunt = p.taunt)
@@ -535,7 +536,13 @@ public final class ProcAction {
         }
     }
 
-    /** The Push group. */
+    /**
+     * The Push group: a speed added to the target (or the holder), braked the way the game brakes a weapon hit's
+     * knockback, so its Force means what a knockback's Force means in the game's files. On flat ground a creature of
+     * knockback scale 1 slides about 0.29 blocks for each block a second past 3, and about 0.1 more as it stops (5.5
+     * about 1 block, 9 about 2, 12.5 about 3); a little Up adds the ground it covers in the air, where it is braked
+     * far less.
+     */
     public static final class Push {
 
         @Nullable protected FactorFormula force;
@@ -546,12 +553,14 @@ public final class ProcAction {
         public static final BuilderCodec<Push> CODEC = BuilderCodec.builder(Push.class, Push::new)
                 .appendInherited(new KeyedCodec<>("Force", FactorFormula.codec(EditorDataSets.FACTORS), false),
                         (o, v) -> o.force = v, o -> o.force, (o, p) -> o.force = p.force)
-                .documentation("The speed added along the ground, away from the holder, a formula (8 is a good "
-                        + "shove); negative pulls toward them. Not scaled by the proc's strength. None when "
-                        + "unauthored.").add()
+                .documentation("The speed added along the ground, away from the holder, in blocks a second, a "
+                        + "formula; negative pulls toward them. It is braked as a weapon hit's knockback is (the "
+                        + "game's own settings), so on flat ground 5.5 slides a creature about 1 block, 9 about 2 and "
+                        + "12.5 about 3. Not scaled by the proc's strength. None when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Up", FactorFormula.codec(EditorDataSets.FACTORS), false),
                         (o, v) -> o.up = v, o -> o.up, (o, p) -> o.up = p.up)
-                .documentation("The speed added upward, a formula. None when unauthored.").add()
+                .documentation("The speed added upward, in blocks a second, a formula (10 throws a creature about 2 "
+                        + "blocks up). None when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("OnSelf", Codec.BOOLEAN, false),
                         (o, v) -> o.onSelf = v, o -> o.onSelf, (o, p) -> o.onSelf = p.onSelf)
                 .metadata(EditorSchema.defaultValue(false))

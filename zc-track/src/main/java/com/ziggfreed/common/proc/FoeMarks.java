@@ -19,7 +19,6 @@ import com.ziggfreed.common.effect.grid.EffectBodies;
 import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.stats.condition.Nearby;
-import com.ziggfreed.common.stats.condition.ZigFoeFamilyCondition;
 
 /**
  * What a per-foe counter's stacks put on the foe they are about ({@link CounterAsset.OnFoe}): a look by count, and a
@@ -33,8 +32,9 @@ import com.ziggfreed.common.stats.condition.ZigFoeFamilyCondition;
  * <counter>_<percent>}, zc-effects' {@link RuntimeEffectGrid}), written the first time anyone needs it and shared
  * after, never one per foe; a percent still being written goes on a pass later. One foe carries one of a counter's
  * weaknesses at a time, the strongest: a holder whose stacks ask less leaves a stronger one standing, and the stronger
- * takes a weaker off. A boss or an elite (zc-entity's {@code Zig_Boss_Or_Elite} group) wears the look and never the
- * weakness. World thread.
+ * takes a weaker off. A boss or an elite (zc-entity's {@code Zig_Boss_Or_Elite} group) wears the look, and the weakness
+ * only when the counter's {@code Weakness.SpareBossOrElite} is false, asked through the proc runtime's one rule
+ * ({@link ProcActions#sparesBossOrElite}). World thread.
  */
 final class FoeMarks {
 
@@ -96,7 +96,7 @@ final class FoeMarks {
         shown.look = look;
         CounterAsset.Weakness weakness = onFoe.weakness();
         int percent = weakness == null || weakness.perStack() == null || weakness.causes().isEmpty()
-                || ZigFoeFamilyCondition.inGroup(accessor, foe, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP) ? 0
+                || ProcActions.sparesBossOrElite(accessor, foe, weakness.spareBossOrElite()) ? 0
                 : percentFor(stacks, Procs.evaluate(weakness.perStack(), context));
         if (shown.weakness > 0 && shown.weakness != percent) {
             removeOwned(accessor, controller, foe, GRID.effectId(bucket(def, shown.weakness)), holder);
