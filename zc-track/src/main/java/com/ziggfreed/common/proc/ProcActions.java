@@ -17,6 +17,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.ChangeVelocityType;
 import com.hypixel.hytale.protocol.InteractionState;
 import com.hypixel.hytale.protocol.InteractionType;
+import com.hypixel.hytale.protocol.VelocityThresholdStyle;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.entity.InteractionChain;
@@ -38,6 +39,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntitySta
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
+import com.hypixel.hytale.server.core.modules.splitvelocity.VelocityConfig;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.cast.WorldTasks;
@@ -64,7 +66,8 @@ import com.ziggfreed.common.util.SafeLog;
  * CommonLib's one heal, the holder its giver; a coming hit lowered before it lands (its amount, or its cancel); a
  * block's stamina cost cut through the engine's own drain multiplier; a projectile's coming hit turned back at its
  * shooter through the engine's own damage; a counter changed; a push or pull through the
- * engine's velocity (a creature pushed is watched for its landing, {@link ThrownLandings}); a creature taunted onto the
+ * engine's velocity with the game's own knockback settings (a creature pushed is watched for its landing,
+ * {@link ThrownLandings}); a creature taunted onto the
  * holder (zc-effects' {@code AggroControl}); a guard broken; a strike dealt as the holder's own hit through the engine's
  * own damage (a Kill's overkill carried on); a RootInteraction queued on the holder or the target as a server chain. An entry's {@code Area} aims its target groups
  * at each one reached in turn (with an {@code Arc}, those ahead of the holder only). World thread; each action is
@@ -108,9 +111,11 @@ final class ProcActions {
             List<Ref<EntityStore>> aims = aims(moment, action.area());
             runSelf(action, moment, strength, context, healSource);
             for (Ref<EntityStore> aim : aims) {
-                ProcMoment about = aim == moment.target() ? moment : moment.about(aim);
-                FactorContext aimContext = aim == moment.target() ? context : Procs.context(moment, aim);
-                runAimed(action, about, strength, aimContext, healSource);
+                boolean own = aim == moment.target();
+                ProcMoment about = own ? moment : moment.about(aim);
+                FactorContext aimContext = own ? context : Procs.context(moment, aim);
+                // The moment's own target is the one a hit the holder dealt lands on; any other aim is not.
+                runAimed(action, about, strength, aimContext, healSource, own ? landing(moment.dealt()) : null);
             }
             ProcAction.CounterChange change = action.counter();
             if (change != null) {
@@ -155,13 +160,18 @@ final class ProcActions {
             guarded("Heal", () -> heal(moment, moment.holder(), action.heal(), strength, context, healSource));
         }
         if (action.push() != null && action.push().onSelf()) {
-            guarded("Push", () -> push(moment, moment.holder(), moment.target(), action.push(), context));
+            // A hit the holder takes lands on the holder, so its own knockback is the one their push rides.
+            KnockbackComponent landing = moment.trigger().taken() ? landing(moment.damage()) : null;
+            guarded("Push", () -> push(moment, moment.holder(), moment.target(), action.push(), context, landing));
         }
     }
 
-    /** The entry's groups aimed at one target ({@code moment.target()}). */
+    /**
+     * The entry's groups aimed at one target ({@code moment.target()}); {@code landing} is the knockback of the hit the
+     * holder dealt it on this moment, or null when no hit of the moment lands on it.
+     */
     private static void runAimed(@Nonnull ProcAction action, @Nonnull ProcMoment moment, double strength,
-            @Nonnull FactorContext context, @Nullable String healSource) {
+            @Nonnull FactorContext context, @Nullable String healSource, @Nullable KnockbackComponent landing) {
         Ref<EntityStore> on = moment.target();
         if (on == null || !on.isValid()) {
             return;
@@ -179,7 +189,7 @@ final class ProcActions {
             guarded("Heal", () -> heal(moment, on, action.heal(), strength, context, healSource));
         }
         if (action.push() != null && !action.push().onSelf()) {
-            guarded("Push", () -> push(moment, on, moment.holder(), action.push(), context));
+            guarded("Push", () -> push(moment, on, moment.holder(), action.push(), context, landing));
         }
         if (action.taunt() != null) {
             guarded("Taunt", () -> taunt(moment, on, action.taunt(), context));
@@ -325,10 +335,10 @@ final class ProcActions {
         if (StunControl.isImmune(accessor, on)) {
             return false;
         }
-        boolean bossOrElite = ZigFoeFamilyCondition.inGroup(accessor, on, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP);
-        if (bossOrElite && control.spareBossOrElite()) {
+        if (sparesBossOrElite(accessor, on, control.spareBossOrElite())) {
             return false;
         }
+        boolean bossOrElite = ZigFoeFamilyCondition.inGroup(accessor, on, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP);
         Ref<EntityStore> owner = bossOrElite ? null : moment.holder();
         float share = control.diminish() ? StunControl.immunityShare(accessor, on) : 0f;
         float lasting = StunControl.diminished(EffectDurations.lengthAsLanded(accessor, on, index, owner, seconds),
@@ -344,6 +354,17 @@ final class ProcActions {
             StunControl.rampImmunity(accessor, on, (float) control.ramp());
         }
         return true;
+    }
+
+    /**
+     * The proc runtime's one answer to whether a boss or an elite is passed over by something a proc puts on it: a
+     * control's {@code SpareBossOrElite} and a counter weakness's ask it with their own knob, and it spares only a foe
+     * in zc-entity's {@code Zig_Boss_Or_Elite} NPC group when the knob says so. Keep every such decision here, so a
+     * later rule (one boss, one phase of a fight) changes one place.
+     */
+    static boolean sparesBossOrElite(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
+            boolean spare) {
+        return spare && ZigFoeFamilyCondition.inGroup(accessor, foe, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP);
     }
 
     private static void removeEffect(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
@@ -600,12 +621,54 @@ final class ProcActions {
     }
 
     /**
+     * The game's own knockback settings, the {@code VelocityConfig} nearly every weapon hit's knockback writes in the
+     * game's files (air resistance 0.99, 0.98 when slow; ground resistance 0.94, easing to 0.3 below 3 blocks a
+     * second; Linear): a push carrying them moves as a weapon's knockback of the same Force does. Without them the
+     * engine takes a velocity as a player's own push (horizontal times (1 - 0.82) x 0.242, about 0.044, then braked
+     * hard on the ground), so a Force of 8 moved a creature about 0.03 blocks. Built on first use: the engine's
+     * config class reaches its logger as it loads, which a unit-test JVM has none of.
+     */
+    private static final class GameKnockback {
+
+        static final VelocityConfig SETTINGS = settings();
+
+        private GameKnockback() {
+        }
+
+        @Nonnull
+        private static VelocityConfig settings() {
+            VelocityConfig config = new VelocityConfig();
+            config.setAirResistance(0.99f);
+            config.setAirResistanceMax(0.98f);
+            config.setGroundResistance(0.94f);
+            config.setGroundResistanceMax(0.3f);
+            config.setThreshold(3.0f);
+            config.setStyle(VelocityThresholdStyle.Linear);
+            return config;
+        }
+    }
+
+    /**
+     * The knockback a hit is about to put on the one it lands on (the engine's own, written by the hit's interaction
+     * and turned into a velocity instruction later this tick), or null for no hit, a cancelled one or one with none.
+     */
+    @Nullable
+    private static KnockbackComponent landing(@Nullable Damage damage) {
+        return damage == null || damage.isCancelled() ? null : damage.getIfPresentMetaObject(Damage.KNOCKBACK_COMPONENT);
+    }
+
+    /**
      * Move {@code on} away from {@code from} along the ground at the push's {@code Force} (negative: toward it), and
-     * up at its {@code Up}: one Add instruction on the engine's velocity, which a player's client applies and a
-     * creature's role scales by its knockback scale. Never the knockback component.
+     * up at its {@code Up}: one Add instruction on the engine's velocity carrying the game's own knockback settings
+     * ({@link GameKnockback}), which a player's client applies and a creature's role scales by its knockback scale, so
+     * a Force means what a weapon knockback's Force means in the game's files. When a hit of this moment lands on
+     * {@code on} with a knockback of its own that carries velocity settings ({@code landing}), the push is added to
+     * that knockback's vector instead: the hit's instruction comes after ours, and a Set (most weapons write one)
+     * would wipe a push made beside it. Never a knockback component of its own.
      */
     private static void push(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
-            @Nullable Ref<EntityStore> from, @Nonnull ProcAction.Push push, @Nonnull FactorContext context) {
+            @Nullable Ref<EntityStore> from, @Nonnull ProcAction.Push push, @Nonnull FactorContext context,
+            @Nullable KnockbackComponent landing) {
         if (!on.isValid()) {
             return;
         }
@@ -636,12 +699,19 @@ final class ProcActions {
         if (dx == 0.0 && dz == 0.0 && up == 0.0) {
             return;
         }
-        Velocity velocity = accessor.getComponent(on, Velocity.getComponentType());
-        if (velocity != null) {
-            velocity.addInstruction(new Vector3d(dx, up, dz), null, ChangeVelocityType.Add);
-            if (!Nearby.same(on, moment.holder())) {
-                ThrownLandings.launched(moment.holder(), on, System.nanoTime());
+        boolean moved = false;
+        if (landing != null && landing.getVelocityConfig() != null) {
+            landing.setVelocity(new Vector3d(landing.getVelocity()).add(dx, up, dz));
+            moved = true;
+        } else {
+            Velocity velocity = accessor.getComponent(on, Velocity.getComponentType());
+            if (velocity != null) {
+                velocity.addInstruction(new Vector3d(dx, up, dz), GameKnockback.SETTINGS, ChangeVelocityType.Add);
+                moved = true;
             }
+        }
+        if (moved && !Nearby.same(on, moment.holder())) {
+            ThrownLandings.launched(moment.holder(), on, System.nanoTime());
         }
     }
 
