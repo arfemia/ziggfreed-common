@@ -2,7 +2,10 @@
   "$Comment": [
     "The sample script room that stamps every puzzle, hazard and kit template build_room.py has not used elsewhere,",
     "one of each, so test_rooms.py can check their volumes against the engine's codecs. It is a catalogue, not a room",
-    "to play: each corner of the hall holds one template, with the cells and keys it needs.",
+    "to play: each corner of the hall holds one template, with the cells and keys it needs. Its reward chests rise as a",
+    "player walks into the north-east corner, as the rune order is solved, and behind the skill lock as it opens.",
+    "Its server.sample.* lang keys and its Zc_Sample_* loot tables are placeholders: nothing ships them, since the room is",
+    "never built; a real room names its own pack's keys and tables in their places.",
     "Cells are relative to the prefab anchor, the south doorway's floor cell; North is -Z."
   ],
   "Id": "Zc_Sample_Trial_Hall",
@@ -67,6 +70,13 @@
      "Respawn": {"X": 0, "Y": 1, "Z": -2}, "Yaw": 180, "TitleKey": "server.sample.checkpoint.title",
      "SubtitleKey": "server.sample.checkpoint.subtitle", "Statue": {"X": -2, "Y": 1, "Z": -3}},
     {"Template": "SkillLock", "Lock": {"Min": {"X": -15, "Y": 1, "Z": -21}, "Max": {"X": -15, "Y": 3, "Z": -19}},
-     "Param": "Level_Mining", "Min": 30, "HintKey": "server.sample.skill_lock.mining"}
+     "Param": "Level_Mining", "Min": 30, "HintKey": "server.sample.skill_lock.mining", "KindMilestone": "Lock_Sample",
+     "Chest": "Zc_Reward_Chest", "At": {"X": -13, "Y": 1, "Z": -20}, "OpenerLootable": "Zc_Sample_Cache",
+     "OpenerTitleKey": "server.sample.skill_lock.cache"},
+    {"Template": "RewardChest", "Chest": "Zc_Reward_Chest", "At": {"X": 12, "Y": 1, "Z": -38},
+     "Region": {"Min": {"X": 9, "Y": 1, "Z": -39}, "Max": {"X": 14, "Y": 4, "Z": -36}},
+     "OpenerLootable": "Zc_Sample_Finder", "OpenerTitleKey": "server.sample.chest.finder", "Placement": "Sample_Corner"},
+    {"Template": "RewardChest", "Chest": "Zc_Reward_Chest", "At": {"X": 10, "Y": 1, "Z": -33}, "Signal": "Solved",
+     "Tag": "Runes_Done@room"}
   ]
 }

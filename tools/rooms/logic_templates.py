@@ -3,8 +3,9 @@
 Each template is a function (params, ctx) returning a Logic: the prefab entity documents
 ({"Components": {"Transform": ..., "TriggerVolume": ...}}, the shape vanilla's own prefabs carry,
 Prefabs/Dungeon/Deepworks/Arena_Containment.prefab.json) and the blocks it stands on (a cell to a palette slot), which
-the builder places like any prop. Only native Types are used (TriggerVolumesPlugin.java:538-580), plus three of
-CommonLib's own registered into the same codecs: ZigRequires (a condition), ZigCheckpoint and ZigRunMilestone (effects).
+the builder places like any prop. Only native Types are used (TriggerVolumesPlugin.java:538-580), plus CommonLib's own
+registered into the same codecs: ZigRequires and ZigHasEffect (conditions), ZigCheckpoint, ZigRunMilestone,
+ZigRewardChest and ZigFeedback (effects).
 
 Rules every template keeps (procgen-dungeon.md section 3), and test_rooms.py checks:
 - A key one volume uses to find another (a MatchKey, and the tag key it looks for) ends `@room`, so the room-logic
@@ -231,9 +232,25 @@ def place_block(event, origin, cell, block, entry=0, delay=0.0):
                   ReplaceMode="OnlyAir", Rotation="None", Pitch="None", Roll="None")
 
 
-def milestone(event, milestone_id, entry=0, delay=0.0):
-    """CommonLib's ZigRunMilestone: tells the run a beat happened (once per room per run)."""
+def milestone(event, milestone_id, entry=0, delay=0.0, placement=""):
+    """CommonLib's ZigRunMilestone: tells the run a beat happened (once per room per run, or once per run under
+    `placement`, which a key ending @room keeps to its room)."""
+    if placement:
+        return effect("ZigRunMilestone", event, entry, delay, Id=milestone_id, Placement=placement)
     return effect("ZigRunMilestone", event, entry, delay, Id=milestone_id)
+
+
+def chest_effect(event, origin, params, entry=0, delay=0.0):
+    """CommonLib's ZigRewardChest: the reward chest file params["Chest"] rises once per run for every member in the
+    run's area, its foot on the floor middle of the cell params["At"] (offset from the volume's corner cell `origin`).
+    OpenerLootable and OpenerTitleKey give whoever set the volume off a reward of their own in it; Placement names what
+    it rises once per run under."""
+    off = offset_of(origin, cell_of(params["At"]))
+    fields = {"Chest": params["Chest"], "Offset": vec(off[0] + 0.5, off[1], off[2] + 0.5)}
+    for key in ("OpenerLootable", "OpenerTitleKey", "Placement"):
+        if params.get(key):
+            fields[key] = params[key]
+    return effect("ZigRewardChest", event, entry, delay, **fields)
 
 
 def message(event, key, entry=0):
@@ -269,10 +286,11 @@ def variant_tag(group, n):
     return {VARIANT_KEY: "%s:%d" % (group, n)}
 
 
-def solved(params, ctx, event, origin, entry=0, delay=0.0):
+def solved(params, ctx, event, origin, entry=0, delay=0.0, kind=""):
     """What a finished puzzle does, from its params: Opens (indices into the room's doors, each authored Closed with
     Bars) swap their bars out; Signal (a key ending @room) is told `Solved`; Milestone (default Puzzle_Solved, "" for
-    none) counts the beat for the run."""
+    none) counts the beat for the run; KindMilestone (default the template's own `kind`, such as Puzzle_Rune_Order; ""
+    for none) counts a second beat naming which kind of puzzle it was."""
     out = []
     opens = params.get("Opens", [])
     bars = ctx["slot"](params.get("Bars", "Bars")) if opens else None
@@ -284,6 +302,9 @@ def solved(params, ctx, event, origin, entry=0, delay=0.0):
     ms = params.get("Milestone", "Puzzle_Solved")
     if ms:
         out.append(milestone(event, ms, entry, delay))
+    km = params.get("KindMilestone", kind)
+    if km:
+        out.append(milestone(event, km, entry, delay))
     return out
 
 
@@ -307,12 +328,12 @@ def hint_volumes(params, ctx, region_param="HintRegion"):
     return [volume_entity(ctx["name"] + "Hint", lo, box_size(lo, hi), [message("ENTER", key)], Cooldown=HINT_ONCE)]
 
 
-def all_at_once(params, ctx, label, cell, key, value, signal_key, member_key, tag, want, also=()):
+def all_at_once(params, ctx, label, cell, key, value, signal_key, member_key, tag, want, also=(), kind=""):
     """The controller every all-of-them-at-once puzzle shares (braziers, plates, levers): a volume at `cell`, carrying
     `key`, that on a signal carrying `signal_key`, while it is Ready and every volume carrying `member_key` has `tag` at
-    `want`, writes Solved, runs `also`, then what solved() makes of the params."""
+    `want`, writes Solved, runs `also`, then what solved() makes of the params (its kind milestone `kind`)."""
     effects = [set_own_tag("SIGNAL_RECEIVED", "State", "Solved")] + list(also)
-    effects += solved(params, ctx, "SIGNAL_RECEIVED", cell)
+    effects += solved(params, ctx, "SIGNAL_RECEIVED", cell, kind=kind)
     conditions = [event_tag_is("SIGNAL_RECEIVED", signal_key),
                   tag_is("SIGNAL_RECEIVED", "State", "Ready"),
                   all_tagged("SIGNAL_RECEIVED", member_key, tag, want)]
@@ -566,7 +587,8 @@ def brazier_relay(params, ctx):
         out.entities.append(cell_volume("%sBrazier_%d" % (ctx["name"], i + 1), c, effects, conditions, tags))
     ctl = controller_cell(params, (braziers[0][0], braziers[0][1] + 1, braziers[0][2]))
     out.entities.append(all_at_once(params, ctx, "Relay", ctl, key, "Relay", "Lit", brazier_key, "Lit", "Yes",
-                                    also=[set_tags("SIGNAL_RECEIVED", brazier_key, "Solved", "Yes")]))
+                                    also=[set_tags("SIGNAL_RECEIVED", brazier_key, "Solved", "Yes")],
+                                    kind="Puzzle_Brazier_Relay"))
     out.entities.extend(hint_volumes(params, ctx))
     return out
 
@@ -617,7 +639,7 @@ def carried_core_socket(params, ctx):
                          Comparison=comparison, EmptyInventory=False, MetadataKey="", MetadataValue="")
 
     effects = [set_own_tag("ENTER", "State", "Filled"), place_block("ENTER", lo, socket, core)]
-    effects += cue("ENTER", params, "Fill", lo, socket) + solved(params, ctx, "ENTER", lo)
+    effects += cue("ENTER", params, "Fill", lo, socket) + solved(params, ctx, "ENTER", lo, kind="Puzzle_Carried_Core")
     conditions = [tag_is("ENTER", "State", "Empty"), carried(0, "AtLeast", True)]
     if params.get("HintKey"):
         effects.append(message("ENTER", params["HintKey"], entry=1))
@@ -689,7 +711,8 @@ def pressure_plates(params, ctx):
         out.entities.append(volume_entity("%sPlate_%d" % (ctx["name"], i + 1), c, (1, 3, 1), effects, conditions,
                                           {plate_key: "Plate", "Pressed": "No"}, targets=targets or ["Player"]))
     ctl = controller_cell(params, (plates[0][0], plates[0][1] + 3, plates[0][2]))
-    out.entities.append(all_at_once(params, ctx, "Plates", ctl, key, "Lock", "Pressed", plate_key, "Pressed", "Yes"))
+    out.entities.append(all_at_once(params, ctx, "Plates", ctl, key, "Lock", "Pressed", plate_key, "Pressed", "Yes",
+                                    kind="Puzzle_Pressure_Plates"))
     out.entities.extend(hint_volumes(params, ctx))
     return out
 
@@ -744,7 +767,8 @@ def memory_floor(params, ctx):
                                                   effects, (), variant_tag(group, n)))
     if params.get("Finish"):
         flo, fhi = region(params["Finish"])
-        effects = [set_own_tag("ENTER", "State", "Solved")] + solved(params, ctx, "ENTER", flo)
+        effects = [set_own_tag("ENTER", "State", "Solved")] + solved(params, ctx, "ENTER", flo,
+                                                                     kind="Puzzle_Memory_Floor")
         out.entities.append(volume_entity(ctx["name"] + "Memory_Finish", flo, box_size(flo, fhi), effects,
                                           [tag_is("ENTER", "State", "Ready")], {"State": "Ready"}))
     out.entities.extend(hint_volumes(params, ctx))
@@ -832,7 +856,7 @@ def rune_order(params, ctx):
                 effects.append(set_own_tag("SIGNAL_RECEIVED", "Step", str(k + 1), entry, delay=SETTLE))
             else:
                 effects.append(set_own_tag("SIGNAL_RECEIVED", "Step", "Done", entry, delay=SETTLE))
-                effects += solved(params, ctx, "SIGNAL_RECEIVED", ctl, entry)
+                effects += solved(params, ctx, "SIGNAL_RECEIVED", ctl, entry, kind="Puzzle_Rune_Order")
         for k in range(len(order)):
             entry = len(order) + 1 + k
             conditions += [event_tag_is("SIGNAL_RECEIVED", "Rune", str(order[k]), entry, comparison="NotEquals"),
@@ -913,7 +937,7 @@ def lever_logic(params, ctx):
     first = cell_of(levers[0]["At"])
     ctl = controller_cell(params, (first[0], first[1] + 2, first[2]))
     out.entities.append(all_at_once(params, ctx, "Generator", ctl, key, "Generator", "Lever", lever_key, "Correct",
-                                    "Yes"))
+                                    "Yes", kind="Puzzle_Lever_Logic"))
     out.entities.extend(hint_volumes(params, ctx))
     return out
 
@@ -1005,8 +1029,9 @@ def checkpoint(params, ctx):
 
 def skill_lock(params, ctx):
     """The skill lock: a blocked way (a cracked wall, a root wall, a sunken chest) that opens when a player who meets
-    the requirement uses it, counting Secret_Found for the run (the MMO pays the skill's XP from it). A player short of
-    it is told what opens it.
+    the requirement uses it, counting Secret_Found for the run, and optionally raising the cache behind it, a reward
+    chest whose opener finds a reward of their own in it (CommonLib's ZigRewardChest). A player short of it is told
+    what opens it.
 
     params: Lock {Min, Max}, or a list of them (the lock's cells, fitted round a doorway's shape; the template
     places them; a usable block); an entry {Door: n} fills that door's whole opening instead, as the builder measured
@@ -1014,8 +1039,13 @@ def skill_lock(params, ctx):
     Lock, a block whose Use does nothing, such as CommonLib's Zc_Lock_* blocks), Opened (the slot the cells become; default
     air), Factor (default hytale:stat), Param (the stat a skill's level reads as, such as
     Level_Mining), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
-    opens it, required), Level (the level the hint names; default Min), Milestone (default Secret_Found), Signal,
-    OpenSound, OpenVfx.
+    opens it, required), Level (the level the hint names; default Min), Milestone (default Secret_Found),
+    KindMilestone (a second beat naming which kind of lock it was, such as Lock_Mining; default none), Signal,
+    OpenSound, OpenVfx, and the cache: Chest (a reward chest file id) with At {X, Y, Z} (the air cell over the floor
+    it stands in, a lock cell only when the lock opens to air; a spec writes "$Chest" for its own top-level Chest),
+    OpenerLootable and OpenerTitleKey (the opener's own reward in it). Placement (default the volume) is what the
+    milestones and the cache count once per run under: two locks guarding one cache (both doorways of a room) share
+    one ending @room, so whichever opens second pays and counts nothing.
     The lock's volume carries the level as its Level tag, and the engine binds a volume's tags as named params of the
     line it sends, so HintKey's value names it as {Level} (no digit in the lang file): the level is written once, here.
     Opening swaps each Lock piece on its own, so a block of the lock's kind the room already has beside the lock
@@ -1044,9 +1074,20 @@ def skill_lock(params, ctx):
     effects += cue("BLOCK_USED", params, "Open", lo, lo)
     if params.get("Signal"):
         effects.append(send_signal("BLOCK_USED", scoped(params["Signal"], "Signal"), ["Opened"]))
+    placement = params.get("Placement", "")
     ms = params.get("Milestone", "Secret_Found")
     if ms:
-        effects.append(milestone("BLOCK_USED", ms))
+        effects.append(milestone("BLOCK_USED", ms, placement=placement))
+    if params.get("KindMilestone"):
+        effects.append(milestone("BLOCK_USED", params["KindMilestone"], placement=placement))
+    if params.get("Chest"):
+        if not params.get("At"):
+            raise ValueError("SkillLock: a Chest needs At, the cell it stands in")
+        if params.get("Opened") and cell_of(params["At"]) in cells:
+            raise ValueError("SkillLock: the chest's At %s is a cell the opened lock fills" % (cell_of(params["At"]),))
+        effects.append(chest_effect("BLOCK_USED", lo, params))
+    elif params.get("OpenerLootable") or params.get("OpenerTitleKey"):
+        raise ValueError("SkillLock: OpenerLootable and OpenerTitleKey are rewards in the cache, so they need a Chest")
     conditions = [tag_is("BLOCK_USED", "State", "Locked"),
                   condition("ZigRequires", "BLOCK_USED", Requires=requires)]
     tags = {"State": "Locked"}
@@ -1086,6 +1127,61 @@ def room_hint(params, ctx):
     if not params.get("HintKey"):
         raise ValueError("RoomHint: HintKey (the lang key of the line) is required")
     return Logic(hint_volumes(params, ctx, region_param="Region"))
+
+
+def reward_chest(params, ctx):
+    """The reward chest: CommonLib's ZigRewardChest raises the reward chest file Chest on the cell At, once per run,
+    for every member standing in the run's area, each finding their own share of what it holds. Without Signal it
+    rises as the first player walks into Region (default the room's Box), and that player may find a reward of their
+    own in it; with Signal, as the volume carrying Tag hears that signal key (a fight's ArenaTag hearing Defeated, as
+    ArenaDoors does, or a room key a puzzle's Signal names hearing Solved), which sets it off for nobody.
+
+    params: Chest (a reward chest file id, required), At {X, Y, Z} (the air cell over the floor the chest stands in,
+    required; a spec writes "$Chest" for its own top-level Chest), Region {Min, Max}, Signal (a signal key) with Tag
+    (the tag its sender finds: a fight's ArenaTag, plain, or a room key ending @room), UnlessWearing (with Signal: an
+    effect id; a creature inside Region, else the room's Box, seen wearing it keeps the chest down for the run, as a
+    boss its fight marks as it gets away, whose vanishing still tells the arena Defeated), OpenerLootable and
+    OpenerTitleKey (the walking-in player's own reward), Placement (what it rises once per run under; default the
+    volume)."""
+    if not params.get("Chest"):
+        raise ValueError("RewardChest: Chest (the reward chest file that rises) is required")
+    if not params.get("At"):
+        raise ValueError("RewardChest: At (the cell the chest stands in) is required; a spec writes \"$Chest\"")
+    at = cell_of(params["At"])
+    signal = params.get("Signal")
+    if params.get("Region"):
+        lo, hi = region(params["Region"])
+    elif ctx.get("box"):
+        lo, hi = ctx["box"]
+    else:
+        lo = hi = None
+    if not signal:
+        if params.get("Tag") or params.get("UnlessWearing"):
+            raise ValueError("RewardChest: Tag and UnlessWearing go with a Signal")
+        if lo is None:
+            raise ValueError("RewardChest: give Region, where walking in raises the chest (the room has no Box)")
+        return Logic([volume_entity(ctx["name"] + "Reward_Chest", lo, box_size(lo, hi),
+                                    [chest_effect("ENTER", lo, params)])])
+    if not params.get("Tag"):
+        raise ValueError("RewardChest: a Signal needs the Tag its sender finds")
+    if params.get("OpenerLootable") or params.get("OpenerTitleKey"):
+        raise ValueError("RewardChest: a signal sets the chest off for nobody, so it has no opener's reward")
+    tags = {params["Tag"]: "Chest"}
+    conditions = event_any("SIGNAL_RECEIVED", [signal], 1)
+    wearing = params.get("UnlessWearing")
+    if not wearing:
+        return Logic([cell_volume(ctx["name"] + "Reward_Chest", at, [chest_effect("SIGNAL_RECEIVED", at, params, 1)],
+                                  conditions, tags)])
+    if lo is None:
+        raise ValueError("RewardChest: give Region, where UnlessWearing is looked for (the room has no Box)")
+    away = set_own_tag("TICK", "Away", "Yes", entry=2)
+    away["Interval"] = 0.25
+    effects = [chest_effect("SIGNAL_RECEIVED", lo, params, 1), away]
+    conditions += [tag_is("SIGNAL_RECEIVED", "Away", "Yes", entry=1, inverted=True),
+                   condition("ZigHasEffect", "TICK", 2, Effect=wearing)]
+    tags["Away"] = "No"
+    return Logic([volume_entity(ctx["name"] + "Reward_Chest", lo, box_size(lo, hi), effects, conditions, tags,
+                                targets=("Npc",))])
 
 
 def event_any(event, keys, entry):
@@ -1489,6 +1585,7 @@ TEMPLATES = {
     "ShiftingFloor": shifting_floor,
     "CrashPillars": crash_pillars,
     "RoomHint": room_hint,
+    "RewardChest": reward_chest,
     "SealedCombat": sealed_combat,
     "LeverDoor": lever_door,
     "FallRescue": fall_rescue,

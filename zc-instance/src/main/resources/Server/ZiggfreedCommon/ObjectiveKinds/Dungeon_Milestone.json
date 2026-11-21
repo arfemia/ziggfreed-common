@@ -1,0 +1,10 @@
+{
+  "$Comment": "A dungeon run reaching a milestone, counted for every member standing in the run's area when it happens. Target is the milestone id: Room_Cleared, Puzzle_Solved and Secret_Found from a room's ZigRunMilestone volumes (or any id a pack's volume names), Clear_Flawless when a run clears with nobody dying in it, and Clear_Under_Par when a run clears faster than its dungeon's Complete.ParSeconds. The Qualifier is the dungeon's id as its file names it, so leave it out for any dungeon, or write QualifierMatchMode PREFIX with a dungeon's base id to count every tier and daily built on it. Each milestone counts once per run for each place it fires. Write MatchMode EXACT, since an unwritten MatchMode reads CONTAINS. A step reads {\"Kind\": \"DUNGEON_MILESTONE\", \"Target\": \"Clear_Flawless\", \"MatchMode\": \"EXACT\", \"Qualifier\": \"Your_Dungeon\", \"Amount\": 1}.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Dungeon_Checkpoint_Statue"
+    }
+  }
+}

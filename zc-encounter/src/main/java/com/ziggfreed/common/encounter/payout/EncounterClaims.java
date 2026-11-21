@@ -37,6 +37,7 @@ import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
+import com.ziggfreed.common.loot.pity.PityLedger;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
@@ -213,8 +214,8 @@ public final class EncounterClaims {
             @Nonnull LootEngine.Resolved resolved, double share, @Nonnull ClaimShape shape,
             @Nonnull Map<String, String> placeholders) {
         boolean here = store != null && ref != null && ref.isValid();
-        FactorLookup lookup = FactorLookup.through(EncounterFactors.registry(),
-                FactorContext.about(here ? store : null, here ? ref : null));
+        FactorLookup lookup = PityLedger.shared().over(FactorLookup.through(EncounterFactors.registry(),
+                FactorContext.about(here ? store : null, here ? ref : null)), player);
         DoubleSupplier sample = sampler();
         List<LootEngine.Selected> won = LootEngine.select(resolved.rolls(), resolved.pools(), null, lookup, sample);
         List<LootEngine.Selected> kept = keptAt(won, share, sample);
@@ -226,6 +227,10 @@ public final class EncounterClaims {
                 new Claim(shape.id(), shape.source(), shape.titleKey(), List.of(), shape.difficulty(), rewards, now,
                         shape.fight()),
                 shape.diminish(), shape.diminishKey(), now);
+        if (written) {
+            // A pity roll the Claim holds starts over; one in reach the share or the chance left out is a miss.
+            PityLedger.shared().settle(player, resolved.rolls(), kept, lookup);
+        }
         if (written && here) {
             presentCues(store, ref, kept, shape.source());
         }

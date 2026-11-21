@@ -1,5 +1,7 @@
 package com.ziggfreed.common.loot;
 
+import java.util.Locale;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -49,7 +51,8 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  * {@code Base} is the flat chance before any factor, each term adds its weighted reading, and the
  * result is held inside {@code Clamp} and then inside {@code 0..100} regardless. Author
  * {@code Clamp.Max} for the ceiling a stacking bonus may never push past (a 90 there is the usual
- * "leave a little to luck"), and {@code Base} for the chance the roll has with no bonuses at all.
+ * "leave a little to luck"), and {@code Base} for the chance the roll has with no bonuses at all. An optional
+ * {@link Pity} group grows the chance for a player each Claim the roll misses ({@link Pity} says how).
  *
  * <h2>The ladder is deliberately uncapped</h2>
  *
@@ -85,6 +88,7 @@ public final class Roll {
     @Nullable protected String cue;
     @Nullable protected Boolean expected;
     @Nullable protected Boolean hideInPreview;
+    @Nullable protected Pity pity;
 
     /**
      * The table gates this roll carries, never authored: the live {@code Requires} of the table it was
@@ -149,6 +153,14 @@ public final class Roll {
                         + "it pays (hovering a reward that pays the table): the list ends with one line saying a "
                         + "few more rare finds are left unsaid. It changes nothing about what the roll pays or "
                         + "when. Default false.").add()
+                .appendInherited(new KeyedCodec<>("Pity", Pity.CODEC, false),
+                        (o, v) -> o.pity = v, o -> o.pity, (o, p) -> o.pity = p.pity)
+                .documentation("Bad-luck protection: each Claim a player is paid from this roll's table without "
+                        + "the roll firing raises its Chance by Step for that player, up to Max, and the count "
+                        + "starts over once it fires. Counted per player per Id, so several tables may share "
+                        + "one count. Only a payout written as a Claim reads or counts it; a world drop or a "
+                        + "bonus row rolls the plain Chance, and a table's preview shows the plain odds. Omit "
+                        + "for a roll whose odds never grow.").add()
                 .build();
     }
 
@@ -239,6 +251,19 @@ public final class Roll {
         return hideInPreview != null && hideInPreview;
     }
 
+    /** The authored {@code Pity} group, or null for a roll whose odds never grow. */
+    @Nullable
+    public Pity getPity() {
+        return pity;
+    }
+
+    /** Java-side setter for a roll built in code (mirrors the codec's {@code Pity} group). */
+    @Nonnull
+    public Roll withPity(@Nullable Pity pity) {
+        this.pity = pity;
+        return this;
+    }
+
     /** The table gates this roll carries ({@link #gatedBy}); never null, empty for an authored roll. */
     @Nonnull
     public GateSpec[] gates() {
@@ -258,6 +283,7 @@ public final class Roll {
         Roll copy = of(trigger, conditions, chance, ladder, grants, cue);
         copy.expected = expected;
         copy.hideInPreview = hideInPreview;
+        copy.pity = pity;
         GateSpec[] more = new GateSpec[gates.length + 1];
         System.arraycopy(gates, 0, more, 0, gates.length);
         more[gates.length] = gate;
@@ -277,6 +303,119 @@ public final class Roll {
      */
     public boolean answersTo(@Nullable String trigger) {
         return trigger == null || trigger.equalsIgnoreCase(effectiveTrigger());
+    }
+
+    // ==================== Pity ====================
+
+    /**
+     * Bad-luck protection on a roll's {@code Chance}: {@code {Id, Step, Max}}.
+     *
+     * <pre>{@code
+     * "Chance": { "Base": 4 },
+     * "Pity":   { "Id": "Rare_Find", "Step": 0.5, "Max": 20 }
+     * }</pre>
+     *
+     * <p>Each Claim a player is paid from a payout that held this roll, in reach (its table's gates and its
+     * conditions passed) but not fired, is one miss for that player under {@code Id}; a payout whose Claim holds
+     * a pick of a roll under {@code Id} starts the count over. The chance the roll reads is its own (the formula
+     * and the moment's bonus) plus {@code Step} per miss, the growth held at {@code Max} (never pulling a chance
+     * already above it down), then inside 0..100 as every chance is. The count lives in
+     * {@code pity/PityLedger}, which only a payout written as a Claim reads ({@link FactorLookup#pityMisses});
+     * every other lookup answers no misses, so the roll reads its plain odds there, a preview included.
+     *
+     * <p>A blank {@code Id} or a {@code Step} of 0 or less never grows; a roll with no {@code Chance} always fires,
+     * so its count never grows either.
+     */
+    public static final class Pity {
+
+        /** The chance a growth is held at when {@code Max} is unwritten: the ceiling every chance has. */
+        public static final double DEFAULT_MAX_PERCENT = MAX_CHANCE_PERCENT;
+
+        @Nullable protected String id;
+        @Nullable protected Double step;
+        @Nullable protected Double max;
+
+        public static final BuilderCodec<Pity> CODEC = BuilderCodec.builder(Pity.class, Pity::new)
+                .appendInherited(new KeyedCodec<>("Id", Codec.STRING, false),
+                        (o, v) -> o.id = v, o -> o.id, (o, p) -> o.id = p.id)
+                .documentation("The count this roll's misses go to, kept per player and matched in any case "
+                        + "(Is_Like_This). Rolls in several tables naming one Id share one count, and any of "
+                        + "them firing starts it over. Blank turns the group off.").add()
+                .appendInherited(new KeyedCodec<>("Step", Codec.DOUBLE, false),
+                        (o, v) -> o.step = v, o -> o.step, (o, p) -> o.step = p.step)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("Percent points the chance grows by for each Claim paid without this roll firing "
+                        + "(0.5 is half a percent a miss). 0 or less never grows.").add()
+                .appendInherited(new KeyedCodec<>("Max", Codec.DOUBLE, false),
+                        (o, v) -> o.max = v, o -> o.max, (o, p) -> o.max = p.max)
+                .metadata(EditorSchema.defaultValue(DEFAULT_MAX_PERCENT))
+                .documentation("The chance, in percent, the growth stops at. It never lowers a chance already "
+                        + "above it. Unwritten grows up to 100.").add()
+                .build();
+
+        public Pity() {
+        }
+
+        /** Java-side factory; sets the same fields the codec fills. */
+        @Nonnull
+        public static Pity of(@Nullable String id, @Nullable Double step, @Nullable Double max) {
+            Pity p = new Pity();
+            p.id = id;
+            p.step = step;
+            p.max = max;
+            return p;
+        }
+
+        @Nullable
+        public String getId() {
+            return id;
+        }
+
+        @Nullable
+        public Double getStep() {
+            return step;
+        }
+
+        @Nullable
+        public Double getMax() {
+            return max;
+        }
+
+        /** The count's key ({@link #keyOf} of the Id), or null when this group is off (a blank Id). */
+        @Nullable
+        public String key() {
+            return keyOf(id);
+        }
+
+        /** The one spelling a pity Id is counted under: trimmed and lower-cased, null for a blank one. */
+        @Nullable
+        public static String keyOf(@Nullable String id) {
+            return id == null || id.isBlank() ? null : id.trim().toLowerCase(Locale.ROOT);
+        }
+
+        /** {@code Step}, reader-defaulted to 0 when absent, not a number, or negative. */
+        public double effectiveStep() {
+            return step != null && Double.isFinite(step) && step > 0.0 ? step : 0.0;
+        }
+
+        /** {@code Max}, reader-defaulted to {@link #DEFAULT_MAX_PERCENT} when absent or not a number. */
+        public double effectiveMax() {
+            return max != null && Double.isFinite(max) ? max : DEFAULT_MAX_PERCENT;
+        }
+
+        /**
+         * {@code percent} (the roll's chance before the 0..100 hold) grown by {@code misses}: plus
+         * {@code Step x misses}, the growth held at {@code Max}, never below {@code percent} itself. Unchanged with
+         * no misses, a blank Id or no step. Pure; the caller holds the answer inside 0..100.
+         */
+        public double grown(double percent, int misses) {
+            double perMiss = effectiveStep();
+            if (misses <= 0 || perMiss <= 0.0 || key() == null || !Double.isFinite(percent)) {
+                return percent;
+            }
+            double grown = Math.min(percent + perMiss * misses, effectiveMax());
+            return Math.max(percent, grown);
+        }
     }
 
     // ==================== Ladder ====================

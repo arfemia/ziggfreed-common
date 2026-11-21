@@ -42,9 +42,11 @@ import com.ziggfreed.common.instance.dungeon.gen.ZigDungeonWorldGenProvider;
 import com.ziggfreed.common.instance.dungeon.kit.ZigCheckpointEffect;
 import com.ziggfreed.common.instance.dungeon.kit.ZigFeedbackEffect;
 import com.ziggfreed.common.instance.dungeon.kit.ZigHasEffectCondition;
+import com.ziggfreed.common.instance.dungeon.kit.ZigRewardChestEffect;
 import com.ziggfreed.common.instance.dungeon.kit.ZigRunMilestoneEffect;
 import com.ziggfreed.common.instance.dungeon.omen.OmenMobs;
 import com.ziggfreed.common.instance.dungeon.omen.RunOmens;
+import com.ziggfreed.common.instance.dungeon.tier.RunTiers;
 import com.ziggfreed.common.instance.hub.HubMarkers;
 import com.ziggfreed.common.instance.hub.ZigHubWorldGenProvider;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
@@ -65,6 +67,7 @@ import com.ziggfreed.common.interaction.type.InteractionTypes;
 import com.ziggfreed.common.loot.claim.ClaimAddedEvent;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.diminish.DiminishLedger;
+import com.ziggfreed.common.loot.pity.PityLedger;
 import com.ziggfreed.common.party.PartyAllies;
 import com.ziggfreed.common.party.ZcParty;
 import com.ziggfreed.common.party.command.ZigPartyCommand;
@@ -140,8 +143,9 @@ public final class InstanceBootstrap {
     }
 
     /**
-     * Claims: open the store of what players have earned and not taken, and the ledger of how often each
-     * diminishing reward was earned this window, both in the library's data folder (each writes on every
+     * Claims: open the store of what players have earned and not taken, the ledger of how often each
+     * diminishing reward was earned this window, and the ledger of each player's pity misses, all in the library's
+     * data folder (each writes on every
      * change, so the stop has nothing to flush); the Claims destination (before any asset decodes) and its tab
      * in the shared menu; the toast when a Claim arrives, the notice at a player's first ready while Claims
      * wait, and its reset at disconnect; and {@code /zigclaims}. Each guarded on its own.
@@ -149,6 +153,7 @@ public final class InstanceBootstrap {
     public static void installClaims(@Nonnull JavaPlugin plugin) {
         try {
             DiminishLedger.shared().init(plugin.getDataDirectory());
+            PityLedger.shared().init(plugin.getDataDirectory());
             ClaimStore.shared().init(plugin.getDataDirectory());
         } catch (Throwable t) {
             SafeLog.warn("[claims] the Claims store could not be opened", t);
@@ -296,10 +301,21 @@ public final class InstanceBootstrap {
                     + "tougher than the tier below", t);
         }
         try {
+            EncounterSeams.fillRunDifficulty(DungeonRuns.shared()::difficultyAt);
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the encounter run-difficulty seam could not be filled, so a dungeon tier's boss "
+                    + "pays and counts its daily Claims as the tier below", t);
+        }
+        try {
             RunOmens.contribute();
             plugin.getEntityStoreRegistry().registerSystem(new OmenMobs());
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the omens could not be wired, so no room reads an omen and no creature takes one", t);
+        }
+        try {
+            RunTiers.contribute();
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the dungeon tier reading could not be contributed, so no table steps up by tier", t);
         }
     }
 
@@ -347,6 +363,8 @@ public final class InstanceBootstrap {
                 ZigCheckpointEffect.class, ZigCheckpointEffect.codec());
         plugin.getCodecRegistry(TriggerEffect.CODEC).register(ZigRunMilestoneEffect.TYPE_NAME,
                 ZigRunMilestoneEffect.class, ZigRunMilestoneEffect.codec());
+        plugin.getCodecRegistry(TriggerEffect.CODEC).register(ZigRewardChestEffect.TYPE_NAME,
+                ZigRewardChestEffect.class, ZigRewardChestEffect.codec());
         plugin.getCodecRegistry(TriggerEffect.CODEC).register(ZigFeedbackEffect.TYPE_NAME,
                 ZigFeedbackEffect.class, ZigFeedbackEffect.codec());
         plugin.getCodecRegistry(TriggerCondition.CODEC).register(ZigHasEffectCondition.TYPE_NAME,

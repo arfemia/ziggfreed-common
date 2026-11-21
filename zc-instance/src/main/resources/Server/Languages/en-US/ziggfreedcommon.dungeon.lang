@@ -164,6 +164,8 @@ omen.list = {0}, {1}
 
 # The omen reading's name on a requirement line (ziggfreedcommon:dungeon_omen).
 factor.dungeon_omen = an omen of this run
+# The tier reading's name on a requirement line (ziggfreedcommon:dungeon_tier).
+factor.dungeon_tier = this run's tier
 
 # An endless run's waves. The toast after each cleared wave: {0} in endless.breather.title is the wave that fell, {0}
 # in endless.breather the next one to rise.

@@ -13,6 +13,7 @@ customUI.triggerVolumeEffectEditor.conditionType.ZigRequires = Requires
 customUI.triggerVolumeEffectEditor.conditionType.ZigHasEffect = Wears Effect
 customUI.triggerVolumeEffectEditor.effectType.ZigCheckpoint = Dungeon Checkpoint
 customUI.triggerVolumeEffectEditor.effectType.ZigRunMilestone = Dungeon Milestone
+customUI.triggerVolumeEffectEditor.effectType.ZigRewardChest = Dungeon Reward Chest
 customUI.triggerVolumeEffectEditor.effectType.ZigFeedback = Show Feedback
 
 customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.RespawnOffset = Respawn Offset
@@ -30,6 +31,17 @@ customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Id = Milestone
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Placement = Placement
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Id.tooltip = What happened: Room_Cleared, Puzzle_Solved or Secret_Found, which the results list, or any name of your own.
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Placement.tooltip = Counts once per run under this name. Leave it empty to count this volume on its own.
+
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.Chest = Chest
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.Offset = Offset
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.OpenerLootable = Opener Loot Table
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.OpenerTitleKey = Opener Title Key
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.Placement = Placement
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.Chest.tooltip = The reward chest file that rises, by its file name. Everyone in the run's area finds their own share in it. Leave it empty to raise nothing.
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.Offset.tooltip = Where the chest stands, in blocks from the volume's position, on the floor. Use the middle of a block (2.5, not 2). Leave it at 0 to use the position itself.
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.OpenerLootable.tooltip = A loot table rolled only for the player who set the volume off, waiting for them in the same chest. Leave it empty for none.
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.OpenerTitleKey.tooltip = A lang key for the title of the opener's own reward. Leave it empty for the default word.
+customUI.triggerVolumeEffectEditor.field.ZigRewardChest.Placement.tooltip = Rises once per run under this name. Leave it empty to count this volume on its own.
 
 customUI.triggerVolumeEffectEditor.field.ZigFeedback.Moment = Moment
 customUI.triggerVolumeEffectEditor.field.ZigFeedback.Radius = Radius

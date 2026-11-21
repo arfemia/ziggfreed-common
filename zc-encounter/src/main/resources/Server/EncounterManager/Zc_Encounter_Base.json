@@ -13,9 +13,10 @@
     "moves to Fight. In Fight, the FightBehavior slot runs whatever macro a Variant hands it (Zc_Adds_Wave,",
     "say, or a macro of your own on the Hytale.Instruction.Encounter.Phase.Behavior interface), and the",
     "moment the Target sensor loses the boss the defeat beat clears the bar, stops the music, clears any sky a",
-    "phase set (SetEncounterWeather), releases the slot, tells the arena's volumes Defeated and sends zc:defeated. Complete waits RearmSeconds, sends",
-    "zc:reset and returns to Intro, so the same entity runs the fight again the next time a player comes",
-    "near.",
+    "phase set (SetEncounterWeather), releases the slot, tells the arena's volumes Defeated and sends zc:defeated. Complete first pays",
+    "DefeatReward, a ZigClaim reward under Server/Rewards, to every player the win credited (left empty, it pays nothing),",
+    "then waits RearmSeconds, sends zc:reset and returns to Intro, so the same entity runs the fight again the next time",
+    "a player comes near.",
     "",
     "Who wakes it and who is in it. The boss rises for a player within SensorRange; with WakeInArena true that",
     "player must also wear WakeMark, which an ArenaWake volume (tools/rooms) puts on whoever stands inside the arena,",
@@ -170,6 +171,10 @@
     "RearmSeconds": {
       "Value": [ 30, 30 ],
       "Description": "How long after the defeat the script waits before it re-arms for the next run, as a [min, max] range."
+    },
+    "DefeatReward": {
+      "Value": "",
+      "Description": "The ZigClaim reward (a file under Server/Rewards) paid to every player the win credits, as the fight closes: each finds it under Claims, and in the chest where the boss fell when the binding row stands one. Its own Diminish says how often a player is paid: unwritten, the first win each day on each difficulty. Empty pays none."
     }
   },
   "Instructions": [
@@ -599,11 +604,17 @@
           },
           "Instructions": [
             {
+              "$Comment": "Every defeat branch comes here. Pays DefeatReward first, while the won run still stands (a leashed or escaped run pays nothing), then waits and re-arms.",
               "Sensor": {
                 "Type": "Any"
               },
               "ActionsBlocking": true,
               "Actions": [
+                {
+                  "Enabled": { "Compute": "!isEmpty(DefeatReward)" },
+                  "Type": "GrantReward",
+                  "Reward": { "Compute": "DefeatReward" }
+                },
                 {
                   "Type": "Timeout",
                   "Delay": { "Compute": "RearmSeconds" }

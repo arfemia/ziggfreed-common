@@ -45,7 +45,7 @@ import com.ziggfreed.common.season.SeasonGate;
  *   "Run": { "TimeLimitSeconds": 900, "FailOnWipe": false },
  *   "Complete": { "Bosses": ["MyPack_Crypt_Lich"], "AllBosses": false,
  *                 "Objective": { "Kind": "PICKUP_ITEM", "Target": "MyPack_Crypt_Relic", "Amount": 3 },
- *                 "SurviveTimer": 300 },
+ *                 "SurviveTimer": 300, "ParSeconds": 600 },
  *   "Rewards": { "Lootable": "MyPack_Crypt_Clear", "Diminish": { "Steps": [1, 0.5], "Window": "Daily" } },
  *   "EntryCost": { "Items": [ { "Item": "MyPack_Crypt_Key", "Count": 1 } ], "Keys": ["MyPack_Crypt_Master_Key"],
  *                  "HintKey": "mypack.dungeon.crypt.key_hint" },
@@ -449,6 +449,16 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return v == null || v <= 0 ? null : v;
     }
 
+    /**
+     * {@code Complete.ParSeconds}: the time to beat, in seconds from a run's first arrival, under which a clear raises
+     * {@link DungeonMilestoneEvent#CLEAR_UNDER_PAR}; null when the dungeon has none (unauthored, zero or less).
+     */
+    @Nullable
+    public Integer completeParSeconds() {
+        Integer v = complete == null ? null : complete.parSeconds;
+        return v == null || v <= 0 ? null : v;
+    }
+
     /** Whether anything in {@code Complete} can clear a run: a boss, an objective or a survive timer. */
     public boolean hasClear() {
         return !completeBosses().isEmpty() || completeObjective() != null || surviveTimerSeconds() != null;
@@ -839,6 +849,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable protected Boolean allBosses;
         @Nullable protected Objective objective;
         @Nullable protected Integer surviveTimer;
+        @Nullable protected Integer parSeconds;
 
         public static final BuilderCodec<Complete> CODEC = BuilderCodec.builder(Complete.class, Complete::new)
                 .appendInherited(new KeyedCodec<>("Bosses", Codec.STRING_ARRAY, false),
@@ -864,6 +875,13 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         + "the party survives that long without the run failing. Keep it under "
                         + "Run.TimeLimitSeconds, or the time limit fails the run first. Unauthored, or zero or "
                         + "less, means no timer.").add()
+                .appendInherited(new KeyedCodec<>("ParSeconds", Codec.INTEGER, false),
+                        (o, v) -> o.parSeconds = v, o -> o.parSeconds, (o, p) -> o.parSeconds = p.parSeconds)
+                .documentation("A time to beat, in seconds from a run's first arrival: a clear that takes less "
+                        + "raises the Clear_Under_Par milestone for every member in the area, which an achievement "
+                        + "or a quest step counts as a DUNGEON_MILESTONE. It never clears or fails a run, and a "
+                        + "child file inherits it unless it writes its own. Unauthored, or zero or less, means no "
+                        + "par.").add()
                 .build();
 
         public Complete() {

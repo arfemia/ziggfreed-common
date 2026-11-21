@@ -1,6 +1,7 @@
 package com.ziggfreed.common.loot;
 
 import java.util.function.BiFunction;
+import java.util.function.ToIntFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -62,6 +63,16 @@ public interface FactorLookup {
         return 0.0;
     }
 
+    /**
+     * How many Claims in a row this moment's player was paid without a roll under the pity id {@code pityKey}
+     * firing ({@link Roll.Pity}, keyed by {@link Roll.Pity#keyOf}), which {@link RollEvaluator#effectiveChancePercent(Roll,
+     * FactorLookup)} grows that roll's chance by. 0 for an ordinary lookup, so a roll reads its plain odds
+     * everywhere but a Claim's payout ({@link #withPityMisses}).
+     */
+    default int pityMisses(@Nonnull String pityKey) {
+        return 0;
+    }
+
     /** A lookup that answers nothing, so every gate over it fails closed and every sum reads 0. */
     @Nonnull
     static FactorLookup none() {
@@ -100,6 +111,48 @@ public interface FactorLookup {
             @Override
             public double chanceBonusPercent() {
                 return bonus;
+            }
+
+            @Override
+            public int pityMisses(@Nonnull String pityKey) {
+                return base.pityMisses(pityKey);
+            }
+        };
+    }
+
+    /**
+     * {@code base}, answering the same readings, table question, moment and chance bonus, with {@code misses}
+     * answering {@link #pityMisses} (a player's pity counts, {@code pity/PityLedger.over}).
+     */
+    @Nonnull
+    static FactorLookup withPityMisses(@Nonnull FactorLookup base, @Nonnull ToIntFunction<String> misses) {
+        return new FactorLookup() {
+            @Nullable
+            @Override
+            public Double resolve(@Nonnull String factorId, @Nullable String param) {
+                return base.resolve(factorId, param);
+            }
+
+            @Nullable
+            @Override
+            public GateQuery gateQuery() {
+                return base.gateQuery();
+            }
+
+            @Nullable
+            @Override
+            public FactorContext context() {
+                return base.context();
+            }
+
+            @Override
+            public double chanceBonusPercent() {
+                return base.chanceBonusPercent();
+            }
+
+            @Override
+            public int pityMisses(@Nonnull String pityKey) {
+                return Math.max(0, misses.applyAsInt(pityKey));
             }
         };
     }
