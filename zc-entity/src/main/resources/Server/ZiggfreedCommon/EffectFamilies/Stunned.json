@@ -1,5 +1,6 @@
 {
-  "$Comment": "Stuns.",
+  "$Comment": "Stuns. Their kind of control is Stun, the name a boss's rules use for them.",
+  "Control": "Stun",
   "Effects": [
     "Stun",
     "Bomb_Explode_Stun",

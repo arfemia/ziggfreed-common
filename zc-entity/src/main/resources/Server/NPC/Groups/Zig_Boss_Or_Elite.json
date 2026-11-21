@@ -1,5 +1,5 @@
 {
-  "$Comment": "Every boss and elite the foe families leave out, as one group: the game's boss and encounter groups, the world's own roaming bosses (Zig_World_Bosses, the dragons among them), the roles named like a boss or an elite, and the foes as strong as one (the Shadow Knight, the two larger Aberrant zombies and the Void Spawn). It holds no foe family and no family holds it. Ask it with Inverse true to keep bosses and elites out of a proc's Area or a Target: { \"Id\": \"ZigFoeFamily\", \"Groups\": [ \"Zig_Boss_Or_Elite\" ], \"Inverse\": true }. Add a role to IncludeRoles to count it as one too, and the same role to the families' ExcludeRoles; a roaming boss goes in Zig_World_Bosses instead.",
+  "$Comment": "Every boss and elite the foe families leave out, as one group: the game's boss and encounter groups, the world's own roaming bosses (Zig_World_Bosses, the dragons among them), the roles named like a boss or an elite, and the foes as strong as one (the Shadow Knight, the two larger Aberrant zombies and the Void Spawn). It holds no foe family and no family holds it. Its Tags are the crowd-control rule every boss and elite starts from: ZigControlLands names what lands on one from anyone, a talent's included (a taunt, a weakness, a mark), ZigControlShrugs what never lands (a pull, a grab or a drive, a decoy), and every other kind lands from an ability's own move at its own strength and never from a talent's. A boss's own NPC group can carry the same two lists to set its own rule, and a group tagged ZigRank Boss or Elite counts its roles as bosses or elites without being added here. To keep bosses and elites out of a proc's Area or a Target, ask { \"Id\": \"ZigBossOrElite\", \"Inverse\": true }; to ask whether one kind of control lands, { \"Id\": \"ZigControl\", \"Kind\": \"Push\", \"ByTalent\": true }. Add a role to IncludeRoles to count it as one too, and the same role to the families' ExcludeRoles; a roaming boss goes in Zig_World_Bosses instead.",
   "IncludeGroups": [
     "Zig_World_Bosses",
     "Goblin_Gobliterator_Boss_Group",
@@ -24,5 +24,9 @@
     "Zombie_Aberrant",
     "Zombie_Aberrant_Big",
     "Void_Spawn*"
-  ]
+  ],
+  "Tags": {
+    "ZigControlLands": [ "Taunt", "Weakness", "Mark" ],
+    "ZigControlShrugs": [ "Pull", "Carry", "Decoy" ]
+  }
 }

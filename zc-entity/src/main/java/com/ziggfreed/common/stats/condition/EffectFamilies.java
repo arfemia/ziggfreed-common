@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
@@ -48,13 +49,17 @@ public final class EffectFamilies {
     }
 
     /**
-     * The table: each family's member indexes, every effect id it classified (lower-cased), and each effect index's
-     * duration rules.
+     * The table: each family's member indexes, every effect id it classified (lower-cased), each effect index's
+     * duration rules, each effect index's kinds of control as a mask of {@link ControlKind} bits (from every family it
+     * is in that names a {@code Control}), and every kind some family names.
      */
     private record Table(@Nonnull Map<String, BitSet> members, @Nonnull Set<String> ids,
-            @Nonnull Map<Integer, List<DurationRule>> durations) {
-        static final Table EMPTY = new Table(Map.of(), Set.of(), Map.of());
+            @Nonnull Map<Integer, List<DurationRule>> durations, @Nonnull int[] kinds, int kindMask) {
+        static final Table EMPTY = new Table(Map.of(), Set.of(), Map.of(), new int[0], 0);
     }
+
+    /** Each family and unknown Control value already warned of, lower-cased. */
+    private static final Set<String> WARNED_KINDS = ConcurrentHashMap.newKeySet();
 
     @Nonnull
     private static volatile Table table = Table.EMPTY;
@@ -122,6 +127,27 @@ public final class EffectFamilies {
     /** Does any family carry a duration rule at all (so an effect pass has anything to do)? */
     public static boolean anyDurationRule() {
         return !current().durations().isEmpty();
+    }
+
+    /**
+     * The kinds of crowd control the effect at {@code effectIndex} is, as a mask of {@link ControlKind} bits: the
+     * {@code Control} of every family it is in that names one (Stunned and Frozen are Stun, Rooted is Hold). 0 for
+     * an effect in no such family.
+     */
+    public static int controlKindMask(int effectIndex) {
+        int[] kinds = current().kinds();
+        return effectIndex >= 0 && effectIndex < kinds.length ? kinds[effectIndex] : 0;
+    }
+
+    /** {@link #controlKindMask} as a set; empty for an effect in no family that names a kind. */
+    @Nonnull
+    public static Set<ControlKind> controlKinds(int effectIndex) {
+        return ControlKind.ofMask(controlKindMask(effectIndex));
+    }
+
+    /** Every kind some family names as its {@code Control}, as a mask. */
+    public static int familyKindMask() {
+        return current().kindMask();
     }
 
     /** Does {@code ref} carry an active effect of {@code family}? Never throws. */
@@ -249,17 +275,22 @@ public final class EffectFamilies {
         Map<String, BitSet> members = new HashMap<>();
         Set<String> ids = new HashSet<>();
         Map<Integer, List<DurationRule>> durations = new HashMap<>();
+        int[] kinds = new int[Math.max(0, end)];
+        int kindMask = 0;
         for (Map.Entry<String, Set<String>> entry : folded.entrySet()) {
             BitSet bits = new BitSet(Math.max(0, end));
             EffectFamilyAsset family = families.get(entry.getKey());
             EffectFamilyAsset.Duration duration = family == null ? null : family.duration();
             DurationRule rule = duration == null || (duration.addedBy() == null && duration.cutBy() == null) ? null
                     : new DurationRule(entry.getKey(), duration.addedBy(), duration.cutBy(), duration.cutCap());
+            int kind = kindOf(entry.getKey(), family);
+            kindMask |= kind;
             for (String id : entry.getValue()) {
                 Integer index = indexById.get(id);
                 if (index != null) {
                     bits.set(index);
                     ids.add(id);
+                    kinds[index] |= kind;
                     if (rule != null) {
                         durations.computeIfAbsent(index, k -> new ArrayList<>()).add(rule);
                     }
@@ -269,7 +300,27 @@ public final class EffectFamilies {
         }
         Map<Integer, List<DurationRule>> frozen = new HashMap<>();
         durations.forEach((index, rules) -> frozen.put(index, List.copyOf(rules)));
-        return new Table(Map.copyOf(members), Set.copyOf(ids), Map.copyOf(frozen));
+        return new Table(Map.copyOf(members), Set.copyOf(ids), Map.copyOf(frozen), kinds, kindMask);
+    }
+
+    /**
+     * A family's kind of control as a {@link ControlKind} bit, 0 for none; a value naming no kind is warned once per
+     * family and value and counts nothing.
+     */
+    private static int kindOf(@Nonnull String familyId, @Nullable EffectFamilyAsset family) {
+        if (family == null || family.rawControl() == null || family.rawControl().isBlank()) {
+            return 0;
+        }
+        ControlKind kind = family.control();
+        if (kind != null) {
+            return kind.bit();
+        }
+        String raw = family.rawControl().trim();
+        if (WARNED_KINDS.add(familyId + "|" + raw.toLowerCase(Locale.ROOT))) {
+            SafeLog.warn("[condition] the effect family '" + familyId + "' names the Control '" + raw + "', which is "
+                    + "no kind of control (" + String.join(", ", ControlKind.ids()) + "): its effects count as none");
+        }
+        return 0;
     }
 
     /** Every effect id any family lists, lower-cased. */

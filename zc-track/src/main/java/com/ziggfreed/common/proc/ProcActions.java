@@ -52,10 +52,11 @@ import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.interaction.NativeChainFire;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.condition.BossRules;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
+import com.ziggfreed.common.stats.condition.ControlKind;
 import com.ziggfreed.common.stats.condition.EffectFamilies;
 import com.ziggfreed.common.stats.condition.Nearby;
-import com.ziggfreed.common.stats.condition.ZigFoeFamilyCondition;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -196,7 +197,9 @@ final class ProcActions {
         }
         if (action.breakGuard()) {
             guarded("BreakGuard", () -> {
-                if (breakGuard(moment.accessor(), on)) {
+                // An interrupt, asked as the step's own: content that means a talent's says so in its Area.
+                if (BossRules.lands(moment.accessor(), on, ControlKind.INTERRUPT, false, moment.holder())
+                        && breakGuard(moment.accessor(), on)) {
                     GuardBreaks.broke(moment.holder(), on, System.nanoTime());
                 }
             });
@@ -320,8 +323,10 @@ final class ProcActions {
 
     /**
      * An ApplyEffect with {@code Control} landing on a foe: the wait per foe a stun keeps (zc-effects'
-     * {@code StunControl}). An {@code Immune} foe is passed over, and so is a boss or an elite when the group writes
-     * {@code SpareBossOrElite}; otherwise one takes the effect with no owner, so
+     * {@code StunControl}). An {@code Immune} foe is passed over, and so is one whose rules refuse the effect's kind
+     * (zc-entity's {@code BossRules}, the kind its effect families name, {@code SpareBossOrElite} read as a talent's
+     * step: a boss or an elite takes a talent's stun, hold, slow, interrupt or wither only where its rules let every
+     * one land); a boss or an elite takes it with no owner, so
      * the holder's length stats never reach one (bosses stay bosses); the length goes through the effect families'
      * Duration rules as it lands, then shrinks by the Immunity the foe already carries; and a landing adds the Ramp,
      * never scaled by the proc's strength.
@@ -335,10 +340,10 @@ final class ProcActions {
         if (StunControl.isImmune(accessor, on)) {
             return false;
         }
-        if (sparesBossOrElite(accessor, on, control.spareBossOrElite())) {
+        if (!BossRules.landsEffect(accessor, on, index, control.spareBossOrElite(), moment.holder())) {
             return false;
         }
-        boolean bossOrElite = ZigFoeFamilyCondition.inGroup(accessor, on, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP);
+        boolean bossOrElite = BossRules.isBossOrElite(accessor, on);
         Ref<EntityStore> owner = bossOrElite ? null : moment.holder();
         float share = control.diminish() ? StunControl.immunityShare(accessor, on) : 0f;
         float lasting = StunControl.diminished(EffectDurations.lengthAsLanded(accessor, on, index, owner, seconds),
@@ -354,17 +359,6 @@ final class ProcActions {
             StunControl.rampImmunity(accessor, on, (float) control.ramp());
         }
         return true;
-    }
-
-    /**
-     * The proc runtime's one answer to whether a boss or an elite is passed over by something a proc puts on it: a
-     * control's {@code SpareBossOrElite} and a counter weakness's ask it with their own knob, and it spares only a foe
-     * in zc-entity's {@code Zig_Boss_Or_Elite} NPC group when the knob says so. Keep every such decision here, so a
-     * later rule (one boss, one phase of a fight) changes one place.
-     */
-    static boolean sparesBossOrElite(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
-            boolean spare) {
-        return spare && ZigFoeFamilyCondition.inGroup(accessor, foe, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP);
     }
 
     private static void removeEffect(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
@@ -664,7 +658,9 @@ final class ProcActions {
      * a Force means what a weapon knockback's Force means in the game's files. When a hit of this moment lands on
      * {@code on} with a knockback of its own that carries velocity settings ({@code landing}), the push is added to
      * that knockback's vector instead: the hit's instruction comes after ours, and a Set (most weapons write one)
-     * would wipe a push made beside it. Never a knockback component of its own.
+     * would wipe a push made beside it. Never a knockback component of its own. Anyone but the holder is moved only
+     * where their rules let the kind land ({@link #pushKind}, asked as the step's own: content that means a talent's
+     * push keeps bosses out in its {@code Area}).
      */
     private static void push(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
             @Nullable Ref<EntityStore> from, @Nonnull ProcAction.Push push, @Nonnull FactorContext context,
@@ -675,6 +671,10 @@ final class ProcActions {
         double force = push.force() == null ? 0.0 : Procs.evaluate(push.force(), context);
         double up = push.up() == null ? 0.0 : Procs.evaluate(push.up(), context);
         ComponentAccessor<EntityStore> accessor = moment.accessor();
+        if (!Nearby.same(on, moment.holder())
+                && !BossRules.lands(accessor, on, pushKind(force, push.aim()), false, moment.holder())) {
+            return;
+        }
         double dx = 0.0;
         double dz = 0.0;
         if (force != 0.0 && push.aim()) {
@@ -713,6 +713,15 @@ final class ProcActions {
         if (moved && !Nearby.same(on, moment.holder())) {
             ThrownLandings.launched(moment.holder(), on, System.nanoTime());
         }
+    }
+
+    /**
+     * The kind of control a push is on the one it moves: a pull when its Force draws them toward the holder (negative,
+     * not along the holder's look), else a push (a knockback, a launch, a lift). Pure.
+     */
+    @Nonnull
+    static ControlKind pushKind(double force, boolean aim) {
+        return force < 0.0 && !aim ? ControlKind.PULL : ControlKind.PUSH;
     }
 
     /**
@@ -827,6 +836,7 @@ final class ProcActions {
         double seconds = taunt.seconds() == null ? ProcAction.Taunt.DEFAULT_SECONDS
                 : Procs.evaluate(taunt.seconds(), context);
         if (seconds > 0.0) {
+            // The pin asks the foe's rules (a Taunt, as the step's own), so one that shrugs taunts is passed over.
             AggroControl.tauntOne(moment.accessor(), moment.holder(), on, (float) seconds);
         }
     }

@@ -16,9 +16,11 @@ dependencies {
     implementation project(':zc-cast')
     // The per-type resistance stats (effect/resist reads DamageResist_<Type> and its ceiling off the
     // entity, through stats/damage/DamageResistances and StatIndexCache) and the per-type damage bonus
-    // sources (effect/outgoing sums them through stats/damage/TypedDamageBonuses). One-way: zc-entity depends on
-    // zc-core alone and never sees the native-effect primitive (its gear-set seam stays root-filled).
-    implementation project(':zc-entity')
+    // sources (effect/outgoing sums them through stats/damage/TypedDamageBonuses), and a foe's crowd-control rules
+    // (effect/control asks stats/condition/BossRules). One-way: zc-entity depends on zc-core alone and never sees the
+    // native-effect primitive (its gear-set seam stays root-filled). `api`, since AggroControl.tauntOne's public
+    // signature takes a ControlKind.
+    api project(':zc-entity')
     // The engine asset-store swap the effect-controller tests seed effects with.
     testImplementation(testFixtures(project(':zc-core')))
 }

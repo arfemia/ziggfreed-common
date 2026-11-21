@@ -16,6 +16,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.condition.ControlKind;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -36,19 +37,30 @@ public final class AggroWindows implements Resource<EntityStore> {
      * One creature pinned onto a taunter until a time ({@link AggroControl#tauntOne}), kept by the creature's entity
      * index: a creature holds one pin at a time, the newest. Whether the creature took it (its own attitude toward
      * the taunter is hostile or neutral, as an area taunt asks) is recorded by the sweep, and only a pin it took
-     * makes the attitude provider answer hostile, so a friendly creature the holder struck never turns on them.
+     * makes the attitude provider answer hostile, so a friendly creature the holder struck never turns on them. Its
+     * kind of control (a taunt, or a decoy's draw) is what the creature's rules are asked of each sweep: a creature
+     * that comes to shrug it is let go and the pin ends.
      */
     static final class Pin {
 
         @Nonnull private final Ref<EntityStore> creature;
         @Nonnull private final Ref<EntityStore> taunter;
         private final long endsAtNanos;
+        @Nonnull private final ControlKind kind;
         private boolean taken;
 
-        Pin(@Nonnull Ref<EntityStore> creature, @Nonnull Ref<EntityStore> taunter, long endsAtNanos) {
+        Pin(@Nonnull Ref<EntityStore> creature, @Nonnull Ref<EntityStore> taunter, long endsAtNanos,
+                @Nonnull ControlKind kind) {
             this.creature = creature;
             this.taunter = taunter;
             this.endsAtNanos = endsAtNanos;
+            this.kind = kind;
+        }
+
+        /** The kind of control the pin is (a taunt, a decoy's draw). */
+        @Nonnull
+        ControlKind kind() {
+            return kind;
         }
 
         @Nonnull
@@ -178,6 +190,11 @@ public final class AggroWindows implements Resource<EntityStore> {
     /** Pin a creature, replacing any pin it had. */
     void pin(@Nonnull Pin pin) {
         pins.put(pin.creature().getIndex(), pin);
+    }
+
+    /** End {@code pin} now (its creature's rules came to shrug it). */
+    void unpin(@Nonnull Pin pin) {
+        pins.remove(pin.creature().getIndex(), pin);
     }
 
     /** The live pin on {@code creature}, or null. */

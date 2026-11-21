@@ -17,6 +17,7 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.condition.EffectFamilies;
 import com.ziggfreed.common.stats.condition.EffectFamilyConfig;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.track.pick.TrackPicks;
@@ -29,7 +30,8 @@ import com.ziggfreed.common.validation.Finding;
  * damage cause this server does not have (each would do nothing where it should act). A WARNING: a proc that can
  * never run as written (no actions, a {@code Hit} or {@code Like} on a moment that carries no hit, an {@code Ability}
  * on one that names no move, an effect trigger naming no effect, a {@code Like} no damage line names, an unknown
- * {@code Overlap}, a coming hit's or a block's field on another moment), a group that does nothing as written (an
+ * {@code Overlap}, a coming hit's or a block's field on another moment), a {@code Control} on an effect in no family
+ * naming a kind of control (no foe's rules can name it), a group that does nothing as written (an
  * {@code Area} reaching no one, a {@code Push} moving nothing, an {@code Effect} on a trigger that never reads it, a
  * per-foe counter's rows, a {@code Soak}, {@code Heal} or {@code GuardCost} with nothing to do, a {@code Reach} or
  * {@code OnFoe} no one ever wears), and a proc or held effect whose {@code ziggfreedcommon:track_pick} names no pick
@@ -69,18 +71,30 @@ public final class ProcValidator {
     public static final String ON_FOE_NOT_PER_TARGET = "ON_FOE_NOT_PER_TARGET";
     public static final String REACH_NOBODY = "REACH_NOBODY";
     public static final String MOMENT_ONLY = "MOMENT_ONLY";
+    public static final String CONTROL_NO_KIND = "CONTROL_NO_KIND";
 
     /**
      * What the audit asks of the server: each answers whether an id is known here. {@code stat} asks of a stat read or
      * spent as one pool (a held effect's stat, a soak's {@code Onto}), {@code written} of a stat written (a
      * {@code ChangeStat}, a counter's row), which a retired id writes on each of its successors. A held effect's stat
      * that a consumer claims as a reading ({@code MirroredStats}) passes whatever {@code stat} answers, since its
-     * reading needs no stat file.
+     * reading needs no stat file. {@code controlKind} asks whether an effect is in an effect family that names a kind
+     * of control (zc-entity's {@code EffectFamilies.controlKindMask}); a vocabulary built without it knows every
+     * effect's kind.
      */
     public record Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
             @Nonnull Predicate<String> interaction, @Nonnull Predicate<String> family,
             @Nonnull Predicate<String> line, @Nonnull BiPredicate<String, String> pick,
-            @Nonnull Predicate<String> cause, @Nonnull Predicate<String> written) {
+            @Nonnull Predicate<String> cause, @Nonnull Predicate<String> written,
+            @Nonnull Predicate<String> controlKind) {
+
+        /** A vocabulary that knows every effect's kind of control. */
+        public Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
+                @Nonnull Predicate<String> interaction, @Nonnull Predicate<String> family,
+                @Nonnull Predicate<String> line, @Nonnull BiPredicate<String, String> pick,
+                @Nonnull Predicate<String> cause, @Nonnull Predicate<String> written) {
+            this(effect, stat, interaction, family, line, pick, cause, written, id -> true);
+        }
 
         /** A vocabulary that asks one stat question of reads and writes alike. */
         public Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
@@ -117,7 +131,8 @@ public final class ProcValidator {
                     TypedDamageBonuses::hasLine,
                     TrackPicks::knownOnTrack,
                     id -> DamageCause.getAssetMap().getAsset(id) != null,
-                    StatIndexCache::resolvesForWrite);
+                    StatIndexCache::resolvesForWrite,
+                    id -> EffectFamilies.controlKindMask(EntityEffect.getAssetMap().getIndex(id)) != 0);
             return audit(ProcConfig.getInstance().all(), CounterConfig.getInstance().all(),
                     HeldEffectConfig.getInstance().all(), vocabulary);
         } catch (Throwable t) {
@@ -190,6 +205,13 @@ public final class ProcValidator {
             ProcAction.ApplyEffect apply = action.applyEffect();
             if (apply != null) {
                 effect(id, apply.effect(), known, out);
+                if (apply.control() != null && !apply.onSelf() && apply.effect() != null
+                        && known.effect().test(apply.effect()) && !known.controlKind().test(apply.effect())) {
+                    out.add(Finding.warning(DOMAIN, CONTROL_NO_KIND, "proc '" + id + "' holds a foe back (Control) "
+                            + "with the effect '" + apply.effect() + "', which is in no effect family naming a kind "
+                            + "of control (Stunned, Frozen, Rooted, Slowed, Withered, Interrupted, Exposed), so no "
+                            + "boss's or phase's rule can name it: it lands as a control of no kind", id));
+                }
                 if (apply.rawOverlap() != null && apply.overlap() == null) {
                     out.add(Finding.warning(DOMAIN, UNKNOWN_OVERLAP, "proc '" + id + "' names the overlap '"
                             + apply.rawOverlap() + "' (Overwrite, Extend or Ignore): the effect's own is used", id));

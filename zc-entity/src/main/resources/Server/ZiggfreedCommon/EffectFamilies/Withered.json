@@ -1,5 +1,6 @@
 {
-  "$Comment": "Wither: a foe it weakens and slows. Its length is EffectDuration_Slow's, with the slows.",
+  "$Comment": "Wither: a foe it weakens and slows. Its length is EffectDuration_Slow's, with the slows. It counts as a Wither to a boss's rules.",
+  "Control": "Wither",
   "Effects": [
     "Wither"
   ],

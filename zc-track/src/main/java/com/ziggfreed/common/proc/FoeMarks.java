@@ -18,6 +18,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.grid.EffectBodies;
 import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
 import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.stats.condition.BossRules;
+import com.ziggfreed.common.stats.condition.ControlKind;
 import com.ziggfreed.common.stats.condition.Nearby;
 
 /**
@@ -32,9 +34,9 @@ import com.ziggfreed.common.stats.condition.Nearby;
  * <counter>_<percent>}, zc-effects' {@link RuntimeEffectGrid}), written the first time anyone needs it and shared
  * after, never one per foe; a percent still being written goes on a pass later. One foe carries one of a counter's
  * weaknesses at a time, the strongest: a holder whose stacks ask less leaves a stronger one standing, and the stronger
- * takes a weaker off. A boss or an elite (zc-entity's {@code Zig_Boss_Or_Elite} group) wears the look, and the weakness
- * only when the counter's {@code Weakness.SpareBossOrElite} is false, asked through the proc runtime's one rule
- * ({@link ProcActions#sparesBossOrElite}). World thread.
+ * takes a weaker off. Whether a foe wears them is its rules' (zc-entity's {@code BossRules}): the look is a Mark, the
+ * weakness a Weakness, {@code Weakness.SpareBossOrElite} read as a talent's; the family default lets both land on a
+ * boss or an elite from anyone, so only a boss or a phase whose rules say otherwise is spared. World thread.
  */
 final class FoeMarks {
 
@@ -86,7 +88,9 @@ final class FoeMarks {
             return;
         }
         List<String> looks = onFoe.effects();
-        int look = lookFor(stacks, looks.size());
+        // The look is a Mark and the weakness a Weakness, each asked of the foe's rules on every pass, so a foe whose
+        // rules come to shrug one sheds it at the next pass. Topping up is no cast: no caster is told.
+        int look = BossRules.lands(accessor, foe, ControlKind.MARK, false) ? lookFor(stacks, looks.size()) : -1;
         if (shown.look >= 0 && shown.look != look && shown.look < looks.size()) {
             removeOwned(accessor, controller, foe, looks.get(shown.look), holder);
         }
@@ -96,7 +100,7 @@ final class FoeMarks {
         shown.look = look;
         CounterAsset.Weakness weakness = onFoe.weakness();
         int percent = weakness == null || weakness.perStack() == null || weakness.causes().isEmpty()
-                || ProcActions.sparesBossOrElite(accessor, foe, weakness.spareBossOrElite()) ? 0
+                || !BossRules.lands(accessor, foe, ControlKind.WEAKNESS, weakness.spareBossOrElite()) ? 0
                 : percentFor(stacks, Procs.evaluate(weakness.perStack(), context));
         if (shown.weakness > 0 && shown.weakness != percent) {
             removeOwned(accessor, controller, foe, GRID.effectId(bucket(def, shown.weakness)), holder);

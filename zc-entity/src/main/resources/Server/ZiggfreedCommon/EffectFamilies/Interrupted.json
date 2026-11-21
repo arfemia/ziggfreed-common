@@ -1,0 +1,7 @@
+{
+  "$Comment": "Flinches: vanilla's hit flinch. A flinch counts as an Interrupt to a boss's rules, as a guard break does. A mod's own flinch joins by tagging its effect ZigEffectFamily Interrupted.",
+  "Control": "Interrupt",
+  "Effects": [
+    "Hit_Interrupt_Flinch"
+  ]
+}
