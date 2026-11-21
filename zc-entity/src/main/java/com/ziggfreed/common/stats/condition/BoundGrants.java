@@ -55,16 +55,26 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>The off reading</b> ({@link #offPoints}). A roll made away from the act a modifier binds to (a reward rolled
  * when a player collects it, a payout gathered from a station nobody worked) may count a modifier that is off as if
  * the conditions a consumer names held: a consumer's reader adds the amount of each off modifier whose list names a
- * condition its predicate accepts and whose every other condition holds as the pass reads it. As on a hit, an on
+ * condition its predicate accepts and whose every other condition holds as the pass reads it. Its hold is taken as
+ * met, as those conditions are: the hold measures a stand the roll is away from. As on a hit, an on
  * modifier is already on the stat and is never counted again, and only an additive amount on the maximum counts. Its
  * twin {@link #onPoints} sums the on modifiers whose list names a condition a predicate accepts, so a reader can take
  * another owner's share back out of the stat's value.
  *
+ * <p><b>The hold</b> ({@link Bound#holdSeconds}, a Stat grant's and a gear set tier's {@code HoldSeconds}). A modifier
+ * with a hold goes on only once its conditions have held without a break that long ({@link Entry#since}, the pass's
+ * own clock, read through {@code ConditionalStats.heldLongEnough}, the conditional files' one rule), and a hit pays an
+ * off one only once it has (a "while still" talent's weapon share). The hold is measured over the list's conditions on
+ * the holder's own state, the ones that are not hit-aware, so a weapon swap never restarts a stand; a list of hit-aware
+ * conditions alone measures it over the whole list as the pass reads it.
+ *
  * <p><b>Cost.</b> A hit by an entity with no hit-aware bound modifier costs each reader one map read; otherwise each
  * reader walks that entity's hit-aware modifiers (a handful) and asks the conditions only of an off one on its stat.
  * The pass reads each distinct condition list once (a pick's grants share theirs), {@code ZigHolding} answers from its
- * per-item memo, and the stat map is written only when a condition flips. A condition that throws counts as not
- * holding, logged once.
+ * per-item memo, a {@code ZigFoesNear} or {@code ZigPlayersNear} answers from a per-entity memo read again every
+ * {@code ConditionalStats.EVALUATE_EVERY_NANOS} (the conditional pass's own cadence, so a crowd talent walks who is
+ * near no more often than its conditional stat did), the hit term reading the same memo, and the stat map is written
+ * only when a condition flips. A condition that throws counts as not holding.
  */
 public final class BoundGrants {
 
@@ -79,18 +89,48 @@ public final class BoundGrants {
 
     /**
      * One bound modifier: {@code id} is unique among its owner's and stays the same across rebuilds, {@code statId}
-     * the stat it lands on, {@code modifier} what it adds while every one of {@code conditions} holds.
+     * the stat it lands on, {@code modifier} what it adds while every one of {@code conditions} holds and has held
+     * {@code holdSeconds} (0 or more; not finite reads 0).
      */
     public record Bound(@Nonnull String id, @Nonnull String statId, @Nonnull StaticModifier modifier,
-            @Nonnull Condition[] conditions) {
+            @Nonnull Condition[] conditions, double holdSeconds) {
+
+        public Bound {
+            holdSeconds = Double.isFinite(holdSeconds) ? Math.max(0.0, holdSeconds) : 0.0;
+        }
+
+        /** One that counts the moment its conditions hold. */
+        public Bound(@Nonnull String id, @Nonnull String statId, @Nonnull StaticModifier modifier,
+                @Nonnull Condition[] conditions) {
+            this(id, statId, modifier, conditions, 0.0);
+        }
 
         /** A flat amount added to the stat's maximum while {@code conditions} hold (a talent's grant). */
         @Nonnull
         public static Bound additive(@Nonnull String id, @Nonnull String statId, double amount,
                 @Nonnull Condition[] conditions) {
-            return new Bound(id, statId, new StaticModifier(Modifier.ModifierTarget.MAX,
-                    StaticModifier.CalculationType.ADDITIVE, (float) amount), conditions);
+            return additive(id, statId, amount, conditions, 0.0);
         }
+
+        /** {@link #additive(String, String, double, Condition[])} once the conditions have held {@code holdSeconds}. */
+        @Nonnull
+        public static Bound additive(@Nonnull String id, @Nonnull String statId, double amount,
+                @Nonnull Condition[] conditions, double holdSeconds) {
+            return new Bound(id, statId, new StaticModifier(Modifier.ModifierTarget.MAX,
+                    StaticModifier.CalculationType.ADDITIVE, (float) amount), conditions, holdSeconds);
+        }
+    }
+
+    /** What the pass read of one condition list: its holder-state conditions, and the whole list. */
+    private record ListRead(boolean rest, boolean all) {
+        static final ListRead NEITHER = new ListRead(false, false);
+    }
+
+    /** One entity's last answer for one spatial condition and when it is read again ({@link #isSpatial}). */
+    private static final class SpatialMemo {
+        boolean read;
+        boolean holds;
+        long nextNanos;
     }
 
     /** What one bound modifier resolved to on a stat map, and whether it is on now. */
@@ -102,22 +142,38 @@ public final class BoundGrants {
         final Condition[] conditions;
         /** Whether a condition of its list can answer a hit ({@link HitAwareCondition}). */
         final boolean hitAware;
+        /** How long its conditions must have held before it counts, in seconds (0: at once). */
+        final double holdSeconds;
         boolean on;
+        /** When its holder-state conditions began to hold without a break (the pass's clock), or -1 while they do not. */
+        long since = -1L;
 
         Entry(@Nonnull String key, int stat, @Nonnull String statId, @Nonnull StaticModifier modifier,
                 @Nonnull Condition[] conditions) {
+            this(key, stat, statId, modifier, conditions, 0.0);
+        }
+
+        Entry(@Nonnull String key, int stat, @Nonnull String statId, @Nonnull StaticModifier modifier,
+                @Nonnull Condition[] conditions, double holdSeconds) {
             this.key = key;
             this.stat = stat;
             this.statId = statId;
             this.modifier = modifier;
             this.conditions = conditions;
             this.hitAware = HitAwareCondition.anyIn(conditions);
+            this.holdSeconds = Double.isFinite(holdSeconds) ? Math.max(0.0, holdSeconds) : 0.0;
         }
 
         boolean sameAs(@Nonnull Entry other) {
             return stat == other.stat && modifier.getTarget() == other.modifier.getTarget()
                     && modifier.getCalculationType() == other.modifier.getCalculationType()
-                    && Float.compare(modifier.getAmount(), other.modifier.getAmount()) == 0;
+                    && Float.compare(modifier.getAmount(), other.modifier.getAmount()) == 0
+                    && Double.compare(holdSeconds, other.holdSeconds) == 0;
+        }
+
+        /** Have its conditions held long enough by {@code nanos} (always, with no hold)? */
+        boolean heldBy(long nanos) {
+            return holdSeconds <= 0.0 || ConditionalStats.heldLongEnough(since, nanos, holdSeconds);
         }
 
         /** Is it an additive amount on the stat's maximum, the one shape a hit adds in? */
@@ -126,9 +182,12 @@ public final class BoundGrants {
                     && modifier.getCalculationType() == StaticModifier.CalculationType.ADDITIVE;
         }
 
-        /** May a hit pay it: off (an on one is already on the stat), hit-aware, and additive on the maximum? */
-        boolean paysOnHit() {
-            return !on && hitAware && additiveOnMax();
+        /**
+         * May a hit at {@code nanos} pay it: off (an on one is already on the stat), hit-aware, additive on the maximum,
+         * and held long enough?
+         */
+        boolean paysOnHit(long nanos) {
+            return !on && hitAware && additiveOnMax() && heldBy(nanos);
         }
     }
 
@@ -152,6 +211,9 @@ public final class BoundGrants {
 
     /** Entities whose saved bound modifiers were swept this session. */
     private static final Map<Ref<EntityStore>, Boolean> SWEPT = new ConcurrentHashMap<>();
+
+    /** Each entity's spatial condition answers ({@link #isSpatial}), by condition; read on its world thread only. */
+    private static final Map<Ref<EntityStore>, Map<Condition, SpatialMemo>> SPATIAL = new ConcurrentHashMap<>();
 
     private BoundGrants() {
     }
@@ -189,11 +251,16 @@ public final class BoundGrants {
                 String key = MODIFIER_PREFIX + owner + ":" + one.id()
                         + (landing.statId().equals(one.statId()) ? "" : ":" + landing.statId());
                 Entry entry = new Entry(key, landing.index(), landing.statId(), landing.scaled(one.modifier()),
-                        one.conditions());
+                        one.conditions(), one.holdSeconds());
                 Entry old = before.get(key);
+                if (old != null && old.conditions == entry.conditions) {
+                    // Under the same conditions how long they have held carries over (a rank taken mid-stand).
+                    entry.since = old.since;
+                }
                 if (old != null && old.sameAs(entry)) {
-                    // A modifier that stayed the same keeps its state.
+                    // A modifier that stayed the same keeps its state, and how long its conditions have held.
                     entry.on = old.on;
+                    entry.since = old.since;
                 } else if (old != null && old.on && stats != null) {
                     if (old.conditions == entry.conditions) {
                         // Same conditions, which held at the last pass: written over now, so the stat never drops a
@@ -275,7 +342,9 @@ public final class BoundGrants {
             return 0.0;
         }
         try {
-            return hitSum(entries, (index, statId) -> index == stat, holdsOn(accessor, attacker, damage));
+            long nanos = System.nanoTime();
+            return hitSum(entries, (index, statId) -> index == stat, holdsOn(accessor, attacker, damage, nanos),
+                    nanos);
         } catch (Throwable t) {
             return 0.0;
         }
@@ -304,9 +373,10 @@ public final class BoundGrants {
             return 0.0;
         }
         try {
+            long nanos = System.nanoTime();
             return hitSum(entries,
                     (index, statId) -> TypedDamageBonuses.countsOn(accessor, attacker, damage, causeId, statId),
-                    holdsOn(accessor, attacker, damage));
+                    holdsOn(accessor, attacker, damage, nanos), nanos);
         } catch (Throwable t) {
             return 0.0;
         }
@@ -330,23 +400,55 @@ public final class BoundGrants {
         return false;
     }
 
-    /** The hit read every hit term asks of a condition list. */
+    /**
+     * The hit read every hit term asks of a condition list: a hit-aware condition asked on the hit, a spatial one from
+     * the entity's memo ({@link #isSpatial}), every other as the pass reads it ({@link HitAwareCondition#allHold}'s
+     * rule). True for none; one that throws does not hold.
+     */
     @Nonnull
     private static HitHolds holdsOn(@Nonnull ComponentAccessor<EntityStore> accessor,
-            @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage) {
-        return conditions -> HitAwareCondition.allHold(accessor, attacker, conditions, damage,
-                ConditionalStats.now(accessor));
+            @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage, long nanos) {
+        Instant now = ConditionalStats.now(accessor);
+        return conditions -> {
+            if (conditions == null) {
+                return true;
+            }
+            for (Condition condition : conditions) {
+                if (condition == null) {
+                    continue;
+                }
+                boolean holds;
+                if (condition instanceof HitAwareCondition onHit) {
+                    try {
+                        holds = onHit.evalOnHit(accessor, attacker, damage, now);
+                    } catch (Throwable t) {
+                        holds = false;
+                    }
+                } else {
+                    holds = holdsNow(accessor, attacker, condition, now, nanos);
+                }
+                if (!holds) {
+                    return false;
+                }
+            }
+            return true;
+        };
     }
 
     /**
      * The hit term over {@code entries}: each one a hit may pay ({@link Entry#paysOnHit}: off, hit-aware, additive on
-     * the maximum) whose stat {@code line} counts, its conditions asked last through {@code holds}. Pure over the
-     * entries and the two reads.
+     * the maximum, held long enough) whose stat {@code line} counts, its conditions asked last through {@code holds}.
+     * Pure over the entries and the two reads.
      */
     static double hitSum(@Nonnull List<Entry> entries, @Nonnull HitLine line, @Nonnull HitHolds holds) {
+        return hitSum(entries, line, holds, System.nanoTime());
+    }
+
+    /** {@link #hitSum(List, HitLine, HitHolds)} on a hit at {@code nanos}, the pass's clock. */
+    static double hitSum(@Nonnull List<Entry> entries, @Nonnull HitLine line, @Nonnull HitHolds holds, long nanos) {
         double sum = 0.0;
         for (Entry entry : entries) {
-            if (!entry.paysOnHit() || !line.counts(entry.stat, entry.statId) || !holds.holds(entry.conditions)) {
+            if (!entry.paysOnHit(nanos) || !line.counts(entry.stat, entry.statId) || !holds.holds(entry.conditions)) {
                 continue;
             }
             float amount = entry.modifier.getAmount();
@@ -504,6 +606,12 @@ public final class BoundGrants {
      */
     static void evaluate(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull EntityStatMap stats, @Nonnull Instant now) {
+        evaluate(accessor, ref, stats, now, System.nanoTime());
+    }
+
+    /** {@link #evaluate(ComponentAccessor, Ref, EntityStatMap, Instant)} at {@code nanos}, the pass's clock. */
+    static void evaluate(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+            @Nonnull EntityStatMap stats, @Nonnull Instant now, long nanos) {
         Map<String, Map<String, Entry>> owners = BY_REF.get(ref);
         if (SWEPT.putIfAbsent(ref, Boolean.TRUE) == null) {
             sweep(stats, owners);
@@ -512,24 +620,18 @@ public final class BoundGrants {
             return;
         }
         // Every grant one pick or tier writes shares one condition list: read each list once a pass.
-        Map<Condition[], Boolean> read = new IdentityHashMap<>();
+        Map<Condition[], ListRead> read = new IdentityHashMap<>();
         for (Map<String, Entry> entries : owners.values()) {
             for (Entry entry : entries.values()) {
-                Boolean known = read.get(entry.conditions);
-                boolean holds;
-                if (known != null) {
-                    holds = known;
-                } else {
-                    try {
-                        holds = Nearby.allHold(accessor, ref, entry.conditions, now);
-                    } catch (Throwable t) {
-                        holds = false;
-                        if (CONDITION_FAILED_LOGGED.compareAndSet(false, true)) {
-                            SafeLog.warn("[bound] a bound grant's condition threw; it counts as not holding (logged "
-                                    + "once): " + t);
-                        }
-                    }
-                    read.put(entry.conditions, holds);
+                ListRead list = read.get(entry.conditions);
+                if (list == null) {
+                    list = readList(accessor, ref, entry.conditions, now, nanos);
+                    read.put(entry.conditions, list);
+                }
+                boolean holds = list.all();
+                if (entry.holdSeconds > 0.0) {
+                    entry.since = list.rest() ? (entry.since < 0L ? nanos : entry.since) : -1L;
+                    holds = holds && entry.heldBy(nanos);
                 }
                 if (holds == entry.on) {
                     continue;
@@ -542,6 +644,72 @@ public final class BoundGrants {
                 entry.on = holds;
             }
         }
+    }
+
+    /**
+     * One list as the pass reads it: {@code rest}, whether its conditions on the holder's own state (every one that is
+     * not hit-aware) hold, and {@code all}, whether every one does; for a list of hit-aware conditions alone both are
+     * the whole list's answer. The hit-aware ones are asked only when the rest hold.
+     */
+    @Nonnull
+    private static ListRead readList(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+            @Nullable Condition[] conditions, @Nonnull Instant now, long nanos) {
+        if (conditions == null || conditions.length == 0) {
+            return new ListRead(true, true);
+        }
+        boolean anyRest = false;
+        for (Condition condition : conditions) {
+            if (condition == null || condition instanceof HitAwareCondition) {
+                continue;
+            }
+            anyRest = true;
+            if (!holdsNow(accessor, ref, condition, now, nanos)) {
+                return ListRead.NEITHER;
+            }
+        }
+        boolean all = true;
+        for (Condition condition : conditions) {
+            if (condition instanceof HitAwareCondition && !holdsNow(accessor, ref, condition, now, nanos)) {
+                all = false;
+                break;
+            }
+        }
+        return new ListRead(anyRest || all, all);
+    }
+
+    /**
+     * Does {@code condition} hold on the entity at {@code ref} as the pass reads it: a spatial one from the entity's
+     * memo, read again once {@link ConditionalStats#EVALUATE_EVERY_NANOS} has passed, every other asked now. One that
+     * throws does not hold (named once a process).
+     */
+    private static boolean holdsNow(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Condition condition, @Nonnull Instant now, long nanos) {
+        try {
+            if (!isSpatial(condition)) {
+                return condition.eval(accessor, ref, now);
+            }
+            SpatialMemo memo = SPATIAL.computeIfAbsent(ref, r -> new IdentityHashMap<>())
+                    .computeIfAbsent(condition, c -> new SpatialMemo());
+            if (!memo.read || nanos - memo.nextNanos >= 0L) {
+                memo.holds = condition.eval(accessor, ref, now);
+                memo.nextNanos = nanos + ConditionalStats.EVALUATE_EVERY_NANOS;
+                memo.read = true;
+            }
+            return memo.holds;
+        } catch (Throwable t) {
+            if (CONDITION_FAILED_LOGGED.compareAndSet(false, true)) {
+                SafeLog.warn("[bound] a bound grant's condition threw; it counts as not holding (logged once): " + t);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Is {@code condition} one that walks who is near ({@code ZigFoesNear}, {@code ZigPlayersNear}), read from a memo
+     * at the conditional pass's cadence rather than every tick?
+     */
+    static boolean isSpatial(@Nullable Condition condition) {
+        return condition instanceof ZigFoesNearCondition || condition instanceof ZigPlayersNearCondition;
     }
 
     /** Take off every saved bound modifier on {@code stats}; a wanted one is written again on this same pass. */
@@ -572,6 +740,7 @@ public final class BoundGrants {
         BY_REF.remove(ref);
         HIT_AWARE.remove(ref);
         SWEPT.remove(ref);
+        SPATIAL.remove(ref);
     }
 
     /** Forget every entity (a test). */
@@ -579,5 +748,6 @@ public final class BoundGrants {
         BY_REF.clear();
         HIT_AWARE.clear();
         SWEPT.clear();
+        SPATIAL.clear();
     }
 }

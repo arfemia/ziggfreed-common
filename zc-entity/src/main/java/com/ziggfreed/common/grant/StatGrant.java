@@ -43,6 +43,16 @@ import com.ziggfreed.common.asset.EditorSchema;
  * <p>The second holds while the hand is empty: {@code ZigHolding} with no knob holds while anything is held, and the
  * engine's {@code Inverse} turns any condition around.
  *
+ * <p>{@code HoldSeconds} asks that the conditions have held without a break that long before the grant counts, so a
+ * "while still" talent waits for the holder to have stood still a moment; it is the same knob, with the same meaning,
+ * as a conditional stat file's {@code HoldSeconds}. A grant with no {@code While} always counts, so a hold alone does
+ * nothing.
+ *
+ * <pre>{@code
+ * { "Kind": "Stat", "Stat": "DamageResist", "Add": 3,
+ *   "While": [ { "Id": "ZigMoving", "Inverse": true } ], "HoldSeconds": 2 }
+ * }</pre>
+ *
  * <p>A world rule switches it off by its kind, {@value #KIND}, or by any family its stat's own
  * {@value GrantFamilies#TAG} tag names ({@link #families()}; the library's damage and resistance stats say
  * {@value GrantFamilies#COMBAT}).
@@ -56,6 +66,7 @@ public final class StatGrant extends Grant {
     @Nullable protected Double add;
     @Nullable protected Double percent;
     @Nullable protected Condition[] whileHolds;
+    @Nullable protected Double holdSeconds;
 
     public static final BuilderCodec<StatGrant> CODEC = BuilderCodec.builder(StatGrant.class, StatGrant::new)
             .documentation("A native stat raised while the grant is held: a flat amount, a percent of the stat's "
@@ -84,6 +95,12 @@ public final class StatGrant extends Grant {
                     + "(the engine's own, or ZigHolding, ZigFoesNear or one a mod registers), read every tick for a "
                     + "player: a weapon talent counts only while its weapon is in hand. Unauthored, the grant always "
                     + "counts.").add()
+            .appendInherited(new KeyedCodec<>("HoldSeconds", Codec.DOUBLE, false),
+                    (o, v) -> o.holdSeconds = v, o -> o.holdSeconds, (o, p) -> o.holdSeconds = p.holdSeconds)
+            .metadata(EditorSchema.defaultValue(0.0))
+            .documentation("How long, in seconds, the While conditions must have held without a break before the "
+                    + "grant counts (standing still for 2 seconds). Asks nothing of a grant with no While. 0 when "
+                    + "unauthored.").add()
             .build();
 
     public StatGrant() {
@@ -137,6 +154,11 @@ public final class StatGrant extends Grant {
     /** Whether the grant counts only while its {@code While} conditions hold. */
     public boolean bound() {
         return whileHolds != null && whileHolds.length > 0;
+    }
+
+    /** The seconds the {@code While} conditions must have held before the grant counts, 0 or more. */
+    public double holdSeconds() {
+        return holdSeconds == null || !Double.isFinite(holdSeconds) ? 0.0 : Math.max(0.0, holdSeconds);
     }
 
     /** What one hold of this grant adds to a stat whose base maximum is {@code baseMax}. */

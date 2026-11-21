@@ -326,6 +326,7 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable protected Map<String, StatModifierSpec[]> statModifiers;
         // The engine's entity condition, spelt in full: Tier's own Condition (its four minimums) holds the short name.
         @Nullable protected com.hypixel.hytale.server.core.modules.entity.condition.Condition[] whileHolds;
+        @Nullable protected Double holdSeconds;
         /** The lines joined layers added to this tier ({@link GearSetJoins}); never authored, never encoded. */
         @Nullable private String[] joinedLines;
 
@@ -383,6 +384,12 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
                         + "a set's bonus to one weapon kind, worn as armor, counts only while that weapon is in "
                         + "hand). The tier's look, badge and notice follow its pieces alone. A bound tier never "
                         + "merges with a joined set's tier. Unauthored, the tier's stats count while it holds.").add()
+                .append(new KeyedCodec<>("HoldSeconds", Codec.DOUBLE, false),
+                        (o, v) -> o.holdSeconds = v, o -> o.holdSeconds)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("How long, in seconds, the While conditions must have held without a break before "
+                        + "this tier's StatModifiers count (standing still for 2 seconds), as a Stat grant's "
+                        + "HoldSeconds. Asks nothing of a tier with no While. 0 when unauthored.").add()
                 .build();
 
         public Tier() {
@@ -435,6 +442,11 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         /** Whether this tier's stats count only while its {@code While} conditions hold. */
         public boolean bound() {
             return whileHolds != null && whileHolds.length > 0;
+        }
+
+        /** The seconds the {@code While} conditions must have held before this tier's stats count, 0 or more. */
+        public double holdSeconds() {
+            return holdSeconds == null || !Double.isFinite(holdSeconds) ? 0.0 : Math.max(0.0, holdSeconds);
         }
 
         @Nullable

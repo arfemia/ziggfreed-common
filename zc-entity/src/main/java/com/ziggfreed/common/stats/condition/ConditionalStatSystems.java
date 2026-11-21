@@ -82,10 +82,11 @@ public final class ConditionalStatSystems {
             Ref<EntityStore> ref = archetypeChunk.getReferenceTo(index);
             boolean player = StatCarriers.isPlayer(archetypeChunk);
             Instant now = ConditionalStats.now(store);
-            ConditionalStats.evaluate(store, ref, stats, now, System.nanoTime(), player);
+            long nanos = System.nanoTime();
+            ConditionalStats.evaluate(store, ref, stats, now, nanos, player);
             // A player's bound grants (a talent counting while its weapon is held), and its first pass's sweep.
             if (player || BoundGrants.has(ref)) {
-                BoundGrants.evaluate(store, ref, stats, now);
+                BoundGrants.evaluate(store, ref, stats, now, nanos);
             }
         }
     }

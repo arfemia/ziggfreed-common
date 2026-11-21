@@ -452,6 +452,7 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 | `Add` | `double` | `null` | A flat amount added to the stat's maximum each time the grant is held (a pick taken three times adds it three times). 0 when unauthored. |
 | `Percent` | `double` | `null` | A percent of the stat's base maximum (its asset's Max) added each time the grant is held: 5 on Health with a base of 100 adds 5. It adds as a flat amount, so it never multiplies what gear or an effect adds. 0 when unauthored. |
 | `While` | array of `codecMap` | `null` | Entity conditions every one of which must hold on the grant's holder for it to count (the engine's own, or ZigHolding, ZigFoesNear or one a mod registers), read every tick for a player: a weapon talent counts only while its weapon is in hand. Unauthored, the grant always counts. |
+| `HoldSeconds` | `double` | `null` | How long, in seconds, the While conditions must have held without a break before the grant counts (standing still for 2 seconds). Asks nothing of a grant with no While. 0 when unauthored. |
 
 <a id="type-cost"></a>
 ## Cost

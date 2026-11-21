@@ -25,11 +25,14 @@ import com.ziggfreed.common.asset.EditorSchema;
  * What makes a native entity stat a CONDITIONAL one (R757): the stat ({@code Stat}, else the file's own id) is an
  * ordinary {@code EntityStatType} that gear, an effect or a pick raises like any other, and this file says when it
  * counts and what it pays into. The library ships the stats and their files for its own families
- * ({@code Damage_VsUndead}, {@code DamageResist_WhileCrowded}); a consumer ships its own the same way.
+ * ({@code Damage_VsUndead}, {@code Damage_WhileInWater}); a consumer ships its own the same way. A bonus about the
+ * holder's own state alone (sprinting, low health, at night) is no conditional stat: a grant raises the plain stat
+ * bound {@code While} that state (R1072), so it costs no stat type.
  *
  * <pre>{@code
- * // Server/ZiggfreedCommon/ConditionalStats/Damage_WhileLoneFoe.json
- * { "Holder": [ { "Id": "ZigFoesNear", "Radius": 10, "Min": 1, "Max": 1 } ],
+ * // Server/ZiggfreedCommon/ConditionalStats/Damage_WhileInWater.json
+ * { "Holder": [ { "Id": "InFluid", "FluidIds": [ "Water_Source", "Water", "Water_Finite" ] } ],
+ *   "Target": [ { "Id": "InFluid", "FluidIds": [ "Water_Source", "Water", "Water_Finite" ] } ],
  *   "Pays": { "Damage": { "Types": [ "*" ] } } }
  * // Server/ZiggfreedCommon/ConditionalStats/Damage_VsUndead.json
  * { "Target": [ { "Id": "ZigFoeFamily", "Groups": [ "Zig_Foe_Undead" ] } ],

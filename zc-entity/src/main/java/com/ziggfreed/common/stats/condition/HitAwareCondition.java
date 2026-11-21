@@ -19,11 +19,12 @@ import com.ziggfreed.common.util.SafeLog;
  * hit that earns that skill's credit whatever is in hand when it lands: a damage-over-time tick after a swap, a thrown
  * weapon or a bomb landing after one, a technique cast with another item.
  *
- * <p>Two readers ask it, both through {@link #allHold}: a bound grant's hit term ({@link BoundGrants#hitPoints}: a
- * bound modifier that is off pays on a hit where every one of its conditions holds on that hit), and zc-track's procs,
- * whose {@code Holder} conditions are read on a hit the holder dealt. Every other reading of the condition (the holder
- * pass, an effect's {@code ApplyConditions}) stays {@link Condition#eval}; a condition that does not implement this
- * answers a hit exactly as the holder pass reads it.
+ * <p>Two readers ask it: a bound grant's hit term ({@link BoundGrants#hitPoints}: a bound modifier that is off pays on
+ * a hit where every one of its conditions holds on that hit, its spatial ones read from the pass's memo), and zc-track's
+ * procs, whose {@code Holder} conditions are read on a hit the holder dealt ({@link #allHold}). Every other reading of
+ * the condition (the holder pass, an effect's {@code ApplyConditions}) stays {@link Condition#eval}; a condition that
+ * does not implement this answers a hit exactly as the holder pass reads it. The library's own is
+ * {@link ZigDirectHitCondition}, which holds on a direct hit alone.
  *
  * <p>An implementation applies its own {@code Inverse} as {@link Condition#eval} does ({@code inverse != answer}), so
  * an authored {@code "Inverse": true} turns the hit answer around too. It runs on the world thread inside the damage

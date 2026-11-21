@@ -49,8 +49,9 @@ public final class GearSetPlan {
     public static final String BOUND_OWNER = "zigset";
 
     /**
-     * An active bound tier's stats ({@code While}) as bound modifiers: one per authored line, its id the tier's
-     * prefix, the stat and the line's place, so a recompute names the same line the same way. A blank channel or a
+     * An active bound tier's stats ({@code While}, with its {@code HoldSeconds}) as bound modifiers: one per authored
+     * line, its id the tier's prefix, the stat and the line's place, so a recompute names the same line the same way.
+     * A blank channel or a
      * null line is passed over; an unknown channel is {@link BoundGrants}' to name.
      */
     @Nonnull
@@ -67,7 +68,7 @@ public final class GearSetPlan {
                 if (spec != null) {
                     out.add(new BoundGrants.Bound(tier.setId() + ":" + tier.tierIndex() + ":" + statId.trim() + ":"
                             + place, statId.trim(),
-                            spec.toModifier(), asset.whileConditions()));
+                            spec.toModifier(), asset.whileConditions(), asset.holdSeconds()));
                     place++;
                 }
             }

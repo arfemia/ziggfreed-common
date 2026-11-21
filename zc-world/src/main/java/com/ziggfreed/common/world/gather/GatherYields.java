@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * a bonus find on a block break or a hand harvest. The library's bonus rows add it to a row's own {@code Chance}, and a
  * {@code ZigLootable} inside a broken block's drop list adds it to each roll's {@code Chance}, so it raises a find's
  * odds and never rolls a second time; a chance nobody wrote (a certain find) takes nothing from it. A holder condition
- * reaches it as a {@code GatherYield_While<Condition>} stat folded onto {@code GatherYield}. World-thread only.
+ * reaches it as a grant of {@code GatherYield} bound {@code While} that condition. World-thread only.
  */
 public final class GatherYields {
 

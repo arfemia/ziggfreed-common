@@ -54,6 +54,8 @@ public final class ConditionBootstrap {
                     ZigCrouchingCondition.codec());
             conditions.register(ZigWorkingAtCondition.TYPE_NAME, ZigWorkingAtCondition.class,
                     ZigWorkingAtCondition.codec());
+            conditions.register(ZigDirectHitCondition.TYPE_NAME, ZigDirectHitCondition.class,
+                    ZigDirectHitCondition.codec());
             StationStatReading.contribute();
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.HolderPass());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.FirstHitRecord());

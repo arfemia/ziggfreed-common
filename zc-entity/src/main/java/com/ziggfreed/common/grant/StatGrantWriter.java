@@ -84,7 +84,7 @@ public final class StatGrantWriter implements GrantWriter {
             for (Landing landing : StatIndexCache.landingsOf(grant.stat())) {
                 double amount = grant.amountOn(baseMax(landing.index())) * landing.scale() * one.count();
                 out.add(BoundGrants.Bound.additive(key + ":" + landing.statId() + ":" + place, landing.statId(),
-                        amount, grant.whileConditions()));
+                        amount, grant.whileConditions(), grant.holdSeconds()));
             }
         }
         return out;
