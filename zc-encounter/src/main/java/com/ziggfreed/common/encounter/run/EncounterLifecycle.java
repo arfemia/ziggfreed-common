@@ -382,11 +382,17 @@ public final class EncounterLifecycle {
         });
     }
 
-    /** The run's difficulty label: the spawn call's, else the row's, else null. */
+    /**
+     * The run's difficulty label: the spawn call's, else that of the run the fight stands in (a dungeon tier's
+     * {@code Difficulty}, through the run-difficulty seam), else the row's, else null.
+     */
     @Nullable
     public static String difficultyOf(@Nonnull ZigEncounterRun run, @Nullable EncounterBindingAsset row) {
         if (run.difficulty() != null && !run.difficulty().isBlank()) {
             return run.difficulty();
+        }
+        if (run.runDifficulty() != null) {
+            return run.runDifficulty();
         }
         return row == null || row.getProgression() == null ? null : row.getProgression().getDifficulty();
     }

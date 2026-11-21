@@ -5,8 +5,12 @@
     "four pillars a charging boss wearing Zig_Staggered crashes into, cracking and then shattering them and telling the",
     "players near through a feedback moment as each shatters (CrashPillars; any moment ids do for the sample), a volume",
     "marking every player inside the hall for a WakeInArena fight (ArenaWake), and two tagged health-pack points. The arena tag is the script's own and plain, never @room. Cells are relative to the",
-    "prefab anchor, the south doorway's floor cell; North is -Z."
+    "prefab anchor, the south doorway's floor cell; North is -Z.",
+    "A reward chest (RewardChest, Chest) rises at the north end for the whole party as the fight tells the arena Defeated,",
+    "unless the boss was seen wearing Zig_Stun_Immune first (any effect does for the sample: a fight marks its boss so as",
+    "it gets away, and its vanishing still tells the arena Defeated)."
   ],
+  "Chest": {"X": 0, "Y": 1, "Z": -16},
   "Id": "Zc_Sample_Arena",
   "Label": "Sample boss arena",
   "Prefab": "ZiggfreedCommon.Samples.Zc_Sample_Arena",
@@ -51,6 +55,8 @@
     {"Template": "ArenaWake", "Inset": 2},
     {"Template": "CrashPillars", "Tag": "Zc_Sample_Arena", "Pillars": "$Pillars", "Reach": 2, "Effect": "Zig_Staggered",
      "Crash": "Root_Interrupt_All", "Cracked": "Rock_Stone_Cobble", "Stump": "Rock_Stone_Cobble_Half",
-     "CrackVfx": "Block_Break_Dust", "ShatterMoment": "Encounter_Phase_Changed", "LastMoment": "Encounter_Wiped"}
+     "CrackVfx": "Block_Break_Dust", "ShatterMoment": "Encounter_Phase_Changed", "LastMoment": "Encounter_Wiped"},
+    {"Template": "RewardChest", "Chest": "Zc_Reward_Chest", "At": "$Chest", "Signal": "Defeated", "Tag": "Zc_Sample_Arena",
+     "UnlessWearing": "Zig_Stun_Immune"}
   ]
 }

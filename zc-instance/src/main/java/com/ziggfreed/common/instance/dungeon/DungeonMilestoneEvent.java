@@ -15,17 +15,20 @@ import com.ziggfreed.common.util.SafeLog;
  * A dungeon run reached a milestone: a trigger volume's {@code ZigRunMilestone} effect fired for the first time in
  * the run for its id and placement ({@code dungeon/kit/ZigRunMilestoneEffect}). A room cleared, a puzzle solved, a
  * secret found, or any beat a pack names; the library's three are {@link #ROOM_CLEARED}, {@link #PUZZLE_SOLVED} and
- * {@link #SECRET_FOUND}, which the results screen lists. zc-stats counts it for each member as
- * {@code Dungeon_Milestones}, one line per milestone id; a consumer pays from it (a skill lock's XP, say).
+ * {@link #SECRET_FOUND}, which the results screen lists. A clear raises two of its own for its winners, with no
+ * volume and no player: {@link #CLEAR_FLAWLESS} and {@link #CLEAR_UNDER_PAR}. zc-stats counts it for each member as
+ * {@code Dungeon_Milestones}, one line per milestone id; zc-objectives turns it into a {@code DUNGEON_MILESTONE}
+ * moment for each of them, which a quest step or an achievement counts; a consumer pays from it (a skill lock's XP,
+ * say).
  *
  * <p>Synchronous {@code IEvent<Void>} POJO on the shared engine event bus, fired on the copy's world thread, once
- * per run per milestone id and placement, and only while the run is going.
+ * per run per milestone id and placement, until the run's party leaves (after its end too).
  *
  * @param dungeonId   the dungeon's id, as its file names it
  * @param difficulty  its {@code Difficulty} label, empty for normal
  * @param runId       which run
  * @param milestoneId the milestone's id as the volume writes it, trimmed; match it without regard to case
- * @param player      the player whose step fired it, or null when the volume fired with no player (a signal)
+ * @param player      the player whose step fired it, or null when the volume fired with no player (a signal, a clear)
  * @param members     every member in the run's area when it fired, in the order they came in
  */
 public record DungeonMilestoneEvent(@Nonnull String dungeonId, @Nonnull String difficulty, @Nonnull String runId,
@@ -39,6 +42,15 @@ public record DungeonMilestoneEvent(@Nonnull String dungeonId, @Nonnull String d
 
     /** A secret was found: the results screen's secrets line. */
     public static final String SECRET_FOUND = "Secret_Found";
+
+    /** The run cleared with no member dying in its area during it; raised by the clear for its winners. */
+    public static final String CLEAR_FLAWLESS = "Clear_Flawless";
+
+    /**
+     * The run cleared in less time than its dungeon's {@code Complete.ParSeconds}, counted from its first arrival;
+     * raised by the clear for its winners, never for a dungeon with no par.
+     */
+    public static final String CLEAR_UNDER_PAR = "Clear_Under_Par";
 
     public DungeonMilestoneEvent {
         members = List.copyOf(members);

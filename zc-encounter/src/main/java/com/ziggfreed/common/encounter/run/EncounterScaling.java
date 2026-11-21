@@ -72,7 +72,8 @@ public final class EncounterScaling {
     /**
      * The step of the run {@code run}'s fight stands in (a dungeon tier's): asked of the run-scale seam once, with the
      * encounter entity's place, and kept on the run until it rolls over. {@link RunScale#NONE} when the entity has no
-     * place. Never throws.
+     * place. The run's difficulty label is asked of the run-difficulty seam in the same breath and kept beside it
+     * ({@link ZigEncounterRun#runDifficulty()}). Never throws.
      */
     @Nonnull
     public static RunScale runScaleOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> encounterRef,
@@ -87,7 +88,9 @@ public final class EncounterScaling {
                     ? store.getComponent(encounterRef, TransformComponent.getComponentType()) : null;
             if (at != null) {
                 UUID world = run.worldUuid() != null ? run.worldUuid() : EncounterLifecycle.worldUuid(store);
-                asked = EncounterSeams.runScaleAt(world, new Vector3d(at.getPosition()));
+                Vector3d where = new Vector3d(at.getPosition());
+                asked = EncounterSeams.runScaleAt(world, where);
+                run.noteRunDifficulty(EncounterSeams.runDifficultyAt(world, where));
             }
         } catch (Throwable t) {
             SafeLog.fine(Encounters.LOG_PREFIX + " a fight's run step could not be read: " + t.getMessage());

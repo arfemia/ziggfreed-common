@@ -91,7 +91,7 @@ public final class RollEvaluator {
         if (!FactorGate.pass(roll.getConditions(), lookup)) {
             return Outcome.NONE;
         }
-        if (!chancePasses(roll.getChance(), lookup, chanceSample)) {
+        if (roll.getChance() != null && !passesAt(effectiveChancePercent(roll, lookup), chanceSample)) {
             return Outcome.NONE;
         }
         Roll.Ladder.Floor floor = highestFloor(roll.getLadder(), lookup);
@@ -115,7 +115,11 @@ public final class RollEvaluator {
         if (chance == null) {
             return true;
         }
-        double percent = effectiveChancePercent(chance, lookup);
+        return passesAt(effectiveChancePercent(chance, lookup), chanceSample);
+    }
+
+    /** One chance sample against {@code percent} (already held in 0..100), drawn only when it can go either way. */
+    private static boolean passesAt(double percent, @Nonnull DoubleSupplier chanceSample) {
         if (percent <= Roll.MIN_CHANCE_PERCENT) {
             return false;
         }
@@ -135,7 +139,37 @@ public final class RollEvaluator {
         if (chance == null) {
             return Roll.MAX_CHANCE_PERCENT;
         }
-        double value = chance.evaluate(lookup.asFunction()) + lookup.chanceBonusPercent();
+        return held(unheldPercent(chance, lookup));
+    }
+
+    /**
+     * The chance {@code roll} actually fires at for this moment, held inside {@code 0..100}: its {@code Chance} as
+     * {@link #effectiveChancePercent(FactorFormula, FactorLookup)} reads it, grown by its {@link Roll.Pity} group for
+     * the misses the lookup answers ({@link FactorLookup#pityMisses}). A roll with no {@code Pity}, or a lookup that
+     * answers no misses (every one but a Claim's payout), reads exactly the plain chance; a roll with no
+     * {@code Chance} is certain.
+     */
+    public static double effectiveChancePercent(@Nonnull Roll roll, @Nonnull FactorLookup lookup) {
+        FactorFormula chance = roll.getChance();
+        if (chance == null) {
+            return Roll.MAX_CHANCE_PERCENT;
+        }
+        double value = unheldPercent(chance, lookup);
+        Roll.Pity pity = roll.getPity();
+        String key = pity == null ? null : pity.key();
+        if (key != null) {
+            value = pity.grown(value, lookup.pityMisses(key));
+        }
+        return held(value);
+    }
+
+    /** The formula's value plus the moment's bonus, before the 0..100 hold. */
+    private static double unheldPercent(@Nonnull FactorFormula chance, @Nonnull FactorLookup lookup) {
+        return chance.evaluate(lookup.asFunction()) + lookup.chanceBonusPercent();
+    }
+
+    /** {@code value} held inside 0..100; a value that is not a number never fires. */
+    private static double held(double value) {
         if (!Double.isFinite(value)) {
             return Roll.MIN_CHANCE_PERCENT;
         }

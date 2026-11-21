@@ -846,8 +846,9 @@ public final class EncounterBindingAsset
                         .appendInherited(new KeyedCodec<>("Difficulty", Codec.STRING, false),
                                 (o, v) -> o.difficulty = v, o -> o.difficulty,
                                 (o, p) -> o.difficulty = p.difficulty)
-                        .documentation("The difficulty label a run carries when the spawn call names "
-                                + "none; a step's qualifier matches against it.")
+                        .documentation("The difficulty label a run carries when neither the spawn call nor "
+                                + "the dungeon run the fight stands in (its Difficulty) names one; a step's "
+                                + "qualifier matches against it.")
                         .add()
                         .appendInherited(new KeyedCodec<>("Feats", new InheritMapCodec<>(Feat.CODEC), false),
                                 (o, v) -> o.feats = v, o -> o.feats, (o, p) -> o.feats = p.feats)

@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:dungeon_tier reading for requirement lines. It takes no Param; the reading is the Tier.Rank of the dungeon run the subject stands in (1 for a dungeon with no Tier, and for a daily of the lowest tier), and nothing outside a run. A loot table steps up by depth with a Ladder on it (Min 2 for the second tier and up), and a room's ZigRequires can open a way only on a deeper tier.",
+  "Factor": "ziggfreedcommon:dungeon_tier",
+  "Text": { "TitleKey": "ziggfreedcommon.dungeon.factor.dungeon_tier" }
+}

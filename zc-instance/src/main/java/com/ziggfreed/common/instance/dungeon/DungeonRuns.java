@@ -110,7 +110,9 @@ import com.ziggfreed.common.util.SafeLog;
  * skill-locked secret or a treasure room once the last boss has fallen. A milestone counts once per run for each id
  * and placement ({@link #milestone}) and raises {@link DungeonMilestoneEvent}, after the run ended too; a member's
  * death counts through {@link #died} ({@link RunDeaths}) while it is going. A clear's results screen lists the run's
- * deaths, and its rooms, puzzles and secrets when it counted any, as they stood at the clear. The run's checkpoint
+ * deaths, and its rooms, puzzles and secrets when it counted any, as they stood at the clear. A clear raises two
+ * milestones of its own for its winners, on the world thread after its payout: {@code Clear_Flawless} when no member died,
+ * {@code Clear_Under_Par} when it beat its dungeon's {@code Complete.ParSeconds}. The run's checkpoint
  * ({@link RunCheckpoints}) answers until its party leaves, and goes when its area frees; a generated run's room logic
  * ({@code room/RunLogic}) lasts as long and is removed then ({@link AreaMembers}).
  *
@@ -169,11 +171,11 @@ public final class DungeonRuns {
                          boolean failOnWipe, @Nonnull Set<String> bosses, boolean allBosses,
                          @Nullable DungeonObjective objective, long surviveMs, @Nullable String lootable,
                          @Nullable DiminishSpec diminish, boolean inChest, @Nullable String chestKey,
-                         @Nullable Endless endless) {
+                         @Nullable Endless endless, long parMs) {
 
         /** A dungeon no longer loaded: no limit, no clear, no reward, nothing to tell an arrival. */
         static final Knobs BARE = new Knobs("", null, null, 0L, false, Set.of(), false, null, 0L, null, null, false,
-                null, null);
+                null, null, 0L);
 
         /** Whether anything can clear the run: never an endless one, which ends only by a wipe, the limit or leaving. */
         boolean canClear() {
@@ -767,6 +769,18 @@ public final class DungeonRuns {
     }
 
     /**
+     * The seam zc-encounter asks once per fight, beside {@link #scaleAt}: the {@code Difficulty} label of the run
+     * holding the spot {@code at} in world {@code worldUuid}, as the run read it at its start (the round's mode and the
+     * clear's Claim carry the same), so a boss fought there pays and counts its daily Claims under its tier; null for a
+     * fight in no run, or a run of normal difficulty (an empty label). Quick, and under this list's leaf lock only.
+     */
+    @Nullable
+    public synchronized String difficultyAt(@Nullable UUID worldUuid, @Nonnull Vector3d at) {
+        Run run = runAt(worldUuid, at);
+        return run == null || run.knobs.mode.isEmpty() ? null : run.knobs.mode;
+    }
+
+    /**
      * How many players the run of {@code area} counts: every participant a start has named so far (the first arriver,
      * those on the way with them and every later arrival), at least 1; 1 for an area with no run. Room logic sizes a
      * room's foes by it as the room is placed.
@@ -1017,6 +1031,25 @@ public final class DungeonRuns {
     }
 
     /**
+     * Whether {@code run} takes {@code what} at {@code placement} now: true the first time the run asks, false every
+     * time after, for a blank {@code what}, or once the run's area has freed or holds another run. The room kit's
+     * once-per-run gate for an effect that pays (a room's reward chest), kept beside the run's milestones until its
+     * party leaves (R1000), but raising no event and never counted in its tally.
+     */
+    public boolean once(@Nonnull LiveRun run, @Nonnull String what, @Nonnull String placement) {
+        String id = what.trim();
+        if (id.isEmpty()) {
+            return false;
+        }
+        synchronized (this) {
+            Run live = runs.get(run.area());
+            // A leading line break keeps these apart from every milestone's key, whose id is trimmed.
+            return live != null && live.runId.equals(run.runId()) && live.reached.add('\n'
+                    + id.toLowerCase(Locale.ROOT) + '\n' + placement.trim().toLowerCase(Locale.ROOT));
+        }
+    }
+
+    /**
      * {@code player} died: one more death for the run of the area they stand in, while it is going, which its results
      * screen counts. From the death system ({@link RunDeaths}); AreaMembers is asked before this list's lock is taken.
      */
@@ -1066,11 +1099,12 @@ public final class DungeonRuns {
         }
         Integer limit = dungeon.timeLimitSeconds();
         Integer survive = endless == null ? dungeon.surviveTimerSeconds() : null;
+        Integer par = endless == null ? dungeon.completeParSeconds() : null;
         return new Knobs(dungeon.difficulty(), dungeon.nameKey(), dungeon.goalKey(),
                 limit == null ? 0L : limit * 1000L, endless != null || dungeon.failOnWipe(), Set.copyOf(bosses),
                 dungeon.completeAllBosses(), endless == null ? dungeon.completeObjective() : null,
                 survive == null ? 0L : survive * 1000L, dungeon.rewardsLootable(), dungeon.rewardsDiminish(),
-                dungeon.rewardsInChest(), dungeon.chestKey(), endless);
+                dungeon.rewardsInChest(), dungeon.chestKey(), endless, par == null ? 0L : par * 1000L);
     }
 
     /** {@code dungeon}'s endless knobs, or null when it is no endless run (or names no band, so nothing rises). */
@@ -1169,6 +1203,7 @@ public final class DungeonRuns {
                     run.bossesDefeated, run.knobs.inChest ? run.clearedBy : null, run.knobs.chestKey, run.deaths,
                     Map.copyOf(run.milestones));
             outbox.add(new Fire(run.world, () -> DungeonResults.cleared(clear)));
+            queueClearMilestones(run, winners, nowMs - run.startedAtMs);
         } else if (ending.lineKey != null && run.members.anyPresent()) {
             DungeonResults.Failure failure = new DungeonResults.Failure(run.dungeon, run.knobs.nameKey,
                     ending.lineKey, run.members.present());
@@ -1177,6 +1212,32 @@ public final class DungeonRuns {
         SafeLog.info(LOG + "the run " + run.runId + " in " + run.where() + " " + ending.words
                 + (why == null ? "" : " (" + why + ")") + " after " + seconds + " s: "
                 + participants.size() + " took part, " + winners.size() + " won");
+    }
+
+    /**
+     * Queue the milestones a clear reaches by itself, raised for its {@code winners} on the copy's world thread after
+     * its payout and results: {@link DungeonMilestoneEvent#CLEAR_FLAWLESS} when no member died in the area during the
+     * run, and {@link DungeonMilestoneEvent#CLEAR_UNDER_PAR} when its dungeon writes {@code Complete.ParSeconds} and the
+     * run took less ({@code elapsedMs} since its first arrival). A run clears once, so each fires once; neither joins
+     * the run's tally, since its results already show its deaths and its time. Under this list's lock.
+     */
+    private void queueClearMilestones(@Nonnull Run run, @Nonnull List<UUID> winners, long elapsedMs) {
+        List<String> reached = new ArrayList<>(2);
+        if (run.deaths == 0) {
+            reached.add(DungeonMilestoneEvent.CLEAR_FLAWLESS);
+        }
+        if (run.knobs.parMs > 0L && elapsedMs < run.knobs.parMs) {
+            reached.add(DungeonMilestoneEvent.CLEAR_UNDER_PAR);
+        }
+        for (String id : reached) {
+            DungeonMilestoneEvent event = new DungeonMilestoneEvent(run.dungeon, run.knobs.mode, run.runId.toString(),
+                    id, null, winners);
+            outbox.add(new Fire(run.world, () -> DungeonMilestoneEvent.fire(event)));
+        }
+        if (!reached.isEmpty()) {
+            SafeLog.info(LOG + "the run " + run.runId + " in " + run.where() + " reached " + String.join(", ", reached)
+                    + " at its clear, for " + winners.size() + " member(s)");
+        }
     }
 
     /**

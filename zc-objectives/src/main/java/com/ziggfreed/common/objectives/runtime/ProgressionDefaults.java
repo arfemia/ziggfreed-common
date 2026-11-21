@@ -48,6 +48,7 @@ import com.ziggfreed.common.objectives.producer.ZigConsumeItemProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
 import com.ziggfreed.common.objectives.producer.ZigCurrencyProducer;
 import com.ziggfreed.common.objectives.producer.ZigDamageProducer;
+import com.ziggfreed.common.objectives.producer.ZigDungeonMilestoneProducer;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
 import com.ziggfreed.common.objectives.producer.ZigFallDamageProducer;
 import com.ziggfreed.common.objectives.producer.ZigGearSetProducer;
@@ -211,8 +212,8 @@ public final class ProgressionDefaults {
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
      * listeners, the five producer systems, the five that read what happens to a player on their own
      * (a death, a fall that hurts, a meal, ground covered at a sprint or swimming, a place a step names
-     * reached), plus the ten producers that are event-bus listeners
-     * (a finished instance round, a boss fight's beat, a calendar attendance, the items a reward
+     * reached), plus the producers that are event-bus listeners
+     * (a finished instance round, a dungeon run's milestone, a boss fight's beat, a calendar attendance, the items a reward
      * payout handed over, a collected quest, a collected board contract, a wallet paid into or out
      * of, the ranks a reputation check credited, a gear-set tier coming on and a heal given are
      * announced about players rather than happening to an entity, so each arrives on the shared
@@ -252,6 +253,8 @@ public final class ProgressionDefaults {
         ZigTravelDistanceProducer.install(plugin);
         ZigReachLocationProducer.install(plugin);
         ZigInstanceRoundProducer.install(plugin);
+        // A dungeon run's milestones (a room's volume, a clear's own two) for every member it names.
+        ZigDungeonMilestoneProducer.install(plugin);
         // A dungeon's Complete.Objective is met off the same moments, which the instance module cannot see.
         ProgressionRuntime.defaults(OWNER).momentListener(DungeonObjectives.INSTANCE);
         // A quest step's Drop is met off the kill and boss-win moments, for the player each credits, and a
@@ -291,7 +294,7 @@ public final class ProgressionDefaults {
                 ZigCraftProducer.KIND, ZigPickupProducer.KIND, ZigPlaceBlockProducer.KIND,
                 ZigInstanceRoundProducer.KIND_STARTED, ZigInstanceRoundProducer.KIND_ENDED,
                 ZigInstanceRoundProducer.KIND_WON, ZigInstanceRoundProducer.KIND_LOST,
-                ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_DEFEATED,
+                ZigDungeonMilestoneProducer.KIND, ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_DEFEATED,
                 ZigEncounterProducer.KIND_PHASE, ZigEncounterProducer.KIND_FEAT, ZigCalendarProducer.KIND,
                 ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigGearSetProducer.KIND,

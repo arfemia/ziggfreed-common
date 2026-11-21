@@ -21,18 +21,20 @@ import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The six questions this module cannot answer alone, and what it does until somebody answers them.
+ * The seven questions this module cannot answer alone, and what it does until somebody answers them.
  *
  * <p>Each is a SEAM filled at setup: who a non-player attacker acts for ({@link EncounterAttribution}),
  * how much power a party has ({@link EncounterPowerSource}), who a player is to the engines that pay
  * and notify them ({@link EncounterSubjectSource}), which zc run a fight belongs to
  * ({@link EncounterRunTag}, filled by the instance module from its dungeon runs), whether a fight is an
- * endless wave run ({@link EncounterWaveSource}, filled the same way), and how much tougher the run a fight
- * stands in makes it ({@link EncounterRunScale}, filled the same way). Each has a posture for a
+ * endless wave run ({@link EncounterWaveSource}, filled the same way), how much tougher the run a fight
+ * stands in makes it ({@link EncounterRunScale}, filled the same way), and which difficulty that run is
+ * ({@link EncounterRunDifficulty}, filled the same way). Each has a posture for a
  * server nothing filled it on, and each REPORTS ON ITSELF, once, the first time it has to fall back: the
  * fall-back is invisible from every other side (a turret's hits simply credit nobody, a boss simply does
  * not harden, a notice simply reads no preference, a fight in a dungeon is filed under no run, an endless
- * wave chain raises nothing, a tier's boss is no tougher than the one below), so this
+ * wave chain raises nothing, a tier's boss is no tougher than the one below, a tier's boss pays and counts
+ * as the one below), so this
  * layer says so rather than leaving the omission to be discovered as a bug report. An offline player
  * needs no seam: every payout is a Claim, which waits for them.
  *
@@ -47,6 +49,7 @@ public final class EncounterSeams {
     private static final AtomicReference<EncounterRunTag> RUN_TAG = new AtomicReference<>();
     private static final AtomicReference<EncounterWaveSource> WAVES = new AtomicReference<>();
     private static final AtomicReference<EncounterRunScale> RUN_SCALE = new AtomicReference<>();
+    private static final AtomicReference<EncounterRunDifficulty> RUN_DIFFICULTY = new AtomicReference<>();
 
     private static final AtomicBoolean WARNED_ATTRIBUTION = new AtomicBoolean();
     private static final AtomicBoolean WARNED_POWER = new AtomicBoolean();
@@ -54,6 +57,7 @@ public final class EncounterSeams {
     private static final AtomicBoolean WARNED_RUN_TAG = new AtomicBoolean();
     private static final AtomicBoolean WARNED_WAVES = new AtomicBoolean();
     private static final AtomicBoolean WARNED_RUN_SCALE = new AtomicBoolean();
+    private static final AtomicBoolean WARNED_RUN_DIFFICULTY = new AtomicBoolean();
 
     private EncounterSeams() {
     }
@@ -84,6 +88,10 @@ public final class EncounterSeams {
         RUN_SCALE.set(scale);
     }
 
+    public static void fillRunDifficulty(@Nullable EncounterRunDifficulty difficulty) {
+        RUN_DIFFICULTY.set(difficulty);
+    }
+
     /** Drop every fill and every once-only report; for a test starting from nothing. */
     public static void resetForTests() {
         ATTRIBUTION.set(null);
@@ -92,12 +100,14 @@ public final class EncounterSeams {
         RUN_TAG.set(null);
         WAVES.set(null);
         RUN_SCALE.set(null);
+        RUN_DIFFICULTY.set(null);
         WARNED_ATTRIBUTION.set(false);
         WARNED_POWER.set(false);
         WARNED_SUBJECTS.set(false);
         WARNED_RUN_TAG.set(false);
         WARNED_WAVES.set(false);
         WARNED_RUN_SCALE.set(false);
+        WARNED_RUN_DIFFICULTY.set(false);
     }
 
     public static boolean isAttributionFilled() {
@@ -122,6 +132,10 @@ public final class EncounterSeams {
 
     public static boolean isRunScaleFilled() {
         return RUN_SCALE.get() != null;
+    }
+
+    public static boolean isRunDifficultyFilled() {
+        return RUN_DIFFICULTY.get() != null;
     }
 
     // ==================== asking ====================
@@ -239,6 +253,27 @@ public final class EncounterSeams {
         }
     }
 
+    /**
+     * The difficulty label of the run the fight at {@code at} in {@code worldUuid} stands in, trimmed, or null when it
+     * is in none, its run is of normal difficulty (a blank answer), or the fill fails, which costs only the label;
+     * consulting the unfilled seam reports once.
+     */
+    @Nullable
+    public static String runDifficultyAt(@Nullable UUID worldUuid, @Nonnull Vector3d at) {
+        EncounterRunDifficulty filled = runDifficultyOrWarn();
+        if (filled == null) {
+            return null;
+        }
+        try {
+            String label = filled.difficultyAt(worldUuid, at);
+            return label == null || label.isBlank() ? null : label.trim();
+        } catch (Throwable t) {
+            SafeLog.warn(Encounters.LOG_PREFIX + " the run-difficulty fill failed, so this fight carries no run's "
+                    + "difficulty: " + t.getMessage());
+            return null;
+        }
+    }
+
     // ==================== the seam's own reports ====================
 
     /** The attribution fill, or null having REPORTED once that there is none. */
@@ -307,6 +342,17 @@ public final class EncounterSeams {
         return filled;
     }
 
+    /** The run-difficulty fill, or null having REPORTED once that there is none. */
+    @Nullable
+    static EncounterRunDifficulty runDifficultyOrWarn() {
+        EncounterRunDifficulty filled = RUN_DIFFICULTY.get();
+        if (filled == null) {
+            warnOnce(WARNED_RUN_DIFFICULTY, "nothing says which difficulty a fight's run is, so a dungeon tier's boss "
+                    + "pays and counts its daily Claims as the tier below");
+        }
+        return filled;
+    }
+
     /** The once-only latch behind {@code seam}, for the test that pins each report fires once. */
     @Nonnull
     static AtomicBoolean latchForTests(@Nonnull String seam) {
@@ -317,6 +363,7 @@ public final class EncounterSeams {
             case "runtag" -> WARNED_RUN_TAG;
             case "waves" -> WARNED_WAVES;
             case "runscale" -> WARNED_RUN_SCALE;
+            case "rundifficulty" -> WARNED_RUN_DIFFICULTY;
             default -> throw new IllegalArgumentException("no seam called " + seam);
         };
     }

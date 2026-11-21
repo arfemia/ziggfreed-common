@@ -24,9 +24,11 @@ import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootFactors;
 import com.ziggfreed.common.loot.LootableAsset;
+import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
+import com.ziggfreed.common.loot.pity.PityLedger;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.subject.Subject;
@@ -123,11 +125,12 @@ public final class ClaimRolls {
     private static Claim write(@Nonnull Payout payout, @Nullable Ref<EntityStore> ref) {
         Claim draft = payout.draft();
         try {
-            FactorLookup lookup = lookupFor(ref);
+            FactorLookup lookup = PityLedger.shared().over(lookupFor(ref), payout.player());
+            PityLedger.Tally pity = new PityLedger.Tally();
             List<InstanceReward> rewards = new ArrayList<>();
             for (Draw draw : payout.draws()) {
                 for (int i = 0; i < draw.times(); i++) {
-                    rewards.addAll(roll(draw.table(), payout.player(), draft.source(), lookup, payout.warn()));
+                    rewards.addAll(roll(draw.table(), payout.player(), draft.source(), lookup, payout.warn(), pity));
                 }
             }
             if (rewards.isEmpty()) {
@@ -138,6 +141,7 @@ public final class ClaimRolls {
                     payout.diminishKey(), now)) {
                 return null;
             }
+            PityLedger.shared().settle(payout.player(), pity);
             for (Claim held : ClaimStore.shared().list(payout.player())) {
                 if (held.is(draft.id())) {
                     return held;
@@ -150,13 +154,18 @@ public final class ClaimRolls {
         }
     }
 
-    /** One pass of {@code table} under {@code lookup}, as rewards kept for later under {@code source}. */
+    /**
+     * One pass of {@code table} under {@code lookup}, as rewards kept for later under {@code source}; what it decided
+     * for each pity roll joins {@code pity}, settled once the Claim is written.
+     */
     @Nonnull
     private static List<InstanceReward> roll(@Nonnull LootableAsset table, @Nonnull UUID player, @Nonnull String source,
-            @Nonnull FactorLookup lookup, @Nonnull Consumer<String> warn) {
+            @Nonnull FactorLookup lookup, @Nonnull Consumer<String> warn, @Nonnull PityLedger.Tally pity) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        List<LootEngine.Selected> decided = LootEngine.select(table.payingRolls(), table.payingPool(), null, lookup,
+        List<Roll> rolls = table.payingRolls();
+        List<LootEngine.Selected> decided = LootEngine.select(rolls, table.payingPool(), null, lookup,
                 random::nextDouble);
+        pity.add(rolls, decided, lookup);
         return InstanceReward.merge(DeferredRewards.fromSelection(decided, RewardKinds.shared(),
                 Subject.of(player, CLAIMER), source, warn));
     }

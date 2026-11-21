@@ -57,6 +57,8 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     private double healthMultiplier = 1.0;
     /** The step of the run the fight stands in, asked once as its subject is first scaled; null until then. */
     @Nullable private RunScale runScale;
+    /** The difficulty of the run the fight stands in (a dungeon tier's), asked with {@link #runScale}; null for none. */
+    @Nullable private String runDifficulty;
     private boolean showMarker;
     @Nonnull private List<UUID> seedMembers = List.of();
 
@@ -185,6 +187,21 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     /** Keep the step the run-scale seam answered for this run. */
     public void noteRunScale(@Nonnull RunScale scale) {
         this.runScale = scale;
+    }
+
+    /**
+     * The difficulty label of the run the fight stands in (a dungeon tier's {@code Difficulty}), as the run-difficulty
+     * seam answered it with the run's step; null before it was asked, and for a fight in no run or a run of normal
+     * difficulty. A label the spawn call named ({@link #difficulty()}) is read first.
+     */
+    @Nullable
+    public String runDifficulty() {
+        return runDifficulty;
+    }
+
+    /** Keep the label the run-difficulty seam answered for this run; null or blank keeps none. */
+    public void noteRunDifficulty(@Nullable String label) {
+        this.runDifficulty = label == null || label.isBlank() ? null : label.trim();
     }
 
     public boolean showMarker() {
@@ -538,6 +555,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         scaleApplied = false;
         lastScaleFactor = 1.0;
         runScale = null;
+        runDifficulty = null;
         reconciledPhaseIndex = 0;
         markerPlaced = false;
         markerMovedAtMs = 0L;
