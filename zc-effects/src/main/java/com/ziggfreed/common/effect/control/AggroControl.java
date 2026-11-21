@@ -7,6 +7,8 @@ import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.role.support.MarkedEntitySupport;
+import com.ziggfreed.common.stats.condition.BossRules;
+import com.ziggfreed.common.stats.condition.ControlKind;
 
 /**
  * Who the creatures near an entity go after, the one way the family does it (the {@code ZigTaunt},
@@ -47,7 +49,8 @@ public final class AggroControl {
     }
 
     /**
-     * Pull every creature within {@code radius} blocks onto {@code taunter} for {@code seconds}.
+     * Pull every creature within {@code radius} blocks onto {@code taunter} for {@code seconds}. A creature whose
+     * rules shrug a taunt (zc-entity's {@code BossRules}) is passed over by every sweep that finds it shrugging one.
      *
      * @return true when the window opened
      */
@@ -61,21 +64,36 @@ public final class AggroControl {
      * wherever either goes, and a pin of its own, so a taunter holds several creatures at once and an area taunt
      * leaves them be. When the time is up the creature's default target slot is cleared if it still holds the
      * taunter, so it picks its next target on its own. A newer pin on the same creature replaces the older one. A
-     * creature friendly toward the taunter is left alone, as {@link #taunt} leaves one.
+     * creature friendly toward the taunter is left alone, as {@link #taunt} leaves one, and so is one whose rules
+     * shrug a taunt (zc-entity's {@code BossRules}); one that comes to shrug it is let go.
      *
      * @return true when the pin was set
      */
     public static boolean tauntOne(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nullable Ref<EntityStore> taunter, @Nullable Ref<EntityStore> creature, float seconds) {
+        return tauntOne(accessor, taunter, creature, seconds, ControlKind.TAUNT);
+    }
+
+    /**
+     * {@link #tauntOne(ComponentAccessor, Ref, Ref, float)} as a pin of {@code kind}: a {@link ControlKind#TAUNT}, or
+     * a {@link ControlKind#DECOY} for a decoy that draws the creature, so the creature's rules are asked of that kind
+     * as the pin is set and every sweep after. Asked as an ability's own: a caller that adds it as a talent asks
+     * {@code BossRules} first.
+     *
+     * @return true when the pin was set
+     */
+    public static boolean tauntOne(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nullable Ref<EntityStore> taunter, @Nullable Ref<EntityStore> creature, float seconds,
+            @Nonnull ControlKind kind) {
         if (!(seconds > 0f) || creature == null || !creature.isValid() || AggroWindows.sameEntity(taunter, creature)) {
             return false;
         }
         AggroWindows windows = windowsFor(accessor, taunter);
-        if (windows == null) {
+        if (windows == null || !BossRules.lands(accessor, creature, kind, false, taunter)) {
             return false;
         }
         long endsAt = System.nanoTime() + (long) (seconds * 1_000_000_000.0);
-        windows.pin(new AggroWindows.Pin(creature, taunter, endsAt));
+        windows.pin(new AggroWindows.Pin(creature, taunter, endsAt, kind));
         return true;
     }
 

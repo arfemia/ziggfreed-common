@@ -14,7 +14,8 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
-import com.ziggfreed.common.stats.condition.ZigFoeFamilyCondition;
+import com.ziggfreed.common.stats.condition.BossRules;
+import com.ziggfreed.common.stats.condition.ControlKind;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -26,10 +27,10 @@ import com.ziggfreed.common.util.SafeLog;
  * creature's own motion). A zero vector pushes nothing, so the hold never sends one. A launch at the end is the
  * caller's own {@code Velocity} instruction.
  *
- * <p>{@link #canMove} is the one rule for whom a grab or a drive may take: a creature, never a player; never a boss or
- * an elite (zc-entity's {@code Zig_Boss_Or_Elite} group); never one wearing {@code Immune}; one whose role lets it be
- * knocked about; and one no taller than the caller allows (its model's box). It needs nothing wired: a server running
- * CommonLib alone holds the same rule. World thread.
+ * <p>{@link #canMove} is the one rule for whom a grab or a drive may take: a creature, never a player; never one whose
+ * rules shrug a Carry (zc-entity's {@code BossRules}: by the family default every boss and elite); never one wearing
+ * {@code Immune}; one whose role lets it be knocked about; and one no taller than the caller allows (its model's box).
+ * It needs nothing wired: a server running CommonLib alone holds the same rule. World thread.
  */
 public final class CreatureHold {
 
@@ -46,9 +47,9 @@ public final class CreatureHold {
     }
 
     /**
-     * May {@code foe} be lifted or driven: a creature (not a player) that is no boss or elite, does not wear the native
-     * {@code Immune} effect, has a {@code KnockbackScale} above 0 and stands no taller than {@code maxHeight} blocks.
-     * False whenever it cannot tell.
+     * May {@code foe} be lifted or driven: a creature (not a player) on which a Carry lands by its rules (by the family
+     * default, no boss or elite), that does not wear the native {@code Immune} effect, has a {@code KnockbackScale}
+     * above 0 and stands no taller than {@code maxHeight} blocks. False whenever it cannot tell.
      */
     public static boolean canMove(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
             double maxHeight) {
@@ -60,8 +61,7 @@ public final class CreatureHold {
             if (npc == null || npc.getRole() == null || !(npc.getRole().getKnockbackScale() > 0.0)) {
                 return false;
             }
-            if (ZigFoeFamilyCondition.inGroup(accessor, foe, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP)
-                    || StunControl.isImmune(accessor, foe)) {
+            if (!BossRules.lands(accessor, foe, ControlKind.CARRY, false) || StunControl.isImmune(accessor, foe)) {
                 return false;
             }
             double height = heightOf(accessor, foe);

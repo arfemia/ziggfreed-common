@@ -31,6 +31,9 @@ import com.ziggfreed.common.asset.EditorSchema;
  * "Tags": { "ZigEffectFamily": [ "Burning" ] }
  * }</pre>
  *
+ * <p>A family's {@code Control} names the kind of crowd control its effects are ({@link ControlKind}), the kind a
+ * foe's rules ({@link BossRules}) read off an effect a control puts on.
+ *
  * <p>The library ships the families its own stats read; the owner layer is
  * {@code mods/ziggfreedcommon/}{@value EffectFamilyConfig#OWNER_FILE}.
  */
@@ -48,6 +51,7 @@ public final class EffectFamilyAsset implements JsonAssetWithMap<String, Default
     @Nullable protected String[] effects;
     @Nullable protected String[] includes;
     @Nullable protected Duration duration;
+    @Nullable protected String control;
 
     public static final AssetBuilderCodec<String, EffectFamilyAsset> CODEC = AssetBuilderCodec.builder(
                     EffectFamilyAsset.class,
@@ -71,6 +75,13 @@ public final class EffectFamilyAsset implements JsonAssetWithMap<String, Default
                     (a, v) -> a.duration = v, a -> a.duration, (a, p) -> a.duration = p.duration)
             .documentation("Stats that change how long an effect of this family lasts as it lands: one of whoever "
                     + "put it on, one of whoever carries it. Neither when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Control", Codec.STRING, false),
+                    (a, v) -> a.control = v, a -> a.control, (a, p) -> a.control = p.control)
+            .metadata(EditorSchema.oneOfDocumented(ControlKind.editorPairs()))
+            .documentation("The kind of crowd control every effect of this family is, the name a boss's rules use "
+                    + "(ZigControlLands and ZigControlShrugs tags): Stunned and Frozen are Stun, Rooted is Hold, "
+                    + "Slowed is Slow. A family of mixed kinds (Control, Controlled) names none. None when "
+                    + "unauthored.").add()
             .build();
 
     public EffectFamilyAsset() {
@@ -107,6 +118,18 @@ public final class EffectFamilyAsset implements JsonAssetWithMap<String, Default
     @Nullable
     public Duration duration() {
         return duration;
+    }
+
+    /** The kind of control its effects are, or null when unauthored or naming no kind. */
+    @Nullable
+    public ControlKind control() {
+        return ControlKind.parse(control);
+    }
+
+    /** The {@code Control} as written, or null. */
+    @Nullable
+    public String rawControl() {
+        return control;
     }
 
     /**

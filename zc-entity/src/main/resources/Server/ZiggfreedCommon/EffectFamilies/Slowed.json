@@ -1,5 +1,6 @@
 {
-  "$Comment": "Slows. Whoever put one on adds EffectDuration_Slow seconds as it lands.",
+  "$Comment": "Slows. Whoever put one on adds EffectDuration_Slow seconds as it lands. A slow counts as a Slow to a boss's rules.",
+  "Control": "Slow",
   "Effects": [
     "Slow",
     "Ability_Frost_Slow",

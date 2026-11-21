@@ -1,0 +1,7 @@
+{
+  "$Comment": "Effects that make a foe take more damage: vanilla's Vulnerable. They count as a Weakness to a boss's rules, which a boss or an elite takes from anyone. A mod's own joins by tagging its effect ZigEffectFamily Exposed.",
+  "Control": "Weakness",
+  "Effects": [
+    "Vulnerable"
+  ]
+}

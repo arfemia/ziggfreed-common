@@ -107,7 +107,7 @@ public final class ZigFoeFamilyCondition extends Condition {
     }
 
     /** Is the role {@code role} in the group at {@code groupIndex} (not found: no)? */
-    private static boolean inSet(int groupIndex, int role) {
+    static boolean inSet(int groupIndex, int role) {
         return groupIndex != AssetMapWithIndexes.NOT_FOUND && TagSetPlugin.get(NPCGroup.class).tagInSet(groupIndex, role);
     }
 

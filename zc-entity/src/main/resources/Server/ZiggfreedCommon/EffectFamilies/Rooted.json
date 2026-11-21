@@ -1,5 +1,6 @@
 {
-  "$Comment": "Roots. Whoever put one on adds EffectDuration_Root seconds as it lands.",
+  "$Comment": "Roots. Whoever put one on adds EffectDuration_Root seconds as it lands. A root counts as a Hold to a boss's rules.",
+  "Control": "Hold",
   "Effects": [
     "Root",
     "Dungeon_Goblin_Mace_Slam_Rooted"

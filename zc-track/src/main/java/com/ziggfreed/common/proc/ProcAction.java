@@ -90,16 +90,18 @@ public final class ProcAction {
             .documentation("Move the target away from the holder (a negative Force pulls it in), through the "
                     + "engine's own velocity carrying the game's own knockback settings (those a weapon hit's "
                     + "knockback writes), which a player's client and a creature's knockback scale both "
-                    + "honour.").add()
+                    + "honour. A target whose rules shrug a Push (a Pull, for a negative Force) is not moved; a "
+                    + "boss or an elite never takes a pull.").add()
             .appendInherited(new KeyedCodec<>("Taunt", Taunt.CODEC, false),
                     (o, v) -> o.taunt = v, o -> o.taunt, (o, p) -> o.taunt = p.taunt)
-            .documentation("Make the target, a creature, go after the holder for a while.").add()
+            .documentation("Make the target, a creature, go after the holder for a while, unless its rules shrug "
+                    + "a Taunt.").add()
             .appendInherited(new KeyedCodec<>("BreakGuard", Codec.BOOLEAN, false),
                     (o, v) -> o.breakGuard = v, o -> o.breakGuard, (o, p) -> o.breakGuard = p.breakGuard)
             .metadata(EditorSchema.defaultValue(false))
             .documentation("True: a guard the target holds up breaks: its block stops at once and its guard chain "
-                    + "is cancelled (it may raise its guard again on its next press). False when "
-                    + "unauthored.").add()
+                    + "is cancelled (it may raise its guard again on its next press), unless its rules shrug an "
+                    + "Interrupt. False when unauthored.").add()
             .appendInherited(new KeyedCodec<>("RunInteraction", RunInteraction.CODEC, false),
                     (o, v) -> o.runInteraction = v, o -> o.runInteraction,
                     (o, p) -> o.runInteraction = p.runInteraction)
@@ -466,8 +468,9 @@ public final class ProcAction {
                 .appendInherited(new KeyedCodec<>("Conditions",
                                 new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
                         (o, v) -> o.conditions = v, o -> o.conditions, (o, p) -> o.conditions = p.conditions)
-                .documentation("Entity conditions each one reached must meet. To keep bosses and elites out, ask "
-                        + "ZigFoeFamily of the group Zig_Boss_Or_Elite with Inverse true. None when "
+                .documentation("Entity conditions each one reached must meet. To keep out a foe a talent's control "
+                        + "never lands on by its rules, ask ZigControl with the Kind and ByTalent true; to keep "
+                        + "bosses and elites out whatever their rules, ZigBossOrElite with Inverse true. None when "
                         + "unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Arc", Codec.DOUBLE, false),
                         (o, v) -> o.arc = v, o -> o.arc, (o, p) -> o.arc = p.arc)
@@ -691,12 +694,14 @@ public final class ProcAction {
                 .appendInherited(new KeyedCodec<>("Control", Control.CODEC, false),
                         (o, v) -> o.control = v, o -> o.control, (o, p) -> o.control = p.control)
                 .documentation("Present: the effect holds a foe back (a slow, a root, a freeze, a stun) and waits "
-                        + "per foe the way ZigStun does. A target wearing the game's Immune is passed over; the effect lasts less the "
+                        + "per foe the way ZigStun does. A target wearing the game's Immune is passed over, and so is "
+                        + "one whose rules refuse the kind its effect families name (Stunned is a Stun, Rooted a "
+                        + "Hold); the effect lasts less the "
                         + "more Immunity the target already carries (Diminish); each landing adds Ramp to that "
                         + "Immunity, so a foe held over and over turns Immune for a while; and a boss or an elite "
                         + "takes it with no owner, so nothing the holder's stats add to an effect's length reaches "
-                        + "one, or with SpareBossOrElite not at all. It changes nothing on the holder (OnSelf) or a "
-                        + "timeless effect. A plain effect when unauthored.").add()
+                        + "one, or with SpareBossOrElite only where its rules let a talent's land. It changes nothing "
+                        + "on the holder (OnSelf) or a timeless effect. A plain effect when unauthored.").add()
                 .build();
 
         public ApplyEffect() {
@@ -769,15 +774,16 @@ public final class ProcAction {
                         (o, v) -> o.spareBossOrElite = v, o -> o.spareBossOrElite,
                         (o, p) -> o.spareBossOrElite = p.spareBossOrElite)
                 .metadata(EditorSchema.defaultValue(false))
-                .documentation("True: a boss or an elite (the Zig_Boss_Or_Elite NPC group) is passed over, so the "
-                        + "effect never holds one back while the rest of the action still lands on it. False when "
-                        + "unauthored: one takes the effect with no owner.").add()
+                .documentation("True: the control is a talent's, which a boss or an elite takes only where its rules "
+                        + "let every one of its kind land (a window, a phase), so the effect never holds one back "
+                        + "otherwise while the rest of the action still lands on it. False when unauthored: an "
+                        + "ability's own, which one takes with no owner unless its rules shrug the kind.").add()
                 .build();
 
         public Control() {
         }
 
-        /** Is a boss or an elite passed over? False unless written true. */
+        /** Is the control read as a talent's (a boss or an elite passed over unless its rules say otherwise)? */
         public boolean spareBossOrElite() {
             return Boolean.TRUE.equals(spareBossOrElite);
         }

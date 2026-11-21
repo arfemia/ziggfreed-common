@@ -5,6 +5,7 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.event.RemovedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
+import com.hypixel.hytale.builtin.tagset.config.NPCGroup;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
@@ -17,7 +18,8 @@ import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
  * the library's entity conditions into the engine's own condition map (R700), so an effect's {@code ApplyConditions}
  * and a stat's regeneration may name them too; the holder pass, the first-hit record and the forgetting of an
  * entity that left; the damage route terms (the conditional payouts and the bound grants' hit term) and the healing
- * term the payouts ride; the marks that keep the effect family table in step with effect loads; the retired
+ * term the payouts ride; the marks that keep the effect family table and the crowd-control rule tables
+ * ({@link BossRules}) in step with effect and NPC group loads; the retired
  * conditional ids' aliases onto the plain stats a grant now binds ({@code ConditionalStats.RETIRED}) and the renamed
  * stats' onto their new ids ({@link RenamedStats}); and the
  * {@code ziggfreedcommon:station_stat} reading ({@link StationStatReading}) beside the station condition it reads.
@@ -56,6 +58,9 @@ public final class ConditionBootstrap {
                     ZigWorkingAtCondition.codec());
             conditions.register(ZigDirectHitCondition.TYPE_NAME, ZigDirectHitCondition.class,
                     ZigDirectHitCondition.codec());
+            conditions.register(ZigControlCondition.TYPE_NAME, ZigControlCondition.class, ZigControlCondition.codec());
+            conditions.register(ZigBossOrEliteCondition.TYPE_NAME, ZigBossOrEliteCondition.class,
+                    ZigBossOrEliteCondition.codec());
             StationStatReading.contribute();
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.HolderPass());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.FirstHitRecord());
@@ -65,11 +70,21 @@ public final class ConditionBootstrap {
             TypedDamageBonuses.registerRouteTerm(BoundGrants.ROUTE_TERM_OWNER, BoundGrants::damagePoints);
             HealthUtil.installHealingTerm(ConditionalStats::healingPoints);
             plugin.getEventRegistry().register(LoadedAssetsEvent.class, EntityEffect.class,
-                    (LoadedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) ->
-                            EffectFamilies.effectsLoaded(ev.getLoadedAssets()));
+                    (LoadedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) -> {
+                        EffectFamilies.effectsLoaded(ev.getLoadedAssets());
+                        ControlRuleTables.effectsLoaded(ev.getLoadedAssets());
+                    });
             plugin.getEventRegistry().register(RemovedAssetsEvent.class, EntityEffect.class,
-                    (RemovedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) ->
-                            EffectFamilies.effectsRemoved(ev.getRemovedAssets()));
+                    (RemovedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) -> {
+                        EffectFamilies.effectsRemoved(ev.getRemovedAssets());
+                        ControlRuleTables.effectsRemoved(ev.getRemovedAssets());
+                    });
+            plugin.getEventRegistry().register(LoadedAssetsEvent.class, NPCGroup.class,
+                    (LoadedAssetsEvent<String, NPCGroup, IndexedLookupTableAssetMap<String, NPCGroup>> ev) ->
+                            ControlRuleTables.groupsChanged());
+            plugin.getEventRegistry().register(RemovedAssetsEvent.class, NPCGroup.class,
+                    (RemovedAssetsEvent<String, NPCGroup, IndexedLookupTableAssetMap<String, NPCGroup>> ev) ->
+                            ControlRuleTables.groupsChanged());
         } catch (Throwable t) {
             throw new IllegalStateException("[condition] could not register conditional stats", t);
         }

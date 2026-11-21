@@ -1,5 +1,6 @@
 {
-  "$Comment": "Freezes. Whoever put one on adds EffectDuration_Freeze seconds as it lands.",
+  "$Comment": "Freezes. Whoever put one on adds EffectDuration_Freeze seconds as it lands. A freeze counts as a Stun to a boss's rules.",
+  "Control": "Stun",
   "Effects": [
     "Freeze",
     "Ability_Frost_Freeze"

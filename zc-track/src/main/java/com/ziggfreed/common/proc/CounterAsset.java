@@ -182,8 +182,8 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
                 .appendInherited(new KeyedCodec<>("Weakness", Weakness.CODEC, false),
                         (o, v) -> o.weakness = v, o -> o.weakness, (o, p) -> o.weakness = p.weakness)
                 .documentation("The foe takes more of the named damage causes while it carries stacks: PerStack "
-                        + "percent for each stack, from anyone; a boss or an elite only when its SpareBossOrElite is "
-                        + "false. None when unauthored.").add()
+                        + "percent for each stack, from anyone, a boss or an elite included unless its rules shrug "
+                        + "a Weakness. None when unauthored.").add()
                 .build();
 
         public OnFoe() {
@@ -205,10 +205,10 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
     }
 
     /**
-     * The Weakness group: the damage causes a foe takes more of, and how much a stack. A boss or an elite (zc-entity's
-     * {@code Zig_Boss_Or_Elite} NPC group) wears one only when its {@code SpareBossOrElite} says false: spared (the
-     * default), the look still shows on it and the weakness does not. The proc runtime's one boss-or-elite rule decides
-     * ({@code ProcActions.sparesBossOrElite}).
+     * The Weakness group: the damage causes a foe takes more of, and how much a stack. Whether a foe wears it is its
+     * rules' (zc-entity's {@code BossRules}, a Weakness): the family default lets one land on a boss or an elite from
+     * anyone, so {@code SpareBossOrElite} (read as a talent's) spares only a foe whose own rules leave Weakness at the
+     * usual reading, and a foe whose rules shrug it never wears one. The look is a Mark, asked the same way.
      */
     public static final class Weakness {
 
@@ -228,22 +228,22 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
                 .appendInherited(new KeyedCodec<>("PerStack", FactorFormula.codec(EditorDataSets.FACTORS), false),
                         (o, v) -> o.perStack = v, o -> o.perStack, (o, p) -> o.perStack = p.perStack)
                 .documentation("The percent more each stack makes the foe take, a formula read on the holder (a "
-                        + "talent's rank raises it); the whole is rounded to a whole percent and never passes 50. A "
-                        + "boss or an elite is weakened only when SpareBossOrElite is false. Nothing when "
-                        + "unauthored.").add()
+                        + "talent's rank raises it); the whole is rounded to a whole percent and never passes 50. "
+                        + "Nothing when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("SpareBossOrElite", Codec.BOOLEAN, false),
                         (o, v) -> o.spareBossOrElite = v, o -> o.spareBossOrElite,
                         (o, p) -> o.spareBossOrElite = p.spareBossOrElite)
                 .metadata(EditorSchema.defaultValue(true))
-                .documentation("True: a boss or an elite (the Zig_Boss_Or_Elite NPC group) is passed over, so it "
-                        + "wears the look and never the weakness. False: one takes the weakness like any other foe. "
-                        + "True when unauthored.").add()
+                .documentation("True: the weakness is a talent's, which a foe whose rules leave Weakness at the "
+                        + "usual reading passes over (the family default lets every weakness land on a boss or an "
+                        + "elite, so this matters only where a boss's own rules or a phase say otherwise). False: it "
+                        + "lands wherever an ability's own would. True when unauthored.").add()
                 .build();
 
         public Weakness() {
         }
 
-        /** Is a boss or an elite passed over? True unless written false. */
+        /** Is the weakness read as a talent's (passed over where a foe's rules leave it usual)? True unless false. */
         public boolean spareBossOrElite() {
             return spareBossOrElite == null || spareBossOrElite;
         }

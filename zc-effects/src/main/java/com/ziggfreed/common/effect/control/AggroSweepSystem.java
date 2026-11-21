@@ -24,6 +24,9 @@ import com.hypixel.hytale.server.npc.blackboard.Blackboard;
 import com.hypixel.hytale.server.npc.blackboard.view.attitude.AttitudeView;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.support.MarkedEntitySupport;
+import com.ziggfreed.common.stats.condition.BossRules;
+import com.ziggfreed.common.stats.condition.ControlKind;
+import com.ziggfreed.common.stats.condition.ControlReading;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -32,7 +35,9 @@ import com.ziggfreed.common.util.SafeLog;
  * source from its target slots, target memory and combat evaluator. It records which creatures each window reached,
  * which is what the attitude provider ({@link AggroAttitudes}) answers from between sweeps. A creature pinned onto one
  * taunter ({@link AggroControl#tauntOne}) is re-pointed at it every sweep, ahead of any window's taunt, and let go
- * (its default slot cleared if it still holds the taunter) the sweep its pin ends.
+ * (its default slot cleared if it still holds the taunter) the sweep its pin ends, or the sweep its rules (zc-entity's
+ * {@code BossRules}) come to shrug the pin's kind, which ends the pin. A creature whose rules shrug a taunt is passed
+ * over by every taunt window.
  *
  * <p>The engine's query-less {@link TickingSystem}, called once per world store per tick; a world with no window
  * open costs one resource read. Every write here is a field of a component the creature already has (its
@@ -118,6 +123,12 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
             @Nonnull ComponentType<EntityStore, NPCEntity> npcType) {
         Ref<EntityStore> creature = chunk.getReferenceTo(index);
         AggroWindows.Pin pin = windows.pinOn(creature);
+        if (pin != null && shrugs(store, creature, pin.kind())) {
+            // Its rules came to shrug the pin (a phase that turns taunts off): it ends, and the creature lets go.
+            windows.unpin(pin);
+            release(chunk, index, parts, pin.taunter());
+            pin = null;
+        }
         if (pin != null) {
             try {
                 NPCEntity npc = chunk.getComponent(index, npcType);
@@ -132,12 +143,19 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
         }
         TransformComponent transform = chunk.getComponent(index, TransformComponent.getComponentType());
         Vector3d position = transform == null ? null : transform.getPosition();
+        Boolean shrugsTaunt = null;
         for (AggroWindow window : live) {
             if (!window.reaches(creature, position) || (pin != null && window.kind() == AggroWindow.Kind.TAUNT)) {
                 continue;
             }
             try {
                 if (window.kind() == AggroWindow.Kind.TAUNT) {
+                    if (shrugsTaunt == null) {
+                        shrugsTaunt = shrugs(store, creature, ControlKind.TAUNT);
+                    }
+                    if (shrugsTaunt) {
+                        continue;
+                    }
                     NPCEntity npc = chunk.getComponent(index, npcType);
                     if (takesTaunt(store, windows, parts, creature, npc, window.source())) {
                         pointAt(chunk, index, parts, window.source());
@@ -172,6 +190,29 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
             windows.muted = false;
         }
         return own == Attitude.HOSTILE || own == Attitude.NEUTRAL;
+    }
+
+    /**
+     * Do the creature's rules shrug {@code kind} now (zc-entity's {@code BossRules})? Free when no loaded rule shrugs
+     * it; false whenever it cannot tell.
+     */
+    private static boolean shrugs(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> creature,
+            @Nonnull ControlKind kind) {
+        try {
+            return BossRules.mayShrug(kind) && BossRules.reading(store, creature, kind) == ControlReading.SHRUGS;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** A creature whose pin ended lets go: its default target slot is cleared if it still holds the taunter. */
+    private static void release(@Nonnull ArchetypeChunk<EntityStore> chunk, int index, @Nonnull Parts parts,
+            @Nonnull Ref<EntityStore> taunter) {
+        MarkedEntitySupport marked = parts.marked == null ? null : chunk.getComponent(index, parts.marked);
+        if (marked != null && AggroWindows.sameEntity(
+                marked.getMarkedEntityRef(MarkedEntitySupport.DEFAULT_TARGET_SLOT), taunter)) {
+            marked.setMarkedEntity(MarkedEntitySupport.DEFAULT_TARGET_SLOT, null);
+        }
     }
 
     /**
