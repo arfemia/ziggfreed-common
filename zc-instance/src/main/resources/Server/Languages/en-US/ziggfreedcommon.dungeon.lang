@@ -108,7 +108,7 @@ results.puzzles = Puzzles solved
 results.secrets = Secrets found
 results.deaths = Deaths
 # Shown with the par it beat (m:ss) only when the run cleared in less than its dungeon's Complete.ParSeconds.
-results.under_par = Under par
+results.under_par = Beat the target time
 results.rewards = Completion reward
 results.no_rewards = No completion reward this time.
 results.pending = Your bags are full. The rest is waiting under Claims in your menu.
@@ -123,8 +123,8 @@ results.team_total = Total {0, number}
 clear.banner = {0} cleared
 # The toast a member who sees that banner instead of the results screen reads when the run beat its par: {0} is the
 # run's length and {1} the par, both m:ss.
-clear.under_par.title = Under par
-clear.under_par = Your party finished in {0}, under the {1} par.
+clear.under_par.title = Beat the target time
+clear.under_par = Your party finished in {0}, under the {1} target time.
 
 # What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
 # heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what
@@ -135,7 +135,7 @@ goal.all_bosses = Defeat every boss.
 goal.objective = Finish the dungeon's task.
 goal.survive = Hold out for {0}.
 goal.time_limit = Finish within {0}, or the run fails.
-goal.par = Finish in under {0} for the par.
+goal.par = Finish in under {0} to beat the target time.
 goal.wipe = If everyone falls at once, the run fails.
 goal.time.seconds = {0, number} {0, plural, one {second} other {seconds}}
 goal.time.minutes = {0, number} {0, plural, one {minute} other {minutes}}

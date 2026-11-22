@@ -26,7 +26,7 @@ reward.line = +{0, number}% {1} for {2}
 # Why a boost did not start. {0} the boost; in refused.cooldown {1} how long is left; in the two full lines {0}
 # the most that may run at once.
 refused.unknown = That boost is not on this server.
-refused.standing = {0} runs on its own, so it cannot be started.
+refused.standing = {0} is always on, so there is nothing to start.
 refused.untimed = {0} has no length, so it cannot be started.
 refused.season = {0} is not running right now.
 refused.locked = You do not meet what {0} needs yet.
