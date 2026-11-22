@@ -61,7 +61,8 @@ public final class CreatureHold {
             if (npc == null || npc.getRole() == null || !(npc.getRole().getKnockbackScale() > 0.0)) {
                 return false;
             }
-            if (!BossRules.lands(accessor, foe, ControlKind.CARRY, false) || StunControl.isImmune(accessor, foe)) {
+            if (!BossRules.lands(accessor, foe, ControlKind.CARRY, false)
+                    || StunControl.isImmune(accessor, foe, ControlKind.CARRY.bit())) {
                 return false;
             }
             double height = heightOf(accessor, foe);

@@ -63,6 +63,15 @@ public final class BossRules {
         ControlReading reading(@Nullable ControlKind kind) {
             return ControlReading.resolve(kind, bossOrElite, window, standing, own, family);
         }
+
+        /** Does a rule effect worn (a window, else a phase's) answer {@code kind} with LANDS? */
+        boolean effectOpens(@Nonnull ControlKind kind) {
+            ControlReading answer = window.answer(kind);
+            if (answer == null) {
+                answer = standing.answer(kind);
+            }
+            return answer == ControlReading.LANDS;
+        }
     }
 
     /**
@@ -217,6 +226,31 @@ public final class BossRules {
     public static void shrugged(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
             @Nullable ControlKind kind, @Nullable Ref<EntityStore> caster) {
         refused(accessor, foe, kind, ControlReading.SHRUGS, caster);
+    }
+
+    /**
+     * Does a rule effect {@code foe} wears now (a window, else a phase's standing rule) say every kind in
+     * {@code kindMask} lands from anyone? A stun immunity of the foe's own ({@code ZigStunImmune}, zc-effects'
+     * {@code StunControl.isImmune}) gives way to it for those kinds, so a fight's window opens what the boss's
+     * immunity closes; its groups' tags and the family default never do. False for an empty mask, for a kind no worn
+     * rule effect names, and whenever it cannot tell; free while no loaded effect names a kind.
+     */
+    public static boolean opened(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
+            int kindMask) {
+        try {
+            if (kindMask == 0 || (kindMask & ControlRuleTables.effects().named()) != kindMask) {
+                return false;
+            }
+            Layers layers = layers(accessor, foe);
+            for (ControlKind kind : ControlKind.ofMask(kindMask)) {
+                if (!layers.effectOpens(kind)) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /**

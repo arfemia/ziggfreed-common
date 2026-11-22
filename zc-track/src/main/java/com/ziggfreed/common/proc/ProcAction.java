@@ -57,6 +57,7 @@ public final class ProcAction {
     @Nullable protected Push push;
     @Nullable protected Taunt taunt;
     @Nullable protected Boolean breakGuard;
+    @Nullable protected Boolean byTalent;
     @Nullable protected RunInteraction runInteraction;
     @Nullable protected Heal heal;
     @Nullable protected Soak soak;
@@ -90,18 +91,30 @@ public final class ProcAction {
             .documentation("Move the target away from the holder (a negative Force pulls it in), through the "
                     + "engine's own velocity carrying the game's own knockback settings (those a weapon hit's "
                     + "knockback writes), which a player's client and a creature's knockback scale both "
-                    + "honour. A target whose rules shrug a Push (a Pull, for a negative Force) is not moved; a "
-                    + "boss or an elite never takes a pull.").add()
+                    + "honour. A target whose rules refuse a Push (a Pull, for a negative Force), asked as a talent's "
+                    + "unless the entry writes ByTalent false, is not moved, so a boss or an elite takes neither "
+                    + "by the family default.").add()
             .appendInherited(new KeyedCodec<>("Taunt", Taunt.CODEC, false),
                     (o, v) -> o.taunt = v, o -> o.taunt, (o, p) -> o.taunt = p.taunt)
-            .documentation("Make the target, a creature, go after the holder for a while, unless its rules shrug "
-                    + "a Taunt.").add()
+            .documentation("Make the target, a creature, go after the holder for a while, unless its rules refuse a "
+                    + "Taunt (asked as a talent's unless the entry writes ByTalent false; the family default lets "
+                    + "every taunt land on a boss or an elite).").add()
             .appendInherited(new KeyedCodec<>("BreakGuard", Codec.BOOLEAN, false),
                     (o, v) -> o.breakGuard = v, o -> o.breakGuard, (o, p) -> o.breakGuard = p.breakGuard)
             .metadata(EditorSchema.defaultValue(false))
             .documentation("True: a guard the target holds up breaks: its block stops at once and its guard chain "
-                    + "is cancelled (it may raise its guard again on its next press), unless its rules shrug an "
-                    + "Interrupt. False when unauthored.").add()
+                    + "is cancelled (it may raise its guard again on its next press), unless its rules refuse an "
+                    + "Interrupt (asked as a talent's unless the entry writes ByTalent false, so a boss's or an "
+                    + "elite's guard holds by the family default). False when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("ByTalent", Codec.BOOLEAN, false),
+                    (o, v) -> o.byTalent = v, o -> o.byTalent, (o, p) -> o.byTalent = p.byTalent)
+            .metadata(EditorSchema.defaultValue(true))
+            .documentation("True: this entry's Push, Taunt and BreakGuard are a talent's control, added to the move, "
+                    + "which a boss or an elite takes only where its rules let every one of the kind land (a window, "
+                    + "a phase), so a file that forgets the setting keeps bosses safe. False: the move's own control, "
+                    + "as an ability's own push is, which one takes at the cast's own strength unless its rules shrug "
+                    + "the kind. An ApplyEffect's Control keeps its own SpareBossOrElite. True when unauthored.")
+            .add()
             .appendInherited(new KeyedCodec<>("RunInteraction", RunInteraction.CODEC, false),
                     (o, v) -> o.runInteraction = v, o -> o.runInteraction,
                     (o, p) -> o.runInteraction = p.runInteraction)
@@ -148,6 +161,8 @@ public final class ProcAction {
     @Nullable public Push push() { return push; }
     @Nullable public Taunt taunt() { return taunt; }
     public boolean breakGuard() { return Boolean.TRUE.equals(breakGuard); }
+    /** Are this entry's Push, Taunt and BreakGuard a talent's control (true unless written false)? */
+    public boolean byTalent() { return byTalent == null || byTalent; }
     @Nullable public RunInteraction runInteraction() { return runInteraction; }
     @Nullable public Heal heal() { return heal; }
     @Nullable public Soak soak() { return soak; }

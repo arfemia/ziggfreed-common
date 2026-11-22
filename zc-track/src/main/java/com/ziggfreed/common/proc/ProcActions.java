@@ -163,7 +163,8 @@ final class ProcActions {
         if (action.push() != null && action.push().onSelf()) {
             // A hit the holder takes lands on the holder, so its own knockback is the one their push rides.
             KnockbackComponent landing = moment.trigger().taken() ? landing(moment.damage()) : null;
-            guarded("Push", () -> push(moment, moment.holder(), moment.target(), action.push(), context, landing));
+            guarded("Push", () -> push(moment, moment.holder(), moment.target(), action.push(), action.byTalent(),
+                    context, landing));
         }
     }
 
@@ -190,15 +191,17 @@ final class ProcActions {
             guarded("Heal", () -> heal(moment, on, action.heal(), strength, context, healSource));
         }
         if (action.push() != null && !action.push().onSelf()) {
-            guarded("Push", () -> push(moment, on, moment.holder(), action.push(), context, landing));
+            guarded("Push", () -> push(moment, on, moment.holder(), action.push(), action.byTalent(), context,
+                    landing));
         }
         if (action.taunt() != null) {
-            guarded("Taunt", () -> taunt(moment, on, action.taunt(), context));
+            guarded("Taunt", () -> taunt(moment, on, action.taunt(), action.byTalent(), context));
         }
         if (action.breakGuard()) {
             guarded("BreakGuard", () -> {
-                // An interrupt, asked as the step's own: content that means a talent's says so in its Area.
-                if (BossRules.lands(moment.accessor(), on, ControlKind.INTERRUPT, false, moment.holder())
+                // An interrupt, a talent's unless the entry writes ByTalent false (R1149: a forgotten setting keeps
+                // a boss safe).
+                if (BossRules.lands(moment.accessor(), on, ControlKind.INTERRUPT, action.byTalent(), moment.holder())
                         && breakGuard(moment.accessor(), on)) {
                     GuardBreaks.broke(moment.holder(), on, System.nanoTime());
                 }
@@ -323,7 +326,8 @@ final class ProcActions {
 
     /**
      * An ApplyEffect with {@code Control} landing on a foe: the wait per foe a stun keeps (zc-effects'
-     * {@code StunControl}). An {@code Immune} foe is passed over, and so is one whose rules refuse the effect's kind
+     * {@code StunControl}). A foe whose rules refuse the effect's kind is passed over, asked first so the holder sees the
+     * shrug word, and so is an {@code Immune} one or one whose own stun immunity no window opens; the rules read
      * (zc-entity's {@code BossRules}, the kind its effect families name, {@code SpareBossOrElite} read as a talent's
      * step: a boss or an elite takes a talent's stun, hold, slow, interrupt or wither only where its rules let every
      * one land); a boss or an elite takes it with no owner, so
@@ -337,10 +341,13 @@ final class ProcActions {
             @Nonnull EntityEffect effect, @Nonnull EffectControllerComponent controller, float seconds,
             @Nonnull OverlapBehavior overlap, @Nonnull ProcAction.Control control) {
         ComponentAccessor<EntityStore> accessor = moment.accessor();
-        if (StunControl.isImmune(accessor, on)) {
+        // The foe's rules first, so a refused talent's control shows the holder the shrug word even on a foe that is
+        // also immune.
+        if (!BossRules.landsEffect(accessor, on, index, control.spareBossOrElite(), moment.holder())) {
             return false;
         }
-        if (!BossRules.landsEffect(accessor, on, index, control.spareBossOrElite(), moment.holder())) {
+        // Immune by the game's ramp, or by a stun immunity of its own that no window it wears opens for these kinds.
+        if (StunControl.isImmune(accessor, on, EffectFamilies.controlKindMask(index))) {
             return false;
         }
         boolean bossOrElite = BossRules.isBossOrElite(accessor, on);
@@ -659,12 +666,12 @@ final class ProcActions {
      * {@code on} with a knockback of its own that carries velocity settings ({@code landing}), the push is added to
      * that knockback's vector instead: the hit's instruction comes after ours, and a Set (most weapons write one)
      * would wipe a push made beside it. Never a knockback component of its own. Anyone but the holder is moved only
-     * where their rules let the kind land ({@link #pushKind}, asked as the step's own: content that means a talent's
-     * push keeps bosses out in its {@code Area}).
+     * where their rules let the kind land ({@link #pushKind}), asked as a talent's unless the entry writes
+     * {@code ByTalent} false ({@code byTalent}).
      */
     private static void push(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
-            @Nullable Ref<EntityStore> from, @Nonnull ProcAction.Push push, @Nonnull FactorContext context,
-            @Nullable KnockbackComponent landing) {
+            @Nullable Ref<EntityStore> from, @Nonnull ProcAction.Push push, boolean byTalent,
+            @Nonnull FactorContext context, @Nullable KnockbackComponent landing) {
         if (!on.isValid()) {
             return;
         }
@@ -672,7 +679,7 @@ final class ProcActions {
         double up = push.up() == null ? 0.0 : Procs.evaluate(push.up(), context);
         ComponentAccessor<EntityStore> accessor = moment.accessor();
         if (!Nearby.same(on, moment.holder())
-                && !BossRules.lands(accessor, on, pushKind(force, push.aim()), false, moment.holder())) {
+                && !BossRules.lands(accessor, on, pushKind(force, push.aim()), byTalent, moment.holder())) {
             return;
         }
         double dx = 0.0;
@@ -831,14 +838,22 @@ final class ProcActions {
         return length > 1e-4 && Double.isFinite(length) ? new double[] {x / length, z / length} : null;
     }
 
+    /**
+     * Pin {@code on} onto the holder for the taunt's seconds. A talent's taunt ({@code byTalent}) asks the foe's rules
+     * as one first, as {@code AggroControl.tauntOne} asks a caller that adds it as a talent to; the pin itself then
+     * asks them as the move's own, so one that shrugs taunts is passed over either way.
+     */
     private static void taunt(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on, @Nonnull ProcAction.Taunt taunt,
-            @Nonnull FactorContext context) {
+            boolean byTalent, @Nonnull FactorContext context) {
         double seconds = taunt.seconds() == null ? ProcAction.Taunt.DEFAULT_SECONDS
                 : Procs.evaluate(taunt.seconds(), context);
-        if (seconds > 0.0) {
-            // The pin asks the foe's rules (a Taunt, as the step's own), so one that shrugs taunts is passed over.
-            AggroControl.tauntOne(moment.accessor(), moment.holder(), on, (float) seconds);
+        if (!(seconds > 0.0)) {
+            return;
         }
+        if (byTalent && !BossRules.lands(moment.accessor(), on, ControlKind.TAUNT, true, moment.holder())) {
+            return;
+        }
+        AggroControl.tauntOne(moment.accessor(), moment.holder(), on, (float) seconds);
     }
 
     /**

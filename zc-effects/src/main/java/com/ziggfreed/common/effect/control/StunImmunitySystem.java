@@ -84,7 +84,11 @@ public final class StunImmunitySystem extends EntityTickingSystem<EntityStore> {
         }
     }
 
-    /** The game's stuns an effect tagged {@value StunControl#STUN_IMMUNE_TAG} names, off its wearer. */
+    /**
+     * The game's stuns an effect tagged {@value StunControl#STUN_IMMUNE_TAG} names, off its wearer, except one whose
+     * kinds a rule effect the wearer has on opens (zc-entity's {@code BossRules.opened}: a fight's window letting the
+     * root wand's root hold), which comes off once that rule does.
+     */
     private static void shedImmune(@Nonnull ArchetypeChunk<EntityStore> chunk, int index,
             @Nonnull EffectControllerComponent effects, @Nonnull int[] active,
             @Nonnull CommandBuffer<EntityStore> commandBuffer) {
@@ -98,6 +102,9 @@ public final class StunImmunitySystem extends EntityTickingSystem<EntityStore> {
                 if (effects.hasEffect(stun)) {
                     if (ref == null) {
                         ref = chunk.getReferenceTo(index);
+                    }
+                    if (BossRules.opened(commandBuffer, ref, EffectFamilies.controlKindMask(stun))) {
+                        continue;
                     }
                     effects.removeEffect(ref, stun, commandBuffer);
                 }
