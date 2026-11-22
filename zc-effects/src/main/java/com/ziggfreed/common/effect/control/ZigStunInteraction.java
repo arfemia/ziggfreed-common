@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.interaction.type.InteractionCtx;
 import com.ziggfreed.common.interaction.type.InteractionOutcome;
+import com.ziggfreed.common.stats.condition.ControlKind;
 
 /**
  * Stuns (or staggers) the entity a chain names, through {@link StunControl}:
@@ -150,7 +151,8 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
                 return false;
             }
             Ref<EntityStore> target = ControlTargets.resolve(ctx, entity, InteractionTarget.TARGET);
-            if (target == null || (!ignoresImmunity() && StunControl.isImmune(buffer, target))) {
+            if (target == null
+                    || (!ignoresImmunity() && StunControl.isImmune(buffer, target, ControlKind.STUN.bit()))) {
                 return true;
             }
             // Diminish: the share is read before this landing ramps it, the one formula every shrinking control keeps.

@@ -1,5 +1,5 @@
 {
-  "$Comment": "A short window in which a boss or an elite can be stunned and interrupted by anyone, a talent's stun included, each at its own base length. Put it on from the fight with the game's own ApplyEntityEffect (UseTarget), when the boss stumbles or its guard breaks, and say so with the fight's own line. When it runs out the boss's usual rule returns. Change Duration in a copy of your own, give that copy a tint or particles so players see the opening, or name other kinds under its ZigControlLands tag (Slow, Hold, Push).",
+  "$Comment": "A short window in which a boss or an elite can be stunned and interrupted by anyone, a talent's stun included, each at its own base length, even one wearing Zig_Stun_Immune (the window opens it for these kinds; the game's Immune from repeated stuns still holds). Put it on from the fight with the game's own ApplyEntityEffect (UseTarget), when the boss stumbles or its guard breaks, and say so with the fight's own line. When it runs out the boss's usual rule returns. Change Duration in a copy of your own, give that copy a tint or particles so players see the opening, or name other kinds under its ZigControlLands tag (Slow, Hold, Push).",
   "Duration": 6.0,
   "OverlapBehavior": "Overwrite",
   "Debuff": true,

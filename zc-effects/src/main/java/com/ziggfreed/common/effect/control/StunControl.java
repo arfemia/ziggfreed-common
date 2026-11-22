@@ -89,7 +89,8 @@ public final class StunControl {
      * only its fight may stun wears one. Every stun that asks {@link #isImmune} passes such an entity over; the tag's
      * values name the game's own stun effects the wearer sheds the tick they land ({@link StunImmunity}), for the
      * stuns that never ask. A stun its fight deals itself writes past it ({@code ZigStun}'s {@code IgnoreImmune}, or
-     * {@link #stun} called directly).
+     * {@link #stun} called directly), and a rule effect the fight puts on its boss opens the kinds it says land from
+     * anyone (a window's slows and roots), both here and in the shedding.
      */
     public static final String STUN_IMMUNE_TAG = "ZigStunImmune";
 
@@ -214,7 +215,19 @@ public final class StunControl {
      * {@value #STUN_IMMUNE_TAG}. False whenever it cannot tell.
      */
     public static boolean isImmune(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target) {
-        return usable(target) && (NativeEffectUtil.has(accessor, target, IMMUNE_EFFECT) || wearsStunImmunity(accessor, target));
+        return isImmune(accessor, target, 0);
+    }
+
+    /**
+     * {@link #isImmune(ComponentAccessor, Ref)} for a control of the kinds in {@code kindMask} ({@link ControlKind}
+     * bits: a stun's, or an effect's families' kinds): the game's {@value #IMMUNE_EFFECT} still passes it over, but a
+     * {@value #STUN_IMMUNE_TAG} effect gives way while a rule effect the target wears (a fight's window or phase) says
+     * every one of those kinds lands from anyone (zc-entity's {@code BossRules.opened}). An empty mask never opens.
+     */
+    public static boolean isImmune(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
+            int kindMask) {
+        return usable(target) && (NativeEffectUtil.has(accessor, target, IMMUNE_EFFECT)
+                || (wearsStunImmunity(accessor, target) && !BossRules.opened(accessor, target, kindMask)));
     }
 
     /** Whether {@code target} wears an effect tagged {@value #STUN_IMMUNE_TAG}, read off each active effect's Tags. */
