@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
+import com.ziggfreed.common.damage.onhit.ShrugWords;
 
 /**
  * The one answer to who is a boss or an elite and whether a kind of crowd control lands on a foe now, so every site
@@ -182,6 +183,43 @@ public final class BossRules {
     }
 
     /**
+     * Do {@code foe}'s rules shrug {@code kind} now, from anyone, the game's own and a fight's own included (a stun, a
+     * knockback, a taunt that must not land at all)? Free while no loaded rule shrugs it ({@link #mayShrug}); false
+     * whenever it cannot tell.
+     */
+    public static boolean shrugs(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
+            @Nonnull ControlKind kind) {
+        try {
+            return mayShrug(kind) && reading(accessor, foe, kind) == ControlReading.SHRUGS;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * {@link #shrugs(ComponentAccessor, Ref, ControlKind)}, telling {@code caster} when it does (the shrug word, as
+     * every refusal with a caster is told).
+     */
+    public static boolean shrugs(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
+            @Nonnull ControlKind kind, @Nullable Ref<EntityStore> caster) {
+        if (!shrugs(accessor, foe, kind)) {
+            return false;
+        }
+        refused(accessor, foe, kind, ControlReading.SHRUGS, caster);
+        return true;
+    }
+
+    /**
+     * Tell {@code caster} that {@code foe} shrugged their control of {@code kind}, for a site that found the shrug
+     * itself (an effect taken off the tick it landed, a pin let go when a phase came to shrug it): the word every
+     * refusal with a caster shows.
+     */
+    public static void shrugged(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
+            @Nullable ControlKind kind, @Nullable Ref<EntityStore> caster) {
+        refused(accessor, foe, kind, ControlReading.SHRUGS, caster);
+    }
+
+    /**
      * The rule the effect at {@code effectIndex} carries in its own tags, or null for an effect that is no rule effect
      * (a fight taking its boss's standing rules off reads it).
      */
@@ -196,12 +234,16 @@ public final class BossRules {
     }
 
     /**
-     * Where a refusal with a caster is told to that caster. Nothing is shown yet: the seam a shrug word answers
-     * through.
+     * Where a refusal with a caster is told to that caster: a player sees the shrug word over the foe
+     * ({@link ShrugWords}: every shrug, a boss's own rule or the family default refusing a talent's control alike, at
+     * most once every few seconds per player, foe and kind, behind the crit word's Settings switch). A null
+     * {@code caster} tells no one.
      */
     private static void refused(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> foe,
             @Nullable ControlKind kind, @Nonnull ControlReading reading, @Nullable Ref<EntityStore> caster) {
-        // No word yet.
+        if (caster != null) {
+            ShrugWords.show(accessor, caster, foe, kind);
+        }
     }
 
     @Nonnull

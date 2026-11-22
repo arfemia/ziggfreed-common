@@ -26,7 +26,6 @@ import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.support.MarkedEntitySupport;
 import com.ziggfreed.common.stats.condition.BossRules;
 import com.ziggfreed.common.stats.condition.ControlKind;
-import com.ziggfreed.common.stats.condition.ControlReading;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -37,7 +36,7 @@ import com.ziggfreed.common.util.SafeLog;
  * taunter ({@link AggroControl#tauntOne}) is re-pointed at it every sweep, ahead of any window's taunt, and let go
  * (its default slot cleared if it still holds the taunter) the sweep its pin ends, or the sweep its rules (zc-entity's
  * {@code BossRules}) come to shrug the pin's kind, which ends the pin. A creature whose rules shrug a taunt is passed
- * over by every taunt window.
+ * over by every taunt window. Either way the taunter, a player, sees the shrug word ({@code BossRules.shrugged}).
  *
  * <p>The engine's query-less {@link TickingSystem}, called once per world store per tick; a world with no window
  * open costs one resource read. Every write here is a field of a component the creature already has (its
@@ -123,8 +122,9 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
             @Nonnull ComponentType<EntityStore, NPCEntity> npcType) {
         Ref<EntityStore> creature = chunk.getReferenceTo(index);
         AggroWindows.Pin pin = windows.pinOn(creature);
-        if (pin != null && shrugs(store, creature, pin.kind())) {
-            // Its rules came to shrug the pin (a phase that turns taunts off): it ends, and the creature lets go.
+        if (pin != null && BossRules.shrugs(store, creature, pin.kind(), pin.taunter())) {
+            // Its rules came to shrug the pin (a phase that turns taunts off): it ends, the creature lets go, and the
+            // taunter sees the shrug word.
             windows.unpin(pin);
             release(chunk, index, parts, pin.taunter());
             pin = null;
@@ -151,9 +151,11 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
             try {
                 if (window.kind() == AggroWindow.Kind.TAUNT) {
                     if (shrugsTaunt == null) {
-                        shrugsTaunt = shrugs(store, creature, ControlKind.TAUNT);
+                        shrugsTaunt = BossRules.shrugs(store, creature, ControlKind.TAUNT);
                     }
                     if (shrugsTaunt) {
+                        // Told to each window's source, the throttle keeping it to one word every few seconds.
+                        BossRules.shrugged(store, creature, ControlKind.TAUNT, window.source());
                         continue;
                     }
                     NPCEntity npc = chunk.getComponent(index, npcType);
@@ -190,19 +192,6 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
             windows.muted = false;
         }
         return own == Attitude.HOSTILE || own == Attitude.NEUTRAL;
-    }
-
-    /**
-     * Do the creature's rules shrug {@code kind} now (zc-entity's {@code BossRules})? Free when no loaded rule shrugs
-     * it; false whenever it cannot tell.
-     */
-    private static boolean shrugs(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> creature,
-            @Nonnull ControlKind kind) {
-        try {
-            return BossRules.mayShrug(kind) && BossRules.reading(store, creature, kind) == ControlReading.SHRUGS;
-        } catch (Throwable t) {
-            return false;
-        }
     }
 
     /** A creature whose pin ended lets go: its default target slot is cleared if it still holds the taunter. */

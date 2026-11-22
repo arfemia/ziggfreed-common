@@ -26,6 +26,8 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Roo
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.role.support.CombatSupport;
 import com.ziggfreed.common.effect.NativeEffectUtil;
+import com.ziggfreed.common.stats.condition.BossRules;
+import com.ziggfreed.common.stats.condition.ControlKind;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -55,6 +57,11 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>Stun and stagger.</b> A stun over a stun refreshes it to the new length. A stagger never shortens or
  * replaces a stun (it is dropped), and over a stagger it only lengthens it. A stun over a stagger replaces it.
+ *
+ * <p><b>A foe that shrugs stuns takes none.</b> While a target's rules shrug a Stun (zc-entity's {@code BossRules}: a
+ * phase naming it under {@code ZigControlShrugs}), every stun and stagger here refuses it, whoever deals it, a fight's
+ * own stun included, so nothing of the hold (the chains, the action, the attack pause) lands either, and a player
+ * source sees the shrug word. Free while no loaded rule shrugs a stun.
  *
  * <p>The native diminishing ramp (vanilla's bomb shape: an {@code Immune} target is skipped and a landed stun adds
  * {@code Immunity}, whose {@code MaxValueEffects} put {@code Immune} on at its {@code Max}) is the caller's to ask
@@ -128,7 +135,7 @@ public final class StunControl {
      */
     public static boolean stun(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
             float seconds, @Nullable Ref<EntityStore> source, @Nonnull String effectId) {
-        if (!usable(target) || !(seconds > 0f) || effectId.isBlank()) {
+        if (!usable(target) || !(seconds > 0f) || effectId.isBlank() || shrugged(accessor, target, source)) {
             return false;
         }
         if (!addEffect(accessor, target, effectId.trim(), seconds, source != null && source.isValid() ? source : null)) {
@@ -300,7 +307,7 @@ public final class StunControl {
 
     private static boolean apply(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
             float seconds, @Nullable Ref<EntityStore> source, boolean full) {
-        if (!usable(target) || !(seconds > 0f)) {
+        if (!usable(target) || !(seconds > 0f) || shrugged(accessor, target, source)) {
             return false;
         }
         if (!full) {
@@ -323,6 +330,16 @@ public final class StunControl {
         stopCurrentAction(accessor, target);
         holdAttacks(accessor, target, seconds + (full ? STUN_WAKE_SECONDS : STAGGER_WAKE_SECONDS));
         return true;
+    }
+
+    /**
+     * Do {@code target}'s rules shrug a stun now (zc-entity's {@code BossRules}: a phase or a window naming Stun under
+     * {@code ZigControlShrugs})? Then no stun of any source holds it, its fight's own included, and a player
+     * {@code source} sees the shrug word. Free while no loaded rule shrugs a stun.
+     */
+    private static boolean shrugged(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> target,
+            @Nullable Ref<EntityStore> source) {
+        return BossRules.shrugs(accessor, target, ControlKind.STUN, source != null && source.isValid() ? source : null);
     }
 
     private static boolean addEffect(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> target,
