@@ -39,7 +39,8 @@ public final class PresenceRequiresCodec {
     /** The sentence the Asset Editor shows beside every store's {@code Requires} leaf of this shape. */
     public static final String DOCUMENTATION = "Whether this file loads on this server at all, and whom it pays. "
             + "A condition { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } keeps "
-            + "the file out entirely where that mod is not installed, so nothing reads it or reports it. Write "
+            + "the file out entirely where that mod is not installed, so nothing reads it or reports it, and one "
+            + "with \"Max\": 0 keeps it out where that mod IS installed (a stand-in for servers without it). Write "
             + "Min 1: a condition with no bound is satisfied by a missing mod too. Every other condition here is "
             + "asked of the player each time the file pays or applies (a table's rolls, a bonus row's find, a "
             + "gear set's bonuses), and one about the player fails where no player is there to ask.";
@@ -48,7 +49,8 @@ public final class PresenceRequiresCodec {
     public static final String ROW_DOCUMENTATION = "Whether this reward row exists on this server at all, and "
             + "whom it pays. A condition { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", "
             + "\"Min\": 1 } leaves the row out where that mod is not installed: it pays nothing, shows nowhere and "
-            + "is not reported, while the rest of the list pays as written. Write Min 1: a condition with no "
+            + "is not reported, while the rest of the list pays as written; one with \"Max\": 0 leaves it out "
+            + "where that mod IS installed, a stand-in for servers without it. Write Min 1: a condition with no "
             + "bound is satisfied by a missing mod too. Every other condition here is asked of the player as the "
             + "row pays: a player who fails one gets nothing for this row while the rest of the list pays, and a "
             + "shop refuses the purchase rather than take the price for it.";
@@ -117,9 +119,10 @@ public final class PresenceRequiresCodec {
                             new ArrayCodec<>(FactorCondition.codec(EditorDataSets.FACTORS), FactorCondition[]::new),
                             false),
                     (o, v) -> o.factors = v, o -> o.factors, (o, p) -> o.factors = p.factors)
-            .documentation("The conditions. A plain hytale:mod_installed condition with Min 1 decides whether "
-                    + "the file or reward row carrying this block loads; every other condition is asked of the "
-                    + "player where it pays or applies. Authoring this list replaces an inherited one whole.")
+            .documentation("The conditions. A plain hytale:mod_installed condition with Min 1 (or Max 0, its "
+                    + "mirror) decides whether the file or reward row carrying this block loads; every other "
+                    + "condition is asked of the player where it pays or applies. Authoring this list replaces an "
+                    + "inherited one whole.")
             .add()
             .build();
 

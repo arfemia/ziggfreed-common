@@ -69,6 +69,7 @@ public final class DerivedFactorValidator {
         for (Map.Entry<String, DerivedFactorAsset> e : byId.entrySet()) {
             String id = e.getKey();
             DerivedFactorAsset asset = e.getValue();
+            checkRequires(id, asset, out);
             if (asset.isOverlay() && asset.getFormula() != null) {
                 out.add(Finding.error(DOMAIN, "FACTOR_AND_FORMULA",
                         "this file carries both a Factor target and a Formula, which address two different "
@@ -101,6 +102,31 @@ public final class DerivedFactorValidator {
         }
         return out;
     }
+
+    /**
+     * A {@code Factors} file's {@code Requires} reads mod presence alone, at the load handler's fold: any
+     * other condition there (a level, a feature, a bounds-less presence check) is never asked, so it is
+     * reported once per file rather than read as a restriction it is not.
+     */
+    private static void checkRequires(@Nonnull String id, @Nonnull DerivedFactorAsset asset,
+            @Nonnull List<Finding> out) {
+        if (asset.getRequires() == null) {
+            return;
+        }
+        for (FactorCondition condition : asset.getRequires().factorsOrEmpty()) {
+            if (condition != null && !condition.isBlank() && !ModGates.isPresenceGate(condition)
+                    && !ModGates.isAbsenceGate(condition)) {
+                out.add(Finding.warning(DOMAIN, REQUIRES_CONDITION_IGNORED,
+                        "Requires names '" + condition.getFactor() + "', which a Factors file never asks: only a "
+                                + "plain hytale:mod_installed condition (Min 1, or Max 0) decides whether the "
+                                + "file loads, so this condition is ignored", id));
+                return;
+            }
+        }
+    }
+
+    /** A {@code Factors} file's {@code Requires} names a condition other than the plain mod gate. */
+    public static final String REQUIRES_CONDITION_IGNORED = "REQUIRES_CONDITION_IGNORED";
 
     /** As {@link #validateAll(Map, Predicate)} with no knowledge of any registry's ids. */
     @Nonnull

@@ -24,6 +24,7 @@ import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
 import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.trigger.BonusRowConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
@@ -48,7 +49,7 @@ import com.ziggfreed.common.stats.gearset.GearSetConfig;
  * QuestGenerators and ShopEntryGenerators (a family follows its {@code Base}); DialogueFragments,
  * DialogueExtensions and Dialogues (a line gates on its own {@code Conditions}); Instances, RollPools,
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
- * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, RewardChests, DialogueOptionTheme, NpcIdentities, Factors,
+ * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, RewardChests, DialogueOptionTheme, NpcIdentities,
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
  * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
  * where its mod is missing, read inline and never counted), ShopPools, EncounterBindings,
@@ -89,6 +90,8 @@ class FrameworkModGateWiringTest {
         GATED.put("BoardAsset", new Gated("Boards", "BoardConfig", BoardConfig.MOD_GATE_STORE));
         GATED.put("BountyAsset", new Gated("Bounties", "BoardAssetStore", BoardAssetStore.MOD_GATE_STORE));
         GATED.put("GearSetAsset", new Gated("GearSets", "GearSetConfig", GearSetConfig.MOD_GATE_STORE));
+        GATED.put("DerivedFactorAsset",
+                new Gated("Factors", "DerivedFactorConfig", DerivedFactorConfig.MOD_GATE_STORE));
     }
 
     /**
@@ -124,7 +127,7 @@ class FrameworkModGateWiringTest {
 
     /** The gated stores that keep no owner file, so there is no owner reader to wire. */
     private static final Set<String> NO_OWNER_FILE =
-            Set.of("LootableAsset", "AchievementAsset", "ShopEntryAsset", "BountyAsset");
+            Set.of("LootableAsset", "AchievementAsset", "ShopEntryAsset", "BountyAsset", "DerivedFactorAsset");
 
     private static final Path QUEST_STORE = module("zc-progression", "quest", "asset", "QuestAssetStore.java");
 
@@ -209,6 +212,7 @@ class FrameworkModGateWiringTest {
         assertEquals("Shops", ShopConfig.getInstance().modGateStore());
         assertEquals("Boards", BoardConfig.getInstance().modGateStore());
         assertEquals("GearSets", GearSetConfig.getInstance().modGateStore());
+        assertEquals("Factors", DerivedFactorConfig.getInstance().modGateStore());
     }
 
     @Test

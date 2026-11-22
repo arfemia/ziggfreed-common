@@ -102,6 +102,11 @@ public final class PlacementAnchors {
         addStructures(union, world, anchor.getStructure());
         addZone(union, world, anchor.getZone());
         addCustom(union, world, store, placementId, anchor.getCustom());
+        String tag = placement.anchorTag();
+        if (tag != null) {
+            // A Seasons entry's own anchor: its standing is an instance of its own (NpcPlacementAsset.inEffect).
+            union.replaceAll(position -> tagged(position, tag));
+        }
 
         NpcPlacementAsset.Limits limits = placement.getLimits();
         boolean once = limits != null && limits.effectiveOncePerWorld();
@@ -109,6 +114,19 @@ public final class PlacementAnchors {
 
         List<AnchorPosition> collapsed = collapse(union, once);
         return applyChance(collapsed, worldSeed(world), placementId, chance);
+    }
+
+    /**
+     * {@code position} under a {@code Seasons} entry's tag: the same spot, its instance id prefixed
+     * {@code @<tag>~}, so its anchor key ({@code worldspawn:@christmas~0}) is the entry's own and never the
+     * file's ({@link NpcPlacementAsset#anchorTagOf}). PURE.
+     */
+    @Nonnull
+    static AnchorPosition tagged(@Nonnull AnchorPosition position, @Nonnull String tag) {
+        return new AnchorPosition(position.kind(),
+                NpcPlacementAsset.SeasonEntry.TAG_MARK + tag + NpcPlacementAsset.SeasonEntry.TAG_SEPARATOR
+                        + position.instanceId(),
+                position.x(), position.y(), position.z(), position.yaw());
     }
 
     /**

@@ -187,11 +187,12 @@ public class ActionPlacementInteract extends ActionBase {
     /**
      * WHAT this placement opens: its authored destination, or - when it authors no {@code Interact}
      * at all - the character's quest list, which is what a placed NPC with nothing else to say is
-     * for.
+     * for. A placement listing {@code Seasons} opens what the entry in effect says
+     * ({@link NpcPlacementAsset#inEffect()}), so a character speaks the season's lines.
      */
     @Nullable
     private static Destination destinationOf(@Nonnull NpcPlacementAsset placement) {
-        NpcPlacementAsset.Interact interact = placement.getInteract();
+        NpcPlacementAsset.Interact interact = placement.inEffect().getInteract();
         Destination authored = interact == null ? null : interact.destination();
         return authored != null ? authored : NpcDestinations.Quests.of(null);
     }

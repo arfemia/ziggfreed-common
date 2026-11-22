@@ -533,14 +533,16 @@ public final class FrameworkAssetRegistrar {
         //     leaf. No cache to invalidate: a registry that adopts a derived id keeps a provider
         //     that re-reads DerivedFactorConfig every call, and FactorNames walks the fold per
         //     question, so a re-import lands on the next resolve and a dropped file goes straight
-        //     back to failing closed. ---
+        //     back to failing closed. A file's top-level Requires follows the mod gate (2.5.3): a
+        //     factor it keeps out is absent on purpose, failing closed with no finding and no warning. ---
         AssetStoreRegistrar.registerStore(DerivedFactorAsset.class,
                 new DefaultAssetMap<String, DerivedFactorAsset>(), "ZiggfreedCommon/Factors",
                 DerivedFactorAsset::getId, DerivedFactorAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, DerivedFactorAsset.class,
                 (LoadedAssetsEvent<String, DerivedFactorAsset, DefaultAssetMap<String, DerivedFactorAsset>> ev) ->
-                        DerivedFactorConfig.getInstance().mergePackLayer(
-                                AssetMergeAdapter.layer(ev.getAssetMap())));
+                        DerivedFactorConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(
+                                DerivedFactorConfig.MOD_GATE_STORE, ev.getAssetMap(),
+                                f -> PresenceRequiresCodec.missingMod(f.getRequires()))));
 
         // --- Feedback moments (Pattern A) - what this server DOES when one lifecycle moment
         //     happens: a toast, a server banner, a jingle, a command. The asset id IS the moment id

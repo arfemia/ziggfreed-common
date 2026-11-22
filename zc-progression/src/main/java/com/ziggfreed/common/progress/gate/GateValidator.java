@@ -7,6 +7,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.validation.Finding;
 
@@ -90,7 +91,8 @@ public final class GateValidator {
                     continue;
                 }
                 String factorId = condition.getFactor();
-                if (knownFactors != null && factorId != null && !knownFactors.test(factorId)) {
+                if (knownFactors != null && factorId != null && !knownFactors.test(factorId)
+                        && !DerivedFactorConfig.getInstance().refusedByModGate(factorId)) {
                     out.add(Finding.warning(domain, "UNKNOWN_FACTOR",
                             "Requires names the factor '" + factorId + "', which nothing on this server can "
                                     + "answer; the requirement fails closed, so this " + noun + " stays locked "

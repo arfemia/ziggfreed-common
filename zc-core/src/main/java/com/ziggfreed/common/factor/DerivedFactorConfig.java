@@ -9,6 +9,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -45,9 +46,13 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
     /** The label this audit's lines carry, at every fold and in zc's boot audit. */
     public static final String LOG_LABEL = "[factor] DerivedFactor";
 
+    /** The store's contract label, which its mod-gate drop line carries ({@code [zc] mod gate: Factors ...}). */
+    public static final String MOD_GATE_STORE = "Factors";
+
     private static final DerivedFactorConfig INSTANCE = new DerivedFactorConfig();
 
     private DerivedFactorConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Nonnull
@@ -109,11 +114,29 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
     /**
      * As {@link #audit()}, with {@code registeredElsewhere} answering "does some registry already
      * provide this factor id?" - pass a consumer's own registry check (for instance the placement
-     * vocabulary's) so a term naming a genuinely unknown factor is reported rather than assumed.
+     * vocabulary's) so a term naming a genuinely unknown factor is reported rather than assumed. A term
+     * naming a factor the mod gate left out ({@link #refusedByModGate}) is never reported.
      */
     @Nonnull
     public List<Finding> audit(@Nullable Predicate<String> registeredElsewhere) {
-        return DerivedFactorValidator.validateAssets(all(), registeredElsewhere);
+        Predicate<String> known = id -> refusedByModGate(id)
+                || (registeredElsewhere != null && registeredElsewhere.test(id));
+        return DerivedFactorValidator.validateAssets(all(), known);
+    }
+
+    /**
+     * Did the mod gate leave the factor {@code factorId} out of this server on purpose (its {@code Factors}
+     * file gates on a mod this server does not run, or on one it does with {@code Max: 0})? Such a factor is
+     * absent by design: a condition on it fails closed and a term naming it adds 0, exactly as for an id
+     * nobody defines, but a validator reports nothing about it and a resolve warns nothing. Matched trimmed
+     * and lower-cased, as factor ids are.
+     */
+    public boolean refusedByModGate(@Nullable String factorId) {
+        if (factorId == null || factorId.isBlank()) {
+            return false;
+        }
+        String key = RegistryLedger.normalize(factorId);
+        return modGateRefused().containsKey(key) && resolve(key) == null;
     }
 
     /** Log this config's findings once per fold: an error as a warning line, anything else at info. */

@@ -15,7 +15,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Whether a FILE loads on this server at all: false only when a plain top-level
  * {@code hytale:mod_installed} condition with {@code Min} of 1 or more names a mod this server does not
- * run. Every keyed store applies it in its load handler, so such a file never reaches a fold, an index,
+ * run, or its mirror, one with {@code Max: 0}, names a mod this server does run. Every keyed store applies
+ * it in its load handler, so such a file never reaches a fold, an index,
  * a draw, a contribution, a validator or an audit: content that pays a companion mod is simply not
  * there without it, and nothing logs about it.
  *
@@ -26,8 +27,11 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>Only the plain form is a gate.</b> A bounds-less condition passes on the {@code 0} an absent mod
  * reads, so it gates nothing and drops nothing; author {@code Min: 1}. A condition with a {@code Max}, or
- * a {@code Min} below 1, is a requirement (the "only where it is NOT installed" half among them), and
- * stays where it was written. A condition nested in {@code AnyOf} or {@code Not} is never handed here:
+ * a {@code Min} below 1, is a requirement, and stays where it was written, with one exception, the mirror
+ * (since 2.5.3): the plain "only where it is NOT installed" form ({@link #isAbsenceGate}: a {@code Max}
+ * below 1 and no {@code Min} above 0) drops its file where that mod reads a definite installed, so a
+ * stand-in for a missing mod never shows greyed on a server that has it; where the mod is missing it stays
+ * a live condition, which passes. A condition nested in {@code AnyOf} or {@code Not} is never handed here:
  * a store passes its TOP-LEVEL {@code Factors} only.
  *
  * <p><b>A reward row gates the same way.</b> One row of a {@code Rewards} list may carry its own block of
@@ -39,9 +43,19 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link #reportPackFiles}, {@link #reportOwnerOverrides} and {@link #reportRewardRows}: one INFO line per
  * store per missing mod, only when something was dropped, counting the files (or the rows) and naming the
  * mod. The wording is a contract (a season boot check parses it), and a line naming a dropped file would
- * put the missing mod's content ids into the log of the very server that lacks it.
+ * put the missing mod's content ids into the log of the very server that lacks it. A mirror drop
+ * ({@link #isAbsenceGate}) is named with {@link #INSTALLED_MARK} before its mod, and its line says
+ * {@code that load only without a mod} where a missing mod's says {@code gated on a missing mod}, so a
+ * parser of the missing-mod line never counts a stand-in left out on a server that has the mod.
  */
 public final class ModGates {
+
+    /**
+     * The mark before a mod's name in a {@link #missingMod} answer when the file drops because that mod IS
+     * installed (the mirror, {@link #isAbsenceGate}), so a drop line can say which way the gate cut:
+     * {@code "!Group:Name"}. A missing-mod drop is named bare.
+     */
+    public static final String INSTALLED_MARK = "!";
 
     /**
      * What a dropped file's mod reads as when nothing named it: a condition with no {@code Param}, or a
@@ -65,7 +79,8 @@ public final class ModGates {
 
     /**
      * Does a file whose top-level {@code Factors} are {@code topLevelFactors} load here? False when any
-     * of them is a presence gate ({@link #isPresenceGate}) on a mod that reads a definite 0.
+     * of them is a presence gate ({@link #isPresenceGate}) on a mod that reads a definite 0, or an absence
+     * gate ({@link #isAbsenceGate}) on a mod that reads a definite installed.
      */
     public static boolean keep(@Nullable FactorCondition[] topLevelFactors) {
         return missingMod(topLevelFactors) == null;
@@ -80,8 +95,9 @@ public final class ModGates {
     /**
      * The mod that keeps a file with these top-level {@code Factors} out of this server, as its condition
      * wrote it ({@code Group:Name}, trimmed): the first presence gate ({@link #isPresenceGate}) whose mod
-     * reads a definite 0. Null exactly when {@link #keep} is true, so a store's drop line can say which
-     * mod a file waits for.
+     * reads a definite 0, or the first absence gate ({@link #isAbsenceGate}) whose mod reads a definite
+     * installed, named with {@link #INSTALLED_MARK} before it. Null exactly when {@link #keep} is true, so
+     * a store's drop line can say which mod a file waits for, or which mod it stands in for.
      */
     @Nullable
     public static String missingMod(@Nullable FactorCondition[] topLevelFactors) {
@@ -92,8 +108,19 @@ public final class ModGates {
             if (isPresenceGate(condition) && isAbsent(condition.getParam())) {
                 return modName(condition.getParam());
             }
+            if (isAbsenceGate(condition) && isInstalledPast(condition.getParam(), condition.getMax())) {
+                return INSTALLED_MARK + modName(condition.getParam());
+            }
         }
         return null;
+    }
+
+    /**
+     * Is {@code reported} (a {@link #missingMod} answer, or an entry a store passes to a drop line) a mirror
+     * drop: a file left out because its mod IS installed?
+     */
+    public static boolean dropsWhereInstalled(@Nullable String reported) {
+        return reported != null && reported.startsWith(INSTALLED_MARK);
     }
 
     /**
@@ -138,20 +165,59 @@ public final class ModGates {
     }
 
     private static void report(@Nonnull String store, @Nonnull String what, @Nonnull Collection<String> missingMods) {
-        Map<String, Integer> counts = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        Map<String, Integer> missing = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        Map<String, Integer> installed = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (String mod : missingMods) {
-            counts.merge(modName(mod), 1, Integer::sum);
+            if (dropsWhereInstalled(mod)) {
+                installed.merge(modName(mod.substring(INSTALLED_MARK.length())), 1, Integer::sum);
+            } else {
+                missing.merge(modName(mod), 1, Integer::sum);
+            }
         }
         Consumer<String> sink = reports;
-        for (Map.Entry<String, Integer> count : counts.entrySet()) {
+        for (Map.Entry<String, Integer> count : missing.entrySet()) {
             sink.accept("[zc] mod gate: " + store + " dropped " + count.getValue() + " " + what
                     + " gated on a missing mod (" + count.getKey() + ")");
+        }
+        for (Map.Entry<String, Integer> count : installed.entrySet()) {
+            sink.accept("[zc] mod gate: " + store + " dropped " + count.getValue() + " " + what
+                    + " that load only without a mod (" + count.getKey() + ")");
         }
     }
 
     @Nonnull
     private static String modName(@Nullable String param) {
         return param == null || param.isBlank() ? UNNAMED_MOD : param.trim();
+    }
+
+    /**
+     * Is {@code condition} the plain "that mod is NOT installed" form, the mirror of
+     * {@link #isPresenceGate}: {@code hytale:mod_installed} (any case), a {@code Max} below 1, and no
+     * {@code Min} above 0? Where its mod reads a definite installed the file drops ({@link #missingMod});
+     * elsewhere it is an ordinary live condition, which passes on the 0 an absent mod reads.
+     */
+    public static boolean isAbsenceGate(@Nullable FactorCondition condition) {
+        if (condition == null || condition.isBlank()) {
+            return false;
+        }
+        Double max = condition.getMax();
+        Double min = condition.getMin();
+        return max != null && max < 1.0 && (min == null || min <= 0.0)
+                && ModFactors.MOD_INSTALLED.equalsIgnoreCase(condition.getFactor().trim());
+    }
+
+    /** A definite reading above {@code max} from the probe; a null, a throw or anything else is "cannot tell". */
+    private static boolean isInstalledPast(@Nullable String param, @Nullable Double max) {
+        if (max == null) {
+            return false;
+        }
+        Double reading;
+        try {
+            reading = probe.apply(param);
+        } catch (Throwable t) {
+            return false;
+        }
+        return reading != null && reading.doubleValue() > max.doubleValue();
     }
 
     /**

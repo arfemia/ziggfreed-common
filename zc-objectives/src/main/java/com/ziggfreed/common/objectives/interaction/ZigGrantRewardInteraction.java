@@ -12,6 +12,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.InteractionType;
+import com.hypixel.hytale.protocol.WaitForDataFrom;
 import com.hypixel.hytale.server.core.entity.InteractionContext;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.CooldownHandler;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.SimpleInstantInteraction;
@@ -45,6 +46,15 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>Always resolves Finished.</b> Nothing authored, a lost roll and a chain no player owns are
  * skips: a crack still uses up what it cracked.
+ *
+ * <p><b>{@code PayTarget} (since 2.5.3) pays the player the chain hit instead</b> (a {@code Selector}'s
+ * hit, a wand's raycast), through the same payout, retry queue and receipt, and tells them who it came
+ * from ({@link InteractionRewards#givenBy}). Nothing about it is damage, so it lands with PvP off and in a
+ * world that takes no player damage. Inside the hit fork the owner is still the user, so a plain
+ * {@code ZigGrantReward} or a {@code ZigCreditProgress} beside it pays and credits the user. With
+ * {@code PayTarget}, a chain that hit no player resolves <b>Failed</b>, so its {@code Next} (the item's
+ * spend, a credit) never runs for a miss and its {@code Failed} branch can answer it; nothing authored and
+ * a lost roll still resolve Finished.
  */
 public final class ZigGrantRewardInteraction extends SimpleInstantInteraction {
 
@@ -56,6 +66,9 @@ public final class ZigGrantRewardInteraction extends SimpleInstantInteraction {
     /** Boxed, so an absent leaf keeps the default instead of failing the decode. */
     @Nullable
     protected Float chance;
+    /** Boxed, so an absent leaf keeps the default (pay the user) instead of failing the decode. */
+    @Nullable
+    protected Boolean payTarget;
 
     /** Lazy holder: an eager codec would class-init {@code Interaction}, which throws outside a live server. */
     private static final class Holder {
@@ -75,7 +88,28 @@ public final class ZigGrantRewardInteraction extends SimpleInstantInteraction {
                 .documentation("The chance from 0 to 1 that a use pays at all, rolled once per use. "
                         + "Absent, every use pays.")
                 .add()
+                .appendInherited(new KeyedCodec<>("PayTarget", Codec.BOOLEAN),
+                        (i, v) -> i.payTarget = v, i -> i.payTarget, (i, p) -> i.payTarget = p.payTarget)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Pay the player this chain hit (a Selector's hit, a wand's raycast) instead of "
+                        + "the one using the item, and tell them who it came from. It deals no damage, so it "
+                        + "lands with PvP off and in the Forgotten Temple. A chain that hit no player fails "
+                        + "here, so what follows it (spending the item, a credit) runs only for a gift that "
+                        + "landed. Absent or false, the user is paid.")
+                .add()
                 .build();
+    }
+
+    /** True when this node pays the player its chain hit ({@code PayTarget}). */
+    private boolean paysTarget() {
+        return Boolean.TRUE.equals(payTarget);
+    }
+
+    /** A node paying its target can resolve Failed (no player hit), so the client waits for the server. */
+    @Nonnull
+    @Override
+    public WaitForDataFrom getWaitForDataFrom() {
+        return paysTarget() ? WaitForDataFrom.Server : super.getWaitForDataFrom();
     }
 
     /** The codec, built on first call. Only registration invokes this. */
@@ -96,19 +130,34 @@ public final class ZigGrantRewardInteraction extends SimpleInstantInteraction {
             @Nonnull CooldownHandler cooldownHandler) {
         InteractionOutcome.guard(ctx, TYPE_NAME, () -> {
             List<RewardSpec> specs = InteractionRewards.specs(rewards);
-            if (specs.isEmpty() || !InteractionRewards.rolls(chance, ThreadLocalRandom.current()::nextDouble)) {
+            if (specs.isEmpty()) {
                 return true;
             }
+            boolean toTarget = paysTarget();
             Ref<EntityStore> owner = InteractionCtx.owner(ctx);
-            PlayerRef playerRef = InteractionCtx.player(ctx, owner);
-            if (owner == null || playerRef == null) {
+            Ref<EntityStore> payee = toTarget ? InteractionCtx.target(ctx) : owner;
+            PlayerRef playerRef = InteractionCtx.player(ctx, payee);
+            if (toTarget && (payee == null || playerRef == null)) {
+                // A miss: no player was hit, so nothing after this node (the item's spend) runs.
+                return false;
+            }
+            if (!InteractionRewards.rolls(chance, ThreadLocalRandom.current()::nextDouble)) {
+                return true;
+            }
+            if (payee == null || playerRef == null) {
                 SafeLog.fine("[interaction] " + TYPE_NAME + ": no player owns this chain, so nothing is paid");
                 return true;
             }
-            InteractionRewards.payAndShow(specs, InteractionRewards.subjectFor(owner.getStore(), owner, playerRef),
+            InteractionRewards.payAndShow(specs, InteractionRewards.subjectFor(payee.getStore(), payee, playerRef),
                     InteractionRewards.sourceId(UsedItems.id(ctx), TYPE_NAME), RewardKinds.shared(),
                     ProgressionRuntime.rewardRetryQueue(), InteractionRewards.chips(),
                     InteractionRewards.toPlayer(playerRef));
+            if (toTarget) {
+                PlayerRef giver = InteractionCtx.player(ctx, owner);
+                if (giver != null && !giver.getUuid().equals(playerRef.getUuid())) {
+                    playerRef.sendMessage(InteractionRewards.givenBy(giver.getUsername()));
+                }
+            }
             return true;
         });
     }

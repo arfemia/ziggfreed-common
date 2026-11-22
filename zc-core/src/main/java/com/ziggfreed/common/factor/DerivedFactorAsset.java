@@ -15,6 +15,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.text.ContentTextAsset;
@@ -52,6 +53,16 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * is missing, and gate on a {@code Min} when an input is what really matters. A definition that
  * reaches itself, directly or through another one, cannot resolve and fails closed;
  * {@link DerivedFactorValidator} reports the cycle at load.
+ *
+ * <h2>Gating a file on a mod (since 2.5.3)</h2>
+ *
+ * <p>A top-level {@code Requires} (the {@code Factors}-only block, {@link PresenceRequiresCodec}) follows
+ * the mod gate every keyed store reads: a plain {@code hytale:mod_installed} condition with {@code Min: 1}
+ * keeps the file out where that mod is missing, and one with {@code Max: 0} where it is installed
+ * ({@link ModGates}). A factor left out this way is absent ON PURPOSE ({@link DerivedFactorConfig#refusedByModGate}):
+ * a condition on it fails closed, a formula term naming it adds 0, a lock line on it reads as not met, and
+ * no validator reports it as unknown and no resolve warns about it. Only mod presence is read there;
+ * {@link DerivedFactorValidator} reports any other condition as ignored.
  *
  * <h2>Naming a factor - any factor, including one a mod registered in code</h2>
  *
@@ -94,6 +105,15 @@ public final class DerivedFactorAsset
     @Nullable private String param;
     @Nullable private ContentTextAsset text;
     @Nullable private ParamNames paramNames;
+    @Nullable private PresenceRequiresCodec.Block requires;
+
+    /** The sentence the Asset Editor shows beside this store's {@code Requires} leaf. */
+    static final String REQUIRES_DOCUMENTATION = "Whether this file loads on this server at all. A condition "
+            + "{ \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } keeps the file out "
+            + "where that mod is not installed, and one with \"Max\": 0 keeps it out where that mod is installed. "
+            + "A factor left out this way is absent on purpose: a condition on it fails, a formula term naming it "
+            + "adds 0, and nothing reports it as unknown. Only mod presence is read here; any other condition is "
+            + "reported and ignored.";
 
     public static final AssetBuilderCodec<String, DerivedFactorAsset> CODEC = AssetBuilderCodec.builder(
                     DerivedFactorAsset.class,
@@ -137,9 +157,22 @@ public final class DerivedFactorAsset
                     + "factor - a pattern whose resolved key is not shipped is skipped, so the overlays "
                     + "compose instead of colliding.")
             .add()
+            .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
+                    (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
+            .documentation(REQUIRES_DOCUMENTATION)
+            .add()
             .build();
 
     public DerivedFactorAsset() {
+    }
+
+    /**
+     * The file's top-level {@code Requires}, or null when it authors none: only its plain mod-presence gate
+     * is read, at the load handler's fold ({@code PresenceRequiresCodec.missingMod}).
+     */
+    @Nullable
+    public PresenceRequiresCodec.Block getRequires() {
+        return requires;
     }
 
     /** Java-side factory; sets the same fields the codec fills, every leaf optional. */

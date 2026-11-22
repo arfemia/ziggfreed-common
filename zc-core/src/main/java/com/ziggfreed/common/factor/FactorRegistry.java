@@ -253,8 +253,11 @@ public final class FactorRegistry {
             provider = adoptDerived(key, factorId);
         }
         if (provider == null) {
-            warnOnce(key, "no provider registered for factor '" + factorId
-                    + "' - conditions on it fail closed");
+            // A Factors file the mod gate left out is absent on purpose: it fails closed in silence.
+            if (!DerivedFactorConfig.getInstance().refusedByModGate(key)) {
+                warnOnce(key, "no provider registered for factor '" + factorId
+                        + "' - conditions on it fail closed");
+            }
             return null;
         }
         Double value;
