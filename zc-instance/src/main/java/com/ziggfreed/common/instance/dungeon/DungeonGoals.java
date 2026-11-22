@@ -34,8 +34,10 @@ import com.ziggfreed.common.util.ZigScheduler;
  *       {@code Complete} under the library's {@code goal.*} keys: defeat the boss (every boss, with
  *       {@code AllBosses} over two or more), finish the task (an {@code Objective}), hold out for the
  *       {@code SurviveTimer};</li>
- *   <li>the rules follow whatever the goal's source: the run's {@code TimeLimitSeconds}, and the wipe that fails
- *       it under {@code FailOnWipe}.</li>
+ *   <li>the rules follow whatever the goal's source: the run's {@code TimeLimitSeconds}, the par its clear beats
+ *       under {@code Complete.ParSeconds} (the same number the clear's {@code Clear_Under_Par} milestone and its
+ *       results screen read, so the line can never name another), and the wipe that fails it under
+ *       {@code FailOnWipe}.</li>
  * </ul>
  * An endless run ({@code Run.Endless}) says instead to last as long as they can, each wave cleared adding to their
  * chest, then how its run ends and that they keep their chest however it does. Under the rules either way: that the
@@ -67,6 +69,7 @@ final class DungeonGoals {
      * @param objective      whether {@code Complete.Objective} asks for something
      * @param surviveSeconds {@code Complete.SurviveTimer}, 0 for none
      * @param limitSeconds   {@code Run.TimeLimitSeconds}, 0 for none
+     * @param parSeconds     {@code Complete.ParSeconds}, 0 for none (an endless run has none)
      * @param failOnWipe     {@code Run.FailOnWipe}
      * @param endless        whether the run is an endless wave run ({@code Run.Endless}): its goal is to last, and
      *                       its end is how it pays
@@ -74,8 +77,8 @@ final class DungeonGoals {
      * @param daily          whether the run is a daily ({@code Seed.Daily}), the same rooms for every party that day
      */
     record Goal(@Nonnull String dungeonId, @Nullable String nameKey, @Nullable String goalKey, int bosses,
-                boolean allBosses, boolean objective, long surviveSeconds, long limitSeconds, boolean failOnWipe,
-                boolean endless, @Nonnull List<String> omens, boolean daily) {
+                boolean allBosses, boolean objective, long surviveSeconds, long limitSeconds, long parSeconds,
+                boolean failOnWipe, boolean endless, @Nonnull List<String> omens, boolean daily) {
 
         Goal {
             omens = List.copyOf(omens);
@@ -138,7 +141,10 @@ final class DungeonGoals {
                 .withPriority(ToastSpec.PRIORITY_PROGRESS);
     }
 
-    /** The goal's rows: what to do there (its own line, else built from {@code Complete}), then the run's rules. */
+    /**
+     * The goal's rows: what to do there (its own line, else built from {@code Complete}), then the run's rules (its
+     * time limit, its par, the wipe).
+     */
     @Nonnull
     static List<ToastLine> rows(@Nonnull Goal goal) {
         List<ToastLine> rows = new ArrayList<>();
@@ -167,6 +173,9 @@ final class DungeonGoals {
         }
         if (goal.limitSeconds() > 0) {
             rows.add(line("goal.time_limit", duration(goal.limitSeconds())));
+        }
+        if (goal.parSeconds() > 0) {
+            rows.add(line("goal.par", duration(goal.parSeconds())));
         }
         if (goal.failOnWipe()) {
             rows.add(line("goal.wipe"));

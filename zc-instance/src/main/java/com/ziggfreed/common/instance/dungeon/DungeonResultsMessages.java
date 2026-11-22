@@ -140,6 +140,15 @@ public final class DungeonResultsMessages implements ResultsMessages {
         return line("results.deaths");
     }
 
+    /**
+     * The label of the par a run beat ({@code Complete.ParSeconds}), shown with that par's m:ss only when the run
+     * cleared in less.
+     */
+    @Nonnull
+    public Message underParLabel() {
+        return line("results.under_par");
+    }
+
     @Nonnull
     private static Message line(@Nonnull String key) {
         return Msg.key(DungeonResults.PREFIX + key);

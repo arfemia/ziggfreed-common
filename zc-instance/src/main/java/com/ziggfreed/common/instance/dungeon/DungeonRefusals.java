@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.i18n.NativeNames;
+import com.ziggfreed.common.instance.dungeon.tier.TierNames;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.ui.toast.ToastDelivery;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -110,13 +111,18 @@ public final class DungeonRefusals {
     }
 
     /**
-     * A dungeon's name with its tier when it is one ({@code Tier}): the name, then the rank; its name alone otherwise.
-     * The one helper the gate and every refusal name a tier through.
+     * A dungeon's name with its tier when it is one ({@code Tier}): the name, then what players call the tier
+     * ({@code Tier.NameKey}, {@link TierNames#own}), else Tier and its rank; its name alone otherwise. The one helper
+     * the gate and every refusal name a tier through.
      */
     @Nonnull
     public static Message tierName(@Nonnull DungeonAsset dungeon) {
         Message name = dungeonName(dungeon);
-        return dungeon.isTier() ? key("tier.named", name, dungeon.tierRank()) : name;
+        if (!dungeon.isTier()) {
+            return name;
+        }
+        Message own = TierNames.own(dungeon);
+        return own != null ? key("tier.named.own", name, own) : key("tier.named", name, dungeon.tierRank());
     }
 
     /** The item the player holds too few of, by its own name, and how many the dungeon asks for. */

@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.instance.dungeon.tier.TierNames;
 import com.ziggfreed.common.instance.result.RewardChipRenderer;
 import com.ziggfreed.common.instance.reward.DeferredRewards;
 import com.ziggfreed.common.instance.reward.DropRarity;
@@ -161,7 +162,7 @@ public final class ClaimsView {
             lines.add(DetailLine.reward(chip(reward), null));
         }
         List<Pill> badges = claim.difficulty() == null ? List.of()
-                : List.of(Pill.of(label(claim.difficulty()), Tone.NEUTRAL));
+                : List.of(Pill.of(label(claim.difficulty(), claim.source()), Tone.NEUTRAL));
         List<DetailAction> actions = List.of(
                 new DetailAction(ActionSlot.PRIMARY, text.line("action.claim"), ActionLook.COLLECT, ACTION_CLAIM,
                         null, true, null),
@@ -202,12 +203,15 @@ public final class ClaimsView {
             lines.add(card.line());
         }
         String difficulty = null;
+        String source = null;
         for (Claim claim : claims) {
             if (difficulty == null) {
                 difficulty = claim.difficulty();
+                source = claim.source();
             }
         }
-        List<Pill> badges = difficulty == null ? List.of() : List.of(Pill.of(label(difficulty), Tone.NEUTRAL));
+        List<Pill> badges = difficulty == null ? List.of()
+                : List.of(Pill.of(label(difficulty, source), Tone.NEUTRAL));
         List<DetailAction> actions = List.of(new DetailAction(ActionSlot.PRIMARY, text.line("spoils.action.take_all"),
                 ActionLook.COLLECT, RewardChestActions.TAKE_ALL, null, true, null));
         return new DetailView(Picture.item(ClaimsDestinations.ICON), text.line("spoils.title"),
@@ -668,9 +672,17 @@ public final class ClaimsView {
         return Picture.item(ClaimsDestinations.ICON);
     }
 
-    /** A difficulty: its lang key when the catalogue ships it, else the label as written. */
+    /**
+     * A difficulty, as the Claim's {@code source} paid it: what players call the dungeon tier whose label it is
+     * ({@code Tier.NameKey}, {@link TierNames#ofDifficulty}), else its lang key when the catalogue ships it, else the
+     * label as written.
+     */
     @Nonnull
-    private static Message label(@Nonnull String difficulty) {
+    private static Message label(@Nonnull String difficulty, @Nullable String source) {
+        Message tier = TierNames.ofDifficulty(difficulty, source);
+        if (tier != null) {
+            return tier;
+        }
         return ContentKeys.known(difficulty) ? ContentKeys.tr(difficulty) : Msg.raw(difficulty);
     }
 }

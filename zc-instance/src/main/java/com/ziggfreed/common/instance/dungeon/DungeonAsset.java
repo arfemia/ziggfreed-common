@@ -578,6 +578,15 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return blankToNull(tier == null ? null : tier.opens);
     }
 
+    /**
+     * {@code Tier.NameKey}, trimmed: the localization key of what players call this tier, its {@code {0}} the tier's
+     * rank; null when it names none (or the file is no tier), and then it reads as the library's Tier and its rank.
+     */
+    @Nullable
+    public String tierNameKey() {
+        return blankToNull(tier == null ? null : tier.nameKey);
+    }
+
     /** {@code Tier.Health}: the health step of this tier's boss fights, at least 1; 1 unauthored. */
     public double tierHealth() {
         return atLeastOne(tier == null ? null : tier.health);
@@ -879,7 +888,9 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         (o, v) -> o.parSeconds = v, o -> o.parSeconds, (o, p) -> o.parSeconds = p.parSeconds)
                 .documentation("A time to beat, in seconds from a run's first arrival: a clear that takes less "
                         + "raises the Clear_Under_Par milestone for every member in the area, which an achievement "
-                        + "or a quest step counts as a DUNGEON_MILESTONE. It never clears or fails a run, and a "
+                        + "or a quest step counts as a DUNGEON_MILESTONE. A player arriving reads the par under the "
+                        + "goal, and a clear that beat it says so on its results screen (or in a toast beside the "
+                        + "chest's banner), all written from this number. It never clears or fails a run, and a "
                         + "child file inherits it unless it writes its own. Unauthored, or zero or less, means no "
                         + "par.").add()
                 .build();
@@ -1070,13 +1081,14 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
 
     // ==================== Tier ====================
 
-    /** Which tier of a dungeon this file is, and what opens it. */
+    /** Which tier of a dungeon this file is, what opens it, and what players call it. */
     public static final class Tier {
 
         @Nullable protected Integer rank;
         @Nullable protected String opens;
         @Nullable protected Double health;
         @Nullable protected Double damage;
+        @Nullable protected String nameKey;
 
         public static final BuilderCodec<Tier> CODEC = BuilderCodec.builder(Tier.class, Tier::new)
                 .appendInherited(new KeyedCodec<>("Rank", Codec.INTEGER, false),
@@ -1104,6 +1116,13 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .documentation("How much harder every boss fight in this tier's runs hits: the boss's and every "
                         + "creature its fight raises, every hit times this (1.3 is 30% harder). Unauthored, or below "
                         + "1, means 1.").add()
+                .appendInherited(new KeyedCodec<>("NameKey", Codec.STRING, false),
+                        (o, v) -> o.nameKey = v, o -> o.nameKey, (o, p) -> o.nameKey = p.nameKey)
+                .documentation("The localization key of what players call this tier, its {0} the tier's Rank, so "
+                        + "one line such as Floor {0, number} names this tier and every tier that inherits it. The "
+                        + "gate and the lines naming a tier read the dungeon's name with it, and a Claim paid in a "
+                        + "run of a tier shows it where it would show the tier's Difficulty label. Unauthored, a "
+                        + "tier reads as Tier and its rank, on the gate and on its Claims alike.").add()
                 .build();
 
         public Tier() {

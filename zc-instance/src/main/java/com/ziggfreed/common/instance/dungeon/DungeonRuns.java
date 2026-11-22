@@ -110,9 +110,10 @@ import com.ziggfreed.common.util.SafeLog;
  * skill-locked secret or a treasure room once the last boss has fallen. A milestone counts once per run for each id
  * and placement ({@link #milestone}) and raises {@link DungeonMilestoneEvent}, after the run ended too; a member's
  * death counts through {@link #died} ({@link RunDeaths}) while it is going. A clear's results screen lists the run's
- * deaths, and its rooms, puzzles and secrets when it counted any, as they stood at the clear. A clear raises two
- * milestones of its own for its winners, on the world thread after its payout: {@code Clear_Flawless} when no member died,
- * {@code Clear_Under_Par} when it beat its dungeon's {@code Complete.ParSeconds}. The run's checkpoint
+ * deaths, and its rooms, puzzles and secrets when it counted any, as they stood at the clear, and its par when it beat
+ * one. A clear raises two milestones of its own for its winners, on the world thread after its payout:
+ * {@code Clear_Flawless} when no member died, {@code Clear_Under_Par} when it beat its dungeon's
+ * {@code Complete.ParSeconds} (an arrival's goal line names that par). The run's checkpoint
  * ({@link RunCheckpoints}) answers until its party leaves, and goes when its area frees; a generated run's room logic
  * ({@code room/RunLogic}) lasts as long and is removed then ({@link AreaMembers}).
  *
@@ -279,8 +280,8 @@ public final class DungeonRuns {
         /** What a player arriving in the run is told to do there ({@link DungeonGoals}). */
         DungeonGoals.Goal goal() {
             return new DungeonGoals.Goal(dungeon, knobs.nameKey, knobs.goalKey, knobs.bosses.size(), knobs.allBosses,
-                    knobs.objective != null, knobs.surviveMs / 1000L, knobs.limitMs / 1000L, knobs.failOnWipe,
-                    knobs.endless != null, omens, daily);
+                    knobs.objective != null, knobs.surviveMs / 1000L, knobs.limitMs / 1000L, knobs.parMs / 1000L,
+                    knobs.failOnWipe, knobs.endless != null, omens, daily);
         }
 
         /** Whether {@code at} in world {@code worldUuid} stands in this run's area. */
@@ -1186,7 +1187,8 @@ public final class DungeonRuns {
         run.ended = true;
         noteObjectives();
         boolean cleared = ending == Ending.CLEARED;
-        long seconds = Math.max(0L, nowMs - run.startedAtMs) / 1000L;
+        long elapsedMs = nowMs - run.startedAtMs;
+        long seconds = Math.max(0L, elapsedMs) / 1000L;
         List<UUID> participants = run.members.participants();
         List<UUID> winners = run.members.winners(cleared);
         InstanceRoundCompletedEvent event = new InstanceRoundCompletedEvent(
@@ -1198,12 +1200,13 @@ public final class DungeonRuns {
             for (Map.Entry<UUID, Double> entry : run.damage.entrySet()) {
                 dealt.put(entry.getKey(), Math.round(entry.getValue()));
             }
+            boolean underPar = underPar(run.knobs, elapsedMs);
             DungeonResults.Clear clear = new DungeonResults.Clear(run.dungeon, run.runId.toString(), run.knobs.mode,
                     run.knobs.nameKey, run.knobs.lootable, run.knobs.diminish, seconds, winners, Map.copyOf(dealt),
                     run.bossesDefeated, run.knobs.inChest ? run.clearedBy : null, run.knobs.chestKey, run.deaths,
-                    Map.copyOf(run.milestones));
+                    Map.copyOf(run.milestones), run.knobs.parMs / 1000L, underPar);
             outbox.add(new Fire(run.world, () -> DungeonResults.cleared(clear)));
-            queueClearMilestones(run, winners, nowMs - run.startedAtMs);
+            queueClearMilestones(run, winners, underPar);
         } else if (ending.lineKey != null && run.members.anyPresent()) {
             DungeonResults.Failure failure = new DungeonResults.Failure(run.dungeon, run.knobs.nameKey,
                     ending.lineKey, run.members.present());
@@ -1215,18 +1218,27 @@ public final class DungeonRuns {
     }
 
     /**
+     * Whether a run of {@code knobs} that cleared {@code elapsedMs} after its first arrival beat its par: its dungeon
+     * writes {@code Complete.ParSeconds} and the run took less. The one reading, so the {@code Clear_Under_Par}
+     * milestone and the under-par line a clear shows can never disagree.
+     */
+    private static boolean underPar(@Nonnull Knobs knobs, long elapsedMs) {
+        return knobs.parMs > 0L && elapsedMs < knobs.parMs;
+    }
+
+    /**
      * Queue the milestones a clear reaches by itself, raised for its {@code winners} on the copy's world thread after
      * its payout and results: {@link DungeonMilestoneEvent#CLEAR_FLAWLESS} when no member died in the area during the
-     * run, and {@link DungeonMilestoneEvent#CLEAR_UNDER_PAR} when its dungeon writes {@code Complete.ParSeconds} and the
-     * run took less ({@code elapsedMs} since its first arrival). A run clears once, so each fires once; neither joins
-     * the run's tally, since its results already show its deaths and its time. Under this list's lock.
+     * run, and {@link DungeonMilestoneEvent#CLEAR_UNDER_PAR} when it beat its par ({@code underPar}, {@link #underPar}).
+     * A run clears once, so each fires once; neither joins the run's tally, since its results already show its deaths
+     * and its time. Under this list's lock.
      */
-    private void queueClearMilestones(@Nonnull Run run, @Nonnull List<UUID> winners, long elapsedMs) {
+    private void queueClearMilestones(@Nonnull Run run, @Nonnull List<UUID> winners, boolean underPar) {
         List<String> reached = new ArrayList<>(2);
         if (run.deaths == 0) {
             reached.add(DungeonMilestoneEvent.CLEAR_FLAWLESS);
         }
-        if (run.knobs.parMs > 0L && elapsedMs < run.knobs.parMs) {
+        if (underPar) {
             reached.add(DungeonMilestoneEvent.CLEAR_UNDER_PAR);
         }
         for (String id : reached) {

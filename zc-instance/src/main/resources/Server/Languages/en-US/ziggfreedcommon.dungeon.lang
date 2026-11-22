@@ -107,6 +107,8 @@ results.rooms = Rooms cleared
 results.puzzles = Puzzles solved
 results.secrets = Secrets found
 results.deaths = Deaths
+# Shown with the par it beat (m:ss) only when the run cleared in less than its dungeon's Complete.ParSeconds.
+results.under_par = Under par
 results.rewards = Completion reward
 results.no_rewards = No completion reward this time.
 results.pending = Your bags are full. The rest is waiting under Claims in your menu.
@@ -119,15 +121,21 @@ results.team_total = Total {0, number}
 # The banner in place of that screen when the dungeon's Rewards.InChest puts the reward in the boss's chest: {0} is
 # the dungeon's name; the line under it is the dungeon's Text.ChestKey, else the Claims tab's spoils.banner.
 clear.banner = {0} cleared
+# The toast a member who sees that banner instead of the results screen reads when the run beat its par: {0} is the
+# run's length and {1} the par, both m:ss.
+clear.under_par.title = Under par
+clear.under_par = Your party finished in {0}, under the {1} par.
 
 # What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
 # heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what
-# clears a run), then the run's rules. {0} in goal.survive and goal.time_limit is a goal.time.* length.
+# clears a run), then the run's rules. {0} in goal.survive, goal.time_limit and goal.par is a goal.time.* length;
+# goal.par shows when the dungeon has a par (Complete.ParSeconds), the time a clear beats to count as under par.
 goal.boss = Defeat the boss.
 goal.all_bosses = Defeat every boss.
 goal.objective = Finish the dungeon's task.
 goal.survive = Hold out for {0}.
 goal.time_limit = Finish within {0}, or the run fails.
+goal.par = Finish in under {0} for the par.
 goal.wipe = If everyone falls at once, the run fails.
 goal.time.seconds = {0, number} {0, plural, one {second} other {seconds}}
 goal.time.minutes = {0, number} {0, plural, one {minute} other {minutes}}
@@ -142,8 +150,12 @@ goal.endless_end = The run ends when everyone is down at once, and you keep your
 goal.daily = Today's daily: every party walks these same rooms.
 goal.omen = Omen: {0}
 
-# A tier's name wherever one is listed or named: {0} is the dungeon's name, {1} the tier's rank.
+# A tier's name wherever one is listed or named: {0} is the dungeon's name, {1} the tier's rank. tier.named.own is
+# used instead for a tier whose file names its own word (Tier.NameKey): {1} is then that line. tier.name is a tier
+# alone, {0} its rank, where its file names no word of its own: the tier a Claim was paid on.
 tier.named = {0}: Tier {1, number}
+tier.named.own = {0}: {1}
+tier.name = Tier {0, number}
 
 # A dungeon's gate, when it has tiers or a daily: the tiers the party may pick, the daily, then this week's omens.
 # gate.lead shows when the dungeon names no description of its own. In gate.tier.omens and gate.daily.omens, {0} is

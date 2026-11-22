@@ -32,6 +32,7 @@ import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimRolls;
 import com.ziggfreed.common.instance.claims.ClaimsView;
 import com.ziggfreed.common.instance.claims.SpoilsChests;
+import com.ziggfreed.common.instance.result.ColumnFormat;
 import com.ziggfreed.common.instance.result.MatchResult;
 import com.ziggfreed.common.instance.result.PlayerResultRow;
 import com.ziggfreed.common.instance.result.ResultKind;
@@ -77,6 +78,10 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code Text.ChestKey} line. A member the chest holds no share for, or whose roll wrote nothing, sees the results
  * screen as before.
  *
+ * <p><b>Under par.</b> A run that beat its dungeon's {@code Complete.ParSeconds} says so: the results screen lists
+ * the par it beat among the party's lines, and a member told about the chest instead, who sees no results screen,
+ * reads a toast with the run's time and the par. Both are written from {@code ParSeconds} itself.
+ *
  * <p><b>A failure</b> the party could have prevented, its time limit or a wipe under {@code FailOnWipe}, tells each
  * member in the area why, in a toast where they are looking.
  *
@@ -112,12 +117,14 @@ public final class DungeonResults {
      * @param deaths         how many times a member died in the area during the run
      * @param milestones     how many times each milestone fired in the run ({@link DungeonMilestoneEvent}), by its id
      *                       lower-cased
+     * @param parSeconds     its dungeon's {@code Complete.ParSeconds}, 0 for none
+     * @param underPar       whether the run beat that par, the same reading its {@code Clear_Under_Par} milestone took
      */
     record Clear(@Nonnull String dungeonId, @Nonnull String runId, @Nonnull String difficulty,
                  @Nullable String nameKey, @Nullable String lootable, @Nullable DiminishSpec diminish, long seconds,
                  @Nonnull List<UUID> winners, @Nonnull Map<UUID, Long> damage, int bossesDefeated,
                  @Nullable String chestFight, @Nullable String chestKey, int deaths,
-                 @Nonnull Map<String, Integer> milestones) {
+                 @Nonnull Map<String, Integer> milestones, long parSeconds, boolean underPar) {
 
         /** How many times milestone {@code id} fired in the run, matched without regard to case. */
         int reached(@Nonnull String id) {
@@ -220,7 +227,29 @@ public final class DungeonResults {
             // Naming the fight marks this banner as the chest's for the player, so the chest's own never follows.
             SpoilsChests.tellInChest(playerRef, clear.chestFight(),
                     Msg.key(PREFIX + "clear.banner", nameOf(clear.dungeonId(), clear.nameKey())), clear.chestKey());
+            ToastSpec underPar = underParToast(clear);
+            if (underPar != null) {
+                ToastDelivery.deliverWhenSettled(playerRef, underPar, null);
+            }
         }
+    }
+
+    /**
+     * The toast a member told about the chest reads when the run beat its par, in place of the results screen's line:
+     * the run's time and the par, each m:ss. Null when it did not. Silent, under the banner's own sound, and ranked as
+     * a progress notice, so it never covers a payout's toast.
+     */
+    @Nullable
+    private static ToastSpec underParToast(@Nonnull Clear clear) {
+        if (!clear.underPar() || clear.parSeconds() <= 0) {
+            return null;
+        }
+        Message line = Msg.key(PREFIX + "clear.under_par", ColumnFormat.TIME.render(clear.seconds()),
+                ColumnFormat.TIME.render(clear.parSeconds()));
+        return ToastSpec.of(ToastKind.SUCCESS, Msg.key(PREFIX + "clear.under_par.title"))
+                .withLines(List.of(ToastLine.text(line)))
+                .withPriority(ToastSpec.PRIORITY_PROGRESS)
+                .silent();
     }
 
     /**
@@ -319,12 +348,12 @@ public final class DungeonResults {
     /**
      * The party's run lines under the run's length: the boss fights it won; the rooms it cleared, the puzzles it
      * solved and the secrets it found, each only when the run counted one (a dungeon without those rooms shows no
-     * empty line); and its deaths, always.
+     * empty line); its deaths, always; and the par it beat, m:ss, only when it beat one.
      */
     @Nonnull
     private static List<ScoreColumn> runLines(@Nonnull Clear clear) {
         DungeonResultsMessages words = DungeonResultsMessages.LIBRARY;
-        List<ScoreColumn> lines = new ArrayList<>(5);
+        List<ScoreColumn> lines = new ArrayList<>(6);
         lines.add(ScoreColumn.of(words.bossesLabel(), clear.bossesDefeated()));
         int rooms = clear.reached(DungeonMilestoneEvent.ROOM_CLEARED);
         if (rooms > 0) {
@@ -339,6 +368,9 @@ public final class DungeonResults {
             lines.add(ScoreColumn.of(words.secretsLabel(), secrets));
         }
         lines.add(ScoreColumn.of(words.deathsLabel(), clear.deaths()));
+        if (clear.underPar() && clear.parSeconds() > 0) {
+            lines.add(new ScoreColumn(words.underParLabel(), clear.parSeconds(), ColumnFormat.TIME));
+        }
         return List.copyOf(lines);
     }
 

@@ -432,6 +432,8 @@ public final class DungeonValidator {
                 "its description shows as the raw key");
         TextKeyAudit.check(out, DOMAIN, id, where + " Text.GoalKey", dungeon.goalKey(), textShipped,
                 "the goal a player reads on arriving shows as the raw key");
+        TextKeyAudit.check(out, DOMAIN, id, where + " Tier.NameKey", dungeon.tierNameKey(), textShipped,
+                "the tier's name on the gate and on its Claims shows as the raw key");
         TextKeyAudit.check(out, DOMAIN, id, where + " EntryCost.HintKey", dungeon.entryCostHintKey(), textShipped,
                 "the line saying where the items are found shows as the raw key");
         TextKeyAudit.check(out, DOMAIN, id, where + " EntryCost.ConfirmKey", dungeon.entryCostConfirmKey(),
