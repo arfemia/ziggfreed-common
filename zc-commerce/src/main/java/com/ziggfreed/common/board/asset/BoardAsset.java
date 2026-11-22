@@ -381,7 +381,7 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
         BoardSlotAsset[] authored = slotsOrEmpty();
         List<BoardSlotAsset> kept = new ArrayList<>(authored.length);
         for (BoardSlotAsset slot : authored) {
-            if (slot == null || GateSpec.missingMod(slot.getRequires()) == null) {
+            if (slot == null || slot.passesModGate()) {
                 kept.add(slot);
             }
         }

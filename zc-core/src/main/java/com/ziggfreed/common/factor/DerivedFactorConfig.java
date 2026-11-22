@@ -103,12 +103,34 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
     }
 
     /**
-     * Audit every folded file. Findings are neutral values a consumer can surface in its own
-     * validation command; {@link #logFindings()} is the always-on baseline.
+     * What {@link #audit()} asks before calling a formula term's factor unknown: the installed answer of
+     * "does a factor vocabulary on this server provide this id?". The production default is the
+     * contributions a mod made ({@link FactorContributions#isContributed}); the library installs the full
+     * answer at its own setup (zc-objectives' {@code KnownFactors}: the progression runtime's vocabulary,
+     * the placement, loot and encounter vocabularies, and the contributions), which every plugin's setup has
+     * run before the first fold logs.
+     */
+    @Nonnull
+    private volatile Predicate<String> knownFactors = FactorContributions::isContributed;
+
+    /**
+     * Install what {@link #audit()} asks of a formula term's factor id (see the field); null puts the
+     * contributions-only default back. A consumer passing its own registry to {@link #audit(Predicate)}
+     * still decides for that call alone.
+     */
+    public void knownFactors(@Nullable Predicate<String> known) {
+        this.knownFactors = known == null ? FactorContributions::isContributed : known;
+    }
+
+    /**
+     * Audit every folded file against the installed factor vocabularies ({@link #knownFactors(Predicate)}), so a
+     * term naming a factor some mod registered in code is not reported. Findings are neutral values a consumer
+     * can surface in its own validation command; {@link #logFindings()} is the always-on baseline, and zc's
+     * boot audit reads this too.
      */
     @Nonnull
     public List<Finding> audit() {
-        return audit(null);
+        return audit(knownFactors);
     }
 
     /**

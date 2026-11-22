@@ -25,6 +25,7 @@ import com.ziggfreed.common.board.asset.BoardValidator;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyValidator;
 import com.ziggfreed.common.factor.FeatureFlags;
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -431,6 +432,30 @@ class CommerceValidatorTest {
             assertTrue(optional.message().contains("Skill"), optional.message());
             assertFalse(findings.stream().anyMatch(f -> f.severity() == Severity.ERROR),
                     "the board posts its one required slot every rotation, so nothing here is an error");
+        }
+
+        @Test
+        void aSlotTheModGateLeavesOffTheBoardIsNeverAuditedForFill() throws Exception {
+            ModGates.useProbeForTests(param -> 0.0);
+            try {
+                List<Finding> findings = BoardValidator.validate(
+                        one("daily", board("""
+                                { "Slots": [ { "Difficulty": "Training" },
+                                             { "Difficulty": "Skill", "Requires": { "Factors": [
+                                               { "Factor": "hytale:mod_installed", "Param": "Yourgroup:Companion", "Min": 1 } ] } } ] }
+                                """, "Daily")),
+                        one("bounty_easy", bounty("""
+                                { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
+                                  "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                                  "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
+                                """, "Bounty_Easy")),
+                        WALLETS, null, null, null, null);
+
+                assertFalse(findings.stream().anyMatch(f -> "UNFILLABLE_SLOT".equals(f.code())),
+                        "the companion's slot is not on this server's board, so it has nothing to fill: " + findings);
+            } finally {
+                ModGates.useProbeForTests(null);
+            }
         }
 
         @Test

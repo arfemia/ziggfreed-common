@@ -30,7 +30,22 @@ class DerivedFactorModGateTest {
     @AfterEach
     void restore() {
         ModGates.useProbeForTests(null);
+        DerivedFactorConfig.getInstance().knownFactors(null);
         DerivedFactorConfig.getInstance().mergePackLayer(Map.of());
+    }
+
+    /** The always-on audit asks the installed vocabularies, so a term naming a factor registered in code is known. */
+    @Test
+    void theAlwaysOnAuditAsksTheInstalledVocabulariesBeforeCallingATermUnknown() throws IOException {
+        DerivedFactorAsset skill = decode("Yourpack_Skill", "{ \"Formula\": { \"Factors\": ["
+                + " { \"Factor\": \"hytale:stat\", \"Param\": \"Health\" }, { \"Factor\": \"yourmod:nothing\" } ] } }");
+        DerivedFactorConfig.getInstance().mergePackLayer(Map.of("yourpack_skill", skill));
+        DerivedFactorConfig.getInstance().knownFactors("hytale:stat"::equals);
+
+        List<Finding> unknown = DerivedFactorConfig.getInstance().audit().stream()
+                .filter(f -> "UNKNOWN_FACTOR".equals(f.code())).toList();
+        assertEquals(1, unknown.size(), "only the term nothing registers: " + unknown);
+        assertTrue(unknown.get(0).message().contains("yourmod:nothing"), unknown.get(0).message());
     }
 
     private static DerivedFactorAsset decode(String id, String json) throws IOException {

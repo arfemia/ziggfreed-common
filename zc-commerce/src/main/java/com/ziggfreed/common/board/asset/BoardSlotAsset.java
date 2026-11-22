@@ -80,6 +80,15 @@ public final class BoardSlotAsset extends SlotAsset {
         return requires;
     }
 
+    /**
+     * Does this slot stand on THIS server's board: its own {@code Requires} carries no plain mod gate the way it
+     * does not fit here (a {@code Min: 1} condition on a missing mod, a {@code Max: 0} one on an installed mod)?
+     * The one read {@code BoardAsset.slotsHere} and the board audit share.
+     */
+    public boolean passesModGate() {
+        return GateSpec.missingMod(requires) == null;
+    }
+
     /** The candidate label this slot posts, lower-cased for matching, or null for anything. */
     @Override
     @Nullable
