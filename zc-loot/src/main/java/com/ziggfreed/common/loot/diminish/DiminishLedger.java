@@ -26,6 +26,12 @@ import com.ziggfreed.common.util.RecordFile;
  * when a payout is written (a new Claim, or a top-up of a held one), so a second write {@code award} refuses
  * never counts.
  *
+ * <p>A payout that names an occasion counts once per occasion ({@link #count(UUID, String, DiminishSpec, String,
+ * long)}): every payout of one key naming the occasion the count last counted, in the same window, pays at the step
+ * that first one counted and counts nothing more, so several chests of one run count as one clear. A count keeps
+ * the occasion it was last counted for as {@code occasion}, an additive field: a file written before it reads every
+ * count as naming none, and the version does not move for it.
+ *
  * <p>The file is kept through zc-core's {@code util/RecordFile} and carries a {@code "version"}; a file
  * declaring a newer version than this build reads is left unread, and unwritten, with one warning, a torn file
  * reads its {@code .bak}, and a file this build cannot read at all, backup included (a damaged or cut-short
@@ -50,6 +56,8 @@ public final class DiminishLedger {
         String window;
         long period;
         int clears;
+        /** Appended: the occasion the last clear was counted for, trimmed; absent for none. */
+        String occasion;
     }
 
     /** The file's leaves; its {@code version} is the record file's. */
@@ -101,20 +109,43 @@ public final class DiminishLedger {
     /**
      * Count one clear of {@code key} for {@code player} under {@code spec} at {@code nowMs}, and answer the
      * multiplier that clear pays at: the step the clears already counted in this window reach. A count from an
-     * earlier window, or under the other window, starts over.
+     * earlier window, or under the other window, starts over. A payout naming no occasion: the
+     * {@link #count(UUID, String, DiminishSpec, String, long)} form with none.
      */
     public synchronized double count(@Nonnull UUID player, @Nonnull String key, @Nonnull DiminishSpec spec,
             long nowMs) {
+        return count(player, key, spec, null, nowMs);
+    }
+
+    /**
+     * {@link #count(UUID, String, DiminishSpec, long)} for a payout that names an occasion (a run, say): a payout
+     * counts once per occasion. When {@code occasion} is not blank and {@code player}'s count of {@code key} is
+     * current (this window, this period), holds at least one clear and was last counted for the same occasion
+     * (without regard to case), this answers the step that clear paid at and counts nothing, so nothing is written;
+     * otherwise it counts one clear as the plain form does and keeps {@code occasion} (none for a blank one) as the
+     * one the count was last counted for. A count only remembers its last occasion: a payout naming another occasion
+     * counts, and one naming the first again after it counts again.
+     *
+     * @param occasion what the payout belongs to, matched without regard to case; null or blank for none
+     */
+    public synchronized double count(@Nonnull UUID player, @Nonnull String key, @Nonnull DiminishSpec spec,
+            @Nullable String occasion, long nowMs) {
         DiminishSpec.Window window = spec.window();
         long period = window.periodIndex(nowMs);
         Map<String, Count> mine = counts.computeIfAbsent(player, k -> new HashMap<>());
         String folded = fold(key);
         Count held = mine.get(folded);
-        int prior = held != null && window.word().equals(held.window) && held.period == period ? held.clears : 0;
+        boolean current = held != null && window.word().equals(held.window) && held.period == period;
+        int prior = current ? held.clears : 0;
+        String named = occasion == null || occasion.isBlank() ? null : occasion.trim();
+        if (named != null && prior > 0 && held.occasion != null && named.equalsIgnoreCase(held.occasion.trim())) {
+            return spec.multiplier(prior - 1);
+        }
         Count next = new Count();
         next.window = window.word();
         next.period = period;
         next.clears = prior + 1;
+        next.occasion = named;
         mine.put(folded, next);
         flush(nowMs);
         return spec.multiplier(prior);

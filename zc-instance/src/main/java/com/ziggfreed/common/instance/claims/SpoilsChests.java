@@ -39,6 +39,7 @@ import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.ledger.ParticipantShare;
 import com.ziggfreed.common.encounter.payout.EncounterClaims;
 import com.ziggfreed.common.encounter.run.EncounterRun;
+import com.ziggfreed.common.encounter.seam.RunTag;
 import com.ziggfreed.common.feedback.EventTitles;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
@@ -146,14 +147,26 @@ public final class SpoilsChests {
      * @param prop            a look that wins over the file's {@code Look.Prop}, or null
      * @param lifetimeSeconds a lifetime that wins over the file's {@code Despawn.Lifetime} when positive, or null
      * @param lootable        a loot table rolled in place of the file's {@code Contents.Lootable}, or null
+     * @param difficulty      the {@code Difficulty} label of the run the chest stands for (a dungeon tier's, a boss
+     *                        fight's), which a file's {@code Contents.PerDifficulty} counts apart; null for none
+     * @param occasion        the run the chest stands for (a run's id), which a file's {@code Contents.OncePerRun}
+     *                        counts once; null for a chest standing for no run, which counts each time
      */
     public record Stand(@Nullable String chest, @Nonnull String key, @Nonnull UUID world, @Nonnull Vector3d at,
                         @Nonnull Set<UUID> credited, @Nullable Message sourceName, @Nonnull String source,
-                        @Nullable String prop, @Nullable Integer lifetimeSeconds, @Nullable String lootable) {
+                        @Nullable String prop, @Nullable Integer lifetimeSeconds, @Nullable String lootable,
+                        @Nullable String difficulty, @Nullable String occasion) {
 
         public Stand {
             at = new Vector3d(at);
             credited = Set.copyOf(credited);
+        }
+
+        /** A stand standing for no run: no difficulty, no occasion. */
+        public Stand(@Nullable String chest, @Nonnull String key, @Nonnull UUID world, @Nonnull Vector3d at,
+                @Nonnull Set<UUID> credited, @Nullable Message sourceName, @Nonnull String source,
+                @Nullable String prop, @Nullable Integer lifetimeSeconds, @Nullable String lootable) {
+            this(chest, key, world, at, credited, sourceName, source, prop, lifetimeSeconds, lootable, null, null);
         }
 
         /** A stand of {@code chest} with nothing overridden: its look, lifetime and contents all the file's. */
@@ -166,7 +179,42 @@ public final class SpoilsChests {
         /** This stand rolling {@code table} in place of the file's {@code Contents.Lootable}. */
         @Nonnull
         public Stand withLootable(@Nullable String table) {
-            return new Stand(chest, key, world, at, credited, sourceName, source, prop, lifetimeSeconds, table);
+            return new Stand(chest, key, world, at, credited, sourceName, source, prop, lifetimeSeconds, table,
+                    difficulty, occasion);
+        }
+
+        /**
+         * This stand standing for a run: its {@code Difficulty} label ({@code Contents.PerDifficulty} counts it
+         * apart) and {@code occasion}, which run it is ({@code Contents.OncePerRun} counts it once); null for none.
+         */
+        @Nonnull
+        public Stand withRun(@Nullable String difficulty, @Nullable String occasion) {
+            return new Stand(chest, key, world, at, credited, sourceName, source, prop, lifetimeSeconds, lootable,
+                    difficulty, occasion);
+        }
+    }
+
+    /**
+     * How a payout from a reward chest file counts against its diminishing returns: the key its count is kept under
+     * and the occasion it counts once for ({@link ClaimRolls.Payout}, the occasion form of {@code ClaimStore.award}).
+     * The one reading the chest's {@code Contents} and the room kit's opener reward share.
+     *
+     * @param diminishKey the key the count is kept under
+     * @param occasion    the occasion it counts once for, or null to count each payout
+     */
+    public record Counting(@Nonnull String diminishKey, @Nullable String occasion) {
+
+        /**
+         * The counting of a payout kept under {@code base}: with {@code perDifficulty}, {@code base} then {@code @}
+         * and {@code difficulty} trimmed (empty for none), so each label counts apart; with {@code oncePerRun},
+         * {@code occasion} (null for none, which counts each payout), else none.
+         */
+        @Nonnull
+        public static Counting of(@Nonnull String base, boolean perDifficulty, @Nullable String difficulty,
+                boolean oncePerRun, @Nullable String occasion) {
+            String key = perDifficulty ? base + "@" + (difficulty == null ? "" : difficulty.trim()) : base;
+            String once = oncePerRun && occasion != null && !occasion.isBlank() ? occasion.trim() : null;
+            return new Counting(key, once);
         }
     }
 
@@ -201,6 +249,10 @@ public final class SpoilsChests {
         @Nullable final String bannerSubtitleKey;
         final boolean bannerMajor;
         @Nullable final Message sourceName;
+        /** The run's {@code Difficulty} label, which {@code Contents.PerDifficulty} counts apart; null for none. */
+        @Nullable final String difficulty;
+        /** The run the chest stands for, which {@code Contents.OncePerRun} counts once; null for none. */
+        @Nullable final String occasion;
         /** The players a banner for this chest already went to, its own or a joining source's. */
         final Set<UUID> told = ConcurrentHashMap.newKeySet();
         /** The standing chest's entity uuid, or null while none stands. Guarded by this. */
@@ -226,6 +278,8 @@ public final class SpoilsChests {
             this.bannerSubtitleKey = file.bannerSubtitleKey();
             this.bannerMajor = file.bannerMajor();
             this.sourceName = stand.sourceName();
+            this.difficulty = stand.difficulty();
+            this.occasion = stand.occasion();
         }
 
         @Nonnull
@@ -243,9 +297,21 @@ public final class SpoilsChests {
     }
 
     /**
+     * The source a chest file's own Claims carry, its {@code Contents}' and a room's opener reward's alike:
+     * {@code chest:<chest id, lower-cased>}, which their diminishing returns count under ({@link Counting#of}; an
+     * opener's with {@code :opener} after it).
+     */
+    @Nonnull
+    public static String sourceOf(@Nonnull String chestId) {
+        return KEY_PREFIX + chestId.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
      * Note the chest {@code stand} asks for, to go up at its first Claim, and roll its file's {@code Contents} (or the
      * stand's own table) once for each credited player, into one Claim each filed under its key, counted against
-     * {@code Contents.Diminish} per player for this chest. Nothing for a stand that credits nobody, a file that lets
+     * {@code Contents.Diminish} per player for this chest file (apart for each of the stand's difficulties with
+     * {@code Contents.PerDifficulty}, once for the stand's occasion with {@code Contents.OncePerRun}: {@link Counting}).
+     * Nothing for a stand that credits nobody, a file that lets
      * nobody open it, or a look no block on this server can draw. A file no loaded chest defines takes the library's
      * boss chest in its place, with one warning. Never throws.
      */
@@ -311,14 +377,16 @@ public final class SpoilsChests {
             }
             return 0;
         }
-        String source = KEY_PREFIX + spoils.chestId.toLowerCase(Locale.ROOT);
+        String source = sourceOf(spoils.chestId);
+        Counting counting = Counting.of(source, file.contentsPerDifficulty(), spoils.difficulty,
+                file.contentsOncePerRun(), spoils.occasion);
         AtomicInteger written = new AtomicInteger();
         int away = 0;
         for (UUID player : spoils.credited) {
             Claim draft = new Claim(contentsClaimId(spoils.fight, player), source, file.contentsTitleKey(),
                     List.of(), null, List.of(), now, spoils.fight);
             ClaimRolls.Payout payout = new ClaimRolls.Payout(player, draft, List.of(ClaimRolls.Draw.once(table)),
-                    file.diminish(), source, message -> SafeLog.warn(LOG + message));
+                    file.diminish(), counting.diminishKey(), counting.occasion(), message -> SafeLog.warn(LOG + message));
             if (!ClaimRolls.award(payout, claim -> {
                 if (claim != null) {
                     written.incrementAndGet();
@@ -337,8 +405,9 @@ public final class SpoilsChests {
 
     /**
      * A boss is down: stand its chest when its binding row leaves one ({@link #stand}, the row's {@code Spoils.Chest}
-     * under the fight's run id). Nothing for a fight no row names, a row that switches the chest off, a defeat that
-     * names no place or no world, or one that credited nobody. Never throws.
+     * under the fight's run id), standing for the defeat's difficulty and, as its occasion, the zc run the fight
+     * belongs to (its run tag), else the fight itself. Nothing for a fight no row names, a row that switches the chest
+     * off, a defeat that names no place or no world, or one that credited nobody. Never throws.
      */
     public static void onDefeated(@Nonnull EncounterDefeatedEvent event) {
         try {
@@ -356,9 +425,11 @@ public final class SpoilsChests {
                 return;
             }
             EncounterBindingAsset.Spoils spoils = row.spoilsOrDefault();
-            stand(new Stand(spoils.chest(), EncounterClaims.fightOf(event.runId()), world, at, credited,
+            String fight = EncounterClaims.fightOf(event.runId());
+            RunTag runTag = event.runTag();
+            stand(new Stand(spoils.chest(), fight, world, at, credited,
                     bossName(row, event), "encounter=" + event.encounterId(), spoils.getProp(), spoils.getLifetime(),
-                    null));
+                    null).withRun(event.difficulty(), runTag != null ? runTag.run() : fight));
         } catch (Throwable t) {
             SafeLog.warn(LOG + "the spoils of '" + event.encounterId() + "' could not be noted, so it leaves no chest", t);
         }

@@ -29,7 +29,10 @@ import com.ziggfreed.common.util.SafeLog;
  * @param runId       which run
  * @param milestoneId the milestone's id as the volume writes it, trimmed; match it without regard to case
  * @param player      the player whose step fired it, or null when the volume fired with no player (a signal, a clear)
- * @param members     every member in the run's area when it fired, in the order they came in
+ * @param members     who the milestone credits: every member in the run's area when it fired, in the order they came
+ *                    in; for a volume whose {@code ZigRunMilestone} sets {@code PlayerOnly}, the player who set it off
+ *                    alone, or nobody when it fired with no player (stats and a {@code DUNGEON_MILESTONE} step count it
+ *                    for these players only)
  */
 public record DungeonMilestoneEvent(@Nonnull String dungeonId, @Nonnull String difficulty, @Nonnull String runId,
         @Nonnull String milestoneId, @Nullable UUID player, @Nonnull List<UUID> members) implements IEvent<Void> {

@@ -29,8 +29,10 @@ customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.BannerSubtitleKey.tooltip
 
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Id = Milestone
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Placement = Placement
+customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.PlayerOnly = Player Only
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Id.tooltip = What happened: Room_Cleared, Puzzle_Solved or Secret_Found, which the results list, or any name of your own.
 customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Placement.tooltip = Counts once per run under this name. Leave it empty to count this volume on its own.
+customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.PlayerOnly.tooltip = On, only the player who set the volume off gets credit for it. Off, everyone in the run's area does.
 
 customUI.triggerVolumeEffectEditor.field.ZigRewardChest.Chest = Chest
 customUI.triggerVolumeEffectEditor.field.ZigRewardChest.Offset = Offset

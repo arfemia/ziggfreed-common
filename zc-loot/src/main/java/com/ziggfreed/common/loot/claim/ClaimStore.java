@@ -142,13 +142,29 @@ public final class ClaimStore {
      * {@link StochasticCount}, and a reward scaled to nothing is dropped; a command line with no
      * {@code {amount}} to fill is kept whole with the multiplier's chance), and a Claim left with no rewards is
      * not written. A written Claim is saved and announced ({@link ClaimAddedEvent}). Every payout that writes
-     * a Claim pays through here.
+     * a Claim pays through here. A payout naming no occasion: the
+     * {@link #award(UUID, Claim, DiminishSpec, String, String, long)} form with none.
      *
      * @return true when a Claim was written
      */
     public synchronized boolean award(@Nonnull UUID player, @Nonnull Claim claim, @Nullable DiminishSpec spec,
             @Nonnull String diminishKey, long nowMs) {
-        return write(player, claim, spec, diminishKey, nowMs, false);
+        return award(player, claim, spec, diminishKey, null, nowMs);
+    }
+
+    /**
+     * {@link #award(UUID, Claim, DiminishSpec, String, long)} for a payout that names an occasion: a payout that names
+     * an occasion counts once per occasion. Every Claim of {@code diminishKey} naming the occasion its count was last
+     * counted for, in the same window, is scaled by the step that first one paid at and spends no clear
+     * ({@link DiminishLedger#count(UUID, String, DiminishSpec, String, long)}), so every chest a player gets in one run
+     * counts as one; a blank occasion counts each Claim, as the plain form does.
+     *
+     * @param occasion what the payout belongs to (a run's id, say), matched without regard to case; null for none
+     * @return true when a Claim was written
+     */
+    public synchronized boolean award(@Nonnull UUID player, @Nonnull Claim claim, @Nullable DiminishSpec spec,
+            @Nonnull String diminishKey, @Nullable String occasion, long nowMs) {
+        return write(player, claim, spec, diminishKey, occasion, nowMs, false);
     }
 
     /**
@@ -166,7 +182,7 @@ public final class ClaimStore {
      */
     public synchronized boolean awardOrTopUp(@Nonnull UUID player, @Nonnull Claim claim, @Nullable DiminishSpec spec,
             @Nonnull String diminishKey, long nowMs) {
-        return write(player, claim, spec, diminishKey, nowMs, true);
+        return write(player, claim, spec, diminishKey, null, nowMs, true);
     }
 
     /** Every Claim {@code player} has waiting, oldest first. */
@@ -253,17 +269,18 @@ public final class ClaimStore {
 
     /**
      * The one write behind {@link #award} and {@link #awardOrTopUp}: a Claim with no rewards, or one the player
-     * still holds unless {@code topUp}, counts nothing; otherwise one clear is counted, the rewards are scaled,
-     * and what is left is written (or joined into the held Claim), saved and announced.
+     * still holds unless {@code topUp}, counts nothing; otherwise one clear is counted (none again for an
+     * {@code occasion} its count was last counted for), the rewards are scaled, and what is left is written (or joined
+     * into the held Claim), saved and announced.
      */
     private boolean write(@Nonnull UUID player, @Nonnull Claim claim, @Nullable DiminishSpec spec,
-            @Nonnull String diminishKey, long nowMs, boolean topUp) {
+            @Nonnull String diminishKey, @Nullable String occasion, long nowMs, boolean topUp) {
         List<StoredClaim> held = claims.get(player);
         int at = held == null ? -1 : indexOf(held, claim.id());
         if (claim.rewards().isEmpty() || (at >= 0 && !topUp)) {
             return false;
         }
-        double multiplier = spec == null ? 1.0 : ledger.count(player, diminishKey, spec, nowMs);
+        double multiplier = spec == null ? 1.0 : ledger.count(player, diminishKey, spec, occasion, nowMs);
         List<InstanceReward> scaled = scaled(claim.rewards(), multiplier);
         if (scaled.isEmpty()) {
             return false;

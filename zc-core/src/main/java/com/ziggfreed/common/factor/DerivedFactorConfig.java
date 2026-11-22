@@ -111,11 +111,14 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
 
     /**
      * Audit every folded file. Findings are neutral values a consumer can surface in its own
-     * validation command; {@link #logFindings()} is the always-on baseline.
+     * validation command; {@link #logFindings()} is the always-on baseline. A term naming a factor
+     * contributed process-wide ({@link FactorContributions}, such as {@code ziggfreedcommon:counter}) is
+     * known; one a consumer registers only in its own registry reads as unknown here, which that consumer's
+     * {@link #audit(Predicate)} with its registry's check answers.
      */
     @Nonnull
     public List<Finding> audit() {
-        return audit(null);
+        return audit(FactorContributions::isContributed);
     }
 
     /**

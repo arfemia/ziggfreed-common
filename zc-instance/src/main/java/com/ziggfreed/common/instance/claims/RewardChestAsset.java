@@ -29,13 +29,21 @@ import com.ziggfreed.common.loot.diminish.DiminishSpec;
  *   "Look":     { "Prop": "Furniture_Ancient_Chest_Small", "HintKey": "mypack.chest.hint" },
  *   "Open":     { "Credited": true },
  *   "Contents": { "Lootable": "MyPack_Trork_Hoard", "Diminish": { "Steps": [1, 0.5], "Window": "Daily" },
- *                 "TitleKey": "mypack.chest.trork.title" },
+ *                 "PerDifficulty": true, "OncePerRun": true, "TitleKey": "mypack.chest.trork.title" },
+ *   "Opener":   { "Diminish": { "Steps": [1, 1, 1, 1, 0.25], "Window": "Daily" }, "PerDifficulty": false,
+ *                 "OncePerRun": false },
  *   "Banner":   { "TitleKey": "mypack.chest.trork.banner.title", "SubtitleKey": "mypack.chest.trork.banner",
  *                 "Major": false },
  *   "Text":     { "LeadKey": "mypack.chest.lead", "NoticeKey": "mypack.chest.notice" },
  *   "Despawn":  { "Lifetime": 300, "WhenEmptied": true }
  * }
  * }</pre>
+ *
+ * <p>{@code Contents.Diminish} counts per player over this chest file; {@code Contents.PerDifficulty} keeps that count
+ * apart for each {@code Difficulty} label of the run the chest stands for, and {@code Contents.OncePerRun} counts
+ * every chest of this file a player gets in one run once. {@code Opener} is how the reward of their own that the
+ * player who set a room's chest off finds (the room kit's {@code ZigRewardChest} {@code OpenerLootable}) counts, apart
+ * from {@code Contents}, with the same two knobs.
  *
  * <p>Each group is an orthogonal knob and every leaf is nullable: unauthored means the default each getter names,
  * and under native {@code Parent} a child keeps every leaf it does not restate. The defaults ARE the library's boss
@@ -76,6 +84,11 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
     /** What a notice key's titled form adds to it: {@code <NoticeKey>.named}, its {@code {0}} the reward's title. */
     public static final String NAMED_SUFFIX = ".named";
 
+    /** What a {@code PerDifficulty} leaf does, in {@code Contents} and {@code Opener} alike. */
+    private static final String PER_DIFFICULTY_DOC = "True keeps the Diminish count apart for each Difficulty label of "
+            + "the run the chest stands for (a dungeon tier's, a boss fight's), as a dungeon's clear and a boss's Claims "
+            + "count. Unauthored means false: one count over every difficulty.";
+
     /** A chest that writes nothing: the structural default every getter reads, the library's boss chest. */
     static final RewardChestAsset BARE = new RewardChestAsset();
 
@@ -85,6 +98,7 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
     @Nullable private Look look;
     @Nullable private Open open;
     @Nullable private Contents contents;
+    @Nullable private Opener opener;
     @Nullable private Banner banner;
     @Nullable private Text text;
     @Nullable private Despawn despawn;
@@ -108,6 +122,11 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
             .documentation("What the chest holds of its own, rolled for each player who may open it as it goes up, "
                     + "beside whatever its source pays into it (a boss fight's own rewards). Unauthored, it holds "
                     + "only what its source pays.").add()
+            .appendInherited(new KeyedCodec<>("Opener", Opener.CODEC, false),
+                    (a, v) -> a.opener = v, a -> a.opener, (a, p) -> a.opener = p.opener)
+            .documentation("How the reward of their own that the player who set a room's chest off finds in it (a "
+                    + "room's reward chest effect's OpenerLootable) pays less the more of them they get, counted apart "
+                    + "from Contents. Unauthored, it pays in full every time.").add()
             .appendInherited(new KeyedCodec<>("Banner", Banner.CODEC, false),
                     (a, v) -> a.banner = v, a -> a.banner, (a, p) -> a.banner = p.banner)
             .documentation("The banner each player with a share sees once as the chest goes up. Unauthored, none. "
@@ -166,6 +185,41 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
     @Nullable
     public String contentsTitleKey() {
         return blankToNull(contents == null ? null : contents.titleKey);
+    }
+
+    /**
+     * {@code Contents.PerDifficulty}: whether the {@code Contents.Diminish} count is kept apart for each
+     * {@code Difficulty} label of the run the chest stands for; unauthored means one count over every difficulty.
+     */
+    public boolean contentsPerDifficulty() {
+        return contents != null && Boolean.TRUE.equals(contents.perDifficulty);
+    }
+
+    /**
+     * {@code Contents.OncePerRun}: whether every chest of this file a player gets in one run counts once against
+     * {@code Contents.Diminish}; unauthored means each chest counts.
+     */
+    public boolean contentsOncePerRun() {
+        return contents != null && Boolean.TRUE.equals(contents.oncePerRun);
+    }
+
+    /**
+     * {@code Opener.Diminish} as written, or null: the reward of their own the player who set a room's chest off finds
+     * pays in full every time.
+     */
+    @Nullable
+    public DiminishSpec openerDiminish() {
+        return opener == null ? null : opener.diminish;
+    }
+
+    /** {@code Opener.PerDifficulty}: the opener's count kept apart per difficulty; unauthored means one count. */
+    public boolean openerPerDifficulty() {
+        return opener != null && Boolean.TRUE.equals(opener.perDifficulty);
+    }
+
+    /** {@code Opener.OncePerRun}: every opener's reward of this file one run gives a player counts once; unauthored, no. */
+    public boolean openerOncePerRun() {
+        return opener != null && Boolean.TRUE.equals(opener.oncePerRun);
     }
 
     /** {@code Banner.TitleKey}, trimmed, or null: no banner when the file names no title. */
@@ -272,6 +326,8 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
 
         @Nullable protected String lootable;
         @Nullable protected DiminishSpec diminish;
+        @Nullable protected Boolean perDifficulty;
+        @Nullable protected Boolean oncePerRun;
         @Nullable protected String titleKey;
 
         public static final BuilderCodec<Contents> CODEC = BuilderCodec.builder(Contents.class, Contents::new)
@@ -287,6 +343,16 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
                 .documentation("How much a repeat roll earns in one window, counted per player for this chest: Steps "
                         + "[1, 0.5] with Window Daily pays half for every chest after the first that day. Unauthored, "
                         + "every roll pays in full.").add()
+                .appendInherited(new KeyedCodec<>("PerDifficulty", Codec.BOOLEAN, false),
+                        (o, v) -> o.perDifficulty = v, o -> o.perDifficulty, (o, p) -> o.perDifficulty = p.perDifficulty)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation(PER_DIFFICULTY_DOC).add()
+                .appendInherited(new KeyedCodec<>("OncePerRun", Codec.BOOLEAN, false),
+                        (o, v) -> o.oncePerRun = v, o -> o.oncePerRun, (o, p) -> o.oncePerRun = p.oncePerRun)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True counts every chest of this file a player gets in one run once against Diminish: "
+                        + "the first counts a step, and the rest that run pay at that step. A chest standing for no "
+                        + "run counts each time. Unauthored means false: every chest counts.").add()
                 .appendInherited(new KeyedCodec<>("TitleKey", Codec.STRING, false),
                         (o, v) -> o.titleKey = v, o -> o.titleKey, (o, p) -> o.titleKey = p.titleKey)
                 .documentation("The localization key of the title the rolled Claim reads, in the chest and under "
@@ -294,6 +360,39 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
                 .build();
 
         public Contents() {
+        }
+    }
+
+    // ==================== Opener ====================
+
+    /** How the reward of their own the player who set a room's chest off finds pays less the more they get. */
+    public static final class Opener {
+
+        @Nullable protected DiminishSpec diminish;
+        @Nullable protected Boolean perDifficulty;
+        @Nullable protected Boolean oncePerRun;
+
+        public static final BuilderCodec<Opener> CODEC = BuilderCodec.builder(Opener.class, Opener::new)
+                .appendInherited(new KeyedCodec<>("Diminish", DiminishSpec.CODEC, false),
+                        (o, v) -> o.diminish = v, o -> o.diminish, (o, p) -> o.diminish = p.diminish)
+                .documentation("How the reward of their own that the player who set a room's chest off finds (a room's "
+                        + "reward chest effect's OpenerLootable) pays less the more of them they get in a window, "
+                        + "counted per player over this chest file's openers, apart from Contents: Steps [1, 1, 0.5] "
+                        + "with Window Daily pays the first two that day in full and half after. Unauthored, it pays in "
+                        + "full every time.").add()
+                .appendInherited(new KeyedCodec<>("PerDifficulty", Codec.BOOLEAN, false),
+                        (o, v) -> o.perDifficulty = v, o -> o.perDifficulty, (o, p) -> o.perDifficulty = p.perDifficulty)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation(PER_DIFFICULTY_DOC).add()
+                .appendInherited(new KeyedCodec<>("OncePerRun", Codec.BOOLEAN, false),
+                        (o, v) -> o.oncePerRun = v, o -> o.oncePerRun, (o, p) -> o.oncePerRun = p.oncePerRun)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True counts every opener's reward of this file a player gets in one run once against "
+                        + "Diminish: the first counts a step, and the rest that run pay at that step. Unauthored means "
+                        + "false: each one counts.").add()
+                .build();
+
+        public Opener() {
         }
     }
 

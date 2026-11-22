@@ -84,11 +84,16 @@ public final class ClaimRolls {
     /**
      * What a payout writes: whose Claim, the Claim as it reads with no rewards yet ({@code draft}: its id, its source,
      * which the rolls are kept under too, its title, difficulty, time and fight), the tables it rolls, the returns
-     * that count it ({@code diminish}, null for every payout in full, under {@code diminishKey}), and where a reward
-     * that cannot be kept is reported.
+     * that count it ({@code diminish}, null for every payout in full, under {@code diminishKey}, counted once per
+     * {@code occasion} when it names one: {@link ClaimStore#award(UUID, Claim, DiminishSpec, String, String, long)}),
+     * and where a reward that cannot be kept is reported.
+     *
+     * @param occasion what the payout belongs to (a run's id), so every payout of its key naming it counts once; null
+     *                 to count each one
      */
     public record Payout(@Nonnull UUID player, @Nonnull Claim draft, @Nonnull List<Draw> draws,
-            @Nullable DiminishSpec diminish, @Nonnull String diminishKey, @Nonnull Consumer<String> warn) {
+            @Nullable DiminishSpec diminish, @Nonnull String diminishKey, @Nullable String occasion,
+            @Nonnull Consumer<String> warn) {
 
         public Payout {
             Objects.requireNonNull(player, "player");
@@ -96,6 +101,12 @@ public final class ClaimRolls {
             draws = List.copyOf(draws);
             Objects.requireNonNull(diminishKey, "diminishKey");
             Objects.requireNonNull(warn, "warn");
+        }
+
+        /** A payout naming no occasion: every payout of its key counts. */
+        public Payout(@Nonnull UUID player, @Nonnull Claim draft, @Nonnull List<Draw> draws,
+                @Nullable DiminishSpec diminish, @Nonnull String diminishKey, @Nonnull Consumer<String> warn) {
+            this(player, draft, draws, diminish, diminishKey, null, warn);
         }
     }
 
@@ -138,7 +149,7 @@ public final class ClaimRolls {
             }
             long now = draft.createdAt();
             if (!ClaimStore.shared().award(payout.player(), draft.withRewards(rewards), payout.diminish(),
-                    payout.diminishKey(), now)) {
+                    payout.diminishKey(), payout.occasion(), now)) {
                 return null;
             }
             PityLedger.shared().settle(payout.player(), pity);

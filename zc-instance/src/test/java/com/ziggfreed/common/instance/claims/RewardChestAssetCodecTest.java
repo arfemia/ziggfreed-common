@@ -23,6 +23,7 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.loot.diminish.DiminishSpec;
 
 /**
  * A reward chest file's codec: every group and leaf reads as written, is written back and reads the same, an empty
@@ -38,7 +39,9 @@ class RewardChestAssetCodecTest {
               "Look":     { "Prop": " Furniture_Ancient_Chest_Small ", "HintKey": "mypack.chest.hint" },
               "Open":     { "Credited": false },
               "Contents": { "Lootable": " MyPack_Trork_Hoard ", "Diminish": { "Steps": [1, 0.5], "Window": "Daily" },
-                            "TitleKey": "mypack.chest.title" },
+                            "PerDifficulty": true, "OncePerRun": true, "TitleKey": "mypack.chest.title" },
+              "Opener":   { "Diminish": { "Steps": [1, 1, 0.25], "Window": "Weekly" }, "PerDifficulty": true,
+                            "OncePerRun": true },
               "Banner":   { "TitleKey": "mypack.chest.banner.title", "SubtitleKey": "mypack.chest.banner", "Major": true },
               "Text":     { "LeadKey": "mypack.chest.lead", "NoticeKey": "mypack.chest.notice" },
               "Despawn":  { "Lifetime": 120, "WhenEmptied": false }
@@ -56,7 +59,7 @@ class RewardChestAssetCodecTest {
         RewardChestAsset again = decode("MyPack_Trork_Chest",
                 RewardChestAsset.CODEC.encode(read, new ExtraInfo()).toJson(), null);
         assertFull(again);
-        for (String group : List.of("Look", "Open", "Contents", "Banner", "Text", "Despawn")) {
+        for (String group : List.of("Look", "Open", "Contents", "Opener", "Banner", "Text", "Despawn")) {
             assertNotNull(RewardChestAsset.CODEC.toSchema(new SchemaContext()).getProperties().get(group),
                     "the schema the Asset Editor loads declares " + group);
         }
@@ -70,6 +73,11 @@ class RewardChestAssetCodecTest {
         assertTrue(bare.openCredited(), "the credited players open it unless a file says not");
         assertNull(bare.lootable(), "no Contents: it holds only what its source pays");
         assertNull(bare.diminish());
+        assertFalse(bare.contentsPerDifficulty(), "one count over every difficulty");
+        assertFalse(bare.contentsOncePerRun(), "every chest counts");
+        assertNull(bare.openerDiminish(), "the opener's reward pays in full every time");
+        assertFalse(bare.openerPerDifficulty());
+        assertFalse(bare.openerOncePerRun());
         assertNull(bare.contentsTitleKey());
         assertNull(bare.bannerTitleKey(), "no banner of its own");
         assertNull(bare.bannerSubtitleKey());
@@ -95,6 +103,10 @@ class RewardChestAssetCodecTest {
         assertEquals("MyPack_Goblin", child.lootable());
         assertEquals("mypack.chest.title", child.contentsTitleKey(), "the group's other leaves survived");
         assertNotNull(child.diminish());
+        assertTrue(child.contentsPerDifficulty(), "Contents.PerDifficulty survived beside the restated table");
+        assertTrue(child.contentsOncePerRun());
+        assertNotNull(child.openerDiminish(), "an unmentioned Opener is the parent's");
+        assertTrue(child.openerOncePerRun());
         assertEquals("mypack.chest.banner.title", child.bannerTitleKey(), "an unmentioned group is the parent's");
         assertEquals(120, child.lifetimeSeconds());
     }
@@ -147,6 +159,12 @@ class RewardChestAssetCodecTest {
         assertFalse(read.openCredited());
         assertEquals("MyPack_Trork_Hoard", read.lootable(), "the table is read trimmed");
         assertNotNull(read.diminish());
+        assertTrue(read.contentsPerDifficulty(), "Contents.PerDifficulty reads as written");
+        assertTrue(read.contentsOncePerRun(), "Contents.OncePerRun reads as written");
+        assertEquals(DiminishSpec.of(DiminishSpec.Window.WEEKLY, 1.0, 1.0, 0.25), read.openerDiminish(),
+                "Opener.Diminish reads as written");
+        assertTrue(read.openerPerDifficulty(), "Opener.PerDifficulty reads as written");
+        assertTrue(read.openerOncePerRun(), "Opener.OncePerRun reads as written");
         assertEquals("mypack.chest.title", read.contentsTitleKey());
         assertEquals("mypack.chest.banner.title", read.bannerTitleKey());
         assertEquals("mypack.chest.banner", read.bannerSubtitleKey());
@@ -165,6 +183,11 @@ class RewardChestAssetCodecTest {
         assertEquals(expected.openCredited(), actual.openCredited(), why + ": Open.Credited");
         assertEquals(expected.lootable(), actual.lootable(), why + ": Contents.Lootable");
         assertEquals(expected.diminish() == null, actual.diminish() == null, why + ": Contents.Diminish");
+        assertEquals(expected.contentsPerDifficulty(), actual.contentsPerDifficulty(), why + ": Contents.PerDifficulty");
+        assertEquals(expected.contentsOncePerRun(), actual.contentsOncePerRun(), why + ": Contents.OncePerRun");
+        assertEquals(expected.openerDiminish(), actual.openerDiminish(), why + ": Opener.Diminish");
+        assertEquals(expected.openerPerDifficulty(), actual.openerPerDifficulty(), why + ": Opener.PerDifficulty");
+        assertEquals(expected.openerOncePerRun(), actual.openerOncePerRun(), why + ": Opener.OncePerRun");
         assertEquals(expected.contentsTitleKey(), actual.contentsTitleKey(), why + ": Contents.TitleKey");
         assertEquals(expected.bannerTitleKey(), actual.bannerTitleKey(), why + ": Banner.TitleKey");
         assertEquals(expected.bannerSubtitleKey(), actual.bannerSubtitleKey(), why + ": Banner.SubtitleKey");

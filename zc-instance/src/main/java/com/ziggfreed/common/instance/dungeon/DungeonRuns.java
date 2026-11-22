@@ -1003,10 +1003,22 @@ public final class DungeonRuns {
      * until the run's party leaves, after the run ended too (R1000: a skill lock opened after the last boss still pays
      * its XP from the event); one reached after the end is left out of the run's tally, so the results already shown
      * stay as they were. True when it counted now; false for one the run already counted, a blank id, or a run whose
-     * area has freed or holds another run.
+     * area has freed or holds another run. The event names every member present; the
+     * {@link #milestone(LiveRun, String, String, UUID, boolean)} form can name the player alone.
      */
     public boolean milestone(@Nonnull LiveRun run, @Nonnull String milestoneId, @Nonnull String placement,
             @Nullable UUID player) {
+        return milestone(run, milestoneId, placement, player, false);
+    }
+
+    /**
+     * {@link #milestone(LiveRun, String, String, UUID)}, crediting {@code player} alone when {@code playerOnly}: the
+     * event then names them as its only member ({@link DungeonMilestoneEvent#members()}), so stats and a
+     * {@code DUNGEON_MILESTONE} step count it for them only, and with no player it names nobody, crediting nobody.
+     * The run's own tally counts it either way.
+     */
+    public boolean milestone(@Nonnull LiveRun run, @Nonnull String milestoneId, @Nonnull String placement,
+            @Nullable UUID player, boolean playerOnly) {
         String id = milestoneId.trim();
         if (id.isEmpty()) {
             return false;
@@ -1023,8 +1035,10 @@ public final class DungeonRuns {
                 // The tally a clear's results read; the results already built carry their own copy of it.
                 live.milestones.merge(folded, 1, Integer::sum);
             }
+            List<UUID> members = !playerOnly ? live.members.present()
+                    : player == null ? List.of() : List.of(player);
             event = new DungeonMilestoneEvent(live.dungeon, live.knobs.mode, live.runId.toString(), id, player,
-                    live.members.present());
+                    members);
         }
         DungeonMilestoneEvent.fire(event);
         SafeLog.fine(LOG + "the run " + run.runId() + " reached " + id + " at " + placement);

@@ -232,12 +232,16 @@ def place_block(event, origin, cell, block, entry=0, delay=0.0):
                   ReplaceMode="OnlyAir", Rotation="None", Pitch="None", Roll="None")
 
 
-def milestone(event, milestone_id, entry=0, delay=0.0, placement=""):
+def milestone(event, milestone_id, entry=0, delay=0.0, placement="", player_only=False):
     """CommonLib's ZigRunMilestone: tells the run a beat happened (once per room per run, or once per run under
-    `placement`, which a key ending @room keeps to its room)."""
+    `placement`, which a key ending @room keeps to its room). With `player_only` it credits only the player who set
+    the volume off (PlayerOnly), not every member in the run's area."""
+    fields = {"Id": milestone_id}
     if placement:
-        return effect("ZigRunMilestone", event, entry, delay, Id=milestone_id, Placement=placement)
-    return effect("ZigRunMilestone", event, entry, delay, Id=milestone_id)
+        fields["Placement"] = placement
+    if player_only:
+        fields["PlayerOnly"] = True
+    return effect("ZigRunMilestone", event, entry, delay, **fields)
 
 
 def chest_effect(event, origin, params, entry=0, delay=0.0):
@@ -1040,7 +1044,8 @@ def skill_lock(params, ctx):
     air), Factor (default hytale:stat), Param (the stat a skill's level reads as, such as
     Level_Mining), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
     opens it, required), Level (the level the hint names; default Min), Milestone (default Secret_Found),
-    KindMilestone (a second beat naming which kind of lock it was, such as Lock_Mining; default none), Signal,
+    KindMilestone (a second beat naming which kind of lock it was, such as Lock_Mining, credited only to the player
+    who opened it, so a party member standing by never earns it; default none), Signal,
     OpenSound, OpenVfx, and the cache: Chest (a reward chest file id) with At {X, Y, Z} (the air cell over the floor
     it stands in, a lock cell only when the lock opens to air; a spec writes "$Chest" for its own top-level Chest),
     OpenerLootable and OpenerTitleKey (the opener's own reward in it). Placement (default the volume) is what the
@@ -1079,7 +1084,7 @@ def skill_lock(params, ctx):
     if ms:
         effects.append(milestone("BLOCK_USED", ms, placement=placement))
     if params.get("KindMilestone"):
-        effects.append(milestone("BLOCK_USED", params["KindMilestone"], placement=placement))
+        effects.append(milestone("BLOCK_USED", params["KindMilestone"], placement=placement, player_only=True))
     if params.get("Chest"):
         if not params.get("At"):
             raise ValueError("SkillLock: a Chest needs At, the cell it stands in")

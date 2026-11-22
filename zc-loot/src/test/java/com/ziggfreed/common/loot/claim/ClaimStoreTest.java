@@ -19,6 +19,8 @@ import javax.annotation.Nonnull;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -33,7 +35,9 @@ import com.ziggfreed.common.instance.reward.InstanceRewardGranter;
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.diminish.DiminishLedger;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
+import com.ziggfreed.common.loot.reward.CommandRewardKind;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
+import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.subject.Subject;
 
@@ -184,10 +188,103 @@ class ClaimStoreTest {
         assertEquals(List.of(), over.list(OWED));
     }
 
+    /** The first clear pays in full and every clear after it half: {@code "Steps": [1, 0.5]}. */
+    private static final DiminishSpec FULL_THEN_HALF = DiminishSpec.of(DiminishSpec.Window.DAILY, 1.0, 0.5);
+
+    /** A quarter step: {@code "Steps": [0.25]}. */
+    private static final DiminishSpec QUARTER = DiminishSpec.of(DiminishSpec.Window.DAILY, 0.25);
+
+    /**
+     * A payout that names an occasion counts once per occasion: two Claims of one key naming one occasion (any case)
+     * both pay the first step in full, and a third naming another occasion counts the next clear, at half.
+     */
+    @Tag("engine-items")
+    @Test
+    void payoutsNamingOneOccasionCountOnceAndAnotherOccasionCountsAgain() {
+        ClaimStore store = new ClaimStore("claims", new DiminishLedger("claims-diminish"), () -> 0.0);
+        List<InstanceReward> ten = List.of(InstanceReward.item("Ingredient_Bar_Copper", 10, null));
+        assertTrue(store.award(OWED, claimOf("test:chest:first:" + OWED, ten), FULL_THEN_HALF, "test:chest",
+                "run-1", NOW));
+        assertTrue(store.award(OWED, claimOf("test:chest:second:" + OWED, ten), FULL_THEN_HALF, "test:chest",
+                "RUN-1", NOW));
+        assertTrue(store.award(OWED, claimOf("test:chest:third:" + OWED, ten), FULL_THEN_HALF, "test:chest",
+                "run-2", NOW));
+
+        assertEquals(10, heldQuantity(store, "test:chest:first:" + OWED), "the occasion's first Claim pays in full");
+        assertEquals(10, heldQuantity(store, "test:chest:second:" + OWED),
+                "a second Claim naming the same occasion pays at the step the first counted");
+        assertEquals(5, heldQuantity(store, "test:chest:third:" + OWED),
+                "a Claim naming another occasion counts the next clear, at half");
+    }
+
+    /**
+     * A cut amount pays its cut: two command kinds deferred from a roll (one shaped like a lamp that takes picks, one
+     * like a ranged-capable experience line whose range end sits at zero) keep a quarter of their amounts at a quarter
+     * step, and the lines the Claim runs fill exactly those quarters.
+     */
+    @Tag("engine-items")
+    @Test
+    void aCutAmountPaysItsCut() throws IOException {
+        RewardKindRegistry kinds = new RewardKindRegistry("test");
+        kinds.register("Test_Lamp", new CommandRewardKind(kindFile("Test_Lamp", """
+                { "Params": { "Amount": { "Required": true, "Type": "Integer" }, "Picks": { "Default": "1" },
+                              "Skills": { "Default": "ALL" }, "Exact": { "Default": "false" } },
+                  "Command": "testlamp give {player} {Amount} --picks={Picks} --skills={Skills} --exact={Exact}" }
+                """)));
+        kinds.register("Test_Xp", new CommandRewardKind(kindFile("Test_Xp", """
+                { "Params": { "Skill": { "Required": true }, "Amount": { "Required": true, "Type": "Integer" },
+                              "AmountMax": { "Default": "0", "Type": "Integer" } },
+                  "Command": "testxp {player} {Skill} {Amount} --amountMax={AmountMax}" }
+                """)));
+        LootGrants rolled = LootGrants.of(null, null, null, new LootGrants.Reward[] {
+                LootGrants.Reward.of("Test_Lamp", Map.of("Amount", "25300")),
+                LootGrants.Reward.of("Test_Xp", Map.of("Skill", "Alpha", "Amount", "4800"))});
+        List<InstanceReward> deferred = DeferredRewards.from(rolled, kinds, Subject.of(OWED, "{player}"),
+                "test:vault", null);
+        assertEquals(List.of(25300, 4800), deferred.stream().map(InstanceReward::quantity).toList(),
+                "each kind defers at its full amount");
+
+        ClaimStore store = new ClaimStore("claims", new DiminishLedger("claims-diminish"), () -> 0.0);
+        assertTrue(store.award(OWED, claimOf(deferred), QUARTER, "test:vault", NOW));
+        List<InstanceReward> kept = store.list(OWED).get(0).rewards();
+        assertEquals(List.of(6325, 1200), kept.stream().map(InstanceReward::quantity).toList(),
+                "the Claim keeps a quarter of each: 6325 of 25300 and 1200 of 4800");
+
+        List<String> ran = new ArrayList<>();
+        // A command reward never reads the player's store, so the recording sink stands in for the player.
+        InstanceRewardGranter.grantAll(kept, null, null, recording(ran));
+        assertEquals(List.of("testlamp give {player} 6325 --picks=1 --skills=ALL --exact=false",
+                        "testxp {player} Alpha 1200 --amountMax=0"), ran,
+                "the lines the Claim runs pay the quarters its chips show");
+    }
+
     @Nonnull
     private static Claim claimOf(@Nonnull List<InstanceReward> rewards) {
-        return new Claim("test:graveyard:run-1:" + OWED, "test:graveyard", "test.claims.title", List.of(), "",
-                rewards, NOW);
+        return claimOf("test:graveyard:run-1:" + OWED, rewards);
+    }
+
+    @Nonnull
+    private static Claim claimOf(@Nonnull String id, @Nonnull List<InstanceReward> rewards) {
+        return new Claim(id, "test:graveyard", "test.claims.title", List.of(), "", rewards, NOW);
+    }
+
+    /** The quantity of the one reward {@code player} holds in the Claim {@code id}. */
+    private static int heldQuantity(@Nonnull ClaimStore store, @Nonnull String id) {
+        for (Claim claim : store.list(OWED)) {
+            if (claim.is(id)) {
+                assertEquals(1, claim.rewards().size(), "the Claim " + id + " holds one reward");
+                return claim.rewards().get(0).quantity();
+            }
+        }
+        throw new AssertionError("no Claim " + id + " was written");
+    }
+
+    /** A reward kind file as the store decodes it. */
+    @Nonnull
+    private static RewardKindAsset kindFile(@Nonnull String id, @Nonnull String json) throws IOException {
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(RewardKindAsset.class, id, null);
+        return RewardKindAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(json), null,
+                new AssetExtraInfo<>(data));
     }
 
     /** A sink recording each command line it is handed, as run. */

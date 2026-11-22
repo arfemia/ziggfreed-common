@@ -12,6 +12,7 @@ import com.hypixel.hytale.builtin.triggervolumes.effect.TriggerEffect;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.instance.dungeon.DungeonMilestoneEvent;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 import com.ziggfreed.common.util.SafeLog;
@@ -32,6 +33,10 @@ import com.ziggfreed.common.util.SafeLog;
  * results already shown keep their own numbers. Outside a dungeon run, or once its party has left, it does nothing.
  * It grants nothing itself.
  *
+ * <p>The event credits every member in the run's area, unless {@code PlayerOnly} is true: then it credits only the
+ * player who set the volume off (its members name them alone, so stats and a {@code DUNGEON_MILESTONE} step count it
+ * for them only), and set off with no player it credits nobody. The run's own tally counts it either way.
+ *
  * <p>Registered into the engine's trigger effect map at setup ({@code InstanceBootstrap.registerRoomKit}), the
  * library's manifest depending on the TriggerVolumes plugin that reads it.
  */
@@ -47,6 +52,8 @@ public final class ZigRunMilestoneEffect extends TriggerEffect {
     private String id;
     @Nullable
     private String placement;
+    @Nullable
+    private Boolean playerOnly;
 
     /** Lazy holder, as an interaction Type's: only registration builds the codec. */
     private static final class Holder {
@@ -64,6 +71,13 @@ public final class ZigRunMilestoneEffect extends TriggerEffect {
                 .documentation("What the beat counts once per run under. Unauthored means this volume, so every "
                         + "copy of a room counts on its own; give several volumes of one room the same Placement "
                         + "and they count once between them.").add()
+                .append(new KeyedCodec<>("PlayerOnly", Codec.BOOLEAN, false),
+                        (e, v) -> e.playerOnly = v, e -> e.playerOnly)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True credits only the player who set the volume off (who stepped in, or used the "
+                        + "block), so stats and quest steps count the beat for them alone; set off with no player (a "
+                        + "signal), it credits nobody. The run's own count takes it either way. Unauthored means "
+                        + "false: every member in the run's area.").add()
                 .build();
     }
 
@@ -87,7 +101,8 @@ public final class ZigRunMilestoneEffect extends TriggerEffect {
             UUID player = RoomKitTrigger.playerOf(context);
             DungeonRuns.LiveRun run = RoomKitTrigger.runOf(context, player);
             if (run != null) {
-                DungeonRuns.shared().milestone(run, id, RoomKitTrigger.placement(context, placement), player);
+                DungeonRuns.shared().milestone(run, id, RoomKitTrigger.placement(context, placement), player,
+                        Boolean.TRUE.equals(playerOnly));
             }
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] a run milestone could not be counted", t);

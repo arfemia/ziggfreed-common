@@ -448,7 +448,7 @@ public final class DungeonResults {
                 String key = ENDLESS_CHEST_PREFIX + pay.runId();
                 SpoilsChests.Stood stood = SpoilsChests.stand(SpoilsChests.Stand.of(pay.chestFile(), key,
                         pay.worldUuid(), pay.chestAt(), credited, nameOf(pay.dungeonId(), pay.nameKey()),
-                        "dungeon=" + pay.dungeonId()));
+                        "dungeon=" + pay.dungeonId()).withRun(pay.difficulty(), pay.runId()));
                 chest = stood.noted() ? key : null;
             }
             long now = System.currentTimeMillis();
