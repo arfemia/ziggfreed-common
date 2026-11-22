@@ -94,6 +94,44 @@ public record ProgressCredit(@Nonnull String kind, @Nonnull String target, @Null
         return false;
     }
 
+    /** Does {@code targets} name at least one character (a non-blank entry)? */
+    public static boolean hasTargets(@Nullable String[] targets) {
+        if (targets == null) {
+            return false;
+        }
+        for (String target : targets) {
+            if (target != null && !target.isBlank()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Is {@code npcId} one of {@code targets}, matched trimmed and without regard to case, as ids are? False for
+     * a null id (a hit on no declared character) and for an empty list.
+     */
+    public static boolean namesTarget(@Nullable String npcId, @Nullable String[] targets) {
+        if (npcId == null || npcId.isBlank() || targets == null) {
+            return false;
+        }
+        String wanted = npcId.trim();
+        for (String target : targets) {
+            if (target != null && target.trim().equalsIgnoreCase(wanted)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Does a node authoring {@code targets} gate nothing because {@code qualifierFromTarget} is off? {@code Targets}
+     * narrows only the character a hit names, so without it the list does nothing (a decode WARNING).
+     */
+    public static boolean targetsIgnored(@Nullable Boolean qualifierFromTarget, @Nullable String[] targets) {
+        return hasTargets(targets) && !Boolean.TRUE.equals(qualifierFromTarget);
+    }
+
     @Nullable
     private static String firstNonBlank(@Nullable String first, @Nullable String second) {
         if (first != null && !first.isBlank()) {

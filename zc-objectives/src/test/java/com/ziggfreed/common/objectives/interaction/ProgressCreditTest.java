@@ -155,4 +155,28 @@ class ProgressCreditTest {
         assertTrue(ProgressCredit.firstReport(reported, "Use_Itme"));
         assertFalse(ProgressCredit.firstReport(reported, "USE_ITME"), "the same kind, said once");
     }
+
+    /** {@code Targets}: only a hit on a listed character counts (the node fails otherwise, so its spend never runs). */
+    @Test
+    void aTargetsListNamesTheCharactersAHitMayCountForInAnyCasing() {
+        String[] villagers = {"Yourpack_Miller", " yourpack_weaver "};
+
+        assertTrue(ProgressCredit.namesTarget("YOURPACK_MILLER", villagers));
+        assertTrue(ProgressCredit.namesTarget("Yourpack_Weaver", villagers), "entries are trimmed");
+        assertFalse(ProgressCredit.namesTarget("Yourpack_Host", villagers), "another character is off the list");
+        assertFalse(ProgressCredit.namesTarget(null, villagers), "a hit on no declared character never counts");
+        assertFalse(ProgressCredit.namesTarget("Yourpack_Miller", null));
+        assertTrue(ProgressCredit.hasTargets(villagers));
+        assertFalse(ProgressCredit.hasTargets(new String[] {" ", null}), "blank entries name nobody");
+    }
+
+    @Test
+    void aTargetsListWithoutQualifierFromTargetIsIgnored() {
+        String[] villagers = {"Yourpack_Miller"};
+
+        assertTrue(ProgressCredit.targetsIgnored(null, villagers));
+        assertTrue(ProgressCredit.targetsIgnored(false, villagers));
+        assertFalse(ProgressCredit.targetsIgnored(true, villagers));
+        assertFalse(ProgressCredit.targetsIgnored(null, null), "no list, nothing to report");
+    }
 }
