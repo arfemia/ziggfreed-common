@@ -1,0 +1,7 @@
+{
+  "$Comment": "A boss that cannot be taunted while it wears this: every taunt slides off it, the game's and every mod's, and a taunt already holding it lets go at once. Put it on at a phase change with Zc_Phase_At_Health's SetControl and Control, and say so in that phase's toast. It lasts until the next phase's rule or the next fight takes it off. Copy it under your own id to change other kinds as well: its ZigControlShrugs tag names the kinds of control the wearer shrugs, ZigControlLands the kinds that land from anyone.",
+  "Infinite": true,
+  "Debuff": false,
+  "OverlapBehavior": "Ignore",
+  "Tags": { "ZigControlShrugs": ["Taunt"] }
+}

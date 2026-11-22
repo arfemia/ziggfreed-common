@@ -51,6 +51,9 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
     /** The critical hit's word's colour unless the record says otherwise. */
     public static final String DEFAULT_CRIT_TEXT_COLOR = "#FF3B3B";
 
+    /** The shrug word's colour unless the record says otherwise. */
+    public static final String DEFAULT_SHRUG_TEXT_COLOR = "#B8C4CC";
+
     private String id;
     private AssetExtraInfo.Data data;
 
@@ -59,6 +62,7 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
     @Nullable protected Windows windows;
     @Nullable protected Text combatText;
     @Nullable protected CritText critText;
+    @Nullable protected ShrugText shrugText;
 
     public static final AssetBuilderCodec<String, WeakSpotSettingsAsset> CODEC = AssetBuilderCodec.builder(
                     WeakSpotSettingsAsset.class,
@@ -87,6 +91,12 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
                     (a, v) -> a.critText = v, a -> a.critText, (a, p) -> a.critText = p.critText)
             .documentation("The floating word the attacker sees over a critical hit (the library's crit step, "
                     + "which rolls the attacker's CritChance), beside the weak spot's.").add()
+            .appendInherited(new KeyedCodec<>("ShrugText", ShrugText.CODEC, false),
+                    (a, v) -> a.shrugText = v, a -> a.shrugText, (a, p) -> a.shrugText = p.shrugText)
+            .documentation("The floating word a player sees over a foe that shrugged a stun, slow, push, taunt or "
+                    + "other control they cast (a boss's rules: ZigControlShrugs, or a talent's control on a boss), "
+                    + "at most once every few seconds per foe and kind, behind the same Settings switch as the "
+                    + "critical hit's word.").add()
             .build();
 
     public WeakSpotSettingsAsset() {
@@ -156,6 +166,18 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
     public String critTextColor() {
         String color = critText == null ? null : critText.color;
         return color == null || color.isBlank() ? DEFAULT_CRIT_TEXT_COLOR : color.trim();
+    }
+
+    /** Is the shrug word shown (a foe refusing a player's control)? */
+    public boolean shrugTextEnabled() {
+        return shrugText == null || shrugText.enabled == null || shrugText.enabled;
+    }
+
+    /** The shrug word's colour as written, else {@link #DEFAULT_SHRUG_TEXT_COLOR}. */
+    @Nonnull
+    public String shrugTextColor() {
+        String color = shrugText == null ? null : shrugText.color;
+        return color == null || color.isBlank() ? DEFAULT_SHRUG_TEXT_COLOR : color.trim();
     }
 
     /** The Head group. */
@@ -264,6 +286,28 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
                 .build();
 
         public CritText() {
+        }
+    }
+
+    /** The ShrugText group: the word over a foe that shrugged a player's control. */
+    public static final class ShrugText {
+
+        @Nullable protected Boolean enabled;
+        @Nullable protected String color;
+
+        public static final BuilderCodec<ShrugText> CODEC = BuilderCodec.builder(ShrugText.class, ShrugText::new)
+                .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.enabled = v, o -> o.enabled, (o, p) -> o.enabled = p.enabled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Whether a player sees a word over a foe that shrugged their control. Unauthored "
+                        + "means true.").add()
+                .appendInherited(new KeyedCodec<>("Color", Codec.STRING, false),
+                        (o, v) -> o.color = v, o -> o.color, (o, p) -> o.color = p.color)
+                .metadata(EditorSchema.defaultValue(DEFAULT_SHRUG_TEXT_COLOR))
+                .documentation("The word's colour, as #RRGGBB. #B8C4CC when unauthored.").add()
+                .build();
+
+        public ShrugText() {
         }
     }
 }

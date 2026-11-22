@@ -2,7 +2,7 @@
   "$Comment": [
     "A spawnable example that walks the whole framework with no boss and no player: stand it up with",
     "/zigencounter spawn Zc_Encounter_Example and watch the [encounter] lines in the server log. It",
-    "sends zc:engaged, a zc:wave beat, a zc:phase beat and zc:defeated, uses five of the six zc",
+    "sends zc:engaged, a zc:wave beat, a zc:phase beat and zc:defeated, uses six of the eight zc",
     "instruction Types once, then re-arms with zc:reset a few seconds later and runs again until it",
     "is ended. Its binding row is Server/ZiggfreedCommon/Encounters/Zc_Encounter_Example.json, so it",
     "also shows what a row pays.",
@@ -14,8 +14,11 @@
     "none, and it says so); ZigMembers is true while the member count is inside a range; ZigFeedback",
     "draws a FeedbackMoment for each member; ZigFactor is true while a factor reading about the fight",
     "is inside a range; ZigGrant pays every credited participant a loot reference, scaled by their",
-    "share. The sixth, ZigRested, gates a summon on the binding row's Timing.Rest and belongs to a",
-    "site with a spawn marker, which this example has none of; Zc_Encounter_Base shows it in place.",
+    "share; ZigControlRule sets the boss's crowd-control rule at a phase change (here there is no",
+    "boss, and it says so; on a real boss Zig_Control_Untauntable makes taunts stop holding it). Of the",
+    "other two, ZigRested gates a summon on the binding row's Timing.Rest and belongs to a site with",
+    "a spawn marker, which this example has none of, and ZigStunTarget stuns a boss for a window;",
+    "Zc_Encounter_Base shows the first in place.",
     "",
     "A real boss takes the shape of Zc_Encounter_Base instead: TriggerSpawners raising the boss into",
     "a target slot, the release on the Target sensor, phases through Zc_Phase_At_Health, the defeat",
@@ -119,6 +122,10 @@
             {
               "Type": "SignalWorldEvent",
               "SignalId": "zc:phase:Phase_2"
+            },
+            {
+              "Type": "ZigControlRule",
+              "Effect": "Zig_Control_Untauntable"
             },
             {
               "Type": "State",

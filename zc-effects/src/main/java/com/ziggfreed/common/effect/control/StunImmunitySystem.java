@@ -13,10 +13,13 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.RemovalBehavior;
+import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.condition.BossRules;
+import com.ziggfreed.common.stats.condition.ControlKind;
 import com.ziggfreed.common.stats.condition.EffectFamilies;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -103,8 +106,9 @@ public final class StunImmunitySystem extends EntityTickingSystem<EntityStore> {
     }
 
     /**
-     * Every worn effect whose kinds of control (its families') the wearer's rules shrug now, off it. The rules are read
-     * only for a wearer that carries an effect of a kind some rule shrugs ({@code possible}).
+     * Every worn effect whose kinds of control (its families') the wearer's rules shrug now, off it, whoever put it on,
+     * a fight's own included; its owner, when a player, sees the shrug word. The rules are read only for a wearer that
+     * carries an effect of a kind some rule shrugs ({@code possible}).
      */
     private static void shedShrugged(@Nonnull ArchetypeChunk<EntityStore> chunk, int index,
             @Nonnull EffectControllerComponent effects, @Nonnull int[] active, int possible,
@@ -122,8 +126,15 @@ public final class StunImmunitySystem extends EntityTickingSystem<EntityStore> {
             return;
         }
         for (int effect : active) {
-            if ((EffectFamilies.controlKindMask(effect) & shrugs) != 0 && effects.hasEffect(effect)) {
-                effects.removeEffect(ref, effect, commandBuffer);
+            int kinds = EffectFamilies.controlKindMask(effect) & shrugs;
+            if (kinds != 0 && effects.hasEffect(effect)) {
+                ActiveEntityEffect instance = effects.getActiveEffects().get(effect);
+                Ref<EntityStore> owner = instance == null ? null : instance.getOwner();
+                // Off whole at once, whatever the effect's own RemovalBehavior says (an Infinite or Duration one
+                // would linger a tick or more, still holding the foe).
+                effects.removeEffect(ref, effect, RemovalBehavior.COMPLETE, commandBuffer);
+                // Whoever put it on, a player, sees the shrug word (a fight's or a creature's own is told nothing).
+                BossRules.shrugged(commandBuffer, ref, ControlKind.ofMask(kinds).iterator().next(), owner);
             }
         }
     }

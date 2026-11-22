@@ -11,7 +11,13 @@
     "HealthRange is the boss's health as a fraction of its maximum, so [0, 0.5] fires at half. Set",
     "SwapRole true and Role to a role id to change the boss's role in place at the transition (the",
     "engine keeps its aggro, its target slot and its uuid across the swap); leave SwapRole false to",
-    "change nothing but the state."
+    "change nothing but the state.",
+    "",
+    "Set SetControl true and Control to a rule effect to change which crowd control lands on the boss",
+    "from this phase on: an infinite effect whose Tags name kinds under ZigControlLands or",
+    "ZigControlShrugs, such as the library's Zig_Control_Untauntable (taunts no longer hold it). The",
+    "boss's earlier phase rule comes off first; an empty Control takes it off and leaves the boss's",
+    "own default. Say the change in the phase's toast, so players know why their taunt stopped working."
   ],
   "Class": "Instruction",
   "Type": "Component",
@@ -41,6 +47,14 @@
     "Role": {
       "Value": "Test_Boss_Basic",
       "Description": "The role to change the boss to when SwapRole is true."
+    },
+    "SetControl": {
+      "Value": false,
+      "Description": "Whether to change the boss's crowd-control rule at the transition."
+    },
+    "Control": {
+      "Value": "",
+      "Description": "The rule effect to put on the boss when SetControl is true (ZigControlLands and ZigControlShrugs in its Tags); empty takes the earlier phase's rule off."
     }
   },
   "Content": {
@@ -60,6 +74,12 @@
       ]
     },
     "Actions": [
+      {
+        "Type": "ZigControlRule",
+        "TargetSlot": { "Compute": "Slot" },
+        "Effect": { "Compute": "Control" },
+        "Enabled": { "Compute": "SetControl" }
+      },
       {
         "Type": "ChangeTargetRole",
         "Role": { "Compute": "Role" },

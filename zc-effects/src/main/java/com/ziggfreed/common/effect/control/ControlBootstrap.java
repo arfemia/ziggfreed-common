@@ -13,8 +13,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Registers crowd control: the four native interaction Types ({@code ZigStun}, {@code ZigTaunt},
  * {@code ZigAggroDrop}, {@code ZigAggroSuppress}), the per-world aggro windows, the attitude provider, the
- * sweep, and the shedding of the game's own stuns from a stun-immune entity ({@link StunImmunitySystem}).
- * Registration only.
+ * sweep, the shedding of the game's own stuns from a stun-immune entity ({@link StunImmunitySystem}), and the emptying
+ * of a knockback on a creature whose rules shrug a push ({@link ShruggedKnockbackSystem}). Registration only.
  */
 public final class ControlBootstrap {
 
@@ -48,6 +48,12 @@ public final class ControlBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[control] the stun shedding could not be registered: a stun-immune entity still takes the"
                     + " game's own stuns this boot", t);
+        }
+        try {
+            plugin.getEntityStoreRegistry().registerSystem(new ShruggedKnockbackSystem());
+        } catch (Throwable t) {
+            SafeLog.warn("[control] the knockback guard could not be registered: a boss whose rules shrug a push is"
+                    + " still moved by the game's own knockback this boot", t);
         }
     }
 

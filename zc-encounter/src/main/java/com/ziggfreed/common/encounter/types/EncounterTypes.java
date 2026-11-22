@@ -9,7 +9,7 @@ import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The seven instruction {@code Type}s this library adds to the shared NPC builder vocabulary, each
+ * The eight instruction {@code Type}s this library adds to the shared NPC builder vocabulary, each
  * legal only inside an encounter script: they are the ONLY place a script can reach the library,
  * and what lets a pack-only boss pay out, notify, scale and rest with zero Java.
  *
@@ -20,6 +20,8 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>{@code ZigScaleTarget} (action) - apply the binding row's health scale to the subject now;</li>
  *   <li>{@code ZigStunTarget} (action) - stun the subject for a window, the library's stun under an optional effect
  *       of the script's own (a boss staggered for a weak-spot window);</li>
+ *   <li>{@code ZigControlRule} (action) - set the subject's standing crowd-control rule: its infinite rule effects
+ *       off, a named one on ({@code Zc_Phase_At_Health}'s {@code SetControl}, the base's engage clear);</li>
  *   <li>{@code ZigMembers} (sensor) - true while the live member count is inside a range;</li>
  *   <li>{@code ZigFactor} (sensor) - true while a factor reading for the fight is inside a range;</li>
  *   <li>{@code ZigRested} (sensor) - true while the site carries no rest, or the world clock is past
@@ -40,26 +42,27 @@ public final class EncounterTypes {
     public static final String FEEDBACK = "ZigFeedback";
     public static final String SCALE_TARGET = "ZigScaleTarget";
     public static final String STUN_TARGET = "ZigStunTarget";
+    public static final String CONTROL_RULE = "ZigControlRule";
     public static final String MEMBERS = "ZigMembers";
     public static final String FACTOR = "ZigFactor";
     public static final String RESTED = "ZigRested";
 
     /** The action type names, in registration order. */
-    public static final List<String> ACTIONS = List.of(GRANT, FEEDBACK, SCALE_TARGET, STUN_TARGET);
+    public static final List<String> ACTIONS = List.of(GRANT, FEEDBACK, SCALE_TARGET, STUN_TARGET, CONTROL_RULE);
 
     /** The sensor type names, in registration order. */
     public static final List<String> SENSORS = List.of(MEMBERS, FACTOR, RESTED);
 
     /** Every type name, in registration order: the actions, then the sensors. */
-    public static final List<String> ALL = List.of(GRANT, FEEDBACK, SCALE_TARGET, STUN_TARGET, MEMBERS, FACTOR,
-            RESTED);
+    public static final List<String> ALL = List.of(GRANT, FEEDBACK, SCALE_TARGET, STUN_TARGET, CONTROL_RULE, MEMBERS,
+            FACTOR, RESTED);
 
     private static volatile boolean registered;
 
     private EncounterTypes() {
     }
 
-    /** Register all seven (idempotent, guarded). */
+    /** Register all eight (idempotent, guarded). */
     public static synchronized void register() {
         if (registered) {
             return;
@@ -74,6 +77,7 @@ public final class EncounterTypes {
                     .registerCoreComponentType(FEEDBACK, BuilderActionZigFeedback::new)
                     .registerCoreComponentType(SCALE_TARGET, BuilderActionZigScaleTarget::new)
                     .registerCoreComponentType(STUN_TARGET, BuilderActionZigStunTarget::new)
+                    .registerCoreComponentType(CONTROL_RULE, BuilderActionZigControlRule::new)
                     .registerCoreComponentType(MEMBERS, BuilderSensorZigMembers::new)
                     .registerCoreComponentType(FACTOR, BuilderSensorZigFactor::new)
                     .registerCoreComponentType(RESTED, BuilderSensorZigRested::new);

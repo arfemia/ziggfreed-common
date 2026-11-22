@@ -8,7 +8,8 @@
     "boss bar and the music are applied through, and the roster the library credits presence from. In",
     "Intro, while nothing is bound in SubjectSlot and the site has rested, TriggerSpawners fires the",
     "SpawnMarker within SummonRange and binds the first spawn into the slot; the moment the Target sensor sees it, the",
-    "boss is made vulnerable, the bar goes up under BossBarName, the Music starts, the arena's volumes",
+    "boss is made vulnerable, any crowd-control rule a phase left on it comes off (ZigControlRule, so a boss that got",
+    "away mid-fight starts the next one on its own rules), the bar goes up under BossBarName, the Music starts, the arena's volumes",
     "tagged ArenaTag hear Engaged, the zc:engaged beat tells the library the fight is on, and the state",
     "moves to Fight. In Fight, the FightBehavior slot runs whatever macro a Variant hands it (Zc_Adds_Wave,",
     "say, or a macro of your own on the Hytale.Instruction.Encounter.Phase.Behavior interface), and the",
@@ -28,6 +29,9 @@
     "its numbers through _ForwardedModifiers), which moves the fight to Phase_2 and runs Phase2Behavior",
     "there; Phase3Transition and Phase3Behavior go on to Phase_3 the same way. EveryPhase runs beside each",
     "phase's own behaviour in all three, for what the whole fight does (a timer, health packs, a hint).",
+    "A transition may also change which crowd control lands on the boss from then on (Zc_Phase_At_Health's",
+    "SetControl and Control), and a behaviour may open a short window with the game's own ApplyEntityEffect",
+    "(UseTarget) naming a timed rule effect such as Zig_Control_Stun_Window.",
     "Every slot left $Null does nothing, so a one-phase fight writes none of them. Each phase keeps the",
     "same defeat check.",
     "",
@@ -62,10 +66,11 @@
     "so a resting site waits quietly in Intro instead of trying its marker. Complete's RearmSeconds",
     "stays the short wait right after a kill; both must pass before the boss rises again.",
     "",
-    "The seven zc instruction Types, each legal only inside an encounter script: ZigGrant pays the",
+    "The eight zc instruction Types, each legal only inside an encounter script: ZigGrant pays the",
     "credited participants a loot reference scaled by share; ZigFeedback draws a FeedbackMoment for",
     "each member; ZigScaleTarget applies the row's health scale to the bound subject now; ZigStunTarget",
-    "stuns the subject for a window; ZigMembers is true while the member count is inside a range;",
+    "stuns the subject for a window; ZigControlRule sets the subject's standing crowd-control rule (every",
+    "infinite rule effect off, the named one on); ZigMembers is true while the member count is inside a range;",
     "ZigFactor is true while a factor reading about the fight is inside a range; ZigRested is true while",
     "the site carries no rest or the world's clock is past the one its last defeat stamped.",
     "",
@@ -291,6 +296,10 @@
                 {
                   "Type": "SetTargetNPCInvulnerable",
                   "Invulnerable": false
+                },
+                {
+                  "Type": "ZigControlRule",
+                  "TargetSlot": { "Compute": "SubjectSlot" }
                 },
                 {
                   "Type": "SetEncounterBossBar",

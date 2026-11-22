@@ -1,0 +1,4 @@
+{
+  "$Comment": "Short holds that must keep their exact length: a foe pinned in place for a moment (a spear's brace). They count as a Hold to a boss's rules, as a root does, but no stat lengthens or shortens them: this family names no Duration rule and is in no other family. A mod's own hold joins by tagging its effect ZigEffectFamily Held.",
+  "Control": "Hold"
+}
