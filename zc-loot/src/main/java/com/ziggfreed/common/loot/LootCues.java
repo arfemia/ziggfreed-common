@@ -27,7 +27,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>This library installs one at its own setup, and it is the obvious one: the cue id IS the
  * {@code FeedbackMoment} id, so a table writes {@code "Cue": "Rare_Find"}, a
  * {@code Server/ZiggfreedCommon/FeedbackMoments/Rare_Find.json} says what that means, and no
- * consumer writes any Java at all. Replace it during your own setup only to present a cue some
+ * consumer writes any Java at all. This module ships that one moment as a neutral default (a toast and a
+ * chime), so a rare roll presents on a server running the library alone; a consumer's same-named file
+ * replaces it. Replace the presenter during your own setup only to present a cue some
  * other way. Nothing here refuses loudly: an unregistered presenter, or a cue nobody authored a
  * moment for, simply goes unpresented - the grants beside the cue are untouched either way,
  * because presentation must never be the reason a payout did not happen.

@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent chance a find turns up in soil a player digs, in whole percent points (1 is one in a hundred): bone fragments or a shard, say. Nothing in ziggfreed-common reads it: a mod's own find (a bonus row on soil breaks) names it in its Chance, so it raises that find's odds alone. It ships here so an item or effect naming it loads its line on any server, with or without the mod whose find reads it. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

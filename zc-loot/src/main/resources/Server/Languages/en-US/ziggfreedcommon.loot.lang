@@ -31,3 +31,7 @@ claim.kind.bonus = Bonus
 claim.kind.quest = Quest
 claim.kind.event = Event
 claim.kind.admin = Gift
+
+# The toast a loot table's rare roll shows (the Rare_Find feedback moment this module ships, which a roll names as
+# its Cue). About the find, never one item: the item arrives with its own pickup notice.
+cue.rare_find = A rare find!

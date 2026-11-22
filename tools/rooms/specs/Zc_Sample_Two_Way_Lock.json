@@ -1,0 +1,55 @@
+{
+  "$Comment": [
+    "The sample script room for a skill lock with one branch per kind of server: a small hall whose north nook is",
+    "walled off by a lock. Where a mod that keeps skill levels runs, Mining 20 opens it and anyone short of it is told",
+    "so; where that mod is not installed, any pickaxe opens it and anyone without one is told to bring one. A",
+    "generated run places only the lock volume whose Where holds on its server, so each server speaks only its own",
+    "line. Opening it counts Secret_Found and raises the cache in the nook.",
+    "Example:Skills stands for that mod's Group:Name, and the server.sample.* lang keys and the Zc_Sample_Cache table",
+    "are placeholders: nothing ships them, since the room is never built; a real room names its own in their places.",
+    "Cells are relative to the prefab anchor, the south doorway's floor cell; North is -Z."
+  ],
+  "Id": "Zc_Sample_Two_Way_Lock",
+  "Label": "Sample two-way lock",
+  "Prefab": "ZiggfreedCommon.Samples.Zc_Sample_Two_Way_Lock",
+  "Room": {
+    "Roles": ["Room", "Secret"],
+    "Tags": {"Kit": ["Sample"]}
+  },
+  "Shapes": [
+    {"Op": "Shell", "Min": {"X": -4, "Y": 0, "Z": -10}, "Max": {"X": 4, "Y": 6, "Z": 0}},
+    {"Op": "Fill", "Slot": "Wall", "Min": {"X": -3, "Y": 1, "Z": -6}, "Max": {"X": 3, "Y": 5, "Z": -6}},
+    {"Op": "Carve", "Min": {"X": -1, "Y": 1, "Z": -6}, "Max": {"X": 1, "Y": 3, "Z": -6}}
+  ],
+  "Doors": [
+    {"At": {"X": 0, "Y": 0, "Z": 0}, "Facing": "South", "Kind": "Sample"}
+  ],
+  "Props": [
+    {"Slot": "Light", "At": {"X": -3, "Y": 1, "Z": -1}},
+    {"Slot": "Light", "At": {"X": 3, "Y": 1, "Z": -1}}
+  ],
+  "Logic": [
+    {
+      "Template": "SkillLock",
+      "Lock": {"Min": {"X": -1, "Y": 1, "Z": -6}, "Max": {"X": 1, "Y": 3, "Z": -6}},
+      "Branches": [
+        {
+          "Where": {"Factors": [{"Factor": "hytale:mod_installed", "Param": "Example:Skills", "Min": 1}]},
+          "Param": "Level_Mining",
+          "Min": 20,
+          "HintKey": "server.sample.skill_lock.mining"
+        },
+        {
+          "Where": {"Factors": [{"Factor": "hytale:mod_installed", "Param": "Example:Skills", "Max": 0}]},
+          "Requires": {"Factors": [{"Factor": "hytale:tool_tier", "Param": "Rocks", "Min": 1}]},
+          "HintKey": "server.sample.skill_lock.pickaxe"
+        }
+      ],
+      "KindMilestone": "Lock_Sample",
+      "Chest": "Zc_Reward_Chest",
+      "At": {"X": 0, "Y": 1, "Z": -8},
+      "OpenerLootable": "Zc_Sample_Cache",
+      "OpenerTitleKey": "server.sample.skill_lock.cache"
+    }
+  ]
+}

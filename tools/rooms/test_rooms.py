@@ -14,6 +14,8 @@
 - The overlay placer never puts a block on a cell the base fills, and never lets a volume write one there; a door
   a spec seals is written ExitOnly; a door cut into a sealed base writes air only over its declared opening.
 - A rune order puts a wrong rune out at every step, the first included; a room hint is said once per player.
+- A skill lock with Branches stamps one volume per branch over the same cells, each tagged ZigWhere with its own
+  Where, asking that Where and its own Requires, and saying only its own line.
 - Two close crash pillars never watch the same cell, and a pillar's shatter notices read the others before it marks
   itself shattered.
 - A shifting floor's fallen section always rises again, and a settle's last write outlasts every write a crack still
@@ -443,6 +445,40 @@ class PuzzleLogic(unittest.TestCase):
         swapped = sorted((e["Offset"]["X"], e["Offset"]["Y"], e["Y"]) for e in tv["Effects"]
                          if e["Type"] == "ReplaceBlockType")
         self.assertEqual(len(swapped), 3, "opening it swaps the doorway column by column")
+
+    def test_a_two_branch_lock_stamps_one_volume_per_server_each_with_its_own_line(self):
+        with_mod = {"Factors": [{"Factor": "hytale:mod_installed", "Param": "Example:Skills", "Min": 1}]}
+        without = {"Factors": [{"Factor": "hytale:mod_installed", "Param": "Example:Skills", "Max": 0}]}
+        tool = {"Factors": [{"Factor": "hytale:tool_tier", "Param": "Rocks", "Min": 1}]}
+        lock = {"Min": {"X": 0, "Y": 1, "Z": 0}, "Max": {"X": 0, "Y": 2, "Z": 0}}
+        made = lt.skill_lock({"Lock": lock, "Branches": [
+            {"Where": with_mod, "Param": "Level_Mining", "Min": 20, "HintKey": "server.test.level"},
+            {"Where": without, "Requires": tool, "HintKey": "server.test.tool"}]}, self.ctx())
+        vols = [tv for _, tv in lt.volumes(made.entities)]
+        self.assertEqual(len(vols), 2, "one lock volume per branch")
+        self.assertEqual(sorted(made.blocks), [(0, 1, 0), (0, 2, 0)], "the lock's blocks are placed once")
+        level = {"Factors": [{"Factor": "hytale:stat", "Param": "Level_Mining", "Min": 20}]}
+        for tv, where, asks, line in ((vols[0], with_mod, level, "server.test.level"),
+                                      (vols[1], without, tool, "server.test.tool")):
+            self.assertEqual(lt.json.loads(tv["Tags"][lt.WHERE_KEY]), where, "the tag carries the branch's Where")
+            self.assertEqual([e["Message"] for e in tv["RejectionEffects"]], [line], "each says its own line alone")
+            asked = [c["Requires"] for c in tv["Conditions"] if c["Type"] == "ZigRequires"]
+            self.assertEqual(asked, [where, asks], "each opens only by its own server's Where and its own Requires")
+        self.assertEqual(vols[0]["Effects"], vols[1]["Effects"], "both open the lock the same way")
+        self.assertNotIn("Level", vols[1]["Tags"], "a branch with no level names none")
+        single = lt.skill_lock({"Lock": lock, "Param": "Level_Mining", "Min": 20, "HintKey": "server.test.level"},
+                               self.ctx())
+        self.assertNotIn(lt.WHERE_KEY, single.entities[0]["Components"]["TriggerVolume"]["Tags"],
+                         "a lock with no branches is placed on every server")
+        for bad in ({"Lock": lock, "Branches": [{"Where": with_mod, "Param": "Level_Mining", "Min": 20,
+                                                 "HintKey": "server.test.level"}]},
+                    {"Lock": lock, "HintKey": "server.test.level", "Branches": [
+                        {"Where": with_mod, "Requires": tool, "HintKey": "a"},
+                        {"Where": without, "Requires": tool, "HintKey": "b"}]},
+                    {"Lock": lock, "Branches": [{"Requires": tool, "HintKey": "a"},
+                                                {"Where": without, "Requires": tool, "HintKey": "b"}]}):
+            with self.assertRaises(ValueError):
+                lt.skill_lock(bad, self.ctx())
 
     def test_a_room_hint_is_said_once_per_player(self):
         made = lt.room_hint({"HintKey": "server.test.hint"}, self.ctx())

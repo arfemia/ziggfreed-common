@@ -1,0 +1,27 @@
+{
+  "$Comment": [
+    "What a player sees and hears when a loot table pays them one of its rare rolls: a toast and a chime.",
+    "",
+    "Any roll (or ladder floor) in a Server/ZiggfreedCommon/Lootables file can carry \"Cue\": \"Rare_Find\",",
+    "and the cue fires only when the rewards beside it really paid out, so it never celebrates an empty",
+    "hand. The cue id is the moment id: write another Cue value and a moment file of that name, and that",
+    "roll gets a moment of its own with no code.",
+    "",
+    "This is the library's own neutral default, so a rare roll is heard on a server running the library",
+    "alone. A mod that ships a file with this same name in its own pack replaces it, and a server owner",
+    "can do the same from the owner layer. Override the whole file rather than editing this one.",
+    "",
+    "The moment carries 'player' (who the table paid). It fires for whatever rare roll named it, so the",
+    "words are about the find, not one item: the item itself arrives with its own pickup notice. Add a",
+    "Broadcast group to tell the whole server, or a Command to run something beside the toast."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.loot.cue.rare_find"
+    },
+    "Tone": "Reward"
+  },
+  "Sound": {
+    "Id": "SFX_Chest_Legendary_Open"
+  }
+}

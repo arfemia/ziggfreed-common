@@ -25,6 +25,8 @@ by (Event, Entry); every condition of the pair must pass, else the pair's Reject
 each tracked entity, at most once per its Interval. SIGNAL_RECEIVED and TAG_ADDED carry the signal's or the changed
 tag's key and value, read with a TagCondition whose Source is Event.
 """
+import copy
+import json
 import math
 import os
 import sys
@@ -38,6 +40,7 @@ RUN = "@run"
 CENTER_VOLUME = "Volume"
 EMPTY = pio.EMPTY_BLOCK
 VARIANT_KEY = "ZigVariant"
+WHERE_KEY = "ZigWhere"
 
 # How far a room's signals and tag writes reach, in blocks: a room fits well inside it, and the room-scoped keys keep
 # a neighbour from answering.
@@ -288,6 +291,14 @@ def scoped(key, what):
 def variant_tag(group, n):
     """The tag the room-logic placer keeps only for the variant the run picks: `<Group>:<n>`, n from 1."""
     return {VARIANT_KEY: "%s:%d" % (group, n)}
+
+
+def where_tag(requires):
+    """The tag the room-logic placer keeps only on a server where the world-level Requires block `requires` holds
+    (CommonLib's RoomWhere), written as compact JSON, since a volume's tags are strings."""
+    if not isinstance(requires, dict) or not requires:
+        raise ValueError("a Where is a Requires block: {\"Factors\": [...]} and the like")
+    return {WHERE_KEY: json.dumps(requires, separators=(",", ":"), sort_keys=True)}
 
 
 def solved(params, ctx, event, origin, entry=0, delay=0.0, kind=""):
@@ -1054,7 +1065,18 @@ def skill_lock(params, ctx):
     The lock's volume carries the level as its Level tag, and the engine binds a volume's tags as named params of the
     line it sends, so HintKey's value names it as {Level} (no digit in the lang file): the level is written once, here.
     Opening swaps each Lock piece on its own, so a block of the lock's kind the room already has beside the lock
-    stays put."""
+    stays put.
+
+    One branch per kind of server: Branches, a list of two or more, takes the place of Factor, Param, Min, Requires,
+    HintKey and Level, each branch writing its own: Where (a world-level Requires block, read of the server and never
+    of a player: {"Factors": [{"Factor": "hytale:mod_installed", "Param": "Group:Name", "Min": 1}]} where that mod
+    runs, "Max": 0 in place of "Min": 1 where it does not), its Factor, Param and Min or its Requires, its HintKey and
+    its Level. Each branch stamps a lock volume of its own over the same cells, opening them the same way, tagged
+    ZigWhere with its Where (CommonLib's RoomWhere), so a generated run places only the volume whose Where holds on
+    its server and the lock speaks only that branch's line. The whole lock reads AnyOf[AllOf[Where, Requires] per
+    branch]: each volume asks its own Where beside its Requires, so a copy of the room the engine pastes whole, which
+    places every volume, still opens only by its own server's branch (there every other branch's volume also says
+    its own line when used). Write each Where so exactly one holds on any server."""
     pieces = []
     for piece in params["Lock"] if isinstance(params["Lock"], list) else [params["Lock"]]:
         if "Door" in piece:
@@ -1067,13 +1089,7 @@ def skill_lock(params, ctx):
     slot = params.get("Lock_Slot", "Lock")
     lock = ctx["slot"](slot)
     opened = ctx["slot"](params["Opened"]) if params.get("Opened") else EMPTY
-    if params.get("Requires"):
-        requires = params["Requires"]
-    else:
-        requires = {"Factors": [{"Factor": params.get("Factor", "hytale:stat"), "Param": params["Param"],
-                                 "Min": params["Min"]}]}
-    if not params.get("HintKey"):
-        raise ValueError("SkillLock: HintKey (the lang key naming what opens it) is required")
+    branches = lock_branches(params)
     effects = [set_own_tag("BLOCK_USED", "State", "Open")]
     effects += [swap_cells("BLOCK_USED", lo, plo, phi, [lock], opened) for plo, phi in pieces]
     effects += cue("BLOCK_USED", params, "Open", lo, lo)
@@ -1093,16 +1109,59 @@ def skill_lock(params, ctx):
         effects.append(chest_effect("BLOCK_USED", lo, params))
     elif params.get("OpenerLootable") or params.get("OpenerTitleKey"):
         raise ValueError("SkillLock: OpenerLootable and OpenerTitleKey are rewards in the cache, so they need a Chest")
-    conditions = [tag_is("BLOCK_USED", "State", "Locked"),
-                  condition("ZigRequires", "BLOCK_USED", Requires=requires)]
-    tags = {"State": "Locked"}
-    level = params.get("Level", params.get("Min"))
-    if level is not None:
-        tags["Level"] = "%d" % int(level)
     out = Logic(blocks={c: slot for c in cells})
-    out.entities.append(volume_entity(ctx["name"] + "Skill_Lock", lo, box_size(lo, hi), effects, conditions,
-                                      tags, rejections=[message("BLOCK_USED", params["HintKey"])]))
+    for n, branch in enumerate(branches, 1):
+        conditions = [tag_is("BLOCK_USED", "State", "Locked")]
+        tags = {"State": "Locked"}
+        name = ctx["name"] + "Skill_Lock"
+        if "Where" in branch:
+            conditions.append(condition("ZigRequires", "BLOCK_USED", Requires=branch["Where"]))
+            tags.update(where_tag(branch["Where"]))
+            name += "_%d" % n
+        conditions.append(condition("ZigRequires", "BLOCK_USED", Requires=lock_requires(branch)))
+        level = branch.get("Level", branch.get("Min"))
+        if level is not None:
+            tags["Level"] = "%d" % int(level)
+        out.entities.append(volume_entity(name, lo, box_size(lo, hi), copy.deepcopy(effects), conditions, tags,
+                                          rejections=[message("BLOCK_USED", branch["HintKey"])]))
     return out
+
+
+# The keys a skill lock's one branch writes: at the top level for a lock that asks the same on every server, in each
+# entry of Branches otherwise.
+LOCK_BRANCH_KEYS = ("Factor", "Param", "Min", "Requires", "HintKey", "Level")
+
+
+def lock_branches(params):
+    """A skill lock's branches: its Branches, each checked (a Where, a HintKey, a requirement), else the lock's own
+    params as its one branch with no Where."""
+    if "Branches" not in params:
+        if not params.get("HintKey"):
+            raise ValueError("SkillLock: HintKey (the lang key naming what opens it) is required")
+        return [params]
+    branches = params["Branches"]
+    mixed = [k for k in LOCK_BRANCH_KEYS if k in params]
+    if mixed:
+        raise ValueError("SkillLock: with Branches, each branch writes its own %s, never the lock" % ", ".join(mixed))
+    if not isinstance(branches, list) or len(branches) < 2:
+        raise ValueError("SkillLock: Branches lists two or more, one per kind of server")
+    for n, branch in enumerate(branches, 1):
+        if not branch.get("Where"):
+            raise ValueError("SkillLock: branch %d needs Where, the world-level Requires that picks its server" % n)
+        if not branch.get("HintKey"):
+            raise ValueError("SkillLock: branch %d needs HintKey, the line naming what opens it there" % n)
+        lock_requires(branch)
+    return branches
+
+
+def lock_requires(form):
+    """What a lock (or one of its branches) asks of the player who uses it: its Requires, else Factor (default
+    hytale:stat), Param and Min."""
+    if form.get("Requires"):
+        return form["Requires"]
+    if not form.get("Param") or form.get("Min") is None:
+        raise ValueError("SkillLock: a lock asks Param and Min (with Factor), or a whole Requires")
+    return {"Factors": [{"Factor": form.get("Factor", "hytale:stat"), "Param": form["Param"], "Min": form["Min"]}]}
 
 
 def column_runs(cells):

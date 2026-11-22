@@ -35,6 +35,8 @@ import com.ziggfreed.common.validation.Finding;
  *       {@code TagCondition} whose {@code Source} is {@code Radius} with no {@code MatchKey} reads every volume within
  *       its {@code Radius}, every one of the world at 0. Every party in the copy, and every other copy of the room,
  *       is heard or read.</li>
+ *   <li>{@code LOGIC_WHERE_UNREADABLE} (WARNING): a volume, group or point's {@code ZigWhere} tag ({@link RoomWhere})
+ *       does not read as a {@code Requires} block, so it is placed on no server.</li>
  * </ul>
  *
  * <p>The checks are pure over a volume's or group's encoded JSON ({@link #worldAbsoluteWrites},
@@ -48,6 +50,7 @@ public final class RoomLogicAudit {
 
     public static final String LOGIC_WORLD_ABSOLUTE = "LOGIC_WORLD_ABSOLUTE";
     public static final String LOGIC_WORLD_WIDE = "LOGIC_WORLD_WIDE";
+    public static final String LOGIC_WHERE_UNREADABLE = "LOGIC_WHERE_UNREADABLE";
 
     /** The arrays of a volume or group whose elements carry a {@code Type}. */
     private static final String[] PARTS = {"Effects", "RejectionEffects", "Conditions", "Rules"};
@@ -156,12 +159,21 @@ public final class RoomLogicAudit {
         List<Path> sources = room.overlay() != null ? firstOf(pools.paths(room.overlay())) : pools.paths(room.prefab());
         Set<String> absolute = new LinkedHashSet<>();
         Set<String> wide = new LinkedHashSet<>();
+        Set<String> unreadable = new LinkedHashSet<>();
         for (Path source : sources) {
             for (RoomEntities.Entity entity : RoomEntities.read(PrefabBufferUtil.getCached(source), source.toString())) {
-                if (entity.json() == null || entity.kind() == RoomEntities.Kind.POINT) {
+                if (entity.json() == null) {
                     continue;
                 }
                 String name = nameOf(entity.json());
+                String where = RoomWhere.of(entity.json());
+                if (where != null && RoomWhere.parse(where) == null) {
+                    boolean unnamedPoint = entity.kind() == RoomEntities.Kind.POINT && "a volume".equals(name);
+                    unreadable.add(unnamedPoint ? "a point" : name);
+                }
+                if (entity.kind() == RoomEntities.Kind.POINT) {
+                    continue;
+                }
                 for (String type : worldAbsoluteWrites(entity.json())) {
                     absolute.add(name + " (" + type + ")");
                 }
@@ -184,6 +196,11 @@ public final class RoomLogicAudit {
                     + String.join(", ", wide) + ", so every party in the copy, and every other copy of the room, is "
                     + "heard or read. End a key with @room or @run, give it a Radius, and give a Radius TagCondition a "
                     + "MatchKey ending @room.", room.id()));
+        }
+        if (!unreadable.isEmpty()) {
+            out.add(Finding.warning(DOMAIN, LOGIC_WHERE_UNREADABLE, "The " + RoomWhere.KEY + " tag of "
+                    + String.join(", ", unreadable) + " does not read as a Requires block (a JSON object of its "
+                    + "leaves, every key one the block knows), so no server places it.", room.id()));
         }
     }
 

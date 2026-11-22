@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -65,7 +66,8 @@ import com.ziggfreed.common.world.TickingSections;
  *
  * <p><b>Prepared off the world thread</b> ({@link #prepare}, on a painter thread as the run is laid out): each room's
  * entities are read ({@link RoomEntities}), kept as its room file says ({@link #kept}), filtered by the run's variant
- * picks ({@link RoomVariants}), their {@code @room} and {@code @run} keys rewritten to the room's and run's tokens
+ * picks ({@link RoomVariants}) and by this server's world-level gates ({@link RoomWhere}, each block asked once a run),
+ * their {@code @room} and {@code @run} keys rewritten to the room's and run's tokens
  * ({@link RoomKeys}), turned with the room ({@link RoomTurns}), and built: a volume as the entry the world's manager
  * registers, its effects turned once by the engine's own {@code rotateInPlace} (but the two {@link RoomTurns} turns in
  * the JSON), an entity as a clone of its holder standing where it lands, with a fresh UUID and {@code FromPrefab}.
@@ -266,6 +268,7 @@ public final class RunLogic {
             }
         }
         Map<String, Integer> picks = RoomVariants.picks(seed, counts);
+        Predicate<BsonDocument> here = placedHere();
         Prepared[] prepared = new Prepared[size];
         int leftOut = 0;
         String world = worldName.toLowerCase(Locale.ROOT);
@@ -273,7 +276,7 @@ public final class RunLogic {
             Room room = rooms.get(i);
             int[] dropped = {0};
             try {
-                prepared[room.index()] = build(world, lane, run, room, read.get(i), picks, dropped,
+                prepared[room.index()] = build(world, lane, run, room, read.get(i), picks, here, dropped,
                         foes.get(room.index()));
             } catch (Throwable t) {
                 warnOnce("prepare:" + room.label(), LOG + "the logic of the room " + room.label() + " could not be "
@@ -283,6 +286,28 @@ public final class RunLogic {
             leftOut += dropped[0];
         }
         return new RunLogic(lane, run, seed, rooms, prepared, (System.nanoTime() - start) / NANOS_PER_MILLI, leftOut);
+    }
+
+    /**
+     * This server's answer to each piece's {@link RoomWhere} tag, each block asked once for the run (a world-level
+     * block reads alike for the whole run); one that does not read keeps its piece out, warned once.
+     */
+    @Nonnull
+    private static Predicate<BsonDocument> placedHere() {
+        Map<String, Boolean> verdicts = new HashMap<>();
+        return holder -> {
+            String where = RoomWhere.of(holder);
+            if (where == null) {
+                return true;
+            }
+            return verdicts.computeIfAbsent(where, block -> {
+                if (RoomWhere.parse(block) == null) {
+                    warnOnce("where:" + block, LOG + "a room logic piece's " + RoomWhere.KEY + " tag does not read as"
+                            + " a Requires block, so the piece is left out: " + block, null);
+                }
+                return RoomWhere.keeps(block, RoomWhere::holdsHere);
+            });
+        };
     }
 
     /** A run with no logic: what a run whose logic could not be prepared at all runs with. */
@@ -337,8 +362,8 @@ public final class RunLogic {
 
     @Nonnull
     private static Prepared build(@Nonnull String world, int lane, int run, @Nonnull Room room,
-            @Nonnull List<Source> sources, @Nonnull Map<String, Integer> picks, @Nonnull int[] dropped,
-            @Nullable FoeSite site) {
+            @Nonnull List<Source> sources, @Nonnull Map<String, Integer> picks, @Nonnull Predicate<BsonDocument> here,
+            @Nonnull int[] dropped, @Nullable FoeSite site) {
         RoomKeys.Tokens tokens = RoomKeys.tokens(lane, run, room.index());
         int turns = room.turns();
         float yaw = RoomTurns.yawRadians(turns);
@@ -349,7 +374,8 @@ public final class RunLogic {
             List<GroupPiece> groups = new ArrayList<>();
             List<VolumePiece> volumes = new ArrayList<>();
             for (RoomEntities.Entity entity : source.entities()) {
-                if (entity.json() != null && !RoomVariants.keeps(RoomVariants.of(entity.json()), picks)) {
+                if (entity.json() != null && (!RoomVariants.keeps(RoomVariants.of(entity.json()), picks)
+                        || !here.test(entity.json()))) {
                     dropped[0]++;
                     continue;
                 }
@@ -925,7 +951,8 @@ public final class RunLogic {
         }
         int placedRooms = roomsPlaced.get();
         double totalMs = placeNanos.get() / NANOS_PER_MILLI;
-        return String.format(Locale.ROOT, "room logic prepared in %.2f ms (%d left out by variant) and placed in %d of"
+        return String.format(Locale.ROOT, "room logic prepared in %.2f ms (%d left out by variant or server) and placed"
+                        + " in %d of"
                         + " the %d rooms holding any, in %.2f ms (%.3f ms a room, %.3f ms at most; %d volumes, %d points,"
                         + " %d entities)", prepareMs, leftOut, placedRooms, withLogic, totalMs,
                 placedRooms == 0 ? 0.0 : totalMs / placedRooms, maxNanos.get() / NANOS_PER_MILLI,
