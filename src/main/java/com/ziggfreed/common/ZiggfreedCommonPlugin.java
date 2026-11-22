@@ -742,7 +742,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * The hub's named spots span two modules that cannot see each other: an NPC placement (zc-dialogue) stands on a
      * spot of a hub district (zc-instance) through the {@code ziggfreedcommon:hub} anchor provider, which the root
      * registers as a plain type adapter over {@code HubAnchors.resolve}, and the hub audit reads which placements stand
-     * on hub spots off the placement store. Neither side decides anything here.
+     * on hub spots, and whether each is switched on, off the placement store. Neither side decides anything here.
      */
     private void registerHubSeams() {
         try {
@@ -752,6 +752,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                                     HubAnchors.instanceId(spot), spot.x(), spot.y(), spot.z(), spot.yaw()))
                             .toList());
             HubValidator.placementAnchors(() -> NpcPlacementConfig.getInstance().customAnchorParams(HubAnchors.PROVIDER));
+            HubValidator.placementSwitchedOn(NpcPlacementConfig.getInstance()::isSwitchedOn);
         } catch (Throwable t) {
             SafeLog.warn("[hub] the hub's spots could not be handed to the placement engine", t);
         }

@@ -40,7 +40,8 @@ import com.ziggfreed.common.validation.Finding;
  *   <li>{@link #ANCHOR_DUPLICATE}, {@link #ANCHOR_OUTSIDE} and {@link #MARKER_ANCHOR_UNKNOWN} for its spots;</li>
  *   <li>{@link #PLACEMENT_ANCHOR_UNRESOLVED}: an NPC placement's hub anchor naming a district or a spot no district
  *       declares (a typo), or one no enabled district on the map stands, unless the placement waits by the arrival
- *       then ({@code OrArrival});</li>
+ *       then ({@code OrArrival}) or is itself switched off, since a placement switched off stands nowhere anyway (a
+ *       typo in one is still named);</li>
  *   <li>{@link #REQUIRES_PLAYER}: a {@code Requires} asking more than mod presence, which a district never reads;</li>
  *   <li>{@code UNKNOWN_SEASON}, through {@code SeasonGate}.</li>
  * </ul>
@@ -72,15 +73,25 @@ public final class HubValidator {
      * @param district    its {@code Params.District}, or null when unwritten
      * @param anchor      its {@code Params.Anchor}, or null when unwritten
      * @param orArrival   its {@code Params.OrArrival}: it waits by the arrival when its spot stands nowhere
+     * @param switchedOn  whether the placement is switched on (its own {@code Enabled} and the server owner's
+     *                    switch); one switched off stands nowhere, so where its district stands is not asked
      */
     public record AnchorRef(@Nonnull String placementId, @Nullable String district, @Nullable String anchor,
-                            boolean orArrival) {
+                            boolean orArrival, boolean switchedOn) {
+
+        /** A placement that is switched on. */
+        public AnchorRef(@Nonnull String placementId, @Nullable String district, @Nullable String anchor,
+                         boolean orArrival) {
+            this(placementId, district, anchor, orArrival, true);
+        }
     }
 
     @Nonnull
     private static volatile Supplier<Map<String, Map<String, String>>> placementAnchors = Map::of;
     private static volatile boolean anchorsFilled;
     private static final AtomicBoolean WARNED_UNFILLED = new AtomicBoolean();
+    @Nonnull
+    private static volatile Predicate<String> placementSwitchedOn = id -> true;
 
     private HubValidator() {
     }
@@ -93,6 +104,15 @@ public final class HubValidator {
     public static void placementAnchors(@Nonnull Supplier<Map<String, Map<String, String>>> source) {
         placementAnchors = source;
         anchorsFilled = true;
+    }
+
+    /**
+     * Whether a placement (by id) is switched on, its own {@code Enabled} and the server owner's switch both, which
+     * only the wiring root can read: filled at setup beside {@link #placementAnchors}. Unfilled, every placement
+     * counts as switched on, so the audit asks where each one's district stands.
+     */
+    public static void placementSwitchedOn(@Nonnull Predicate<String> switchedOn) {
+        placementSwitchedOn = switchedOn;
     }
 
     /** The engine walk over every folded district and the placements standing on them. */
@@ -221,8 +241,8 @@ public final class HubValidator {
 
     /**
      * Why a placement's hub spot resolves nowhere, or null when it resolves, or when it stands nowhere only because its
-     * district is off the map and the placement waits by the arrival then. A spot no district declares is a typo, and is
-     * named either way.
+     * district is off the map and the placement waits by the arrival then, or is switched off itself and so stands
+     * nowhere whatever its district does. A spot no district declares is a typo, and is named either way.
      */
     @Nullable
     private static String unresolved(@Nonnull AnchorRef ref, @Nonnull Collection<HubDistrictAsset> districts,
@@ -242,7 +262,7 @@ public final class HubValidator {
         if (district.anchor(ref.anchor()) == null) {
             return "that district names no such spot";
         }
-        if (ref.orArrival()) {
+        if (ref.orArrival() || !ref.switchedOn()) {
             return null;
         }
         if (!district.isEnabled()) {
@@ -283,7 +303,8 @@ public final class HubValidator {
                 for (Map.Entry<String, Map<String, String>> entry : placements.entrySet()) {
                     Map<String, String> params = entry.getValue() == null ? Map.of() : entry.getValue();
                     refs.add(new AnchorRef(entry.getKey(), HubAnchors.param(params, HubAnchors.DISTRICT),
-                            HubAnchors.param(params, HubAnchors.ANCHOR), HubAnchors.orArrival(params)));
+                            HubAnchors.param(params, HubAnchors.ANCHOR), HubAnchors.orArrival(params),
+                            exists(placementSwitchedOn, entry.getKey())));
                 }
             }
         } catch (Throwable t) {

@@ -109,6 +109,21 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
         return out;
     }
 
+    /**
+     * Is the folded placement {@code placementId} switched on: its own {@code Enabled}, as the layers resolve it, and
+     * the server owner's switch ({@link NpcPlacementOverrides#isEnabled}), the first two gates every placement passes
+     * before it stands. False for an id this pool does not hold. Its {@code Season} and {@code Requires} are not read:
+     * a placement switched on may still wait for them.
+     */
+    public boolean isSwitchedOn(@Nullable String placementId) {
+        if (placementId == null || placementId.isBlank()) {
+            return false;
+        }
+        NpcPlacementAsset placement = resolve(placementId);
+        return placement != null && placement.isEnabled()
+                && NpcPlacementOverrides.getInstance().isEnabled(placementId);
+    }
+
     @Override
     public synchronized void loadDefaults(@Nonnull Map<String, NpcPlacementAsset> jarDefaults) {
         super.loadDefaults(jarDefaults);
