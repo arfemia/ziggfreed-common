@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -77,10 +78,41 @@ public final class TrackSources {
      * @param requires  the source's live {@code Requires}, or null
      * @param diminish  the source's diminishing returns, or null
      * @param skipSpawned whether a spawner's mob pays nothing
+     * @param standSeconds how long a placement's block must stand before it pays, 0 for at once
      */
     public record Paid(@Nonnull String sourceId, @Nonnull String trackId, @Nonnull String label,
                        @Nonnull SourceRow row, @Nullable GateSpec requires, @Nullable DiminishSpec diminish,
-                       boolean skipSpawned) {
+                       boolean skipSpawned, int standSeconds) {
+
+        /** A row paying at once (no stand time). */
+        public Paid(@Nonnull String sourceId, @Nonnull String trackId, @Nonnull String label,
+                @Nonnull SourceRow row, @Nullable GateSpec requires, @Nullable DiminishSpec diminish,
+                boolean skipSpawned) {
+            this(sourceId, trackId, label, row, requires, diminish, skipSpawned, 0);
+        }
+    }
+
+    /**
+     * The soft gate (R609): the first of {@code ladder} (most specific first) whose row's {@code Level} the player's
+     * current climb has reached, or null when none has. {@code level} is asked at most once, and only when a row
+     * waits for a level above 1, so a table with no gated row never reads the track. Pure.
+     */
+    @Nullable
+    public static Paid reached(@Nonnull List<Paid> ladder, @Nonnull IntSupplier level) {
+        int read = -1;
+        for (Paid paid : ladder) {
+            int needs = paid.row().level();
+            if (needs <= 1) {
+                return paid;
+            }
+            if (read < 0) {
+                read = Math.max(1, level.getAsInt());
+            }
+            if (read >= needs) {
+                return paid;
+            }
+        }
+        return null;
     }
 
     /** One track's table, for the moments of one kind. */
@@ -235,6 +267,6 @@ public final class TrackSources {
     private static Paid paid(@Nonnull String id, @Nonnull TrackAsset track, @Nonnull String label,
             @Nonnull SourceRow row, @Nonnull TrackSourceAsset source) {
         return new Paid(id, track.getId(), label, row, source.liveRequires(), source.diminish(),
-                source.skipsSpawnerMobs());
+                source.skipsSpawnerMobs(), source.standSeconds());
     }
 }

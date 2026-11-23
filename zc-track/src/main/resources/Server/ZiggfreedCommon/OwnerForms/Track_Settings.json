@@ -1,0 +1,25 @@
+{
+  "$Comment": "The in-game screen for mods/ziggfreedcommon/track-settings.json, on the owner menu (/zigadmin): each setting below shows the value in force, the value the server would use without your file, and saves straight into the file under its Default entry. Every word is a key of ziggfreedcommon.track.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Track_Settings.",
+  "Title": "ziggfreedcommon.track.form.settings.title",
+  "Description": "ziggfreedcommon.track.form.settings.desc",
+  "Icon": "Furniture_Crude_Sign",
+  "Section": "ziggfreedcommon",
+  "Order": 76,
+  "File": "ziggfreedcommon/track-settings.json",
+  "Entry": "Default",
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.track.form.settings.heading.idle",
+      "Fields": [
+        {
+          "Path": "Idle.Minutes",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.track.form.settings.idle",
+          "Hint": "ziggfreedcommon.track.form.settings.idle.hint",
+          "Min": 0,
+          "Max": 1440
+        }
+      ]
+    }
+  ]
+}

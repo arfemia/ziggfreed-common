@@ -215,8 +215,8 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     (a, v) -> a.gain = v, a -> a.gain, (a, p) -> a.gain = p.gain)
             .documentation("How a gain on this track is worked out before it lands: the named factors it runs, "
                     + "in order, the ones that add together, and the rested pool. Leave it out for the usual order "
-                    + "(World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no rested "
-                    + "pool.").add()
+                    + "(Idle, World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no "
+                    + "rested pool.").add()
             .appendInherited(new KeyedCodec<>("Derived", Derived.CODEC, false),
                     (a, v) -> a.derived = v, a -> a.derived, (a, p) -> a.derived = p.derived)
             .documentation("Makes this track a reading of other tracks instead of a climb of its own: its level, "
@@ -1036,10 +1036,11 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         public static final BuilderCodec<Gain> CODEC = BuilderCodec.builder(Gain.class, Gain::new)
                 .appendInherited(new KeyedCodec<>("Factors", Codec.STRING_ARRAY, false),
                         (o, v) -> o.factors = v, o -> o.factors, (o, p) -> o.factors = p.factors)
-                .documentation("The named factors every gain on this track runs through, in this order: World "
+                .documentation("The named factors every gain on this track runs through, in this order: Idle "
+                        + "(nothing while the player is idle, as the track settings' Idle.Minutes says), World "
                         + "(the world's track rules), Bonus (the player's TrackGain stats), Boost (boosts), Prestige "
                         + "(the extra a prestiged climb earns), Rested (the rested pool below), and any another mod "
-                        + "registers. A name nothing registered changes nothing. Leave it out for World, Bonus, "
+                        + "registers. A name nothing registered changes nothing. Leave it out for Idle, World, Bonus, "
                         + "Boost, Prestige, Rested. A loss is never changed.").add()
                 .appendInherited(new KeyedCodec<>("Additive", Codec.STRING_ARRAY, false),
                         (o, v) -> o.additive = v, o -> o.additive, (o, p) -> o.additive = p.additive)

@@ -1,0 +1,109 @@
+{
+  "$Comment": "The in-game screen for the track sources (what each moment pays onto a track), on the owner menu (/zigadmin): one row per source, each opening its switch, what it pays, its rows by name pattern with the level each waits for, its guards against farming, and its diminishing returns, saved straight into mods/ziggfreedcommon/track-sources.json under that source's id, beside the value it has without your file. A row you change is written whole and wins over the packs; the rows you leave as they are keep following them. Which moment a source listens for and new sources stay in the files. Every word is a key of ziggfreedcommon.track.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Track_Sources.",
+  "Title": "ziggfreedcommon.track.form.sources.title",
+  "Description": "ziggfreedcommon.track.form.sources.desc",
+  "Icon": "Tool_Pickaxe_Iron",
+  "Section": "ziggfreedcommon",
+  "Order": 78,
+  "File": "ziggfreedcommon/track-sources.json",
+  "Entries": {},
+  "Sections": [
+    {
+      "Fields": [
+        {
+          "Path": "Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.sources.on",
+          "Hint": "ziggfreedcommon.track.form.sources.on.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.track.form.sources.heading.pays",
+      "Note": "ziggfreedcommon.track.form.sources.pays.note",
+      "Fields": [
+        {
+          "Path": "RowList",
+          "Kind": "List",
+          "Label": "ziggfreedcommon.track.form.sources.rows",
+          "Hint": "ziggfreedcommon.track.form.sources.rows.hint"
+        },
+        {
+          "Path": "Xp",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.track.form.sources.xp",
+          "Hint": "ziggfreedcommon.track.form.sources.xp.hint",
+          "Min": 0,
+          "Max": 1000000
+        },
+        {
+          "Path": "PerAmount",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.track.form.sources.peramount",
+          "Hint": "ziggfreedcommon.track.form.sources.peramount.hint",
+          "Min": 0,
+          "Max": 100000
+        },
+        {
+          "Path": "PerMaxHealth",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.track.form.sources.permaxhealth",
+          "Hint": "ziggfreedcommon.track.form.sources.permaxhealth.hint",
+          "Min": 0,
+          "Max": 1000
+        },
+        {
+          "Path": "Max",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.track.form.sources.max",
+          "Hint": "ziggfreedcommon.track.form.sources.max.hint",
+          "Min": 0,
+          "Max": 10000000
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.track.form.sources.heading.guards",
+      "Fields": [
+        {
+          "Path": "SkipSpawnerMobs",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.sources.spawners",
+          "Hint": "ziggfreedcommon.track.form.sources.spawners.hint"
+        },
+        {
+          "Path": "StandSeconds",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.track.form.sources.stand",
+          "Hint": "ziggfreedcommon.track.form.sources.stand.hint",
+          "Min": 0,
+          "Max": 3600
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.track.form.sources.heading.diminish",
+      "Note": "ziggfreedcommon.track.form.sources.diminish.note",
+      "Fields": [
+        {
+          "Path": "StepList",
+          "Kind": "List",
+          "Label": "ziggfreedcommon.track.form.sources.steps",
+          "Hint": "ziggfreedcommon.track.form.sources.steps.hint"
+        },
+        {
+          "Path": "Diminish.Window",
+          "Kind": "Text",
+          "Label": "ziggfreedcommon.track.form.sources.window",
+          "Hint": "ziggfreedcommon.track.form.sources.window.hint"
+        },
+        {
+          "Path": "Diminish.Key",
+          "Kind": "Text",
+          "Label": "ziggfreedcommon.track.form.sources.key",
+          "Hint": "ziggfreedcommon.track.form.sources.key.hint"
+        }
+      ]
+    }
+  ]
+}

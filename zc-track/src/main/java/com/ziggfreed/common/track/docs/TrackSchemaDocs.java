@@ -21,9 +21,13 @@ import com.ziggfreed.common.track.boost.BoostAsset;
 import com.ziggfreed.common.track.boost.BoostSettingsAsset;
 import com.ziggfreed.common.track.boost.BoostToken;
 import com.ziggfreed.common.track.boost.ZigBoostReward;
+import com.ziggfreed.common.track.gain.TrackSettingsAsset;
+import com.ziggfreed.common.track.lamp.TrackLamp;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
+import com.ziggfreed.common.track.price.TrackPriceAsset;
+import com.ziggfreed.common.track.source.DiminishKeyAsset;
 import com.ziggfreed.common.track.source.SourceRow;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.world.TrackRules;
@@ -86,12 +90,27 @@ public final class TrackSchemaDocs {
                     + "file under `Server/ZiggfreedCommon/Procs/`, retuned in `mods/ziggfreedcommon/procs.json`. The "
                     + "procs answering one moment run by their `Order`, lower first, then by their ids compared "
                     + "lower-cased.\n\n"
+                    + "The XP pace: a curve's `Pace` is what a focused hour earns from each level on, and a reward "
+                    + "priced in minutes (a `Track` reward's or a `ZigTrack` reward file's `Price`, `Minutes`, "
+                    + "`Level`, `MaxLevel`) pays that many minutes of it when earned, past every boost. One price (a "
+                    + "row of the XP price table) is one file under `Server/ZiggfreedCommon/TrackPrices/`, retuned in "
+                    + "`track-prices.json`. A `Track_Lamp` reward hands a lamp (the `TrackLamp` shape, minted onto "
+                    + "the library's `Zig_Track_Lamp` item, used through its native `ZigTrackLamp` interaction), "
+                    + "priced when used at the level of the track picked. A source's `Diminish.Key` names one "
+                    + "diminishing key, one file under `Server/ZiggfreedCommon/DiminishKeys/`, retuned in "
+                    + "`diminish-keys.json`. When a player counts as idle is the one "
+                    + "`Server/ZiggfreedCommon/TrackSettings/Default.json` record, retuned in "
+                    + "`track-settings.json`.\n\n"
                     + "Every field is optional and defaults to `null` unless its Default column reads "
                     + "*(required)*.\n\n")
             .register("TrackAsset", TrackAsset.CODEC)
             .register("TrackCurveAsset", TrackCurveAsset.CODEC)
             .register("TrackCategoryAsset", TrackCategoryAsset.CODEC)
             .register("TrackSourceAsset", TrackSourceAsset.CODEC)
+            .register("DiminishKeyAsset", DiminishKeyAsset.CODEC)
+            .register("TrackPriceAsset", TrackPriceAsset.CODEC)
+            .register("TrackSettingsAsset", TrackSettingsAsset.CODEC)
+            .register("TrackLamp", TrackLamp.CODEC)
             .register("TrackWorldRuleAsset", TrackWorldRuleAsset.CODEC)
             .register("TrackRules", TrackRules.CODEC)
             .register("TrackPickAsset", TrackPickAsset.CODEC)

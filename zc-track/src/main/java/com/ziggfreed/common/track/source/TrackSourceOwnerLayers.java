@@ -40,9 +40,15 @@ public final class TrackSourceOwnerLayers {
         directory = dir;
     }
 
+    /** Where the owner's file lives right now (the Track Sources screen writes it, {@link TrackSourceForm}). */
+    @Nonnull
+    public static Path file() {
+        return directory.resolve(FILE);
+    }
+
     /** (Re)read {@code track-sources.json} into the fold's owner layer. */
     public static void reload() {
-        OwnerLayerReader.apply("track", directory.resolve(FILE), TrackSourceAsset.class, TrackSourceAsset.CODEC,
+        OwnerLayerReader.apply("track", file(), TrackSourceAsset.class, TrackSourceAsset.CODEC,
                 TrackSourceConfig.getInstance(), "track source", s -> GateSpec.missingMod(s.requires()));
     }
 }

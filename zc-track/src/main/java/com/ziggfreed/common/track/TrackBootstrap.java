@@ -17,8 +17,11 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.event.events.player.RemovedPlayerFromWorldEvent;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.owner.OwnerFileBinding;
@@ -31,10 +34,21 @@ import com.ziggfreed.common.track.asset.TrackCurveForm;
 import com.ziggfreed.common.track.asset.TrackOwnerLayers;
 import com.ziggfreed.common.track.boost.BoostBootstrap;
 import com.ziggfreed.common.track.command.ZigTrackCommand;
+import com.ziggfreed.common.track.gain.ActivityWatch;
 import com.ziggfreed.common.track.gain.GainPlans;
+import com.ziggfreed.common.track.gain.TrackSettingsAsset;
+import com.ziggfreed.common.track.lamp.TrackLampRewardKind;
+import com.ziggfreed.common.track.lamp.ZigTrackLampInteraction;
 import com.ziggfreed.common.track.pick.PickClaims;
 import com.ziggfreed.common.track.pick.PickService;
+import com.ziggfreed.common.track.price.TrackPriceAsset;
+import com.ziggfreed.common.track.price.TrackPriceConfig;
+import com.ziggfreed.common.track.price.TrackPriceOwnerLayers;
+import com.ziggfreed.common.track.source.DiminishKeyAsset;
+import com.ziggfreed.common.track.source.DiminishKeyConfig;
+import com.ziggfreed.common.track.source.ItemSpawnedMobs;
 import com.ziggfreed.common.track.source.SourceBatch;
+import com.ziggfreed.common.track.source.TrackSourceForm;
 import com.ziggfreed.common.track.source.TrackSourceReactions;
 import com.ziggfreed.common.track.tree.TreeDestinations;
 import com.ziggfreed.common.track.world.TrackRules;
@@ -98,6 +112,18 @@ public final class TrackBootstrap {
         OwnerFormPreviews.register(TrackCurveForm.PREVIEW, TrackCurveForm::preview);
         OwnerFileBindings.register(OwnerFileBinding.keyedStore(TrackOwnerLayers.BINDING, TrackOwnerLayers::file,
                 TrackConfig.getInstance(), TrackAsset.CODEC, TrackOwnerLayers::reload));
+        // The XP pace's screens (SK10): the price table (Track_Prices), the diminishing keys (Diminish_Keys), the
+        // track settings' idle minutes (Track_Settings) and the sources (Track_Sources: rows, soft gates, stand time,
+        // diminishing returns).
+        OwnerFileBindings.register(OwnerFileBinding.keyedStore(TrackPriceOwnerLayers.BINDING,
+                TrackPriceOwnerLayers::file, TrackPriceConfig.getInstance(), TrackPriceAsset.CODEC,
+                TrackPriceOwnerLayers::reload));
+        OwnerFileBindings.register(OwnerFileBinding.keyedStore(DiminishKeyConfig.BINDING, DiminishKeyConfig::file,
+                DiminishKeyConfig.getInstance(), DiminishKeyAsset.CODEC, DiminishKeyConfig::reloadOwnerLayer));
+        OwnerFileBindings.register(OwnerFileBinding.keyedStore(TrackSettingsAsset.BINDING,
+                TrackSettingsAsset.Config::file, TrackSettingsAsset.Config.getInstance(), TrackSettingsAsset.CODEC,
+                TrackSettingsAsset.Config::reloadOwnerLayer));
+        OwnerFileBindings.register(TrackSourceForm.binding());
     }
 
     /**
@@ -142,6 +168,14 @@ public final class TrackBootstrap {
                         statsLoaded());
         plugin.getEventRegistry().registerGlobal(RemovedPlayerFromWorldEvent.class, SourceBatch::onLeftWorld);
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, SourceBatch::onDisconnect);
+        // The anti-abuse watches (SK10): each player's moves, looks and interactions for the Idle factor (zc-core's
+        // PlayerActivity), and the creatures an item such as a spawn egg stands up, which SkipSpawnerMobs pays
+        // nothing for.
+        plugin.getEntityStoreRegistry().registerSystem(new ActivityWatch.Sight());
+        plugin.getEntityStoreRegistry().registerSystem(new ActivityWatch.Started());
+        plugin.getEntityStoreRegistry().registerSystem(new ItemSpawnedMobs.Born());
+        events.register(PlayerDisconnectEvent.class, ActivityWatch::onDisconnect);
+        WorldEvictors.registerEvictor(ItemSpawnedMobs::forgetWorld);
     }
 
     /** A stat load: every compiled gain plan built again and every online player's grants rebuilt. */
@@ -175,6 +209,8 @@ public final class TrackBootstrap {
         ItemLevelTags.trackLookup(TrackAliases::readable);
         TrackRewardKind.registerInto(RewardKinds.shared());
         RewardChips.contribute(TrackRewardKind.chips());
+        TrackLampRewardKind.registerInto(RewardKinds.shared());
+        RewardChips.contribute(TrackLampRewardKind.chips());
         ObjectiveTargetNames.register(TrackObjectives.LEVEL, TrackObjectives::levelTargetName);
         ObjectiveTargetNames.register(TrackObjectives.TIER, TrackObjectives::tierTargetName);
         BoostBootstrap.registerVocabulary();
@@ -188,11 +224,15 @@ public final class TrackBootstrap {
     private static void registerNativeReward(@Nonnull JavaPlugin plugin) {
         plugin.getCodecRegistry(RewardAsset.CODEC).register(ZigTrackReward.TYPE, ZigTrackReward.class,
                 ZigTrackReward.CODEC);
+        // The lamp's Type, into the engine's own interaction codec, so an item's chain opens a lamp's picker.
+        plugin.getCodecRegistry(Interaction.CODEC).register(ZigTrackLampInteraction.TYPE_NAME,
+                ZigTrackLampInteraction.class, ZigTrackLampInteraction.getCODEC());
     }
 
     /** The hooks and the {@code /zigtrack} family. Not guarded: a failed registration throws here, at setup. */
     private static void registerHooks(@Nonnull JavaPlugin plugin) {
         EditorDataSets.live(plugin.getEventRegistry(), TRACKS_DATA_SET, TrackConfig.getInstance()::ids);
+        EditorDataSets.fixed(plugin.getEventRegistry(), DiminishSpec.WINDOW_DATA_SET, DiminishSpec.SUGGESTED_WINDOWS);
         plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, TrackLogin::onPlayerReady);
         plugin.getEventRegistry().register(BootEvent.class, event -> TrackValidator.logErrorsOnce());
         plugin.getCommandRegistry().registerCommand(new ZigTrackCommand());

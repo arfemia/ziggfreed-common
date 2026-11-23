@@ -1,6 +1,16 @@
 {
-  "$Comment": "The skill curve: levels 1 to 200 on the hybrid formula, each level costing the OSRS sum of floor(l + 200 * 2^(l / 7)) over the levels below, quartered, plus 300 * level * (level - 1) / 2. Level 50 takes about 435 thousand, 100 about 11.1 million, 120 about 72 million and 200 about 190 billion. A track names it with \"Curve\": \"Skill_Hybrid\"; a pack's own same-id file replaces it, and a track wanting another shape names a curve of its own.",
+  "$Comment": "The skill curve: levels 1 to 200 on the hybrid formula, each level costing the OSRS sum of floor(l + 200 * 2^(l / 7)) over the levels below, quartered, plus 300 * level * (level - 1) / 2. Level 50 takes about 435 thousand, 100 about 11.1 million, 120 about 72 million and 200 about 190 billion. Pace is what a focused hour of play earns from each level on, rising in bands: at it, level 50 comes after about 12 hours, 90 after 62 and 100 after about 121. A reward priced in minutes pays that many minutes of the band the level it is priced at stands in. A track names it with \"Curve\": \"Skill_Hybrid\"; a pack's own same-id file replaces it, a pack's curve with \"Parent\": \"Skill_Hybrid\" adds or retunes one band by its level, and a track wanting another shape names a curve of its own.",
   "Pieces": [
     { "Hybrid": { "Base": 300, "Scale": 200 }, "To": 200 }
-  ]
+  ],
+  "Pace": {
+    "1": 16000,
+    "10": 22000,
+    "20": 29000,
+    "30": 38000,
+    "40": 50000,
+    "55": 66000,
+    "70": 86000,
+    "85": 108000
+  }
 }

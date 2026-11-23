@@ -12,7 +12,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.entity.PlayerActivity;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.progress.gate.GateEpochs;
@@ -30,6 +32,7 @@ import com.ziggfreed.common.track.event.TrackEvents;
 import com.ziggfreed.common.track.gain.GainPipeline;
 import com.ziggfreed.common.track.gain.RestedFactor;
 import com.ziggfreed.common.track.pick.PickService;
+import com.ziggfreed.common.track.world.TrackWorldRules;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -310,11 +313,69 @@ public final class TrackService {
      */
     @Nonnull
     public static Result explain(@Nonnull TrackKey key, double amount, @Nonnull String source) {
-        return add(key, amount, source, true);
+        return add(key, amount, source, true, false);
+    }
+
+    /**
+     * Move {@code key}'s climb by {@code amount} as it is, past every gain factor that scales a gain: a reward priced
+     * in minutes of play (R618), whose worth was set when it was earned, so no bonus, boost, prestige extra or rested
+     * pool scales it. The world's multiplier for the track still applies, a factor that stops the gain (a world paying
+     * nothing, a switched-off track) still stops it, a factor's lower level cap (a permission's) still holds, the
+     * track's {@code Requires} is asked and its {@code Cap} holds, and the move is kept and announced as a gain's is;
+     * the idle factor never stops it (a collect or a use is activity). On the live subject's own thread.
+     *
+     * @param source what asked: a reward's source id, {@code admin}
+     */
+    @Nonnull
+    public static Result addExact(@Nonnull TrackKey key, double amount, @Nonnull String source) {
+        return add(key, amount, source, false, true);
     }
 
     @Nonnull
     private static Result add(@Nonnull TrackKey key, double amount, @Nonnull String source, boolean explain) {
+        return add(key, amount, source, explain, false);
+    }
+
+    /**
+     * Would an exact gain ({@link #addExact}) move {@code key}'s climb now: an ordinary usable track whose climb is
+     * read here, its {@code Requires} met, no factor stopping a gain on it, its world paying on it, and the climb
+     * below both its {@code Cap} and any lower level cap a factor sets. What a page offering a choice of tracks (a
+     * lamp's picker) asks, so it never offers one that would take nothing. Writes nothing; the live subject's thread.
+     */
+    public static boolean paysExactly(@Nonnull TrackKey key) {
+        TrackDef def = def(key.track());
+        TrackStore store = def == null || def.asset().isDerived() ? null : TrackStores.forKey(key);
+        TrackRecord before = store == null ? null : store.get(key);
+        if (before == null) {
+            return false;
+        }
+        Ref<EntityStore> ref = liveRef(key);
+        GateSpec requires = def.asset().liveRequires();
+        if (requires != null && ref != null
+                && !StoreGates.passes(requires, GateQuery.of(FactorContext.about(ref.getStore(), ref)))) {
+            return false;
+        }
+        int level = def.level(before);
+        if (level >= def.capLevel()) {
+            return false;
+        }
+        GainCall trial = new GainCall(key, def, before, ref, 1.0, "trial", false);
+        double through;
+        try {
+            through = gain.apply(trial);
+        } catch (Throwable t) {
+            through = 1.0;
+        }
+        if (!(through > 0.0) || (trial.capLevel() > 0 && level >= trial.capLevel())) {
+            return false;
+        }
+        World world = ref == null ? null : ref.getStore().getExternalData().getWorld();
+        return TrackWorldRules.gainMultiplier(world, def.asset().getId(), def.asset().category()) > 0.0;
+    }
+
+    @Nonnull
+    private static Result add(@Nonnull TrackKey key, double amount, @Nonnull String source, boolean explain,
+            boolean exact) {
         TrackDef def = def(key.track());
         if (def == null) {
             return Result.of(Status.UNKNOWN);
@@ -326,7 +387,7 @@ public final class TrackService {
         if (derivation != null) {
             // A derived track holds no value: the gain lands on its highest source, through that one's own factors.
             Forward to = forward(key, derivation);
-            return to.key() == null ? Result.of(to.refused()) : add(to.key(), amount, source, explain);
+            return to.key() == null ? Result.of(to.refused()) : add(to.key(), amount, source, explain, exact);
         }
         TrackStore store = TrackStores.forKey(key);
         TrackRecord before = store == null ? null : store.get(key);
@@ -342,7 +403,7 @@ public final class TrackService {
         GainCall call = new GainCall(key, def, before, ref, amount, source, explain);
         double landed;
         try {
-            landed = gain.apply(call);
+            landed = exact ? exactly(call) : gain.apply(call);
         } catch (Throwable t) {
             SafeLog.warn("[track] the gain seam failed on '" + key.track() + "', so the gain lands as asked: "
                     + t.getMessage());
@@ -359,6 +420,43 @@ public final class TrackService {
         }
         Result result = commit(store, key, def, before, after, source, ref, amount);
         return result.explained(explain ? breakdown(call, landed, before, after) : null);
+    }
+
+    /**
+     * What an exact gain lands as ({@link #addExact}): a gain as asked times the world's multiplier for the track
+     * (where the player stands), a loss as asked. The gain seam is still asked on a trial call that changes nothing
+     * (its record and breakdown thrown away): a factor that stops the gain (a world paying nothing, a switched-off
+     * track, a gate a consumer's factor keeps) stops this one, and a factor's lower level cap
+     * ({@link GainCall#capAtLevel}, a permission's) holds it; every factor that only scales a gain (a bonus, a boost,
+     * the prestige extra, the rested pool) is passed over. An exact gain is a player's own collect or use, so it counts
+     * as activity first, and the idle factor never stops it.
+     */
+    private static double exactly(@Nonnull GainCall call) {
+        double asked = call.asked();
+        if (!(asked > 0.0)) {
+            return asked;
+        }
+        if (call.playerId() != null) {
+            PlayerActivity.acted(call.playerId(), System.currentTimeMillis());
+        }
+        GainCall trial = GainCall.of(call.key(), call.def(), call.before(), call.ref(), asked, call.source(), false);
+        double through;
+        try {
+            through = gain.apply(trial);
+        } catch (Throwable t) {
+            through = asked;
+        }
+        if (!(through > 0.0)) {
+            return 0.0;
+        }
+        if (trial.capLevel() > 0) {
+            call.capAtLevel(trial.capLevel());
+        }
+        Ref<EntityStore> ref = call.ref();
+        World world = ref == null ? null : ref.getStore().getExternalData().getWorld();
+        double multiplier = TrackWorldRules.gainMultiplier(world, call.def().asset().getId(),
+                call.track().category());
+        return Double.isFinite(multiplier) ? asked * Math.max(0.0, multiplier) : asked;
     }
 
     /**

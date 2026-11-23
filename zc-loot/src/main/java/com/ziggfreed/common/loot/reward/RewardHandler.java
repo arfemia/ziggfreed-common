@@ -95,4 +95,17 @@ public interface RewardHandler {
                                         @Nonnull String sourceId) {
         return null;
     }
+
+    /**
+     * The reward as it is kept when {@code subject} earns it, for a payout paid later (a Claim): a kind whose worth
+     * is decided at the moment it is earned (a track's XP priced in minutes of play at the earner's level) answers
+     * the reward with that worth written in, so what the Claim shows and pays is what was earned, however the player
+     * stands when they collect it. The default keeps the reward as it is. The deferral ({@code DeferredRewards})
+     * asks it once, before the reward's line, chip and amount are read; a kind granted outright prices itself in
+     * {@link #grant}. Never throws: a reward it cannot price yet comes back as it was.
+     */
+    @Nonnull
+    default RewardSpec stamp(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+        return spec;
+    }
 }

@@ -18,6 +18,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.track.curve.CurveTable;
+import com.ziggfreed.common.track.curve.PaceTable;
 
 /**
  * One level curve tracks share, at {@code Server/ZiggfreedCommon/TrackCurves/<Id>.json}: how much value each
@@ -25,7 +26,8 @@ import com.ziggfreed.common.track.curve.CurveTable;
  * ({@code Curve}), so every skill on one curve reads one table.
  *
  * <pre>{@code
- * { "Pieces": [ { "Hybrid": { "Base": 300, "Scale": 200 }, "To": 200 } ] }
+ * { "Pieces": [ { "Hybrid": { "Base": 300, "Scale": 200 }, "To": 200 } ],
+ *   "Pace": { "1": 16000, "10": 22000, "20": 29000, "30": 38000 } }
  *
  * { "Pieces": [ { "Floors": [ 0, 3000, 9000, 21000, 42000 ] } ],
  *   "Beyond": { "Every": 10000 },
@@ -33,8 +35,9 @@ import com.ziggfreed.common.track.curve.CurveTable;
  * }</pre>
  *
  * <p>The table is built once per curve id and kept until the curves load again ({@code TrackCurves}); what a
- * piece means is {@link CurveTable}'s javadoc. Every leaf inherits through {@code Parent}: {@code Pieces}
- * replaces whole, {@code Tiers} merges by tier id.
+ * piece means is {@link CurveTable}'s javadoc. {@code Pace} is how much a focused hour earns from each level on
+ * ({@link PaceTable}): what a reward priced in minutes of play pays. Every leaf inherits through {@code Parent}:
+ * {@code Pieces} replaces whole, {@code Tiers} and {@code Pace} merge by key, so a pack adds or retunes one band.
  */
 public final class TrackCurveAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, TrackCurveAsset>> {
 
@@ -47,6 +50,7 @@ public final class TrackCurveAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable protected Piece[] pieces;
     @Nullable protected Beyond beyond;
     @Nullable protected Map<String, Tier> tiers;
+    @Nullable protected Map<String, Double> pace;
 
     public static final AssetBuilderCodec<String, TrackCurveAsset> CODEC = AssetBuilderCodec.builder(
                     TrackCurveAsset.class,
@@ -72,6 +76,14 @@ public final class TrackCurveAsset implements JsonAssetWithMap<String, DefaultAs
             .documentation("Names for ranges of levels, by tier id: each tier holds from its From level to the "
                     + "next tier's. A requirement can ask for a tier (ziggfreedcommon:track_tier) and a quest step "
                     + "can count reaching one (TRACK_TIER). Under Parent this merges by tier id.").add()
+            .appendInherited(new KeyedCodec<>("Pace", new InheritMapCodec<>(Codec.DOUBLE), false),
+                    (a, v) -> a.pace = v, a -> a.pace, (a, p) -> a.pace = p.pace)
+            .documentation("How much a focused hour of play earns, by the level each band starts at: { \"1\": "
+                    + "16000, \"10\": 22000 } earns 16000 an hour from level 1 and 22000 from level 10. A reward "
+                    + "priced in minutes pays that many minutes of the band the level it is priced at stands in. "
+                    + "A key that is no whole number of 1 or more, or a band of 0 or less, is passed over (so a "
+                    + "pack or the owner's file writes 0 to take an inherited band out). Under Parent this merges "
+                    + "by level. Leave it out and minutes priced on this curve pay nothing.").add()
             .build();
 
     public TrackCurveAsset() {
@@ -134,6 +146,18 @@ public final class TrackCurveAsset implements JsonAssetWithMap<String, DefaultAs
         return out;
     }
 
+    /** The Pace bands as written, by level key, or an empty map. */
+    @Nonnull
+    public Map<String, Double> paceWritten() {
+        return pace == null ? Map.of() : pace;
+    }
+
+    /** This curve's Pace read as bands ({@link PaceTable}); {@link PaceTable#NONE} when it writes none. */
+    @Nonnull
+    public PaceTable paceTable() {
+        return PaceTable.of(pace);
+    }
+
     /** This curve tabulated. */
     @Nonnull
     public CurveTable table() {
@@ -180,6 +204,7 @@ public final class TrackCurveAsset implements JsonAssetWithMap<String, DefaultAs
         copy.pieces = out;
         copy.beyond = beyond;
         copy.tiers = tiers;
+        copy.pace = pace;
         return copy;
     }
 

@@ -9,6 +9,8 @@ import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryConfig;
 import com.ziggfreed.common.track.curve.CurveTable;
+import com.ziggfreed.common.track.curve.PaceTable;
+import com.ziggfreed.common.track.curve.TrackCurves;
 
 /**
  * A usable track: switched on, with its curve tabulated. What every reading and write resolves first
@@ -23,6 +25,12 @@ public record TrackDef(@Nonnull TrackAsset asset, @Nonnull CurveTable table) {
     @Nonnull
     public String id() {
         return TrackKey.normalize(asset.getId());
+    }
+
+    /** The Pace of this track's curve: what a minute of play earns at a level ({@link PaceTable}). */
+    @Nonnull
+    public PaceTable pace() {
+        return TrackCurves.pace(asset.curveId());
     }
 
     /** The current climb's level for {@code record}. */

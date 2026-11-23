@@ -196,6 +196,12 @@ import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
 import com.ziggfreed.common.track.pick.TrackPickOwnerLayers;
+import com.ziggfreed.common.track.gain.TrackSettingsAsset;
+import com.ziggfreed.common.track.price.TrackPriceAsset;
+import com.ziggfreed.common.track.price.TrackPriceConfig;
+import com.ziggfreed.common.track.price.TrackPriceOwnerLayers;
+import com.ziggfreed.common.track.source.DiminishKeyAsset;
+import com.ziggfreed.common.track.source.DiminishKeyConfig;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
 import com.ziggfreed.common.track.source.TrackSourceOwnerLayers;
@@ -1249,6 +1255,45 @@ public final class FrameworkAssetRegistrar {
                     TrackSourceOwnerLayers.reload();
                 });
 
+        // --- Diminishing keys (Pattern A) - what a track source's Diminish.Key counts its moments per: the
+        //     target, the qualifier, the victim, the station, a cell of the world, any mix. The library ships
+        //     Cell16, Position, Target, Station and Victim. Owner file mods/ziggfreedcommon/diminish-keys.json,
+        //     re-read on this same event. A source names its key by id, read at each moment. ---
+        AssetStoreRegistrar.registerStore(DiminishKeyAsset.class,
+                new DefaultAssetMap<String, DiminishKeyAsset>(), DiminishKeyAsset.TYPE_ROOT,
+                DiminishKeyAsset::getId, DiminishKeyAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DiminishKeyAsset.class,
+                (LoadedAssetsEvent<String, DiminishKeyAsset, DefaultAssetMap<String, DiminishKeyAsset>> ev) -> {
+                    DiminishKeyConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    DiminishKeyConfig.reloadOwnerLayer();
+                });
+
+        // --- XP prices (Pattern A) - the one price table a reward priced in minutes of play reads: each row's
+        //     minutes, and the level they are priced at. The library ships the common rows (quests, board jobs,
+        //     dungeon clears, achievements). Owner file mods/ziggfreedcommon/track-prices.json, re-read on this
+        //     same event. A reward names its row by id, read when it is earned. ---
+        AssetStoreRegistrar.registerStore(TrackPriceAsset.class,
+                new DefaultAssetMap<String, TrackPriceAsset>(), TrackPriceAsset.TYPE_ROOT,
+                TrackPriceAsset::getId, TrackPriceAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackPriceAsset.class,
+                (LoadedAssetsEvent<String, TrackPriceAsset, DefaultAssetMap<String, TrackPriceAsset>> ev) -> {
+                    TrackPriceConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackPriceOwnerLayers.reload();
+                });
+
+        // --- Track settings (Pattern A) - the server's one word on how every track's gains are paid (when a
+        //     player counts as idle). The library ships Default.json. Owner file
+        //     mods/ziggfreedcommon/track-settings.json, re-read on this same event; every merge builds the gain
+        //     plans again. ---
+        AssetStoreRegistrar.registerStore(TrackSettingsAsset.class,
+                new DefaultAssetMap<String, TrackSettingsAsset>(), TrackSettingsAsset.TYPE_ROOT,
+                TrackSettingsAsset::getId, TrackSettingsAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackSettingsAsset.class,
+                (LoadedAssetsEvent<String, TrackSettingsAsset, DefaultAssetMap<String, TrackSettingsAsset>> ev) -> {
+                    TrackSettingsAsset.Config.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackSettingsAsset.Config.reloadOwnerLayer();
+                });
+
         // --- Track world rules (Pattern A) - track rules for the worlds a pattern names (Where), for what a
         //     world's own gameplay config (Plugin.ZigTrackRules, the native home, which wins where both apply)
         //     cannot say. The library ships none. Owner file mods/ziggfreedcommon/track-world-rules.json, re-read
@@ -1543,6 +1588,9 @@ public final class FrameworkAssetRegistrar {
                         + "TrackCurves (owner file mods/ziggfreedcommon/track-curves.json), TrackCategories, "
                         + "Tracks (owner file mods/ziggfreedcommon/tracks.json), "
                         + "TrackSources (owner file mods/ziggfreedcommon/track-sources.json), "
+                        + "DiminishKeys (owner file mods/ziggfreedcommon/diminish-keys.json), "
+                        + "TrackPrices (owner file mods/ziggfreedcommon/track-prices.json), "
+                        + "TrackSettings (owner file mods/ziggfreedcommon/track-settings.json), "
                         + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
                         + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), TrackPickGenerators, "
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), "

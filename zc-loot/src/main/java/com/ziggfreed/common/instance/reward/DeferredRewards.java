@@ -201,14 +201,15 @@ public final class DeferredRewards {
      * ({@link #payableSpec}).
      */
     @Nullable
-    private static InstanceReward deferSpec(@Nonnull RewardSpec spec, @Nullable RewardKindRegistry kinds,
+    private static InstanceReward deferSpec(@Nonnull RewardSpec earned, @Nullable RewardKindRegistry kinds,
             @Nullable Subject subject, @Nonnull String sourceId, @Nullable Consumer<String> warn) {
-        RewardHandler handler = kinds == null ? null : kinds.handler(spec.kind());
+        RewardHandler handler = kinds == null ? null : kinds.handler(earned.kind());
         if (handler == null || subject == null) {
-            report(warn, "reward kind '" + spec.kind() + "' pays out nothing here, so it was dropped from "
+            report(warn, "reward kind '" + earned.kind() + "' pays out nothing here, so it was dropped from "
                     + sourceId);
             return null;
         }
+        RewardSpec spec = stamped(handler, earned, subject);
         String command;
         try {
             command = handler.retryCommand(spec, subject, sourceId);
@@ -228,6 +229,24 @@ public final class DeferredRewards {
                 firstWritten(spec.param(PARAM_ICON),
                         authored == null ? null : authored.presentationIcon(spec)),
                 spec);
+    }
+
+    /**
+     * {@code spec} as its kind keeps it when earned ({@link RewardHandler#stamp}: a worth priced now, written in),
+     * its row's live {@code Requires} carried over; {@code spec} itself when the kind stamps nothing or throws.
+     */
+    @Nonnull
+    private static RewardSpec stamped(@Nonnull RewardHandler handler, @Nonnull RewardSpec spec,
+            @Nonnull Subject subject) {
+        try {
+            RewardSpec kept = handler.stamp(spec, subject);
+            if (kept == null || kept == spec) {
+                return spec;
+            }
+            return kept.requires() == null && spec.requires() != null ? kept.withRequires(spec.requires()) : kept;
+        } catch (Throwable t) {
+            return spec;
+        }
     }
 
     /**

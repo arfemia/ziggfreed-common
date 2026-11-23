@@ -66,6 +66,9 @@ tasks.register('generateSchemaDocs', JavaExec) {
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/world') { include '**/*.java' })
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/pick') { include '**/*.java' })
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/boost') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/price') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/lamp') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/gain') { include '**/*.java' })
     inputs.file('src/main/java/com/ziggfreed/common/track/docs/TrackSchemaDocs.java')
     outputs.file(schemaDocOutput)
 }

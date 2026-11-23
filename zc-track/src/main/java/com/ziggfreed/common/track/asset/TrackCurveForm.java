@@ -9,12 +9,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonDouble;
+import org.bson.BsonString;
 import org.bson.BsonValue;
 
 import com.google.gson.JsonArray;
@@ -26,6 +29,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.owner.OwnerFileBinding;
 import com.ziggfreed.common.track.TrackText;
 import com.ziggfreed.common.track.curve.CurveTable;
+import com.ziggfreed.common.track.curve.PaceTable;
 import com.ziggfreed.common.util.OwnerFiles;
 
 /**
@@ -41,6 +45,12 @@ import com.ziggfreed.common.util.OwnerFiles;
  * curve's pieces as they read now with the last one's numbers changed, written whole ({@link #pieces}); a Reset puts
  * the number without the owner's word back, and once the pieces read exactly as they would without the owner's entry,
  * and it writes nothing else, the entry comes out, so the curve reads as before.
+ *
+ * <p>A curve's {@code Pace} is a map by level, which a form's dotted paths cannot list either, so the binding lifts it
+ * to one list of words ({@link #PACE_LIST}, {@code level=xp an hour}) in each of the three readings, and its writer
+ * turns the words back into the owner entry's {@code Pace} map, writing only the bands that read otherwise than
+ * without the owner's word ({@link #changedBands}): a band left as it is, or left out, keeps following the packs,
+ * since the map merges by level; a band of 0 takes one out; a Reset takes the owner's whole map out.
  *
  * <p>The value without the owner's word is the curve below {@code track-curves.json} itself
  * ({@link TrackCurveConfig#resolveBelowFile}): a consumer's own word from its older settings, else the packs'. A
@@ -58,8 +68,15 @@ public final class TrackCurveForm {
     public static final String BASE = "Hybrid.Base";
     public static final String SCALE = "Hybrid.Scale";
 
+    /**
+     * The curve's Pace bands as one list of words, as the form names them: {@code level=xp an hour}, one band each
+     * ({@code 1=16000, 10=22000}); a band of 0 takes an inherited band out.
+     */
+    public static final String PACE_LIST = "PaceList";
+
     private static final String PIECES = "Pieces";
     private static final String HYBRID = "Hybrid";
+    private static final String PACE = "Pace";
 
     /** The levels the preview reads, for a curve that reaches them. */
     private static final int[] MILESTONES = {10, 25, 50, 100};
@@ -93,6 +110,11 @@ public final class TrackCurveForm {
                         TrackCurveAsset curve = config.resolve(id.trim());
                         if (doc != null && curve != null) {
                             liftHybrid(doc, lastHybrid(curve));
+                            BsonArray bands = new BsonArray();
+                            for (String word : paceWords(curve.paceWritten())) {
+                                bands.add(new BsonString(word));
+                            }
+                            doc.put(PACE_LIST, bands);
                         }
                         return doc;
                     }
@@ -143,6 +165,9 @@ public final class TrackCurveForm {
         if (SCALE.equals(path)) {
             return last == null ? null : last.hybridScale();
         }
+        if (PACE_LIST.equals(path)) {
+            return paceWords(curve.paceWritten());
+        }
         BsonValue encoded = TrackCurveAsset.CODEC.encode(curve, new ExtraInfo());
         return encoded != null && encoded.isDocument() ? plain(encoded.asDocument(), path) : null;
     }
@@ -158,6 +183,17 @@ public final class TrackCurveForm {
                 continue;
             }
             JsonObject entry = curve.getValue().getAsJsonObject();
+            JsonElement pace = entry.get(PACE);
+            if (pace != null && pace.isJsonObject()) {
+                JsonArray words = new JsonArray();
+                for (Map.Entry<String, JsonElement> band : pace.getAsJsonObject().entrySet()) {
+                    if (!OwnerFiles.isReservedKey(band.getKey()) && band.getValue().isJsonPrimitive()
+                            && band.getValue().getAsJsonPrimitive().isNumber()) {
+                        words.add(band.getKey().trim() + "=" + whole(band.getValue().getAsDouble()));
+                    }
+                }
+                entry.add(PACE_LIST, words);
+            }
             JsonElement pieces = entry.get(PIECES);
             if (pieces == null || !pieces.isJsonArray() || pieces.getAsJsonArray().isEmpty()) {
                 continue;
@@ -180,7 +216,15 @@ public final class TrackCurveForm {
      * with its {@code To}.
      */
     static boolean write(@Nonnull OwnerFileBinding.Entries store, @Nonnull Path file, @Nonnull String id,
-            @Nonnull Map<String, Object> leaves) {
+            @Nonnull Map<String, Object> given) {
+        Map<String, Object> leaves = new LinkedHashMap<>(given);
+        if (leaves.containsKey(PACE_LIST)) {
+            Object words = leaves.remove(PACE_LIST);
+            TrackCurveAsset below = TrackCurveConfig.getInstance().resolveBelowFile(id.trim());
+            Map<String, Object> bands = words == null ? Map.of()
+                    : changedBands(paceBands(wordsOf(words)), below == null ? Map.of() : below.paceWritten());
+            leaves.put(PACE, bands.isEmpty() ? null : bands);
+        }
         boolean baseGiven = leaves.containsKey(BASE);
         boolean scaleGiven = leaves.containsKey(SCALE);
         if (!baseGiven && !scaleGiven) {
@@ -397,6 +441,101 @@ public final class TrackCurveForm {
     @Nullable
     private static Double number(@Nullable Object value) {
         return value instanceof Number n ? n.doubleValue() : null;
+    }
+
+    /**
+     * A curve's Pace as written, as words, {@code level=xp}, by level: a band of 0 too (a take-out, which must survive
+     * the next save); a key that is no level, or an amount that is no number of 0 or more, is left out. Pure.
+     */
+    @Nonnull
+    static List<String> paceWords(@Nonnull Map<String, Double> pace) {
+        TreeMap<Integer, Double> sorted = new TreeMap<>();
+        for (Map.Entry<String, Double> band : pace.entrySet()) {
+            Integer level = PaceTable.levelKey(band.getKey());
+            Double amount = band.getValue();
+            if (level != null && amount != null && Double.isFinite(amount) && amount >= 0.0) {
+                sorted.put(level, amount);
+            }
+        }
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<Integer, Double> band : sorted.entrySet()) {
+            out.add(band.getKey() + "=" + whole(band.getValue()));
+        }
+        return out;
+    }
+
+    /**
+     * Words as Pace bands, by level key: each {@code level=xp}, a level a whole number of 1 or more and an amount a
+     * number of 0 or more (0 takes an inherited band out); a word that does not read is passed over. Pure.
+     */
+    @Nonnull
+    static Map<String, Object> paceBands(@Nonnull List<String> words) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (String raw : words) {
+            String word = raw == null ? "" : raw.trim();
+            int eq = word.indexOf('=');
+            if (eq <= 0) {
+                continue;
+            }
+            Integer level = PaceTable.levelKey(word.substring(0, eq));
+            Double perHour = typed(word.substring(eq + 1));
+            if (level != null && perHour != null && !Double.isNaN(perHour)) {
+                out.put(Integer.toString(level), perHour);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * The bands to write: each of {@code typed} whose amount reads otherwise than the band of that level without the
+     * owner's word ({@code below}), a 0 kept only where it takes a band of {@code below} out; so the bands left as the
+     * packs have them keep following the packs. Pure.
+     */
+    @Nonnull
+    static Map<String, Object> changedBands(@Nonnull Map<String, Object> typed, @Nonnull Map<String, Double> below) {
+        Map<Integer, Double> under = new LinkedHashMap<>();
+        for (Map.Entry<String, Double> band : below.entrySet()) {
+            Integer level = PaceTable.levelKey(band.getKey());
+            if (level != null && band.getValue() != null) {
+                under.put(level, band.getValue());
+            }
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> band : typed.entrySet()) {
+            Integer level = PaceTable.levelKey(band.getKey());
+            double amount = band.getValue() instanceof Number n ? n.doubleValue() : Double.NaN;
+            if (level == null || Double.isNaN(amount)) {
+                continue;
+            }
+            Double was = under.get(level);
+            boolean differs = was == null ? amount > 0.0 : Double.compare(was, amount) != 0;
+            if (differs) {
+                out.put(Integer.toString(level), amount);
+            }
+        }
+        return out;
+    }
+
+    @Nonnull
+    private static List<String> wordsOf(@Nonnull Object value) {
+        List<String> out = new ArrayList<>();
+        if (value instanceof List<?> list) {
+            for (Object item : list) {
+                if (item != null) {
+                    out.add(String.valueOf(item));
+                }
+            }
+        } else {
+            out.addAll(Arrays.asList(String.valueOf(value).split(",")));
+        }
+        return out;
+    }
+
+    /** A number as a word: whole without a decimal point, else as it is. */
+    @Nonnull
+    private static String whole(double value) {
+        return value == Math.rint(value) && Math.abs(value) < 1e15 ? Long.toString((long) value)
+                : Double.toString(value);
     }
 
     /** The last piece of {@code curve} when it is a Hybrid one, else null. */

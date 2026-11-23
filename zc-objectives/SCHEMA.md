@@ -57,8 +57,12 @@ Moves a CommonLib track when the objective completes, as one Claim each particip
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Track` | `string` | `null` | The track it moves, by id (a file under Server/ZiggfreedCommon/Tracks). Unauthored, or a track this server does not run, it pays nothing. |
-| `Amount` | `long` | `null` | How much value it adds to the track when the player collects it; a negative Amount costs value. Zero, or unauthored, pays nothing. |
+| `Amount` | `long` | `null` | How much value it adds to the track when the player collects it; a negative Amount costs value. Zero, or unauthored, pays nothing unless a Price or Minutes prices it instead. |
 | `TitleKey` | `string` | `null` | The lang key the Claim's row is titled with on the Claims tab. Unauthored, the objective's own title titles it when a line ships for it, else the track's own reward line. |
+| `Price` | `string` | `null` | A row of the XP price table, by id (Quest, Board, ...): pay that many minutes of play at the track's pace instead of an Amount, priced at each participant's level when the Claim is written and paid past every boost. |
+| `Minutes` | `double` | `null` | Minutes of play to pay, over the price row's (or with no Price at all). |
+| `Level` | `integer` | `null` | Price the minutes at this level for everyone (one-off content), over the price row's. |
+| `MaxLevel` | `integer` | `null` | Price the minutes at the participant's level, never above this one (repeatable content), over the price row's. |
 
 <a id="type-objectiveleaf"></a>
 ## ObjectiveLeaf

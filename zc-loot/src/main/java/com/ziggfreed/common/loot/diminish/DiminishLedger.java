@@ -1,6 +1,7 @@
 package com.ziggfreed.common.loot.diminish;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
@@ -32,6 +33,12 @@ import com.ziggfreed.common.util.RecordFile;
  * the occasion it was last counted for as {@code occasion}, an additive field: a file written before it reads every
  * count as naming none, and the version does not move for it.
  *
+ * <p>A rolling window ({@link DiminishSpec#isRolling}) keeps the times of the clears still inside its span as
+ * {@code times}, another additive field (at most as many as the spec has steps, since a clear past the last step
+ * pays the last step whatever came before), and its count is how many of them are younger than the span: each
+ * falls out on its own as its time passes, with no reset at a boundary. A count recorded under one window word reads
+ * as none under another, as a daily count reads under a weekly spec.
+ *
  * <p>The file is kept through zc-core's {@code util/RecordFile} and carries a {@code "version"}; a file
  * declaring a newer version than this build reads is left unread, and unwritten, with one warning, a torn file
  * reads its {@code .bak}, and a file this build cannot read at all, backup included (a damaged or cut-short
@@ -45,7 +52,14 @@ public final class DiminishLedger {
 
     private static final DiminishLedger SHARED = new DiminishLedger("claims-diminish");
 
+    /** How often a ledger kept only in memory sweeps out the counts whose window has passed. */
+    static final long MEMORY_PRUNE_MS = 60_000L;
+
     private final String fileName;
+    /** Whether {@link #init} gave the ledger a file: a ledger kept in memory prunes on a cadence, never per count. */
+    private boolean persisted;
+    /** When a ledger kept in memory last swept. */
+    private long lastPruneMs;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ConcurrentHashMap<UUID, Map<String, Count>> counts = new ConcurrentHashMap<>();
     /** The file, kept the one library way: a newer or unreadable file is never overwritten by this build. */
@@ -58,6 +72,8 @@ public final class DiminishLedger {
         int clears;
         /** Appended: the occasion the last clear was counted for, trimmed; absent for none. */
         String occasion;
+        /** Appended: a rolling window's clear times still inside its span, oldest first; absent for a calendar one. */
+        long[] times;
     }
 
     /** The file's leaves; its {@code version} is the record file's. */
@@ -102,6 +118,7 @@ public final class DiminishLedger {
         if (dataDir == null) {
             return;
         }
+        persisted = true;
         file.persistTo(dataDir.resolve(fileName), null);
         prune(System.currentTimeMillis());
     }
@@ -130,25 +147,79 @@ public final class DiminishLedger {
      */
     public synchronized double count(@Nonnull UUID player, @Nonnull String key, @Nonnull DiminishSpec spec,
             @Nullable String occasion, long nowMs) {
-        DiminishSpec.Window window = spec.window();
-        long period = window.periodIndex(nowMs);
         Map<String, Count> mine = counts.computeIfAbsent(player, k -> new HashMap<>());
         String folded = fold(key);
         Count held = mine.get(folded);
-        boolean current = held != null && window.word().equals(held.window) && held.period == period;
-        int prior = current ? held.clears : 0;
+        int prior = priorClears(held, spec, nowMs);
         String named = occasion == null || occasion.isBlank() ? null : occasion.trim();
         if (named != null && prior > 0 && held.occasion != null && named.equalsIgnoreCase(held.occasion.trim())) {
             return spec.multiplier(prior - 1);
         }
         Count next = new Count();
-        next.window = window.word();
-        next.period = period;
-        next.clears = prior + 1;
+        next.window = spec.windowWord();
         next.occasion = named;
+        if (spec.isRolling()) {
+            next.times = withClear(held == null || !next.window.equals(held.window) ? null : held.times,
+                    nowMs, spec.rollingMs(), spec.steps().length);
+            next.clears = next.times.length;
+        } else {
+            next.period = spec.window().periodIndex(nowMs);
+            next.clears = prior + 1;
+        }
         mine.put(folded, next);
         flush(nowMs);
         return spec.multiplier(prior);
+    }
+
+    /**
+     * How many clears {@code held} counted that still count under {@code spec} at {@code nowMs}: a calendar count
+     * of the same window and period, or a rolling count's clears younger than its span; none for a count recorded
+     * under another window word.
+     */
+    private static int priorClears(@Nullable Count held, @Nonnull DiminishSpec spec, long nowMs) {
+        if (held == null || !spec.windowWord().equals(held.window)) {
+            return 0;
+        }
+        if (spec.isRolling()) {
+            return inSpan(held.times, nowMs, spec.rollingMs());
+        }
+        return held.period == spec.window().periodIndex(nowMs) ? held.clears : 0;
+    }
+
+    /** How many of {@code times} are younger than {@code spanMs} at {@code nowMs}. Pure. */
+    static int inSpan(@Nullable long[] times, long nowMs, long spanMs) {
+        if (times == null) {
+            return 0;
+        }
+        int n = 0;
+        for (long t : times) {
+            if (nowMs - t < spanMs) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /**
+     * {@code times} with a clear at {@code nowMs} added, those older than {@code spanMs} dropped, and at most
+     * {@code keep} kept (the newest): a clear past the last step pays the last step whatever the older ones were,
+     * so older times change nothing. Oldest first. Pure.
+     */
+    @Nonnull
+    static long[] withClear(@Nullable long[] times, long nowMs, long spanMs, int keep) {
+        int cap = Math.max(1, keep);
+        long[] live = new long[(times == null ? 0 : times.length) + 1];
+        int n = 0;
+        if (times != null) {
+            for (long t : times) {
+                if (nowMs - t < spanMs) {
+                    live[n++] = t;
+                }
+            }
+        }
+        live[n++] = nowMs;
+        int from = Math.max(0, n - cap);
+        return Arrays.copyOfRange(live, from, n);
     }
 
     /**
@@ -159,12 +230,9 @@ public final class DiminishLedger {
      */
     public synchronized double next(@Nonnull UUID player, @Nonnull String key, @Nonnull DiminishSpec spec,
             long nowMs) {
-        DiminishSpec.Window window = spec.window();
         Map<String, Count> mine = counts.get(player);
         Count held = mine == null ? null : mine.get(fold(key));
-        boolean current = held != null && window.word().equals(held.window)
-                && held.period == window.periodIndex(nowMs);
-        return spec.multiplier(current ? held.clears : 0);
+        return spec.multiplier(priorClears(held, spec, nowMs));
     }
 
     // ==================== persistence ====================
@@ -212,16 +280,34 @@ public final class DiminishLedger {
         }
     }
 
-    /** Whether {@code count} was counted in its window's current period; a window no build reads never is. */
+    /**
+     * Whether {@code count} still counts: counted in its calendar window's current period, or holding a clear younger
+     * than its rolling span; a window word no build reads never does.
+     */
     private static boolean current(@Nonnull Count count, long nowMs) {
         DiminishSpec.Window window = DiminishSpec.Window.byWord(count.window);
-        return window != null && count.period == window.periodIndex(nowMs);
+        if (window != null) {
+            return count.period == window.periodIndex(nowMs);
+        }
+        long span = DiminishSpec.spanMs(count.window);
+        return span > 0L && inSpan(count.times, nowMs, span) > 0;
     }
 
-    /** Prune and write every count now; a refused file, or no data folder, writes nothing. */
+    /**
+     * Prune and write every count now; a refused file, or no data folder, writes nothing. A ledger kept in memory
+     * alone (no {@link #init} folder, a track source's moments) sweeps at most once a {@link #MEMORY_PRUNE_MS}, since
+     * a count past its window already reads as none and a sweep per count would walk every count of every player.
+     */
     private void flush(long nowMs) {
-        prune(nowMs);
-        file.writeNow();
+        if (persisted) {
+            prune(nowMs);
+            file.writeNow();
+            return;
+        }
+        if (nowMs - lastPruneMs >= MEMORY_PRUNE_MS || nowMs < lastPruneMs) {
+            lastPruneMs = nowMs;
+            prune(nowMs);
+        }
     }
 
     @Nonnull

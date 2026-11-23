@@ -1,0 +1,170 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZM = "../Common/ZigForm.ui";
+
+// A lamp's picker (com.ziggfreed.common.track.lamp.TrackLampPage), on the band with the frame's hero filled: one row
+// per pick the lamp asks for (#TrackLampRow1 to #TrackLampRow5, the rows past the lamp's count hidden), each a
+// dropdown of the tracks it may go to (#TrackLampPick1 to 5) and what that pick pays there now (#TrackLampPay1 to 5),
+// then #TrackLampUse, which spends the lamp and pays every pick. #TrackLampStatus is the line a refusal answers on.
+// The settings form's look by name (Common/ZigForm.ui). Every fixed word is an inline key of
+// ziggfreedcommon.track.lang; every other word is pushed from Java on .TextSpans.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 760, Height: 520);
+
+  #Content {
+    Label #TrackLampStatus {
+      Visible: false;
+      Text: "";
+      Anchor: (Bottom: 8);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    Group #TrackLampForm {
+      FlexWeight: 1;
+      LayoutMode: Top;
+
+      Label {
+        Text: %ziggfreedcommon.track.lamp.heading;
+        Anchor: (Height: 24, Top: 6, Bottom: 4);
+        Style: $ZM.@ZigFormHeaderStyle;
+      }
+
+      Label {
+        Text: %ziggfreedcommon.track.lamp.note;
+        Anchor: (Bottom: 10);
+        Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
+      }
+
+      $ZM.@ZigFormRow #TrackLampRow1 {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.track.lamp.pick;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@DropdownBox #TrackLampPick1 {
+          Anchor: (Width: 300, Height: 30);
+          Style: $ZM.@ZigFormDropdownStyle;
+        }
+
+        Label #TrackLampPay1 {
+          Anchor: (Width: 140, Left: 12);
+          Text: "";
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+      }
+
+      $ZM.@ZigFormRow #TrackLampRow2 {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.track.lamp.pick;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@DropdownBox #TrackLampPick2 {
+          Anchor: (Width: 300, Height: 30);
+          Style: $ZM.@ZigFormDropdownStyle;
+        }
+
+        Label #TrackLampPay2 {
+          Anchor: (Width: 140, Left: 12);
+          Text: "";
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+      }
+
+      $ZM.@ZigFormRow #TrackLampRow3 {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.track.lamp.pick;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@DropdownBox #TrackLampPick3 {
+          Anchor: (Width: 300, Height: 30);
+          Style: $ZM.@ZigFormDropdownStyle;
+        }
+
+        Label #TrackLampPay3 {
+          Anchor: (Width: 140, Left: 12);
+          Text: "";
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+      }
+
+      $ZM.@ZigFormRow #TrackLampRow4 {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.track.lamp.pick;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@DropdownBox #TrackLampPick4 {
+          Anchor: (Width: 300, Height: 30);
+          Style: $ZM.@ZigFormDropdownStyle;
+        }
+
+        Label #TrackLampPay4 {
+          Anchor: (Width: 140, Left: 12);
+          Text: "";
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+      }
+
+      $ZM.@ZigFormRow #TrackLampRow5 {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.track.lamp.pick;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@DropdownBox #TrackLampPick5 {
+          Anchor: (Width: 300, Height: 30);
+          Style: $ZM.@ZigFormDropdownStyle;
+        }
+
+        Label #TrackLampPay5 {
+          Anchor: (Width: 140, Left: 12);
+          Text: "";
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+      }
+    }
+
+    Group #TrackLampFooter {
+      LayoutMode: Left;
+      Anchor: (Height: 40, Top: 12);
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Button #TrackLampUse {
+        Anchor: (Width: 220, Height: 40);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.track.lamp.use;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

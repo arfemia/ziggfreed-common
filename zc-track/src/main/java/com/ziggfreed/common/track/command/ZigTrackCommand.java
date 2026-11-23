@@ -22,12 +22,15 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  * /zigtrack starter [--player=&lt;name&gt;] --track=&lt;id&gt; [--points=&lt;n&gt;]
  *                                                         spend what is left of the suggested build, in order
  *                                                         (--points: only its first n points)
+ * /zigtrack lamp [--player=&lt;name&gt;] --price=&lt;id&gt; | --minutes=&lt;n&gt; [--level=&lt;n&gt;] [--maxlevel=&lt;n&gt;]
+ *                [--picks=&lt;n&gt;] [--tracks=&lt;id,id&gt;] [--category=&lt;id&gt;] [--minlevel=&lt;n&gt;] [--quantity=&lt;n&gt;]
+ *                                                         hand lamps of minutes of play the player points at tracks
  * </pre>
  *
  * <p>No permission check is written here: the engine derives one node per verb
  * ({@code ziggfreed.ziggfreedcommon.command.zigtrack.add}, ...) that nobody holds until a server grants it, and
  * the console holds everything. {@code add} is also the line a Track reward's Claim replays where the reward
- * kind itself cannot pay.
+ * kind itself cannot pay, and {@code lamp} a Track_Lamp reward's.
  */
 public final class ZigTrackCommand extends AbstractCommandCollection {
 
@@ -67,6 +70,9 @@ public final class ZigTrackCommand extends AbstractCommandCollection {
     /** Spend what is left of the suggested build. */
     static final String STARTER = "starter";
 
+    /** Hand lamps. */
+    public static final String LAMP = "lamp";
+
     public ZigTrackCommand() {
         super(FAMILY, TrackCommandMessages.desc("family"));
         addSubCommand(new ZigTrackAddCommand());
@@ -80,5 +86,6 @@ public final class ZigTrackCommand extends AbstractCommandCollection {
         addSubCommand(new ZigTrackBuildsCommand());
         addSubCommand(new ZigTrackRespendCommand());
         addSubCommand(new ZigTrackStarterCommand());
+        addSubCommand(new ZigTrackLampCommand());
     }
 }

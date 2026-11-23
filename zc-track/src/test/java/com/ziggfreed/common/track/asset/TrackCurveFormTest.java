@@ -52,4 +52,25 @@ class TrackCurveFormTest {
                 new TrackCurveAsset.Piece[] {TrackCurveAsset.Piece.floors(0, 100, 250)}, 600L, null);
         assertNull(TrackCurveForm.pieces(floors, floors, true, 400.0, false, null));
     }
+
+    @Test
+    void paceBandsReadFromWordsAndWriteBackAsWords() {
+        Map<String, Object> bands = TrackCurveForm.paceBands(List.of("1=16000", " 10 = 22000", "0=5", "x=9",
+                "40=-3", "55=0"));
+        assertEquals(Map.of("1", 16000.0, "10", 22000.0, "55", 0.0), bands,
+                "a band of 0 is kept (it takes an inherited band out); a bad level or amount is passed over");
+        assertEquals(List.of("1=16000", "10=22000", "55=0"),
+                TrackCurveForm.paceWords(Map.of("10", 22000.0, "1", 16000.0, "55", 0.0, "x", 5.0)),
+                "words by level, a take-out's 0 kept so the next save keeps it, a key that is no level left out");
+    }
+
+    @Test
+    void onlyBandsThatDifferFromThePacksAreWritten() {
+        Map<String, Double> below = Map.of("1", 16000.0, "10", 22000.0);
+        Map<String, Object> typed = TrackCurveForm.paceBands(List.of("1=16000", "10=25000", "20=0", "30=40000"));
+        assertEquals(Map.of("10", 25000.0, "30", 40000.0), TrackCurveForm.changedBands(typed, below),
+                "a band as the packs have it is not written, nor a 0 taking out a band the packs lack");
+        assertEquals(Map.of("10", 0.0), TrackCurveForm.changedBands(Map.of("10", 0.0), below),
+                "a 0 taking out a band the packs ship is written");
+    }
 }

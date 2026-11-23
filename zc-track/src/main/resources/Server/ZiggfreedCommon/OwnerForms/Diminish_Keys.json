@@ -1,0 +1,52 @@
+{
+  "$Comment": "The in-game screen for the diminishing keys, on the owner menu (/zigadmin): one row per key a track source's Diminish may name (Cell16, Position, Target, Station, Victim, and any a pack ships), each opening what it counts each moment per, saved straight into mods/ziggfreedcommon/diminish-keys.json under that key's id, beside the value it has without your file. An owner may add a key of their own by a new id and remove one only their file holds. Every word is a key of ziggfreedcommon.track.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Diminish_Keys.",
+  "Title": "ziggfreedcommon.track.form.keys.title",
+  "Description": "ziggfreedcommon.track.form.keys.desc",
+  "Icon": "Deco_Book_Pile_Large",
+  "Section": "ziggfreedcommon",
+  "Order": 79,
+  "File": "ziggfreedcommon/diminish-keys.json",
+  "Entries": {
+    "Add": true,
+    "Remove": true
+  },
+  "Sections": [
+    {
+      "Note": "ziggfreedcommon.track.form.keys.note",
+      "Fields": [
+        {
+          "Path": "Cell",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.track.form.keys.cell",
+          "Hint": "ziggfreedcommon.track.form.keys.cell.hint",
+          "Min": 0,
+          "Max": 512
+        },
+        {
+          "Path": "Target",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.keys.target",
+          "Hint": "ziggfreedcommon.track.form.keys.target.hint"
+        },
+        {
+          "Path": "Qualifier",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.keys.qualifier",
+          "Hint": "ziggfreedcommon.track.form.keys.qualifier.hint"
+        },
+        {
+          "Path": "Victim",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.keys.victim",
+          "Hint": "ziggfreedcommon.track.form.keys.victim.hint"
+        },
+        {
+          "Path": "Station",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.keys.station",
+          "Hint": "ziggfreedcommon.track.form.keys.station.hint"
+        }
+      ]
+    }
+  ]
+}

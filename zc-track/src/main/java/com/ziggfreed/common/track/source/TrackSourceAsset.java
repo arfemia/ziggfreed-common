@@ -56,10 +56,16 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  * retunes a source by id in {@code mods/ziggfreedcommon/track-sources.json}.
  *
  * <p>The anti-abuse knobs are off until written: {@code Diminish} (zc-loot's {@link DiminishSpec}, counted per
- * player and source in its window, kept in memory) scales every moment it pays, and {@code SkipSpawnerMobs} pays
- * nothing for a mob a spawn marker or a spawn beacon stood up. A top-level {@code Requires} follows the mod gate
- * (a plain mod-presence check keeps the file out where that mod is missing) and asks the rest of the player at each
- * moment.
+ * player and source in its window, or per the value its {@code Key} names, {@link DiminishKeyAsset}, kept in memory)
+ * scales every moment it pays, {@code SkipSpawnerMobs} pays nothing for a mob a spawn marker, a spawn beacon or an
+ * item (a spawn egg, {@link ItemSpawnedMobs}) stood up, and {@code StandSeconds} pays a placement only once its block
+ * has stood that long ({@link SourceStands}). A top-level {@code Requires} follows the mod gate (a plain mod-presence
+ * check keeps the file out where that mod is missing) and asks the rest of the player at each moment.
+ *
+ * <pre>{@code
+ * { "Track": "Your_Building", "When": { "Kind": "PLACE_BLOCK" }, "Rows": { "*": 8 },
+ *   "StandSeconds": 60, "Diminish": { "Steps": [1, 0], "Window": "Daily", "Key": "Position" } }
+ * }</pre>
  */
 public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, TrackSourceAsset>> {
 
@@ -80,6 +86,7 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
     @Nullable protected GateSpec requires;
     @Nullable protected DiminishSpec diminish;
     @Nullable protected Boolean skipSpawnerMobs;
+    @Nullable protected Integer standSeconds;
 
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
@@ -151,14 +158,25 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
             .appendInherited(new KeyedCodec<>("Diminish", DiminishSpec.CODEC, false),
                     (a, v) -> a.diminish = v, a -> a.diminish, (a, p) -> a.diminish = p.diminish)
             .documentation("Diminishing returns on this source: each moment it pays counts once in the window, "
-                    + "and pays at that step ({ \"Steps\": [1, 1, 0.5], \"Window\": \"Daily\" }). Leave it out "
-                    + "to pay every moment in full. Counts start over when the server restarts.").add()
+                    + "and pays at that step ({ \"Steps\": [1, 1, 0.5], \"Window\": \"Daily\" }); a rolling "
+                    + "Window (\"10m\") counts only the last span, and a Key (\"Cell16\", \"Position\", \"Target\", "
+                    + "\"Station\", \"Victim\") keeps a count per place, thing or victim rather than one for the "
+                    + "whole source. Leave it out to pay every moment in full. Counts start over when the server "
+                    + "restarts.").add()
             .appendInherited(new KeyedCodec<>("SkipSpawnerMobs", Codec.BOOLEAN, false),
                     (a, v) -> a.skipSpawnerMobs = v, a -> a.skipSpawnerMobs,
                     (a, p) -> a.skipSpawnerMobs = p.skipSpawnerMobs)
             .metadata(EditorSchema.defaultValue(false))
-            .documentation("True pays nothing for a mob a spawn marker or a spawn beacon stood up (a mob farm), on "
-                    + "a kill or a hit. Unauthored means false.").add()
+            .documentation("True pays nothing for a mob a spawn marker, a spawn beacon or an item such as a spawn "
+                    + "egg stood up (a mob farm), on a kill or a hit. Unauthored means false.").add()
+            .appendInherited(new KeyedCodec<>("StandSeconds", Codec.INTEGER, false),
+                    (a, v) -> a.standSeconds = v, a -> a.standSeconds, (a, p) -> a.standSeconds = p.standSeconds)
+            .metadata(EditorSchema.defaultValue(0L))
+            .documentation("For a placement: pay only once the placed block has stood this many seconds, still "
+                    + "the same block and still the player's; one broken or swapped before then pays nothing, so "
+                    + "placing and breaking a block over and over earns nothing. Only for a source of placements: "
+                    + "a source whose moment takes its block away (a break) would never pay with it. A moment that "
+                    + "names no block pays at once. 0 or unauthored pays at once.").add()
             .build();
 
     public TrackSourceAsset() {
@@ -228,9 +246,14 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
         return diminish;
     }
 
-    /** Does this source pay nothing for a spawn marker's or a spawn beacon's mob? */
+    /** Does this source pay nothing for a spawn marker's, a spawn beacon's or an item's mob? */
     public boolean skipsSpawnerMobs() {
         return Boolean.TRUE.equals(skipSpawnerMobs);
+    }
+
+    /** How long a placement's block must stand before this source pays it, in seconds; 0 pays at once. */
+    public int standSeconds() {
+        return standSeconds == null ? 0 : Math.max(0, standSeconds);
     }
 
     /** The top-level {@code Requires}, or null when none is written. */

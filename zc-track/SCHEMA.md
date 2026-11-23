@@ -9,6 +9,7 @@ One pick (the one shape every choice, Mastery node, trainer offer and prestige p
 One boost (a percent more on every gain on the tracks it names) is one file under `Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, retuned in `boost-settings.json`, whose `OnStart` group runs a server command whenever a boost starts. A boost starts from a boost item's native `ZigBoost` interaction (`Boost`, and optional `Percent`, `Seconds` and `Track`, the one track it lifts out of those the boost lifts, then a `Next` that consumes the item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, `Seconds`, `Track`) or a native `ZigBoost` reward file when its Claim is collected, or from `/zigboost start`. A stack carrying `ZigBoost` metadata (the `BoostToken` shape, minted by `/zigboost give` onto the library's `Zig_Boost_Token` item or by a mod onto its own) starts what the stack says in place of the interaction's own leaves. A boost with a `Reusable` group is one a player may start themselves (`/zigboost own`, or a mod's page), its `Reusable.Requires` asked only then.
 
 One proc (what a moment does for a player who meets its `Requires`: a talent's knack) is one file under `Server/ZiggfreedCommon/Procs/`, retuned in `mods/ziggfreedcommon/procs.json`. The procs answering one moment run by their `Order`, lower first, then by their ids compared lower-cased.
+The XP pace: a curve's `Pace` is what a focused hour earns from each level on, and a reward priced in minutes (a `Track` reward's or a `ZigTrack` reward file's `Price`, `Minutes`, `Level`, `MaxLevel`) pays that many minutes of it when earned, past every boost. One price (a row of the XP price table) is one file under `Server/ZiggfreedCommon/TrackPrices/`, retuned in `track-prices.json`. A `Track_Lamp` reward hands a lamp (the `TrackLamp` shape, minted onto the library's `Zig_Track_Lamp` item, used through its native `ZigTrackLamp` interaction), priced when used at the level of the track picked. A source's `Diminish.Key` names one diminishing key, one file under `Server/ZiggfreedCommon/DiminishKeys/`, retuned in `diminish-keys.json`. When a player counts as idle is the one `Server/ZiggfreedCommon/TrackSettings/Default.json` record, retuned in `track-settings.json`.
 
 Every field is optional and defaults to `null` unless its Default column reads *(required)*.
 
@@ -18,6 +19,10 @@ Every field is optional and defaults to `null` unless its Default column reads *
 - [TrackCurveAsset](#type-trackcurveasset)
 - [TrackCategoryAsset](#type-trackcategoryasset)
 - [TrackSourceAsset](#type-tracksourceasset)
+- [DiminishKeyAsset](#type-diminishkeyasset)
+- [TrackPriceAsset](#type-trackpriceasset)
+- [TrackSettingsAsset](#type-tracksettingsasset)
+- [TrackLamp](#type-tracklamp)
 - [TrackWorldRuleAsset](#type-trackworldruleasset)
 - [TrackRules](#type-trackrules)
 - [TrackPickAsset](#type-trackpickasset)
@@ -64,7 +69,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Mirror` | [Mirror](#field-trackasset-mirror) | `null` | A native stat this track's level is written onto, so anything reading stats (an item, an effect, a hytale:stat requirement) sees it. Leave it out for no stat. |
 | `Prestige` | [Prestige](#field-trackasset-prestige) | `null` | Whether a player may prestige this track: start the climb again from the bottom, keeping the best level they ever reached, so nothing they unlocked locks again and no unlock pays twice. Leave it out for a track that never prestiges. |
 | `Unlocks` | array of [Unlock](#field-trackasset-unlocks-item) | `null` | Rewards for reaching levels: each row pays its Rewards as a Claim the player collects, once for each of its levels the best level ever reached passes, and never twice, whatever a prestige does. A row added later pays what is already behind the player. A player's record knows each row by its Id (or, unauthored, by its levels), never by its place, so the rows can be reordered freely. Under Parent this list replaces the parent's whole. |
-| `Gain` | [Gain](#field-trackasset-gain) | `null` | How a gain on this track is worked out before it lands: the named factors it runs, in order, the ones that add together, and the rested pool. Leave it out for the usual order (World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no rested pool. |
+| `Gain` | [Gain](#field-trackasset-gain) | `null` | How a gain on this track is worked out before it lands: the named factors it runs, in order, the ones that add together, and the rested pool. Leave it out for the usual order (Idle, World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no rested pool. |
 | `Derived` | [Derived](#field-trackasset-derived) | `null` | Makes this track a reading of other tracks instead of a climb of its own: its level, its best level and whether it is usable are read live from its sources, so every requirement, level tag and reading that names it sees them with no change of its own. It holds no value: a gain or a set on it lands on its highest source under Highest, and is refused under Sum. A source that is itself derived is skipped. A derived track with no usable source is not usable. It still names a Curve, which its tiers read on. Leave it out for an ordinary track. |
 
 <a id="field-trackasset-points"></a>
@@ -146,7 +151,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Factors` | array of `string` | `null` | The named factors every gain on this track runs through, in this order: World (the world's track rules), Bonus (the player's TrackGain stats), Boost (boosts), Prestige (the extra a prestiged climb earns), Rested (the rested pool below), and any another mod registers. A name nothing registered changes nothing. Leave it out for World, Bonus, Boost, Prestige, Rested. A loss is never changed. |
+| `Factors` | array of `string` | `null` | The named factors every gain on this track runs through, in this order: Idle (nothing while the player is idle, as the track settings' Idle.Minutes says), World (the world's track rules), Bonus (the player's TrackGain stats), Boost (boosts), Prestige (the extra a prestiged climb earns), Rested (the rested pool below), and any another mod registers. A name nothing registered changes nothing. Leave it out for Idle, World, Bonus, Boost, Prestige, Rested. A loss is never changed. |
 | `Additive` | array of `string` | `null` | The factors whose extras add together rather than multiplying, run where the first of them stands in Factors: with a Bonus of 1.2 and a Boost of 1.5 a gain pays 1.7 times (1 + 0.2 + 0.5), not 1.8. Leave it out for Bonus and Boost; an empty list multiplies every factor. |
 | `Rested` | [Rested](#field-trackasset-gain-rested) | `null` | A rested pool for this track: while a player is away it fills, and gains pay extra until it is spent. Leave it out for none; no track has one unless it is written. |
 
@@ -199,6 +204,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Pieces` | array of [Piece](#field-trackcurveasset-pieces-item) | `null` | The curve's pieces, in level order: each covers the levels after the one before it ends. A Hybrid piece costs each level what the hybrid formula says a level of that number costs, up to its To level; a Floors piece lists the value each of its levels starts at. A curve of one Hybrid piece from level 1 is the formula exactly. Under Parent this list replaces the parent's whole. |
 | `Beyond` | [Beyond](#field-trackcurveasset-beyond) | `null` | What lies past the last piece's top level: each Every more value is one more level, without end (a track's Cap stops it). Leave it out and the last level is the top. |
 | `Tiers` | map of [Tier](#field-trackcurveasset-tiers-item) | `null` | Names for ranges of levels, by tier id: each tier holds from its From level to the next tier's. A requirement can ask for a tier (ziggfreedcommon:track_tier) and a quest step can count reaching one (TRACK_TIER). Under Parent this merges by tier id. |
+| `Pace` | map of `double` | `null` | How much a focused hour of play earns, by the level each band starts at: { "1": 16000, "10": 22000 } earns 16000 an hour from level 1 and 22000 from level 10. A reward priced in minutes pays that many minutes of the band the level it is priced at stands in. A key that is no whole number of 1 or more, or a band of 0 or less, is passed over (so a pack or the owner's file writes 0 to take an inherited band out). Under Parent this merges by level. Leave it out and minutes priced on this curve pay nothing. |
 
 <a id="field-trackcurveasset-pieces-item"></a>
 ### TrackCurveAsset.Pieces[]
@@ -284,8 +290,60 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Max` | `double` | `null` | The most one moment pays from any row of this source that writes no Max of its own: a cap that keeps a boss's health bar from paying a fortune. Leave it out, or write 0, for no limit. |
 | `Rows` | map of `wrapped` | `null` | What each target pays, by name pattern ("Ore_Iron" exactly, "Ore_*" starting with, "*_Cracked" ending with, "*Gem*" anywhere, "*" everything) or by what the target's own files say ("ItemTag:Type=Ore" an item, or a block's item, carrying that native tag, "BlockFamily:Ore" a block in that block family, "NpcGroup:Goblin" a creature in that NPC group): a number is the Xp, or a group with Xp, PerAmount and Level. The most specific key the player's level has reached pays: an exact name, then the pattern pinning down the most characters, then an ItemTag, BlockFamily or NpcGroup key, then "*". Case is ignored. Under Parent, rows merge by key. |
 | `Requires` | [Requires](#type-requires) | `null` | What a player must meet for this file to pay or apply, in the Requires shape quests use (Factors, Permission, Quests, Custom, AllOf, AnyOf, Not), every condition read. A plain { "Factor": "hytale:mod_installed", "Param": "Group:Name", "Min": 1 } keeps the file out entirely where that mod is not installed, and one with "Max": 0 keeps it out where that mod IS installed (a stand-in for servers without it); the rest is asked of the player each time. Write Min 1 on a presence check: a condition with no bound is met by a missing mod too. |
-| `Diminish` | [Diminish](#type-diminish) | `null` | Diminishing returns on this source: each moment it pays counts once in the window, and pays at that step ({ "Steps": [1, 1, 0.5], "Window": "Daily" }). Leave it out to pay every moment in full. Counts start over when the server restarts. |
-| `SkipSpawnerMobs` | `boolean` | `null` | True pays nothing for a mob a spawn marker or a spawn beacon stood up (a mob farm), on a kill or a hit. Unauthored means false. |
+| `Diminish` | [Diminish](#type-diminish) | `null` | Diminishing returns on this source: each moment it pays counts once in the window, and pays at that step ({ "Steps": [1, 1, 0.5], "Window": "Daily" }); a rolling Window ("10m") counts only the last span, and a Key ("Cell16", "Position", "Target", "Station", "Victim") keeps a count per place, thing or victim rather than one for the whole source. Leave it out to pay every moment in full. Counts start over when the server restarts. |
+| `SkipSpawnerMobs` | `boolean` | `null` | True pays nothing for a mob a spawn marker, a spawn beacon or an item such as a spawn egg stood up (a mob farm), on a kill or a hit. Unauthored means false. |
+| `StandSeconds` | `integer` | `null` | For a placement: pay only once the placed block has stood this many seconds, still the same block and still the player's; one broken or swapped before then pays nothing, so placing and breaking a block over and over earns nothing. Only for a source of placements: a source whose moment takes its block away (a break) would never pay with it. A moment that names no block pays at once. 0 or unauthored pays at once. |
+
+<a id="type-diminishkeyasset"></a>
+## DiminishKeyAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Target` | `boolean` | `null` | True counts each thing a moment happened to apart: the block broken or placed, the creature hit or killed, the item picked up, by id. Unauthored means false. |
+| `Qualifier` | `boolean` | `null` | True counts each qualifier apart: the weapon a hit was dealt with, a craft's recipe kind. Unauthored means false. |
+| `Victim` | `boolean` | `null` | True counts each creature or player a moment happened to apart, that one entity rather than its kind (the same player killed again). Unauthored means false. |
+| `Station` | `boolean` | `null` | True counts each station a moment was worked at apart (a bench, a sawmill), where the moment names one. Unauthored means false. |
+| `Cell` | `integer` | `null` | Count each part of the world apart, in cubes this many blocks wide: 1 is each block, 16 a cube of 16 blocks each way, each world apart. 0 or unauthored leaves the place out. |
+
+<a id="type-trackpriceasset"></a>
+## TrackPriceAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Minutes` | `double` | `null` | How many minutes of focused play a reward of this price pays, at the Pace of the paid track's curve. 0 or unauthored pays nothing. |
+| `Level` | `integer` | `null` | Price the minutes at this level, whoever earns them: one-off content made for that level pays everyone the same. 0 or unauthored prices them at the player's own level. |
+| `MaxLevel` | `integer` | `null` | When priced at the player's own level, never price above this level, so easy repeatable content stops paying more past it. 0 or unauthored sets no limit. |
+
+<a id="type-tracksettingsasset"></a>
+## TrackSettingsAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Idle` | [Idle](#field-tracksettingsasset-idle) | `null` | When a player counts as idle: after this long without moving, looking around or using anything, every track whose Gain.Factors names Idle (every track that writes no Factors list does) pays them nothing, until they move again. |
+
+<a id="field-tracksettingsasset-idle"></a>
+### TrackSettingsAsset.Idle
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Minutes` | `integer` | `null` | How many minutes without moving, looking around or using anything before a player's gains stop. 0 or unauthored never stops them. |
+
+<a id="type-tracklamp"></a>
+## TrackLamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Price` | `string` | `null` | A row of the XP price table, by id: how many minutes of play each pick pays. |
+| `Minutes` | `double` | `null` | Minutes of play each pick pays, over the price row's. |
+| `Level` | `integer` | `null` | Price each pick at this level whatever the track's, over the price row's. |
+| `MaxLevel` | `integer` | `null` | Price each pick at the player's level on its track, never above this one. |
+| `Picks` | `integer` | `null` | How many different tracks the player picks, each paid in full. 1 when absent. |
+| `Tracks` | array of `string` | `null` | The tracks it may go to, by id. Absent for every track of the Category. |
+| `Category` | `string` | `null` | With no Tracks, every track of this category. Absent for every track. |
+| `MinLevel` | `integer` | `null` | The level a track must stand at for the player to pick it. Absent for any. |
 
 <a id="type-trackworldruleasset"></a>
 ## TrackWorldRuleAsset
@@ -482,6 +540,10 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 | `Track` | `string` | `null` | The track the reward moves, by id (a file under Server/ZiggfreedCommon/Tracks). Unauthored, the reward pays nothing. |
 | `Amount` | `long` | `null` | How much value the reward adds to the track when the player collects it; a negative Amount costs value. Zero, or unauthored, pays nothing. |
 | `TitleKey` | `string` | `null` | The lang key the Claim's row is titled with on the Claims tab. Unauthored, the track's own name titles it. |
+| `Price` | `string` | `null` | A row of the XP price table, by id (Quest, Dungeon_Clear, ...): pay that many minutes of play at the track's pace instead of an Amount, priced at the player's level when the Claim is written and paid past every boost. |
+| `Minutes` | `double` | `null` | Minutes of play to pay, over the price row's (or with no Price at all). |
+| `Level` | `integer` | `null` | Price the minutes at this level for everyone (one-off content), over the price row's. |
+| `MaxLevel` | `integer` | `null` | Price the minutes at the player's level, never above this one (repeatable content), over the price row's. |
 
 <a id="type-boostasset"></a>
 ## BoostAsset
@@ -1390,7 +1452,8 @@ What a matching moment pays, and the level it waits for. A bare number is its Xp
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Steps` | `doubleArray` | `null` | The multiplier each clear in the window pays at, in order; every clear past the end pays the last one again. [1, 0] pays the first clear in full and nothing after it; [1, 0.5] pays half for every clear after the first. A negative step reads as 0. Unauthored, or empty, pays every clear in full. |
-| `Window` | `string` | `null` | When the count starts over: Daily or Weekly. Unauthored reads Daily. Any other word fails the read. |
+| `Window` | `string` | `null` | When the count starts over: Daily (midnight UTC), Weekly (midnight UTC each Monday), or a rolling span written as a number and s, m, h or d (90s, 10m, 2h, 1d), where only the clears inside the last span count. Unauthored reads Daily. Any other word fails the read. |
+| `Key` | `string` | `null` | What a track source counts its moments per, by the id of a diminishing-returns key file (Cell16, Position, Target, Station, Victim, or one a pack ships): each value of the key keeps its own count, so a Position key pays each spot apart. Unauthored, every moment of the source counts together. A Claim, a chest or a dungeon clear keys its own count and does not read it. |
 
 <a id="type-contenttext"></a>
 ## ContentText

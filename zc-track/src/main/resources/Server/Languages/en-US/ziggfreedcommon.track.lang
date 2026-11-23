@@ -57,6 +57,29 @@ respec.nothing = You have nothing to clear on {0}.
 # A Track reward as it reads in a reward list: {0} the amount, {1} the track's name.
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}
+reward.minutes = {0, number} minutes of {1}
+# A lamp (minutes of play a player puts into tracks of their choice). lamp.item.* is the item's tooltip line: {0} the
+# minutes each pick pays, {1} how many picks. lamp.reward is how it reads in a reward list. lamp.pays is what one pick
+# pays beside it on the picker, lamp.paid the chat line after: {0} the amount, {1} the track.
+lamp.item.name = Practice Lamp
+lamp.item.description = Use it to choose where minutes of play go.
+lamp.item.one = Use it to choose where {0, number} minutes of play go. They pay at your own level there.
+lamp.item.many = Use it to choose {1, number} different places for {0, number} minutes of play each. Each pays at your own level there.
+lamp.reward = A Practice Lamp: {0, number} minutes of play for {1, number} {1, plural, one {pick} other {picks}}
+lamp.title = Practice Lamp
+lamp.line.one = Choose where {0, number} minutes of play go. They pay at your level there.
+lamp.line.many = Choose {1, number} different places for {0, number} minutes of play each. Each pays at your level there.
+lamp.heading = Your picks
+lamp.note = Only what you can still grow shows here. The lamp is used up when you press Use.
+lamp.pick = Put it into
+lamp.pays = +{0, number}
+lamp.use = Use the lamp
+lamp.paid = The lamp gave you {0, number} in {1}.
+lamp.empty = This lamp is empty.
+lamp.refused.gone = You no longer carry this lamp.
+lamp.refused.same = Pick a different place for each choice.
+lamp.refused.changed = What you can pick has changed. Pick again.
+lamp.refused.none = Nothing you can grow right now can take this lamp.
 
 # A Claim's title. An unlock: {0} the track, {1} the level it was reached at. A track reward: {0} the track.
 claim.unlock = {0}: level {1}
@@ -120,6 +143,16 @@ command.desc.swapbuild = Swap a player's picks on a track for one of their saved
 command.desc.builds = List a player's saved builds on a track.
 command.desc.respend = Spend again, in order, the picks a prestige set aside on a track, as far as the points allow.
 command.desc.starter = Spend what is left of a track's suggested build for a player, in order, as far as their points allow.
+command.desc.lamp = Hand a player lamps: minutes of play they put into tracks of their choice, each at their level there.
+command.desc.arg.price = A row of the XP price table: how many minutes each pick pays.
+command.desc.arg.minutes = Minutes of play each pick pays, in place of the price row's.
+command.desc.arg.price.level = Price each pick at this level for everyone, whatever their level on the track.
+command.desc.arg.maxlevel = Price each pick at the player's level on the track, never above this one.
+command.desc.arg.picks = How many different tracks the player picks, each paid in full.
+command.desc.arg.tracks = The tracks it may go to, by id, split by commas. Leave it out for every track of the category.
+command.desc.arg.category = With no tracks named, every track of this category. Leave it out for every track.
+command.desc.arg.minlevel = The level a track must stand at for the player to pick it.
+command.desc.arg.quantity = How many lamps, up to one stack.
 command.desc.arg.points = Spend only the suggested build's first this many points. Leave it out for the whole build.
 command.desc.arg.slot = Which saved build, by its number.
 command.desc.arg.force = Swap even when no saved build holds the picks in use. Those picks are lost.
@@ -130,12 +163,17 @@ command.desc.arg.player = The player, who has to be online. Defaults to you.
 command.desc.arg.player.any = The player: a name for someone online, or a player id for someone who is not. Defaults to you.
 command.desc.arg.track = The track, by its id.
 command.desc.arg.amount = How much to add. A negative amount takes some away.
+command.desc.arg.exact = Add the amount as it is, past every bonus and boost. The world's rules and the track's level cap still apply.
 command.player.needed = Name a player with --player=<name>.
 command.player.offline = That player is not in a world right now. Try again in a moment.
 command.player.unknown = Could not find a player called '{0}'. Their player id works too.
 command.track.needed = Name a track with --track=<id>.
 command.track.unknown = No track called '{0}' is switched on here.
 command.amount.needed = Name an amount with --amount=<n>, other than zero.
+command.add.price.nothing = That price pays nothing on {0}: its curve has no Pace, or the price names no minutes.
+command.lamp.needed = Name what each pick pays with --price=<id> or --minutes=<n>.
+command.lamp.refused = No lamp could be handed to {0}.
+command.lamp.done = Handed {0, number} {0, plural, one {lamp} other {lamps}} to {1}.
 # In command.add.done {0} is the track, {1} the player, {2} how far it moved, {3} the level now and {4} how many
 # unlock Claims it parked.
 command.add.done = {1} moved {2, number} on {0} and is now level {3, number}. {4, number} {4, plural, one {Claim} other {Claims}} parked.
@@ -254,6 +292,66 @@ form.respec.desc = What a player pays to reset a track's picks, at a trainer or 
 form.respec.note = A reset costs the track's respec price once for every share of the player's best level written here. What the price is paid in stays in tracks.json.
 form.respec.per_level = Paid per level
 form.respec.per_level.hint = How many times the price is paid for each level of the player's best level, rounded up. Half is once every two levels. Zero pays it once, whatever the level.
+form.curves.heading.pace = Pace
+form.curves.pace.note = How much an hour of steady play earns from each level on. A reward priced in minutes pays that many minutes of the band the player stands in.
+form.curves.pace = Bands
+form.curves.pace.hint = Each band is the level it starts at, an equals sign and the amount an hour from there, split by commas: 1=16000, 10=22000. A band you leave out keeps its usual amount. A band of 0 takes one out.
+form.prices.title = XP Prices
+form.prices.desc = How many minutes of play each kind of reward pays: quests, board jobs, dungeon clears, achievements. Pick one to change it.
+form.prices.note = A reward names one of these. It pays that many minutes at the pace of the skill it goes to, worked out when the player earns it.
+form.prices.minutes = Minutes
+form.prices.minutes.hint = How many minutes of steady play it pays. 0 pays nothing.
+form.prices.level = At level
+form.prices.level.hint = Pay everyone the minutes of this level. For one-off content made for a level. 0 uses the player's own level.
+form.prices.maxlevel = Up to level
+form.prices.maxlevel.hint = When it uses the player's own level, never go above this one, so easy repeatable content stops paying more. 0 sets no limit.
+form.keys.title = Diminishing Keys
+form.keys.desc = What a source's diminishing returns count per: a spot, a kind of thing, a station or one creature. Pick one to change it.
+form.keys.note = A source's diminishing returns name one of these. Each value it reads keeps its own count, so one spot or one creature over and over pays less.
+form.keys.cell = Area size
+form.keys.cell.hint = Count each area of the world apart, in cubes this many blocks wide. 1 is each block. 0 leaves the place out.
+form.keys.target = By kind
+form.keys.target.hint = Count each kind of block, creature or item apart.
+form.keys.qualifier = By weapon
+form.keys.qualifier.hint = Count each weapon or other detail of the moment apart.
+form.keys.victim = By creature
+form.keys.victim.hint = Count each single creature or player apart, not just its kind.
+form.keys.station = By station
+form.keys.station.hint = Count each station a moment was worked at apart.
+form.settings.title = Track Settings
+form.settings.desc = How every track pays on this server, beside what each track says.
+form.settings.heading.idle = Idle players
+form.settings.idle = Minutes before idle
+form.settings.idle.hint = After this many minutes without moving, looking around or using anything, a player earns nothing until they move again. 0 never stops them.
+form.sources.title = XP Sources
+form.sources.desc = What each moment pays onto a track: blocks broken, creatures killed, hits, placements. Pick one to change it.
+form.sources.on = On
+form.sources.on.hint = Off pays nothing from this source, so a broader one can pay those moments instead.
+form.sources.heading.pays = What it pays
+form.sources.pays.note = The most specific row the player's level has reached pays. Below a row's level, the next matching row pays instead.
+form.sources.rows = Rows
+form.sources.rows.hint = Each row is a name pattern, an equals sign and what it pays, with an at sign and a level if it waits for one, split by commas: Ore_Iron*=50@10, Ore_*=6. A row you leave out keeps what it usually pays. A row of 0 pays nothing, and no broader row pays in its place.
+form.sources.xp = For anything else
+form.sources.xp.hint = What a moment no row covers pays.
+form.sources.peramount = Per point
+form.sources.peramount.hint = What each point of the moment pays when no row covers it: a point of damage, a block walked.
+form.sources.permaxhealth = Per point of health
+form.sources.permaxhealth.hint = What each point of the creature's full health pays when no row covers it.
+form.sources.max = Most per moment
+form.sources.max.hint = The most one moment pays from any row without a cap of its own. 0 sets no limit.
+form.sources.heading.guards = Against farming
+form.sources.spawners = Skip spawner mobs
+form.sources.spawners.hint = Pay nothing for a creature a spawner, a spawn beacon or a spawn egg stood up.
+form.sources.stand = Seconds to stand
+form.sources.stand.hint = Pay a placed block only once it has stood this long, still the same block and still the player's. 0 pays at once.
+form.sources.heading.diminish = Diminishing returns
+form.sources.diminish.note = Each moment counts once in the window and pays at that step. Leave the steps empty to pay every moment in full.
+form.sources.steps = Steps
+form.sources.steps.hint = What each moment in the window pays, in order, split by commas: 1, 1, 0.5, 0. Every moment past the end pays the last again.
+form.sources.window = Window
+form.sources.window.hint = When the count starts over: Daily, Weekly, or a rolling span such as 10m, 2h or 1d.
+form.sources.key = Count per
+form.sources.key.hint = A diminishing key: Cell16, Position, Target, Station, Victim, or one of your own. Empty counts every moment of the source together.
 # The World Rules screen's switch for every rule at once, above its list (the file's own $Enabled).
 form.rules.heading.all = Every rule
 form.rules.all = World rules apply

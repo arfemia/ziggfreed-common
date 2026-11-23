@@ -23,6 +23,8 @@ public final class TrackCurves {
 
     private static final Map<String, CurveTable> TABLES = new ConcurrentHashMap<>();
 
+    private static final Map<String, PaceTable> PACES = new ConcurrentHashMap<>();
+
     private static final AtomicInteger GENERATION = new AtomicInteger();
 
     private TrackCurves() {
@@ -57,17 +59,41 @@ public final class TrackCurves {
         }
     }
 
+    /**
+     * The Pace of the curve {@code curveId} (any case), read once until the curves load again; {@link PaceTable#NONE}
+     * when no folded curve has that id or it writes none.
+     */
+    @Nonnull
+    public static PaceTable pace(@Nullable String curveId) {
+        if (curveId == null || curveId.isBlank()) {
+            return PaceTable.NONE;
+        }
+        String key = curveId.trim().toLowerCase(Locale.ROOT);
+        PaceTable held = PACES.get(key);
+        if (held != null) {
+            return held;
+        }
+        int generation = GENERATION.get();
+        TrackCurveAsset asset = TrackCurveConfig.getInstance().resolve(key);
+        PaceTable built = asset == null ? PaceTable.NONE : asset.paceTable();
+        if (asset != null && generation == GENERATION.get()) {
+            PACES.put(key, built);
+        }
+        return built;
+    }
+
     /** How many times the curves have reloaded since start. Only ever grows. */
     public static int generation() {
         return GENERATION.get();
     }
 
     /**
-     * The curves changed: drop every table, move the generation, and move the gate server epoch, since a level
-     * every player's track readings answer may have moved with them. Called by every curve fold.
+     * The curves changed: drop every table and pace, move the generation, and move the gate server epoch, since a
+     * level every player's track readings answer may have moved with them. Called by every curve fold.
      */
     public static void invalidate() {
         TABLES.clear();
+        PACES.clear();
         GENERATION.incrementAndGet();
         GateEpochs.bumpServer();
     }

@@ -17,8 +17,10 @@ import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.track.asset.TrackAsset;
+import com.ziggfreed.common.track.price.TrackPriceAsset;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -28,7 +30,12 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <pre>{@code
  * { "Type": "ZigTrack", "Track": "Yourmod_Mining", "Amount": 2500, "TitleKey": "yourmod.boss.claim.mining" }
+ * { "Type": "ZigTrack", "Track": "Yourmod_Mining", "Price": "Dungeon_Clear", "MaxLevel": 55 }
  * }</pre>
+ *
+ * <p>{@code Price}, {@code Minutes}, {@code Level} and {@code MaxLevel} price it in minutes of play instead of an
+ * {@code Amount} ({@link TrackRewardKind}, R618): priced at the player's level when the Claim is written, paid past
+ * every boost.
  *
  * <p>Rewards are collected, never handed over (M428): the grant parks one Claim paying the shared
  * {@code Track} reward kind ({@link TrackRewardKind}), which the player takes on their Claims tab, where the
@@ -56,6 +63,10 @@ public final class ZigTrackReward extends RewardAsset {
     @Nullable private String track;
     @Nullable private Long amount;
     @Nullable private String titleKey;
+    @Nullable private String price;
+    @Nullable private Double minutes;
+    @Nullable private Integer level;
+    @Nullable private Integer maxLevel;
 
     public static final BuilderCodec<ZigTrackReward> CODEC =
             BuilderCodec.builder(ZigTrackReward.class, ZigTrackReward::new)
@@ -72,6 +83,23 @@ public final class ZigTrackReward extends RewardAsset {
                             (o, v) -> o.titleKey = v, o -> o.titleKey, (o, p) -> o.titleKey = p.titleKey)
                     .documentation("The lang key the Claim's row is titled with on the Claims tab. Unauthored, "
                             + "the track's own name titles it.").add()
+                    .appendInherited(new KeyedCodec<>("Price", Codec.STRING, false),
+                            (o, v) -> o.price = v, o -> o.price, (o, p) -> o.price = p.price)
+                    .metadata(EditorSchema.assetRef(TrackPriceAsset.class))
+                    .documentation("A row of the XP price table, by id (Quest, Dungeon_Clear, ...): pay that many "
+                            + "minutes of play at the track's pace instead of an Amount, priced at the player's "
+                            + "level when the Claim is written and paid past every boost.").add()
+                    .appendInherited(new KeyedCodec<>("Minutes", Codec.DOUBLE, false),
+                            (o, v) -> o.minutes = v, o -> o.minutes, (o, p) -> o.minutes = p.minutes)
+                    .documentation("Minutes of play to pay, over the price row's (or with no Price at all).").add()
+                    .appendInherited(new KeyedCodec<>("Level", Codec.INTEGER, false),
+                            (o, v) -> o.level = v, o -> o.level, (o, p) -> o.level = p.level)
+                    .documentation("Price the minutes at this level for everyone (one-off content), over the price "
+                            + "row's.").add()
+                    .appendInherited(new KeyedCodec<>("MaxLevel", Codec.INTEGER, false),
+                            (o, v) -> o.maxLevel = v, o -> o.maxLevel, (o, p) -> o.maxLevel = p.maxLevel)
+                    .documentation("Price the minutes at the player's level, never above this one (repeatable "
+                            + "content), over the price row's.").add()
                     .build();
 
     public ZigTrackReward() {
@@ -88,6 +116,11 @@ public final class ZigTrackReward extends RewardAsset {
         return amount == null ? 0L : amount;
     }
 
+    /** Is it priced in minutes (a {@code Price} or {@code Minutes} written) rather than a fixed amount? */
+    public boolean isPriced() {
+        return (price != null && !price.isBlank()) || minutes != null;
+    }
+
     /** The engine's grant: parks one Claim, never throws; a failure costs this player's Claim and a warning. */
     @Override
     public void grant(@Nonnull PlayerRef playerRef) {
@@ -96,14 +129,18 @@ public final class ZigTrackReward extends RewardAsset {
             UUID player = playerRef.getUuid();
             String trackId = trackId();
             TrackDef def = TrackService.def(trackId);
-            if (player == null || def == null || amount() == 0) {
+            RewardSpec paid = def == null ? null
+                    : TrackRewardKind.of(def.asset().getId(), amount(), price, minutes, level, maxLevel);
+            if (player == null || paid == null) {
                 SafeLog.info("[track] reward " + rewardId + ": no usable track or no amount, nothing to pay");
                 return;
             }
             String source = SOURCE_PREFIX + rewardId;
-            List<InstanceReward> rewards = DeferredRewards.fromSpecs(
-                    List.of(TrackRewardKind.spec(def.asset().getId(), amount())), RewardKinds.shared(),
+            List<InstanceReward> rewards = DeferredRewards.fromSpecs(List.of(paid), RewardKinds.shared(),
                     Subject.of(player, CLAIMER), source, message -> SafeLog.warn("[track] " + message));
+            if (rewards.isEmpty()) {
+                return;
+            }
             long now = System.currentTimeMillis();
             String title = titleKey == null || titleKey.isBlank() ? CLAIM_TITLE_KEY : titleKey.trim();
             Claim claim = new Claim(source + ":" + player + ":" + now, source, title,
@@ -117,7 +154,7 @@ public final class ZigTrackReward extends RewardAsset {
     @Nonnull
     @Override
     public String toString() {
-        return "ZigTrackReward{track=" + track + ", amount=" + amount + ", titleKey=" + titleKey + "} "
-                + super.toString();
+        return "ZigTrackReward{track=" + track + ", amount=" + amount + ", price=" + price + ", minutes=" + minutes
+                + ", titleKey=" + titleKey + "} " + super.toString();
     }
 }

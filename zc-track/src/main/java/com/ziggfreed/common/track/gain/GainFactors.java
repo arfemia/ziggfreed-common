@@ -16,7 +16,8 @@ import javax.annotation.Nullable;
  * its {@code Gain.Additive} names adding together ({@link #DEFAULT_ADDITIVE} when it names none); an id nobody
  * registered changes nothing.
  *
- * <p>Ships filled (a zc-only server needs no consumer): {@value #WORLD} reads the world's track rules
+ * <p>Ships filled (a zc-only server needs no consumer): {@value #IDLE} stops a gain while the player has been idle
+ * longer than the track settings say ({@link IdleGainFactor}), {@value #WORLD} reads the world's track rules
  * ({@code world.TrackWorldRules}), {@value #BONUS} reads the player's gain stats ({@link BonusGainFactor}, R734; a
  * consumer adds its own stats to it through {@link TrackGainStats#registerSource}, never by registering over it),
  * {@value #BOOST} holds the neutral factor until the boost module registers over it at setup
@@ -27,6 +28,8 @@ import javax.annotation.Nullable;
  */
 public final class GainFactors {
 
+    /** Nothing while the player is idle (the track settings' {@code Idle.Minutes}, {@link IdleGainFactor}). */
+    public static final String IDLE = "Idle";
     /** The world's track rules: its gain switch and multiplier for the track or its category. */
     public static final String WORLD = "World";
     /** The player's gain stats: TrackGain, CategoryGain_<Category>, TrackGain_<Track> and a consumer's sources (R734). */
@@ -39,10 +42,11 @@ public final class GainFactors {
     public static final String RESTED = "Rested";
 
     /**
-     * The order a track without a {@code Gain.Factors} list runs: the world's rules, the bonus, the boosts, the
-     * prestige extra after them, and last the rested pool, which pays on top of everything before it.
+     * The order a track without a {@code Gain.Factors} list runs: the idle check first (an idle player earns nothing,
+     * so nothing after it is spent), the world's rules, the bonus, the boosts, the prestige extra after them, and
+     * last the rested pool, which pays on top of everything before it.
      */
-    public static final List<String> DEFAULT_ORDER = List.of(WORLD, BONUS, BOOST, PRESTIGE, RESTED);
+    public static final List<String> DEFAULT_ORDER = List.of(IDLE, WORLD, BONUS, BOOST, PRESTIGE, RESTED);
 
     /**
      * The factors a track without a {@code Gain.Additive} list adds together rather than multiplying: the bonus
@@ -53,6 +57,7 @@ public final class GainFactors {
     private static final Map<String, GainFactor> FACTORS = new ConcurrentHashMap<>();
 
     static {
+        FACTORS.put(key(IDLE), IdleGainFactor.INSTANCE);
         FACTORS.put(key(WORLD), WorldGainFactor.INSTANCE);
         FACTORS.put(key(BONUS), BonusGainFactor.INSTANCE);
         FACTORS.put(key(BOOST), GainFactor.NEUTRAL);

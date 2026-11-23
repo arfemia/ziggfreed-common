@@ -1,0 +1,4 @@
+{
+  "$Comment": "A track source whose Diminish names Key Cell16 keeps one count for each cube of the world 16 blocks wide, so a mob farm in one spot pays less and less while hunting across the land pays in full. Retune the width in mods/ziggfreedcommon/diminish-keys.json or on the Diminishing Keys screen.",
+  "Cell": 16
+}

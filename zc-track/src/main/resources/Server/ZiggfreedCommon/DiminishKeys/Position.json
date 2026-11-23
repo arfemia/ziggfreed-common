@@ -1,0 +1,4 @@
+{
+  "$Comment": "A track source whose Diminish names Key Position keeps one count for each block of the world, so placing a block on the same spot again pays as its Steps say (with Steps [1, 0] and Window Daily, once a spot a day).",
+  "Cell": 1
+}

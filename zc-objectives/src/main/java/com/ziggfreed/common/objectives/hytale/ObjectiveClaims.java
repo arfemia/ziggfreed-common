@@ -20,7 +20,6 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.interaction.InteractionRewards;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.track.TrackDef;
-import com.ziggfreed.common.track.TrackRewardKind;
 import com.ziggfreed.common.track.TrackService;
 import com.ziggfreed.common.track.TrackText;
 import com.ziggfreed.common.track.ZigTrackReward;
@@ -117,8 +116,8 @@ final class ObjectiveClaims {
         }
         if (completion instanceof TrackCompletionAsset track) {
             TrackDef def = TrackService.def(track.trackId());
-            List<RewardSpec> specs = def == null || track.amount() == 0 ? List.of()
-                    : List.of(TrackRewardKind.spec(def.asset().getId(), track.amount()));
+            RewardSpec paid = def == null ? null : track.rewardOn(def.asset().getId());
+            List<RewardSpec> specs = paid == null ? List.of() : List.of(paid);
             return new Payout(specs, track.getTitleKey(), ZigTrackReward.CLAIM_TITLE_KEY,
                     def == null ? List.of() : List.of(TrackText.claimNameArg(def.asset())));
         }

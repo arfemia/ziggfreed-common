@@ -1,0 +1,4 @@
+{
+  "$Comment": "A track source whose Diminish names Key Target keeps one count for each kind of block, creature or item its moments happened to, so the same thing over and over pays less while a mix pays in full.",
+  "Target": true
+}

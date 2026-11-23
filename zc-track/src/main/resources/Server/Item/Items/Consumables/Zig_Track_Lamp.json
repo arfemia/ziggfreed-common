@@ -1,0 +1,42 @@
+{
+  "$Comment": "The library's lamp: one item id for a lamp of any size. What each pick pays (a row of the XP price table or minutes of its own, priced at the player's level on the track picked when it is used), how many different tracks the player picks and which tracks it may go to ride the stack (key ZigTrackLamp), so the Track_Lamp reward kind or /zigtrack lamp hands one of any size and its tooltip says what it does. Hold right-click to open its picker: ZigTrackLamp lists the tracks it may go to, and the lamp is spent only when Use pays the picks. One taken from the creative menu carries nothing and says it is empty. The art is a vanilla lantern; point Icon, Model or Texture elsewhere, or override this file by id, to reskin it.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.track.lamp.item.name",
+    "Description": "ziggfreedcommon.track.lamp.item.description"
+  },
+  "Quality": "Rare",
+  "PlayerAnimationsId": "Item",
+  "Icon": "Icons/ItemsGenerated/Furniture_Kweebec_Lantern.png",
+  "IconProperties": {
+    "Rotation": [22.5, 45, 22.5],
+    "Scale": 0.52,
+    "Translation": [0, -13.5]
+  },
+  "Model": "Blocks/Decorative_Sets/Kweebec/Lantern.blockymodel",
+  "Texture": "Blocks/Decorative_Sets/Kweebec/Lantern_Texture.png",
+  "Scale": 0.6,
+  "Interactions": {
+    "Secondary": {
+      "Interactions": [
+        {
+          "Type": "Charging",
+          "FailOnDamage": false,
+          "HorizontalSpeedMultiplier": 0.5,
+          "Next": {
+            "1.0": {
+              "Type": "ZigTrackLamp"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Consumable"
+    ],
+    "Family": [
+      "ZiggfreedCommon"
+    ]
+  }
+}

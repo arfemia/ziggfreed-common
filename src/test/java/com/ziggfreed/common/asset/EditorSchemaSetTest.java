@@ -52,6 +52,9 @@ import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
+import com.ziggfreed.common.track.gain.TrackSettingsAsset;
+import com.ziggfreed.common.track.price.TrackPriceAsset;
+import com.ziggfreed.common.track.source.DiminishKeyAsset;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 
 /**
@@ -269,6 +272,9 @@ class EditorSchemaSetTest {
         out.put(PickOptionAsset.class, PickOptionAsset.CODEC);
         out.put(TrackPickGeneratorAsset.class, TrackPickGeneratorAsset.CODEC);
         out.put(TrackSourceAsset.class, TrackSourceAsset.CODEC);
+        out.put(DiminishKeyAsset.class, DiminishKeyAsset.CODEC);
+        out.put(TrackPriceAsset.class, TrackPriceAsset.CODEC);
+        out.put(TrackSettingsAsset.class, TrackSettingsAsset.CODEC);
         out.put(ReputationAsset.class, ReputationAsset.CODEC);
         out.put(QuestAsset.class, QuestAsset.CODEC);
         out.put(QuestCategoryAsset.class, QuestCategoryAsset.CODEC);

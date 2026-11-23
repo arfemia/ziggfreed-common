@@ -1,0 +1,4 @@
+{
+  "$Comment": "How every track's gains are paid on this server, beside what each track's own file says. Idle.Minutes: after this many minutes without moving, looking around or using anything, a player earns nothing on a track whose Gain.Factors names Idle (every track that writes no Factors list does), until they move again; 0 never stops them. Retune it in mods/ziggfreedcommon/track-settings.json or on the Track Settings screen.",
+  "Idle": { "Minutes": 15 }
+}

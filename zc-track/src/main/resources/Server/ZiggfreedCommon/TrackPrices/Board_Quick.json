@@ -1,0 +1,4 @@
+{
+  "$Comment": "A quick repeatable job from a board: 3 minutes of play at the player's own level. A reward may write a MaxLevel so easy jobs stop paying more past it.",
+  "Minutes": 3
+}
