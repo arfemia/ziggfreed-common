@@ -8,6 +8,8 @@ One pick (the one shape every choice, Mastery node, trainer offer and prestige p
 
 One boost (a percent more on every gain on the tracks it names) is one file under `Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, retuned in `boost-settings.json`, whose `OnStart` group runs a server command whenever a boost starts. A boost starts from a boost item's native `ZigBoost` interaction (`Boost`, and optional `Percent`, `Seconds` and `Track`, the one track it lifts out of those the boost lifts, then a `Next` that consumes the item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, `Seconds`, `Track`) or a native `ZigBoost` reward file when its Claim is collected, or from `/zigboost start`. A stack carrying `ZigBoost` metadata (the `BoostToken` shape, minted by `/zigboost give` onto the library's `Zig_Boost_Token` item or by a mod onto its own) starts what the stack says in place of the interaction's own leaves. A boost with a `Reusable` group is one a player may start themselves (`/zigboost own`, or a mod's page), its `Reusable.Requires` asked only then.
 
+One proc (what a moment does for a player who meets its `Requires`: a talent's knack) is one file under `Server/ZiggfreedCommon/Procs/`, retuned in `mods/ziggfreedcommon/procs.json`. The procs answering one moment run by their `Order`, lower first, then by their ids compared lower-cased.
+
 Every field is optional and defaults to `null` unless its Default column reads *(required)*.
 
 ## Types
@@ -28,6 +30,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 - [BoostSettingsAsset](#type-boostsettingsasset)
 - [ZigBoostReward](#type-zigboostreward)
 - [BoostToken](#type-boosttoken)
+- [ProcAsset](#type-procasset)
 - [When](#type-when)
 - [SourceRow](#type-sourcerow)
 - [Where](#type-where)
@@ -574,6 +577,780 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 | `Percent` | `double` | `null` | How much it lifts by, as a percent, in place of the boost's own. Absent for the boost's own. |
 | `Seconds` | `long` | `null` | How long it runs, in seconds, in place of the boost's own. Absent for the boost's own. |
 | `Track` | `string` | `null` | The one track it lifts, out of those the boost lifts. Absent for all of them. |
+
+<a id="type-procasset"></a>
+## ProcAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Abstract` | `boolean` | `null` | A skeleton other procs take their fields from through Parent: it never runs. Never inherited. False when unauthored. |
+| `Enabled` | `boolean` | `null` | Set false to switch the proc off. True when unauthored. |
+| `Order` | `integer` | `null` | Where it runs among the procs answering the same moment: lower first, so a proc that must act before another (one that breaks a freeze, before every one that lays one) writes a lower Order. Procs of one Order run in the order of their ids, compared lower-cased. 0 when unauthored. |
+| `Trigger` | `string` | `null` | The moment the proc answers. A proc naming none, or an unknown one, never runs. |
+| `Requires` | [Requires](#type-requires) | `null` | What a player must meet for this file to pay or apply, in the Requires shape quests use (Factors, Permission, Quests, Custom, AllOf, AnyOf, Not), every condition read. A plain { "Factor": "hytale:mod_installed", "Param": "Group:Name", "Min": 1 } keeps the file out entirely where that mod is not installed, and one with "Max": 0 keeps it out where that mod IS installed (a stand-in for servers without it); the rest is asked of the player each time. Write Min 1 on a presence check: a condition with no bound is met by a missing mod too. |
+| `Hit` | [Hit](#field-procasset-hit) | `null` | What the hit must be, on a moment that carries one: the conditional stats' Hit group (FirstHit, Projectile, Classes, distances, Headshot), read as the attacker dealt it. OverTime is false unless written. Nothing else asked when unauthored. |
+| `Like` | `string` | `null` | A damage stat: count only a hit on which that stat's own damage line counts (a weapon skill's line, which counts only with its weapon). Every hit when unauthored. |
+| `Ability` | [Ability](#field-procasset-ability) | `null` | For a hit or a cast: which move it must come from, by the RootInteraction its chain started from (Roots) or the ability a mod names for its own moves (Names). Any move when unauthored. |
+| `Effect` | [Effect](#field-procasset-effect) | `null` | For EffectLanded and EffectEnded: the effects (by id or family) watched, on the holder or on the foes they struck. An effect proc naming none never runs. |
+| `Holder` | array of `codecMap` | `null` | Entity conditions every one of which must hold on the holder (Sprinting, ZigCrouching, ZigStatPercent). On a hit the holder dealt, a condition a mod made hit-aware (a weapon skill's, which holds on a hit that earns that skill) is asked of that hit. None when unauthored. |
+| `Target` | array of `codecMap` | `null` | Entity conditions every one of which must hold on the moment's target (ZigFoeFamily, ZigEffectFamily, ZigStatPercent for a health band). Written, a moment with no target never runs the proc. None when unauthored. |
+| `Seek` | [Seek](#field-procasset-seek) | `null` | For a moment with no target of its own (CrouchStill, Dodge, Landing, Cast, Jump, ProjectileMiss): the nearest foe within Radius becomes it, or the proc does not run. No target sought when unauthored. |
+| `MinAmount` | `double` | `null` | The least the moment's amount may be: the damage of a hit dealt or taken, the blocks fallen on Landing, the seconds held on CrouchStill. No least when unauthored. |
+| `LeavesUnder` | `double` | `null` | For HitIncoming and AllyHitIncoming: only a hit that would drop the one it lands on from above this share of their maximum health to it or under, a percent (25 is a quarter); 0 asks only for a hit that would kill them. Every coming hit when unauthored. |
+| `AllyRadius` | `double` | `null` | For AllyHitIncoming: how far, in blocks, the ally may stand from the holder, never past 64. 8 when unauthored. |
+| `WouldBreakGuard` | `boolean` | `null` | For Blocked: true runs only on a block whose stamina cost is more than the holder has left (it would break their guard), false only on one that would not. Either when unauthored. |
+| `Thrown` | [Thrown](#field-procasset-thrown) | `null` | For ThrownLanding: where the creature came down (on another creature, in water); MinAmount asks how far it dropped. Anywhere when unauthored. |
+| `Projectiles` | array of `string` | `null` | For ProjectileMiss: the projectiles that count, by their asset id, any case, a * matching any run of letters (Spear_* for every thrown spear). Every projectile when unauthored. |
+| `Chance` | [FactorFormula](#field-procasset-chance) | `null` | The percent chance it runs when everything else holds, a formula (25 is one time in four), raised by the holder's ProcChance stat. 0 or less never runs. Always when unauthored. |
+| `Strength` | [FactorFormula](#field-procasset-strength) | `null` | What the actions' amounts are multiplied by, a formula (a talent's rank, a stat), raised by the holder's ProcStrength stat. 0 or less: the proc never runs. 1 when unauthored. |
+| `Cooldown` | [Cooldown](#field-procasset-cooldown) | `null` | How long it waits after it runs. No wait when unauthored. |
+| `Actions` | array of [ProcAction](#field-procasset-actions-item) | `null` | What it does, in order. A proc with none does nothing. |
+
+<a id="field-procasset-hit"></a>
+### ProcAsset.Hit
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `FirstHit` | `boolean` | `null` | True: only the holder's first hit on this target (its first since the target appeared). False: only every later one. Either when unauthored. Only a direct hit is noted, so pair True with OverTime false, or every damage-over-time tick on a foe never hit directly reads as a first hit. |
+| `NotTargeted` | `boolean` | `null` | True: only a creature target whose locked target is not the holder (a foe that has not turned on you). A player target never counts. Either when unauthored. |
+| `MinDistance` | `double` | `null` | The holder at least this many blocks from the target when the hit lands (a projectile's shooter, where they stand). No limit when unauthored. |
+| `MaxDistance` | `double` | `null` | The holder at most this many blocks from the target. No limit when unauthored. |
+| `MinHeightAbove` | `double` | `null` | The holder standing at least this many blocks above the target. No limit when unauthored. |
+| `Classes` | array of `string` | `null` | The damage classes the hit's interaction declares (Light, Charged, Signature), any of which counts. Only the first damage of a strike carries its class, and the hit's other damages take the same answer. Any class, or none, when unauthored. |
+| `Projectile` | `boolean` | `null` | True: only a hit a projectile dealt (an arrow, a thrown spear, a bomb). False: only one that none dealt. Either when unauthored. |
+| `OverTime` | `boolean` | `null` | True: only a damage-over-time tick of an effect the holder put on. False: only a direct hit. Either when unauthored. |
+| `OnSelf` | `boolean` | `null` | For a heal: true only on the holder, false only on someone else. Either when unauthored. |
+| `Headshot` | `boolean` | `null` | True: only a hit that took its weapon's own Head branch (the interaction's TargetedDamage Head entry: in vanilla, a shortbow's full-draw arrow to the head). False: only one that did not. Either when unauthored. |
+| `WeakSpot` | `boolean` | `null` | True: only a hit the weak-spot step paid as a weak spot. False: only one it did not. Either when unauthored. The step runs after the damage bonuses, so a damage payout never sees it: ask it of a proc's hit, a crit or a lifesteal. |
+| `LaterTarget` | `boolean` | `null` | True: only a hit on a foe past the first one swing struck (the second foe a sweep reaches, and every one after it). False: only the first foe a swing struck. Either when unauthored. A hit with no swing behind it (a projectile's, a damage-over-time tick, an effect's) reads as a first. |
+
+<a id="field-procasset-ability"></a>
+### ProcAsset.Ability
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Roots` | array of `string` | `null` | RootInteraction ids: a hit counts when the chain that dealt it started from one of these (a direct hit, while that chain still runs; a projectile's hit lands after it), a cast when its chain did. None when unauthored. |
+| `Names` | array of `string` | `null` | Ability ids a mod names for its own moves (its abilities' ids, such as Fireball or Leap_Strike), any case: a hit that mod says one of these dealt (a damage-over-time tick of it included), a cast of one of these. None when unauthored. |
+
+<a id="field-procasset-effect"></a>
+### ProcAsset.Effect
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Effects` | array of `string` | `null` | Native effects watched, by id. None when unauthored. |
+| `Families` | array of `string` | `null` | Effect families (Server/ZiggfreedCommon/EffectFamilies: Stunned, Frozen) whose effects are watched. None when unauthored. |
+| `OnFoe` | `boolean` | `null` | True: watch the effects the holder put on a foe they struck in the last half minute (or that a proc of theirs put on), the foe the moment's target. False: watch the holder's own, whoever put them on (that one the moment's target). False when unauthored. |
+
+<a id="field-procasset-seek"></a>
+### ProcAsset.Seek
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Radius` | `double` | `null` | How far, in blocks, a foe may stand. The nearest foe meeting the proc's Target conditions and off its wait is the target. 3 when unauthored. |
+
+<a id="field-procasset-thrown"></a>
+### ProcAsset.Thrown
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `OnCreature` | `boolean` | `null` | True: only a creature that came down on another (one standing where it landed, never the holder; reach it with an Area around the Target that skips it). False: only one that did not. Either when unauthored. |
+| `InWater` | `boolean` | `null` | True: only a creature that came down in water. False: only one that landed dry. Either when unauthored. |
+
+<a id="field-procasset-chance"></a>
+### ProcAsset.Chance
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-chance-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-chance-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-strength"></a>
+### ProcAsset.Strength
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-strength-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-strength-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-cooldown"></a>
+### ProcAsset.Cooldown
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Seconds` | [FactorFormula](#field-procasset-cooldown-seconds) | `null` | Seconds before it can run again, a formula (a talent's rank shortens it), cut by the holder's ProcCooldownCut stat held at the cap that stat's file names in its ZigCeiling tag. 0 or less: no wait. |
+| `PerTarget` | `boolean` | `null` | True: the wait is kept for each target apart (once per foe every few seconds). False: one wait for the player. False when unauthored. |
+
+<a id="field-procasset-actions-item"></a>
+### ProcAsset.Actions[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Area` | [Area](#field-procasset-actions-item-area) | `null` | Aim this entry's target groups at every foe (or, with Allies, every ally) in reach, each in turn, instead of the moment's one target. Its OnSelf groups and its Counter still run once. The moment's target alone when unauthored. |
+| `RemoveEffect` | [RemoveEffect](#field-procasset-actions-item-removeeffect) | `null` | Take effects off: named ones, or ones of named effect families. Runs first. |
+| `ApplyEffect` | [ApplyEffect](#field-procasset-actions-item-applyeffect) | `null` | Put a native effect on, owned by the holder, so its damage credits them. |
+| `ChangeStat` | [ChangeStat](#field-procasset-actions-item-changestat) | `null` | Add to a stat's current value (stamina, mana, health), held between its minimum and maximum by the engine. |
+| `Counter` | [CounterChange](#field-procasset-actions-item-counter) | `null` | Add to, take from or clear one of the holder's counters (Server/ZiggfreedCommon/Counters). |
+| `Push` | [Push](#field-procasset-actions-item-push) | `null` | Move the target away from the holder (a negative Force pulls it in), through the engine's own velocity carrying the game's own knockback settings (those a weapon hit's knockback writes), which a player's client and a creature's knockback scale both honour. A target whose rules refuse a Push (a Pull, for a negative Force), asked as a talent's unless the entry writes ByTalent false, is not moved, so a boss or an elite takes neither by the family default. |
+| `Taunt` | [Taunt](#field-procasset-actions-item-taunt) | `null` | Make the target, a creature, go after the holder for a while, unless its rules refuse a Taunt (asked as a talent's unless the entry writes ByTalent false; the family default lets every taunt land on a boss or an elite). |
+| `BreakGuard` | `boolean` | `null` | True: a guard the target holds up breaks: its block stops at once and its guard chain is cancelled (it may raise its guard again on its next press), unless its rules refuse an Interrupt (asked as a talent's unless the entry writes ByTalent false, so a boss's or an elite's guard holds by the family default). False when unauthored. |
+| `ByTalent` | `boolean` | `null` | True: this entry's Push, Taunt, BreakGuard and every control its ApplyEffect lands on a foe are a talent's, added to the move, which a boss or an elite takes only where its rules let every one of the kind land (a window, a phase), so a file that forgets the setting keeps bosses safe. False: the move's own control, as an ability's own push is, which one takes at the cast's own strength unless its rules shrug the kind. An ApplyEffect's Control may say its own with SpareBossOrElite. True when unauthored. |
+| `RunInteraction` | [RunInteraction](#field-procasset-actions-item-runinteraction) | `null` | Run a native RootInteraction chain on the holder or the target. Runs last. |
+| `Heal` | [Heal](#field-procasset-actions-item-heal) | `null` | Heal the holder or the target through CommonLib's one heal, given by the holder, so their healing power raises it and it counts as a heal they gave (a HealGiven moment, run once this proc is done). |
+| `Soak` | [Soak](#field-procasset-actions-item-soak) | `null` | For HitIncoming and AllyHitIncoming: lower the coming hit before it lands, or stop it, or leave the one it lands on standing. Runs first. |
+| `GuardCost` | [GuardCost](#field-procasset-actions-item-guardcost) | `null` | For Blocked: cut the stamina the holder's guard is about to pay for this block, through the engine's own stamina drain, before it is paid. Runs first. |
+| `Reflect` | [Reflect](#field-procasset-actions-item-reflect) | `null` | For HitIncoming: a projectile's coming hit is turned back at whoever shot it, dealt to them as the holder's own hit of the same damage type. Runs first, beside Soak. |
+| `Strike` | [Strike](#field-procasset-actions-item-strike) | `null` | Strike the target (with an Area, each foe reached) as the holder's own hit, through the engine's own damage: with ByAmount, the moment's own amount (a Kill's overkill, a hit's damage). It spares nothing a plain hit would not. |
+| `ReturnThrown` | [ReturnThrown](#field-procasset-actions-item-returnthrown) | `null` | For ProjectileMiss: Delay seconds after the projectile lands, take it out of the world and hand the holder back one of the item it was thrown from (a thrown spear), as it left their hand; into their inventory as a pickup goes, at their feet when it is full. Nothing for a throw that spent no item (one that keeps it in hand), and nothing once they died, left or changed worlds. |
+
+<a id="field-procasset-chance-factors-item"></a>
+#### ProcAsset.Chance.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-chance-clamp"></a>
+#### ProcAsset.Chance.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-strength-factors-item"></a>
+#### ProcAsset.Strength.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-strength-clamp"></a>
+#### ProcAsset.Strength.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-cooldown-seconds"></a>
+#### ProcAsset.Cooldown.Seconds
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-cooldown-seconds-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-cooldown-seconds-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-area"></a>
+#### ProcAsset.Actions[].Area
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Radius` | `double` | `null` | How far, in blocks, from the centre, never past 64. 4 when unauthored. |
+| `Around` | `string` | `null` | Where the reach is centred. Holder when unauthored. |
+| `Max` | `integer` | `null` | The most it reaches, nearest the centre first, never past 32. 8 when unauthored. |
+| `Allies` | `boolean` | `null` | True: the holder's allies instead of their foes: the members of their party, or with no party every other player while the world's PvP is off. The holder is never one (OnSelf reaches them). False when unauthored: every foe hostile to the holder or locked on them. |
+| `SkipTarget` | `boolean` | `null` | True: the moment's own target is left out (a splash onto the others). False when unauthored. |
+| `Conditions` | array of `codecMap` | `null` | Entity conditions each one reached must meet. To keep out a foe a talent's control never lands on by its rules, ask ZigControl with the Kind and ByTalent true; to keep bosses and elites out whatever their rules, ZigBossOrElite with Inverse true. None when unauthored. |
+| `Arc` | `double` | `null` | Only those ahead of the holder, within this many degrees across of where they look, level with the ground (120 is a wide cone in front). Every side when unauthored or 360 and more. |
+
+<a id="field-procasset-actions-item-removeeffect"></a>
+#### ProcAsset.Actions[].RemoveEffect
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Effects` | array of `string` | `null` | Native effects to take off, by id. |
+| `Families` | array of `string` | `null` | Effect families (Server/ZiggfreedCommon/EffectFamilies: Burning, Poisoned, Slowed) whose effects come off. |
+| `OnSelf` | `boolean` | `null` | True: from the holder. False: from the moment's target. False when unauthored. |
+| `Count` | `integer` | `null` | How many matching effects come off; 0 for every one. 1 when unauthored. |
+
+<a id="field-procasset-actions-item-applyeffect"></a>
+#### ProcAsset.Actions[].ApplyEffect
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Effect` | `string` | `null` | The native effect to put on, by id. |
+| `OnSelf` | `boolean` | `null` | True: on the holder. False: on the moment's target. False when unauthored. |
+| `Duration` | [FactorFormula](#field-procasset-actions-item-applyeffect-duration) | `null` | Seconds it lasts, a formula. The effect's own Duration when unauthored. |
+| `Overlap` | `string` | `null` | What a second apply does while the effect is still on. The effect's own OverlapBehavior when unauthored. |
+| `DamageMultiplier` | [FactorFormula](#field-procasset-actions-item-applyeffect-damagemultiplier) | `null` | What this application's damage is multiplied by (an effect with a DamageCalculator), a formula, times the proc's strength. 1 when unauthored. |
+| `Control` | [Control](#field-procasset-actions-item-applyeffect-control) | `null` | This step's own word over how its control lands. Every effect whose families name a kind of control (Stunned is a Stun, Rooted a Hold, Slowed a Slow) lands on a foe through the one landing whether or not this is written: a foe whose rules refuse the kind is passed over (asked as a talent's unless SpareBossOrElite or the entry's ByTalent says it is the move's own), and so is an immune one where the kind says so; it lasts less the more Immunity the target already carries and each landing adds Immunity where the kind says so (Diminish and Ramp override it); and a boss or an elite takes it with no owner, so nothing the holder's stats add to an effect's length reaches one. Written on an effect of no kind, it lands that one the same way. It changes nothing on the holder (OnSelf) or a timeless effect. |
+
+<a id="field-procasset-actions-item-changestat"></a>
+#### ProcAsset.Actions[].ChangeStat
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Stat` | `string` | `null` | The native stat whose current value moves, by id (Stamina, Mana). |
+| `Amount` | [FactorFormula](#field-procasset-actions-item-changestat-amount) | `null` | What is added, a formula, times the proc's strength unless Scaled says not; negative takes away. |
+| `OnSelf` | `boolean` | `null` | True: the holder's stat. False: the target's. False when unauthored. |
+| `Scaled` | `boolean` | `null` | False: the amount is never multiplied by the proc's strength. Write it on a refund that gives back a cost (a dodge's stamina), so gear raising ProcStrength never pays back more than was spent. True when unauthored. |
+| `ByCost` | `boolean` | `null` | True: Amount is multiplied by what the moment cost the holder from this Stat (on Blocked, the stamina their guard pays for the block; on a mod's own Cast or Dodge, what it spent from the pool it names; 0 when another pool paid), so 0.5 is half of it. False when unauthored. |
+
+<a id="field-procasset-actions-item-counter"></a>
+#### ProcAsset.Actions[].Counter
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Of` | `string` | `null` | The counter, by its file's id (Server/ZiggfreedCommon/Counters). |
+| `Add` | [FactorFormula](#field-procasset-actions-item-counter-add) | `null` | Stacks added, a formula, up to the counter's Size. Never scaled by the proc's strength: a stored share of a hit takes it where it is spent. Nothing added when unauthored. |
+| `ByAmount` | `boolean` | `null` | True: Add is multiplied by the moment's amount (the damage of a hit dealt or taken), so 0.25 stores a quarter of it. False when unauthored. |
+| `ByCost` | `boolean` | `null` | True: Add is multiplied by the stamina the moment cost the holder (a block's, or what a mod's own cast or dodge spent from stamina; 0 when another pool paid), so 1 keeps that stamina for a later moment to give back. False when unauthored. |
+| `Consume` | [FactorFormula](#field-procasset-actions-item-counter-consume) | `null` | Stacks taken away, a formula. Nothing taken when unauthored. |
+| `Clear` | `boolean` | `null` | True: every stack goes, after Add and Consume. False when unauthored. |
+
+<a id="field-procasset-actions-item-push"></a>
+#### ProcAsset.Actions[].Push
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Force` | [FactorFormula](#field-procasset-actions-item-push-force) | `null` | The speed added along the ground, away from the holder, in blocks a second, a formula; negative pulls toward them. It is braked as a weapon hit's knockback is (the game's own settings), so on flat ground 5.5 slides a creature about 1 block, 9 about 2 and 12.5 about 3. Not scaled by the proc's strength. None when unauthored. |
+| `Up` | [FactorFormula](#field-procasset-actions-item-push-up) | `null` | The speed added upward, in blocks a second, a formula (10 throws a creature about 2 blocks up). None when unauthored. |
+| `OnSelf` | `boolean` | `null` | True: the holder moves instead, away from the moment's target (a leap back). False when unauthored. |
+| `Aim` | `boolean` | `null` | True: Force runs along the way the holder looks (level with the ground) instead of away from the other one: with OnSelf the holder is carried forward, else the target is carried the way the holder looks. False when unauthored. |
+
+<a id="field-procasset-actions-item-taunt"></a>
+#### ProcAsset.Actions[].Taunt
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Seconds` | [FactorFormula](#field-procasset-actions-item-taunt-seconds) | `null` | How long the creature goes after the holder, a formula; when it ends, it lets go if it is still on the holder. 3 when unauthored. |
+
+<a id="field-procasset-actions-item-runinteraction"></a>
+#### ProcAsset.Actions[].RunInteraction
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Interaction` | `string` | `null` | The RootInteraction to run, by id. |
+| `OnSelf` | `boolean` | `null` | True: it runs on the holder, the moment's target as its target entity. False: it runs on the target, the holder as its target entity. True when unauthored. |
+
+<a id="field-procasset-actions-item-heal"></a>
+#### ProcAsset.Actions[].Heal
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Amount` | [FactorFormula](#field-procasset-actions-item-heal-amount) | `null` | The health given, a formula, times the proc's strength unless Scaled says not, then raised by the holder's healing power as every heal they give is. Nothing when unauthored. |
+| `ByAmount` | `boolean` | `null` | True: Amount is multiplied by the moment's amount (the damage of a hit dealt), so 0.25 heals a quarter of it. False when unauthored. |
+| `OnSelf` | `boolean` | `null` | True: heal the holder. False: heal the moment's target (with an Area of Allies, each ally reached). False when unauthored. |
+| `Scaled` | `boolean` | `null` | False: the amount is never multiplied by the proc's strength. True when unauthored. |
+
+<a id="field-procasset-actions-item-soak"></a>
+#### ProcAsset.Actions[].Soak
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Share` | [FactorFormula](#field-procasset-actions-item-soak-share) | `null` | The share of the hit taken off, a formula held to [0, 1] (1: the whole hit, which stops it). Nothing taken off when unauthored. |
+| `Onto` | `string` | `null` | A native stat of the one struck (Mana) that pays for the Share instead of their health, PerPoint of it for each point of damage taken off, and only as much as it holds. The Share simply comes off when unauthored. |
+| `PerPoint` | [FactorFormula](#field-procasset-actions-item-soak-perpoint) | `null` | How much of the Onto stat one point of damage taken off costs, a formula. 1 when unauthored. |
+| `Leave` | [FactorFormula](#field-procasset-actions-item-soak-leave) | `null` | The least health the hit leaves the one struck with, a formula (1: they are left standing). Not asked when unauthored. |
+| `LeavePercent` | [FactorFormula](#field-procasset-actions-item-soak-leavepercent) | `null` | The least share of their maximum health the hit leaves the one struck with, a percent, a formula. Not asked when unauthored. |
+
+<a id="field-procasset-actions-item-guardcost"></a>
+#### ProcAsset.Actions[].GuardCost
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Cut` | [FactorFormula](#field-procasset-actions-item-guardcost-cut) | `null` | The share of the block's stamina cost taken off, a formula held to [0, 1] (1: the block costs nothing, so it can never break the guard). Never scaled by the proc's strength. 1 when unauthored. |
+
+<a id="field-procasset-actions-item-reflect"></a>
+#### ProcAsset.Actions[].Reflect
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Share` | [FactorFormula](#field-procasset-actions-item-reflect-share) | `null` | The share of the hit dealt back to the shooter, a formula (1: all of it), times the proc's strength. 1 when unauthored. |
+| `Stop` | `boolean` | `null` | True: the coming hit is stopped (the projectile turned away). False: it still lands, and its shooter takes the share as well. True when unauthored. |
+
+<a id="field-procasset-actions-item-strike"></a>
+#### ProcAsset.Actions[].Strike
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Amount` | [FactorFormula](#field-procasset-actions-item-strike-amount) | `null` | The damage dealt, a formula, times the proc's strength unless Scaled says not. Nothing when unauthored. |
+| `ByAmount` | `boolean` | `null` | True: Amount is multiplied by the moment's amount (a Kill's overkill, the damage of a hit dealt), so 1 deals all of it. False when unauthored. |
+| `Cause` | `string` | `null` | The damage type dealt, a damage cause id. The moment's own hit's type when unauthored, else Physical. |
+| `Scaled` | `boolean` | `null` | False: the damage is never multiplied by the proc's strength. True when unauthored. |
+
+<a id="field-procasset-actions-item-returnthrown"></a>
+#### ProcAsset.Actions[].ReturnThrown
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Delay` | [FactorFormula](#field-procasset-actions-item-returnthrown-delay) | `null` | The seconds from the landing before the item comes back, a formula, never under half a second (the throw's own spend lands just after it). Half a second when unauthored. |
+
+<a id="field-procasset-cooldown-seconds-factors-item"></a>
+##### ProcAsset.Cooldown.Seconds.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-cooldown-seconds-clamp"></a>
+##### ProcAsset.Cooldown.Seconds.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-applyeffect-duration"></a>
+##### ProcAsset.Actions[].ApplyEffect.Duration
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-applyeffect-duration-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-applyeffect-duration-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-applyeffect-damagemultiplier"></a>
+##### ProcAsset.Actions[].ApplyEffect.DamageMultiplier
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-applyeffect-damagemultiplier-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-applyeffect-damagemultiplier-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-applyeffect-control"></a>
+##### ProcAsset.Actions[].ApplyEffect.Control
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Ramp` | `double` | `null` | The Immunity each landing adds to the target (the stat's Max, 100, puts the game's Immune on for a while); 0 adds none. The kind's own when unauthored (the Control Kinds screen: Stun, Hold and Slow build immunity as shipped). |
+| `Diminish` | `boolean` | `null` | True: the effect lasts its time times 1 less the share of Immunity the target already carries, so it is shorter each time on a foe held again soon. False: its full time. The kind's own when unauthored (shorter on repeat for Stun, Hold and Slow as shipped). |
+| `SpareBossOrElite` | `boolean` | `null` | True: the control is a talent's, which a boss or an elite takes only where its rules let every one of its kind land (a window, a phase), so the effect never holds one back otherwise while the rest of the action still lands on it. False: an ability's own, which one takes with no owner unless its rules shrug the kind. The entry's ByTalent when unauthored, true unless written false. |
+
+<a id="field-procasset-actions-item-changestat-amount"></a>
+##### ProcAsset.Actions[].ChangeStat.Amount
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-changestat-amount-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-changestat-amount-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-counter-add"></a>
+##### ProcAsset.Actions[].Counter.Add
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-counter-add-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-counter-add-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-counter-consume"></a>
+##### ProcAsset.Actions[].Counter.Consume
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-counter-consume-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-counter-consume-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-push-force"></a>
+##### ProcAsset.Actions[].Push.Force
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-push-force-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-push-force-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-push-up"></a>
+##### ProcAsset.Actions[].Push.Up
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-push-up-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-push-up-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-taunt-seconds"></a>
+##### ProcAsset.Actions[].Taunt.Seconds
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-taunt-seconds-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-taunt-seconds-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-heal-amount"></a>
+##### ProcAsset.Actions[].Heal.Amount
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-heal-amount-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-heal-amount-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-soak-share"></a>
+##### ProcAsset.Actions[].Soak.Share
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-soak-share-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-soak-share-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-soak-perpoint"></a>
+##### ProcAsset.Actions[].Soak.PerPoint
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-soak-perpoint-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-soak-perpoint-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-soak-leave"></a>
+##### ProcAsset.Actions[].Soak.Leave
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-soak-leave-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-soak-leave-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-soak-leavepercent"></a>
+##### ProcAsset.Actions[].Soak.LeavePercent
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-soak-leavepercent-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-soak-leavepercent-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-guardcost-cut"></a>
+##### ProcAsset.Actions[].GuardCost.Cut
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-guardcost-cut-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-guardcost-cut-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-reflect-share"></a>
+##### ProcAsset.Actions[].Reflect.Share
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-reflect-share-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-reflect-share-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-strike-amount"></a>
+##### ProcAsset.Actions[].Strike.Amount
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-strike-amount-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-strike-amount-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-returnthrown-delay"></a>
+##### ProcAsset.Actions[].ReturnThrown.Delay
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Base` | `double` | `null` | The value before any factor is added. Omit for 0. This is what the formula is worth when nothing else resolves, so author it whenever the result must never be 0. |
+| `Factors` | array of [Term](#field-procasset-actions-item-returnthrown-delay-factors-item) | `null` | The weighted readings added to Base. A term whose factor cannot be answered contributes 0, so an optional bonus from an absent mod costs only that bonus. |
+| `Clamp` | [Clamp](#field-procasset-actions-item-returnthrown-delay-clamp) | `null` | Inclusive bounds applied to the finished sum. Author Min as the floor the value may never fall through, whatever is missing. |
+
+<a id="field-procasset-actions-item-applyeffect-duration-factors-item"></a>
+###### ProcAsset.Actions[].ApplyEffect.Duration.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-applyeffect-duration-clamp"></a>
+###### ProcAsset.Actions[].ApplyEffect.Duration.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-applyeffect-damagemultiplier-factors-item"></a>
+###### ProcAsset.Actions[].ApplyEffect.DamageMultiplier.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-applyeffect-damagemultiplier-clamp"></a>
+###### ProcAsset.Actions[].ApplyEffect.DamageMultiplier.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-changestat-amount-factors-item"></a>
+###### ProcAsset.Actions[].ChangeStat.Amount.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-changestat-amount-clamp"></a>
+###### ProcAsset.Actions[].ChangeStat.Amount.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-counter-add-factors-item"></a>
+###### ProcAsset.Actions[].Counter.Add.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-counter-add-clamp"></a>
+###### ProcAsset.Actions[].Counter.Add.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-counter-consume-factors-item"></a>
+###### ProcAsset.Actions[].Counter.Consume.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-counter-consume-clamp"></a>
+###### ProcAsset.Actions[].Counter.Consume.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-push-force-factors-item"></a>
+###### ProcAsset.Actions[].Push.Force.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-push-force-clamp"></a>
+###### ProcAsset.Actions[].Push.Force.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-push-up-factors-item"></a>
+###### ProcAsset.Actions[].Push.Up.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-push-up-clamp"></a>
+###### ProcAsset.Actions[].Push.Up.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-taunt-seconds-factors-item"></a>
+###### ProcAsset.Actions[].Taunt.Seconds.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-taunt-seconds-clamp"></a>
+###### ProcAsset.Actions[].Taunt.Seconds.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-heal-amount-factors-item"></a>
+###### ProcAsset.Actions[].Heal.Amount.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-heal-amount-clamp"></a>
+###### ProcAsset.Actions[].Heal.Amount.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-soak-share-factors-item"></a>
+###### ProcAsset.Actions[].Soak.Share.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-soak-share-clamp"></a>
+###### ProcAsset.Actions[].Soak.Share.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-soak-perpoint-factors-item"></a>
+###### ProcAsset.Actions[].Soak.PerPoint.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-soak-perpoint-clamp"></a>
+###### ProcAsset.Actions[].Soak.PerPoint.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-soak-leave-factors-item"></a>
+###### ProcAsset.Actions[].Soak.Leave.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-soak-leave-clamp"></a>
+###### ProcAsset.Actions[].Soak.Leave.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-soak-leavepercent-factors-item"></a>
+###### ProcAsset.Actions[].Soak.LeavePercent.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-soak-leavepercent-clamp"></a>
+###### ProcAsset.Actions[].Soak.LeavePercent.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-guardcost-cut-factors-item"></a>
+###### ProcAsset.Actions[].GuardCost.Cut.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-guardcost-cut-clamp"></a>
+###### ProcAsset.Actions[].GuardCost.Cut.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-reflect-share-factors-item"></a>
+###### ProcAsset.Actions[].Reflect.Share.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-reflect-share-clamp"></a>
+###### ProcAsset.Actions[].Reflect.Share.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-strike-amount-factors-item"></a>
+###### ProcAsset.Actions[].Strike.Amount.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-strike-amount-clamp"></a>
+###### ProcAsset.Actions[].Strike.Amount.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
+
+<a id="field-procasset-actions-item-returnthrown-delay-factors-item"></a>
+###### ProcAsset.Actions[].ReturnThrown.Delay.Factors[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factor` | `string` | `null` | The namespaced factor id to read. An id nobody can answer contributes 0 to the sum rather than voiding it, so an optional bonus stays optional. |
+| `Param` | `string` | `null` | Optional provider-interpreted argument, opaque here - whatever the factor's own owner documents (a stat id, an item id, a tag). Each term is read with its own Param, so one factor id can appear twice with different arguments. |
+| `Weight` | `double` | `null` | What one point of this factor is worth in the result. Omit for 1.0; author a fraction to make a factor a nudge, or a negative number to make it a penalty. |
+
+<a id="field-procasset-actions-item-returnthrown-delay-clamp"></a>
+###### ProcAsset.Actions[].ReturnThrown.Delay.Clamp
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Min` | `double` | `null` | Inclusive floor: a result below this is raised to it. Omit for no floor. |
+| `Max` | `double` | `null` | Inclusive ceiling: a result above this is lowered to it. Omit for no ceiling. |
 
 <a id="type-when"></a>
 ## When

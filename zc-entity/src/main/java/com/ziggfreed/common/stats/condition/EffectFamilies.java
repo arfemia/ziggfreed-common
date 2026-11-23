@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,11 +34,24 @@ import com.ziggfreed.common.util.SafeLog;
  * lists, every effect whose own native {@code Tags} carry {@value EffectFamilyAsset#TAG} naming the family (a
  * {@code Parent}'s tags are its child's too), and every member of every family it includes.
  *
- * <p>One immutable snapshot behind a volatile field, rebuilt on the first read after it is marked (a family fold, or
- * an effect load or removal touching a tagged, listed or already classified effect), so the runtime effects a grid
- * writes during play cost no rebuild. A rebuild that throws logs once and leaves an empty table until the next mark.
+ * <p>It also reads which effects are a fixed control: an effect whose own native {@code Tags} carry
+ * {@value #CONTROL_TAG} naming {@value #FIXED} ({@code "Tags": { "ZigControl": [ "Fixed" ] }}, R864, R880; a
+ * {@code Parent}'s tags are its child's too) lands at exactly the length it is put on for, skipping what the Crowd
+ * Control settings say a fixed control skips ({@link ControlKinds}: the foe's immunity, the carrier's resistance, the
+ * owner's added seconds), whatever families it is in, so it can join Stunned and still last a round's full length.
+ *
+ * <p>One immutable snapshot behind a volatile field, rebuilt on the first read after it is marked (a family or kind
+ * fold, or an effect load or removal touching a tagged, listed or already classified effect), so the runtime effects a
+ * grid writes during play cost no rebuild. A rebuild that throws logs once and leaves an empty table until the next
+ * mark.
  */
 public final class EffectFamilies {
+
+    /** The native {@code Tags} key an effect says how it lands as a control under: {@code "ZigControl": ["Fixed"]}. */
+    public static final String CONTROL_TAG = "ZigControl";
+
+    /** The {@value #CONTROL_TAG} value that makes an effect a fixed control. */
+    public static final String FIXED = "Fixed";
 
     private static final Object LOCK = new Object();
 
@@ -51,15 +65,19 @@ public final class EffectFamilies {
     /**
      * The table: each family's member indexes, every effect id it classified (lower-cased), each effect index's
      * duration rules, each effect index's kinds of control as a mask of {@link ControlKind} bits (from every family it
-     * is in that names a {@code Control}), and every kind some family names.
+     * is in that names a {@code Control}), every kind some family names, and the fixed controls' indexes.
      */
     private record Table(@Nonnull Map<String, BitSet> members, @Nonnull Set<String> ids,
-            @Nonnull Map<Integer, List<DurationRule>> durations, @Nonnull int[] kinds, int kindMask) {
-        static final Table EMPTY = new Table(Map.of(), Set.of(), Map.of(), new int[0], 0);
+            @Nonnull Map<Integer, List<DurationRule>> durations, @Nonnull int[] kinds, int kindMask,
+            @Nonnull BitSet fixed) {
+        static final Table EMPTY = new Table(Map.of(), Set.of(), Map.of(), new int[0], 0, new BitSet());
     }
 
     /** Each family and unknown Control value already warned of, lower-cased. */
     private static final Set<String> WARNED_KINDS = ConcurrentHashMap.newKeySet();
+
+    /** Each effect and unknown ZigControl value already warned of, lower-cased. */
+    private static final Set<String> WARNED_FLAGS = ConcurrentHashMap.newKeySet();
 
     @Nonnull
     private static volatile Table table = Table.EMPTY;
@@ -84,7 +102,8 @@ public final class EffectFamilies {
             Set<String> listed = listedIds();
             for (Map.Entry<String, EntityEffect> entry : loaded.entrySet()) {
                 String id = entry.getKey() == null ? "" : entry.getKey().toLowerCase(Locale.ROOT);
-                if (known.contains(id) || listed.contains(id) || !tagged(entry.getValue()).isEmpty()) {
+                if (known.contains(id) || listed.contains(id) || !tagged(entry.getValue()).isEmpty()
+                        || fixedTagged(entry.getKey(), entry.getValue())) {
                     markDirty();
                     return;
                 }
@@ -137,6 +156,14 @@ public final class EffectFamilies {
     public static int controlKindMask(int effectIndex) {
         int[] kinds = current().kinds();
         return effectIndex >= 0 && effectIndex < kinds.length ? kinds[effectIndex] : 0;
+    }
+
+    /**
+     * Is the effect at {@code effectIndex} a fixed control ({@value #CONTROL_TAG} naming {@value #FIXED} in its own
+     * Tags)? False for any other, and whenever it cannot tell.
+     */
+    public static boolean isFixed(int effectIndex) {
+        return effectIndex >= 0 && current().fixed().get(effectIndex);
     }
 
     /** {@link #controlKindMask} as a set; empty for an effect in no family that names a kind. */
@@ -258,6 +285,7 @@ public final class EffectFamilies {
         Map<String, Integer> indexById = new HashMap<>();
         Map<String, Set<String>> tagged = new HashMap<>();
         int end = map.getNextIndex();
+        BitSet fixed = new BitSet(Math.max(0, end));
         for (int index = 0; index < end; index++) {
             EntityEffect effect = map.getAsset(index);
             if (effect == null || effect.getId() == null) {
@@ -268,6 +296,9 @@ public final class EffectFamilies {
             Set<String> families = tagged(effect);
             if (!families.isEmpty()) {
                 tagged.put(id, families);
+            }
+            if (fixedTagged(effect.getId(), effect)) {
+                fixed.set(index);
             }
         }
         Map<String, EffectFamilyAsset> families = EffectFamilyConfig.getInstance().all();
@@ -300,7 +331,7 @@ public final class EffectFamilies {
         }
         Map<Integer, List<DurationRule>> frozen = new HashMap<>();
         durations.forEach((index, rules) -> frozen.put(index, List.copyOf(rules)));
-        return new Table(Map.copyOf(members), Set.copyOf(ids), Map.copyOf(frozen), kinds, kindMask);
+        return new Table(Map.copyOf(members), Set.copyOf(ids), Map.copyOf(frozen), kinds, kindMask, fixed);
     }
 
     /**
@@ -331,6 +362,49 @@ public final class EffectFamilies {
             out.addAll(family.effectIds());
         }
         return out;
+    }
+
+    /**
+     * Does an effect's own native Tags make it a fixed control ({@value #CONTROL_TAG} naming {@value #FIXED}, any
+     * case)? Any other {@value #CONTROL_TAG} value is warned once per effect and value and counts nothing.
+     */
+    private static boolean fixedTagged(@Nullable String id, @Nullable EntityEffect effect) {
+        if (effect == null) {
+            return false;
+        }
+        AssetExtraInfo.Data data = EntityEffect.CODEC.getData(effect);
+        Map<String, String[]> raw = data == null ? null : data.getRawTags();
+        return raw != null && fixedIn(raw, value -> {
+            String effectId = id == null ? "?" : id;
+            if (WARNED_FLAGS.add(effectId.toLowerCase(Locale.ROOT) + "|" + value.toLowerCase(Locale.ROOT))) {
+                SafeLog.warn("[condition] the effect '" + effectId + "' names '" + value + "' under " + CONTROL_TAG
+                        + ", which is no way of landing (" + FIXED + "): it counts nothing");
+            }
+        });
+    }
+
+    /**
+     * Do raw native tags make an effect a fixed control? Each other {@value #CONTROL_TAG} value goes to
+     * {@code unknown}. Pure.
+     */
+    static boolean fixedIn(@Nonnull Map<String, String[]> rawTags, @Nonnull Consumer<String> unknown) {
+        boolean fixed = false;
+        for (Map.Entry<String, String[]> entry : rawTags.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null || !entry.getKey().equalsIgnoreCase(CONTROL_TAG)) {
+                continue;
+            }
+            for (String value : entry.getValue()) {
+                if (value == null || value.isBlank()) {
+                    continue;
+                }
+                if (value.trim().equalsIgnoreCase(FIXED)) {
+                    fixed = true;
+                } else {
+                    unknown.accept(value.trim());
+                }
+            }
+        }
+        return fixed;
     }
 
     /** The families an effect's own native Tags name under {@value EffectFamilyAsset#TAG}, lower-cased. */

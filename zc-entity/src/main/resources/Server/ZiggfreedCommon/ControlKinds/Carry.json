@@ -1,0 +1,6 @@
+{
+  "$Comment": "Grabs and drives that carry a foe along. A foe wearing the game's Immune is never taken; the stun that holds it while it is carried counts as a Stun. A boss or an elite is never carried, an ability's own grab included, unless a rule of its own says otherwise. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Carry.",
+  "Description": "A grab or a drive that carries the foe",
+  "RefusedByImmune": true,
+  "OnBossOrElite": "Shrugs"
+}

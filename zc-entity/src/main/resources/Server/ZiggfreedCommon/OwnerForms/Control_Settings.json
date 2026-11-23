@@ -1,0 +1,49 @@
+{
+  "$Comment": "The in-game screen for mods/ziggfreedcommon/control-settings.json, on the owner menu (/zigadmin): how much Immunity a stun, root or slow builds on a foe, and what a fixed control (a minigame's stun that must last the whole round) skips. Each setting shows the value in force and the value the server would use without your file, and saves straight into the file under its Default entry. Each kind of control's own rule is the Control Kinds screen. Every word is a key of ziggfreedcommon.control.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Control_Settings.",
+  "Title": "ziggfreedcommon.control.form.settings.title",
+  "Description": "ziggfreedcommon.control.form.settings.desc",
+  "Icon": "Weapon_Bomb_Stun",
+  "Section": "ziggfreedcommon",
+  "Order": 80,
+  "File": "ziggfreedcommon/control-settings.json",
+  "Entry": "Default",
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.control.form.settings.heading.repeat",
+      "Fields": [
+        {
+          "Path": "RampAmount",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.control.form.settings.ramp",
+          "Hint": "ziggfreedcommon.control.form.settings.ramp.hint",
+          "Min": 0,
+          "Max": 100
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.control.form.settings.heading.fixed",
+      "Note": "ziggfreedcommon.control.form.settings.fixed.note",
+      "Fields": [
+        {
+          "Path": "Fixed.SkipsImmunity",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.control.form.settings.fixed.immunity",
+          "Hint": "ziggfreedcommon.control.form.settings.fixed.immunity.hint"
+        },
+        {
+          "Path": "Fixed.SkipsResist",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.control.form.settings.fixed.resist",
+          "Hint": "ziggfreedcommon.control.form.settings.fixed.resist.hint"
+        },
+        {
+          "Path": "Fixed.SkipsAddedSeconds",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.control.form.settings.fixed.added",
+          "Hint": "ziggfreedcommon.control.form.settings.fixed.added.hint"
+        }
+      ]
+    }
+  ]
+}

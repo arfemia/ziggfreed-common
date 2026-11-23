@@ -1,0 +1,9 @@
+{
+  "$Comment": "A foe held back and kept there: slowed, rooted, frozen or withered. What a hit on such a foe pays reads it (Damage_VsControlled, CritChance_VsControlled). It names no kind of control, since its members are of several; Control is the other side, what holds a player back and their control resistance cuts.",
+  "Includes": [
+    "Slowed",
+    "Rooted",
+    "Frozen",
+    "Withered"
+  ]
+}

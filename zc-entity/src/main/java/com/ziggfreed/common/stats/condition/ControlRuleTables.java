@@ -13,7 +13,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
-import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
 import com.hypixel.hytale.builtin.tagset.config.NPCGroup;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
@@ -21,12 +20,14 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The rule tags {@link BossRules} reads, as two immutable snapshots rebuilt on the first read after a mark: the NPC
- * groups (the family group's rule, every other tagged group's rule, the groups {@value BossRules#RANK_TAG} counts as
- * bosses or elites), marked on every group load or removal; and the effects (each effect index's rule), marked on an
- * effect load or removal touching a tagged or already known rule effect, so the runtime effects a grid writes during
- * play cost no rebuild. A role's groups are read live off the engine's own group sets, so a role load needs no
- * rebuild. A value naming no kind or rank is warned once per asset and value. A rebuild that throws logs once and
- * leaves an empty snapshot until the next mark.
+ * groups (every tagged group's rule, the groups {@value BossRules#RANK_TAG} counts as bosses or elites), marked on
+ * every group load or removal; and the effects (each effect index's rule), marked on an effect load or removal
+ * touching a tagged or already known rule effect, so the runtime effects a grid writes during play cost no rebuild.
+ * Both are marked when the kinds of control fold ({@link #kindsChanged}), since a tag may name a pack's own kind. The
+ * family default a boss or an elite starts from is each kind's own {@code OnBossOrElite} ({@link ControlKinds}), never
+ * a group's tags: the library's {@value BossRules#FAMILY_GROUP} group reads as any other group. A role's groups are
+ * read live off the engine's own group sets, so a role load needs no rebuild. A value naming no kind or rank is warned
+ * once per asset and value. A rebuild that throws logs once and leaves an empty snapshot until the next mark.
  */
 final class ControlRuleTables {
 
@@ -39,14 +40,12 @@ final class ControlRuleTables {
     private static final String[] RANKS = {"Boss", "Elite"};
 
     /**
-     * The groups: the family group's index ({@link AssetMapWithIndexes#NOT_FOUND} when it is not loaded) and rule,
-     * each other tagged group's index and rule, the ranked groups' indexes, and the masks of every kind any group
+     * The groups: each tagged group's index and rule, the ranked groups' indexes, and the masks of every kind any group
      * names and shrugs.
      */
-    record Groups(int familyIndex, @Nonnull ControlRule family, @Nonnull int[] tagged,
-            @Nonnull ControlRule[] taggedRules, @Nonnull int[] ranked, int named, int shrugs) {
-        static final Groups EMPTY = new Groups(AssetMapWithIndexes.NOT_FOUND, ControlRule.NONE, new int[0],
-                new ControlRule[0], new int[0], 0, 0);
+    record Groups(@Nonnull int[] tagged, @Nonnull ControlRule[] taggedRules, @Nonnull int[] ranked, int named,
+            int shrugs) {
+        static final Groups EMPTY = new Groups(new int[0], new ControlRule[0], new int[0], 0, 0);
     }
 
     /**
@@ -80,6 +79,12 @@ final class ControlRuleTables {
     /** A group load or removal: the groups are read again on their next use. */
     static void groupsChanged() {
         groupsDirty = true;
+    }
+
+    /** The kinds of control folded: both tables are read again, since a tag may name a kind only now declared. */
+    static void kindsChanged() {
+        groupsDirty = true;
+        effectsDirty = true;
     }
 
     /** Marks the effects when one of {@code loaded} carries a rule tag or was a rule effect before. */
@@ -165,8 +170,6 @@ final class ControlRuleTables {
     @Nonnull
     private static Groups buildGroups() {
         IndexedLookupTableAssetMap<String, NPCGroup> map = NPCGroup.getAssetMap();
-        int familyIndex = AssetMapWithIndexes.NOT_FOUND;
-        ControlRule family = ControlRule.NONE;
         List<Integer> tagged = new ArrayList<>();
         List<ControlRule> taggedRules = new ArrayList<>();
         List<Integer> ranked = new ArrayList<>();
@@ -183,23 +186,17 @@ final class ControlRuleTables {
             Map<String, String[]> raw = rawTags(NPCGroup.CODEC.getData(group));
             ControlRule rule = ControlRule.parse(raw,
                     value -> warnOnce("NPC group", id, value, "kind of control", ControlKind.ids()));
-            if (id.equalsIgnoreCase(BossRules.FAMILY_GROUP)) {
-                familyIndex = index;
-                family = rule;
-            } else {
-                if (!rule.isEmpty()) {
-                    tagged.add(index);
-                    taggedRules.add(rule);
-                }
-                if (ControlRule.ranked(raw, value -> warnOnce("NPC group", id, value, "rank", RANKS))) {
-                    ranked.add(index);
-                }
+            if (!rule.isEmpty()) {
+                tagged.add(index);
+                taggedRules.add(rule);
+            }
+            if (ControlRule.ranked(raw, value -> warnOnce("NPC group", id, value, "rank", RANKS))) {
+                ranked.add(index);
             }
             named |= rule.named();
             shrugs |= rule.shrugs();
         }
-        return new Groups(familyIndex, family, ints(tagged), taggedRules.toArray(new ControlRule[0]), ints(ranked),
-                named, shrugs);
+        return new Groups(ints(tagged), taggedRules.toArray(new ControlRule[0]), ints(ranked), named, shrugs);
     }
 
     @Nonnull

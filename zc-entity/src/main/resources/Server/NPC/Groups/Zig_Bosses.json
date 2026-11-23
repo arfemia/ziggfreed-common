@@ -1,0 +1,23 @@
+{
+  "$Comment": "The game's own bosses, by exact role id: the world's roaming bosses (Zig_World_Bosses: the dragons and the Scarak Broodmothers), the Gobliterator in every phase with its pilot and the barrels of its arena, the Feastmaster, the Trork Chieftain, the Voidtaken bear of the hunt with its tentacles and their markers, and the Goblin Duke in every phase. ZigRank Boss counts each one as a boss for CommonLib's crowd-control rule and for every boss-or-elite check, and Zig_Boss_Or_Elite includes this group, so no foe family counts them. A mod opts its own boss in the same way from its own pack: an NPC group of its own listing its roles, tagged ZigRank Boss; it never needs to change this file. Add a game role here by shipping a file with this same id.",
+  "IncludeGroups": [
+    "Zig_World_Bosses",
+    "Goblin_Gobliterator_Boss_Group",
+    "Dungeon_Feastmaster_Group",
+    "Trork_Chieftain",
+    "Bear_Voidtaken_Family"
+  ],
+  "IncludeRoles": [
+    "Goblin_Gobliterator_Bottom_Phase3",
+    "Goblin_Gobliterator_Explosive_Barrel",
+    "Goblin_Pilot",
+    "Bear_Voidtaken_Tentacle_Marker",
+    "Goblin_Duke",
+    "Goblin_Duke_Phase_2",
+    "Goblin_Duke_Phase_3_Fast",
+    "Goblin_Duke_Phase_3_Slow"
+  ],
+  "Tags": {
+    "ZigRank": [ "Boss" ]
+  }
+}

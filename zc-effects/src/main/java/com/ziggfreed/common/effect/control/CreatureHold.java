@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
-import com.ziggfreed.common.stats.condition.BossRules;
 import com.ziggfreed.common.stats.condition.ControlKind;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -27,10 +26,11 @@ import com.ziggfreed.common.util.SafeLog;
  * creature's own motion). A zero vector pushes nothing, so the hold never sends one. A launch at the end is the
  * caller's own {@code Velocity} instruction.
  *
- * <p>{@link #canMove} is the one rule for whom a grab or a drive may take: a creature, never a player; never one whose
- * rules shrug a Carry (zc-entity's {@code BossRules}: by the family default every boss and elite); never one wearing
- * {@code Immune}; one whose role lets it be knocked about; and one no taller than the caller allows (its model's box).
- * It needs nothing wired: a server running CommonLib alone holds the same rule. World thread.
+ * <p>{@link #canMove} is the one rule for whom a grab or a drive may take: a creature, never a player; never one the
+ * one landing's gate refuses a Carry ({@link ControlLanding#refuses}: its rules, by the Carry kind's default every boss
+ * and elite; its immunity, while the Carry kind is refused by it); one whose role lets it be knocked about; and one no
+ * taller than the caller allows (its model's box). It needs nothing wired: a server running CommonLib alone holds the
+ * same rule. World thread.
  */
 public final class CreatureHold {
 
@@ -61,8 +61,7 @@ public final class CreatureHold {
             if (npc == null || npc.getRole() == null || !(npc.getRole().getKnockbackScale() > 0.0)) {
                 return false;
             }
-            if (!BossRules.lands(accessor, foe, ControlKind.CARRY, false)
-                    || StunControl.isImmune(accessor, foe, ControlKind.CARRY.bit())) {
+            if (ControlLanding.refuses(accessor, foe, ControlKind.CARRY, false, null)) {
                 return false;
             }
             double height = heightOf(accessor, foe);

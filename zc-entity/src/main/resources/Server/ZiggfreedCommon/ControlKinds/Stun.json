@@ -1,0 +1,7 @@
+{
+  "$Comment": "Stuns, staggers, knockdowns and freezes (the Stunned and Frozen effect families). A foe wearing the game's Immune takes none; each one lasts less on a foe that already carries Immunity and adds Immunity as it lands, so a foe stunned over and over is held shorter each time and then shrugs stuns for a while. A boss or an elite takes an ability's own stun and never a talent's. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Stun.",
+  "Description": "A stun, a stagger, a knockdown or a freeze",
+  "RefusedByImmune": true,
+  "Shrinks": true,
+  "Ramps": true
+}

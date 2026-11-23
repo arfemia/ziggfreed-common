@@ -57,8 +57,9 @@ import com.ziggfreed.common.track.TrackFactors;
  * {@code LeavesUnder} (how low it would drop the one it lands on), an ally's by {@code AllyRadius}, and a block by
  * {@code WouldBreakGuard}; a coming hit's {@code OverTime} asks nothing unless written.
  *
- * <p><b>Order.</b> The procs on one moment run in the order of their ids, compared lower-cased ({@link ProcConfig}),
- * so a proc that must act before another on the same moment takes an id that sorts first.
+ * <p><b>Order.</b> The procs on one moment run by their {@code Order}, lower first, then in the order of their ids,
+ * compared lower-cased ({@link ProcConfig}), so a proc that must act before another on the same moment writes a lower
+ * {@code Order}, never an id spelt to sort first.
  */
 public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, ProcAsset>> {
 
@@ -269,6 +270,7 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
 
     @Nullable protected Boolean isAbstract;
     @Nullable protected Boolean enabled;
+    @Nullable protected Integer order;
     @Nullable protected String trigger;
     @Nullable protected GateSpec requires;
     @Nullable protected ConditionalStatAsset.Hit hit;
@@ -307,6 +309,13 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
             .metadata(EditorSchema.defaultValue(true))
             .documentation("Set false to switch the proc off. True when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Order", Codec.INTEGER, false),
+                    (a, v) -> a.order = v, a -> a.order, (a, p) -> a.order = p.order)
+            .metadata(EditorSchema.defaultValue(0L))
+            .documentation("Where it runs among the procs answering the same moment: lower first, so a proc that must "
+                    + "act before another (one that breaks a freeze, before every one that lays one) writes a lower "
+                    + "Order. Procs of one Order run in the order of their ids, compared lower-cased. 0 when "
+                    + "unauthored.").add()
             .appendInherited(new KeyedCodec<>("Trigger", Codec.STRING, false),
                     (a, v) -> a.trigger = v, a -> a.trigger, (a, p) -> a.trigger = p.trigger)
             .metadata(EditorSchema.oneOfDocumented(ProcTrigger.documented()))
@@ -411,6 +420,11 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
 
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /** Where it runs among the procs on one moment, lower first; 0 when unauthored. */
+    public int order() {
+        return order == null ? 0 : order;
     }
 
     /** The trigger named, or null when none or an unknown one was. */

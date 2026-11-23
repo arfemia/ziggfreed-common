@@ -1,0 +1,69 @@
+{
+  "$Comment": "The in-game screen for the kinds of crowd control (Stun, Hold, Slow, Push and the rest, and any kind a pack adds), on the owner menu (/zigadmin): one row per kind, each opening how it lands on a foe (stopped by immunity, shorter on repeat, building immunity, its longest hold) and what a boss or an elite takes of it, every setting saved straight into mods/ziggfreedcommon/control-kinds.json under that kind's id, beside the value it has without your file. A new kind is a pack's file under Server/ZiggfreedCommon/ControlKinds. Every word is a key of ziggfreedcommon.control.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Control_Kinds.",
+  "Title": "ziggfreedcommon.control.form.kinds.title",
+  "Description": "ziggfreedcommon.control.form.kinds.desc",
+  "Icon": "Weapon_Mace_Cobalt",
+  "Section": "ziggfreedcommon",
+  "Order": 85,
+  "File": "ziggfreedcommon/control-kinds.json",
+  "Entries": {
+    "Remove": false
+  },
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.control.form.kinds.heading.repeat",
+      "Fields": [
+        {
+          "Path": "RefusedByImmune",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.control.form.kinds.immune",
+          "Hint": "ziggfreedcommon.control.form.kinds.immune.hint"
+        },
+        {
+          "Path": "Shrinks",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.control.form.kinds.shrinks",
+          "Hint": "ziggfreedcommon.control.form.kinds.shrinks.hint"
+        },
+        {
+          "Path": "Ramps",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.control.form.kinds.ramps",
+          "Hint": "ziggfreedcommon.control.form.kinds.ramps.hint"
+        },
+        {
+          "Path": "RampAmount",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.control.form.kinds.ramp",
+          "Hint": "ziggfreedcommon.control.form.kinds.ramp.hint",
+          "Min": 0,
+          "Max": 100
+        },
+        {
+          "Path": "MaxSeconds",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.control.form.kinds.max",
+          "Hint": "ziggfreedcommon.control.form.kinds.max.hint",
+          "Min": 0,
+          "Max": 600
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.control.form.kinds.heading.bosses",
+      "Fields": [
+        {
+          "Path": "OnBossOrElite",
+          "Kind": "Choice",
+          "Label": "ziggfreedcommon.control.form.kinds.boss",
+          "Hint": "ziggfreedcommon.control.form.kinds.boss.hint",
+          "Choices": [
+            { "Value": "Lands", "Label": "ziggfreedcommon.control.form.kinds.boss.lands" },
+            { "Value": "Usual", "Label": "ziggfreedcommon.control.form.kinds.boss.usual" },
+            { "Value": "Shrugs", "Label": "ziggfreedcommon.control.form.kinds.boss.shrugs" }
+          ]
+        }
+      ]
+    }
+  ]
+}

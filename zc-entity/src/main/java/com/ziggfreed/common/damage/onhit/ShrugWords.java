@@ -70,7 +70,7 @@ public final class ShrugWords {
                     || store.getComponent(caster, EntityTrackerSystems.EntityViewer.getComponentType()) == null) {
                 return;
             }
-            if (!Crits.wordWanted(store, caster) || !due(new Key(caster, foe, kind == null ? -1 : kind.ordinal()))) {
+            if (!Crits.wordWanted(store, caster) || !due(new Key(caster, foe, kind == null ? 0 : kind.bit()))) {
                 return;
             }
             HitWords.show(store, caster, foe, TEXT_KEY, settings.shrugTextColor(), TEXT_ANGLE);

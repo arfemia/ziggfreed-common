@@ -1,0 +1,5 @@
+{
+  "$Comment": "Flinches and guard breaks (the Interrupted effect family). Free on repeat, like the game's own hit flinch: Immunity neither stops nor shortens one, and none adds Immunity. A boss or an elite takes an ability's own and never a talent's. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Interrupt.",
+  "Description": "A flinch or a guard break",
+  "RefusedByImmune": false
+}

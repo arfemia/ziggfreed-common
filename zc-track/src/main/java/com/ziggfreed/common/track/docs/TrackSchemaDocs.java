@@ -11,6 +11,7 @@ import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.docs.SchemaDocWriter;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.proc.ProcAsset;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.asset.TrackAsset;
@@ -31,7 +32,7 @@ import com.ziggfreed.common.world.WorldSelector;
 
 /**
  * This module's authoring reference, {@code zc-track/SCHEMA.md}: the track, curve and category files, the
- * boost files and settings, and the native {@code ZigTrack} and {@code ZigBoost} rewards, rendered from their codecs by zc-progression's {@link SchemaDocWriter}, and
+ * boost files and settings, the proc files, and the native {@code ZigTrack} and {@code ZigBoost} rewards, rendered from their codecs by zc-progression's {@link SchemaDocWriter}, and
  * regenerated on demand with {@code :zc-track:generateSchemaDocs} through the lane.
  */
 public final class TrackSchemaDocs {
@@ -81,6 +82,10 @@ public final class TrackSchemaDocs {
                     + "or by a mod onto its own) starts what the stack says in place of the interaction's own leaves. "
                     + "A boost with a `Reusable` group is one a player may start themselves (`/zigboost own`, or a "
                     + "mod's page), its `Reusable.Requires` asked only then.\n\n"
+                    + "One proc (what a moment does for a player who meets its `Requires`: a talent's knack) is one "
+                    + "file under `Server/ZiggfreedCommon/Procs/`, retuned in `mods/ziggfreedcommon/procs.json`. The "
+                    + "procs answering one moment run by their `Order`, lower first, then by their ids compared "
+                    + "lower-cased.\n\n"
                     + "Every field is optional and defaults to `null` unless its Default column reads "
                     + "*(required)*.\n\n")
             .register("TrackAsset", TrackAsset.CODEC)
@@ -99,6 +104,7 @@ public final class TrackSchemaDocs {
             .register("BoostSettingsAsset", BoostSettingsAsset.CODEC)
             .register("ZigBoostReward", ZigBoostReward.CODEC)
             .register("BoostToken", BoostToken.CODEC)
+            .register("ProcAsset", ProcAsset.CODEC)
             .register("When", When.CODEC)
             .register("SourceRow", SourceRow.CODEC)
             .register("Where", WorldSelector.CODEC)

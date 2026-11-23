@@ -21,13 +21,14 @@ import com.ziggfreed.common.damage.onhit.ShrugWords;
  * {@code Tags} carry {@value #RANK_TAG} {@code Boss} or {@code Elite} (a mod opts its boss in from its own group
  * file).
  *
- * <p><b>What lands.</b> Four layers each name kinds ({@link ControlKind}) under {@value #LANDS_TAG} (from anyone, a
- * talent's included) or {@value #SHRUGS_TAG} (from nothing, the game's own controls included); a kind a layer does
- * not name falls to the one below, and inside a layer shrugs beats lands ({@link ControlReading#resolve}): a timed
- * rule effect the foe wears (a window), an infinite one (a phase's standing rule), the tags on its own NPC groups (a
- * boss's own default), and for a boss or an elite the tags on {@value #FAMILY_GROUP} (the family default). Below
- * them a boss or an elite reads {@link ControlReading#USUAL} (an ability's own control lands at the cast's own
- * strength, a talent's does not) and anything else {@link ControlReading#LANDS}. Every read is live.
+ * <p><b>What lands.</b> Four layers each name kinds ({@link ControlKind}): from anyone, a talent's included, or from
+ * nothing, the game's own controls included; a kind a layer does not name falls to the one below, and inside a layer
+ * shrugs beats lands ({@link ControlReading#resolve}): a timed rule effect the foe wears (a window), an infinite one (a
+ * phase's standing rule), the tags on its own NPC groups (a boss's own default), each naming kinds under
+ * {@value #LANDS_TAG} or {@value #SHRUGS_TAG}, and for a boss or an elite each kind's own {@code OnBossOrElite} (the
+ * family default, {@link ControlKinds#familyRule}, on the Control Kinds screen). Below them a boss or an elite reads
+ * {@link ControlReading#USUAL} (an ability's own control lands at the cast's own strength, a talent's does not) and
+ * anything else {@link ControlReading#LANDS}. Every read is live.
  *
  * <pre>{@code
  * // a boss's own group, opting in and shrugging taunts
@@ -49,7 +50,10 @@ public final class BossRules {
     /** The native {@code Tags} key an NPC group counts its roles as bosses or elites with ({@code Boss}, {@code Elite}). */
     public static final String RANK_TAG = "ZigRank";
 
-    /** The library's NPC group of every boss and elite, whose tags are the family default. */
+    /**
+     * The library's NPC group of every boss and elite it counts (the game's own, by exact role id: it includes
+     * {@code Zig_Bosses} and {@code Zig_Elites}, each tagged {@value #RANK_TAG}), which every foe family excludes.
+     */
     public static final String FAMILY_GROUP = ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP;
 
     private BossRules() {
@@ -183,7 +187,8 @@ public final class BossRules {
      * {@link ControlReading#SHRUGS} on anyone, so a per-tick reader skips it at no cost.
      */
     public static int mayShrugMask() {
-        return ControlRuleTables.groups().shrugs() | ControlRuleTables.effects().shrugs();
+        return ControlRuleTables.groups().shrugs() | ControlRuleTables.effects().shrugs()
+                | ControlKinds.familyRule().shrugs();
     }
 
     /** May some foe shrug {@code kind} ({@link #mayShrugMask})? */
@@ -264,7 +269,8 @@ public final class BossRules {
 
     /** Every kind some loaded rule names at all; a kind outside it reads structural on everyone. */
     private static int namedMask() {
-        return ControlRuleTables.groups().named() | ControlRuleTables.effects().named();
+        return ControlRuleTables.groups().named() | ControlRuleTables.effects().named()
+                | ControlKinds.familyRule().named();
     }
 
     /**
@@ -314,7 +320,7 @@ public final class BossRules {
                 }
             }
         }
-        return new Layers(bossOrElite, window, standing, own, groups.family());
+        return new Layers(bossOrElite, window, standing, own, ControlKinds.familyRule());
     }
 
     /** Is the role in the family group (looked up live, as every group ask is) or in a ranked group? */

@@ -1,0 +1,6 @@
+{
+  "$Comment": "Marks: a counter's stacks on a foe and the look they show. Immunity never stops one. A boss or an elite takes every mark, a talent's included, unless a rule of its own says otherwise. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Mark.",
+  "Description": "A mark: a counter's stacks and the look they show",
+  "RefusedByImmune": false,
+  "OnBossOrElite": "Lands"
+}

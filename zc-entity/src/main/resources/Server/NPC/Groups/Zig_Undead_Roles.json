@@ -1,0 +1,10 @@
+{
+  "$Comment": "The undead roles the game's Undead group leaves out, by their role names. Zig_Foe_Undead includes this group before it leaves out every boss and elite, so a boss or an elite named like one of these never comes back into the family: the game reads a group's included groups, then its excluded groups, then its own role names, so a family names its extra roles through a group like this one, never through IncludeRoles of its own.",
+  "IncludeRoles": [
+    "*_Undead",
+    "Ghoul*",
+    "Risen_*",
+    "Wraith*",
+    "Hound_Bleached*"
+  ]
+}

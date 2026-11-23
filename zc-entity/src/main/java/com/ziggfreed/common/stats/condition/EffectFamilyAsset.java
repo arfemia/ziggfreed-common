@@ -19,10 +19,10 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.asset.EditorSchema;
 
 /**
- * A family of effects a condition or an effect stat names as one (Burning, Poisoned, Slowed, Controlled): the FILE
+ * A family of effects a condition or an effect stat names as one (Burning, Poisoned, Slowed, Hindered): the FILE
  * NAME is the family's id. An effect joins a family through its own native {@code Tags} ({@value #TAG}, R751), so a
  * mod's own effect opts in from its own file; {@code Effects} lists the game's own, which no other file can tag, and
- * {@code Includes} folds whole families in (Controlled is Slowed, Rooted, Frozen and Withered).
+ * {@code Includes} folds whole families in (Hindered is Slowed, Rooted, Frozen and Withered).
  *
  * <pre>{@code
  * // Server/ZiggfreedCommon/EffectFamilies/Burning.json
@@ -69,7 +69,7 @@ public final class EffectFamilyAsset implements JsonAssetWithMap<String, Default
                     + "server does not have counts nothing. Under Parent this list replaces the parent's whole.").add()
             .appendInherited(new KeyedCodec<>("Includes", Codec.STRING_ARRAY, false),
                     (a, v) -> a.includes = v, a -> a.includes, (a, p) -> a.includes = p.includes)
-            .documentation("Other families whose every effect is in this one too (Controlled includes Slowed and "
+            .documentation("Other families whose every effect is in this one too (Hindered includes Slowed and "
                     + "Rooted). A family naming itself, or a loop, counts each member once.").add()
             .appendInherited(new KeyedCodec<>("Duration", Duration.CODEC, false),
                     (a, v) -> a.duration = v, a -> a.duration, (a, p) -> a.duration = p.duration)
@@ -77,11 +77,12 @@ public final class EffectFamilyAsset implements JsonAssetWithMap<String, Default
                     + "put it on, one of whoever carries it. Neither when unauthored.").add()
             .appendInherited(new KeyedCodec<>("Control", Codec.STRING, false),
                     (a, v) -> a.control = v, a -> a.control, (a, p) -> a.control = p.control)
-            .metadata(EditorSchema.oneOfDocumented(ControlKind.editorPairs()))
-            .documentation("The kind of crowd control every effect of this family is, the name a boss's rules use "
-                    + "(ZigControlLands and ZigControlShrugs tags): Stunned and Frozen are Stun, Rooted is Hold, "
-                    + "Slowed is Slow. A family of mixed kinds (Control, Controlled) names none. None when "
-                    + "unauthored.").add()
+            .metadata(EditorSchema.assetRef(ControlKindAsset.class))
+            .documentation("The kind of crowd control every effect of this family is (a ControlKinds file: the "
+                    + "library's Stun, Hold, Slow and the rest, or a pack's own), the name a boss's rules use "
+                    + "(ZigControlLands and ZigControlShrugs tags) and the row its landing follows: Stunned and "
+                    + "Frozen are Stun, Rooted is Hold, Slowed is Slow. A family of mixed kinds (Control, Hindered) "
+                    + "names none. None when unauthored.").add()
             .build();
 
     public EffectFamilyAsset() {

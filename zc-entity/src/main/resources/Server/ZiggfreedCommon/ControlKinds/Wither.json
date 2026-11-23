@@ -1,0 +1,5 @@
+{
+  "$Comment": "Withers: the foe deals less damage (the Withered effect family). A foe wearing the game's Immune takes none, but a wither never shortens for Immunity and adds none. A boss or an elite takes an ability's own and never a talent's. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Wither.",
+  "Description": "A wither: the foe deals less damage",
+  "RefusedByImmune": true
+}

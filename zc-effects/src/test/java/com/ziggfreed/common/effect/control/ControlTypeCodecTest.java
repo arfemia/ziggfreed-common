@@ -2,6 +2,7 @@ package com.ziggfreed.common.effect.control;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -39,13 +40,14 @@ class ControlTypeCodecTest {
 
     @Tag("engine-items")
     @Test
-    void anUnauthoredStunIsATwoSecondStunOnTheTargetWithTheBombsRamp() throws IOException {
+    void anUnauthoredStunIsATwoSecondStunOnTheTarget_itsRampAndShrinkTheStunKinds() throws IOException {
         ZigStunInteraction stun = decode(ZigStunInteraction.getCODEC(), "{}");
         assertEquals(InteractionTarget.TARGET, stun.entity());
         assertEquals(ZigStunInteraction.DEFAULT_DURATION, stun.duration());
         assertFalse(stun.isStagger());
-        assertEquals(ZigStunInteraction.DEFAULT_IMMUNITY_RAMP, stun.immunityRamp());
-        assertFalse(stun.diminishes(), "an unauthored stun keeps its full length, as every consumer's does today");
+        assertNull(stun.immunityRamp(), "unwritten, the ramp is the Stun kind's own");
+        assertNull(stun.diminishes(), "unwritten, the shrink is the Stun kind's own");
+        assertFalse(stun.ignoresImmunity());
     }
 
     @Tag("engine-items")

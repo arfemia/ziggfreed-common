@@ -15,7 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
  * An entity condition: does the entity carry an effect of a family ({@link EffectFamilyAsset}: Burning, Poisoned,
- * Controlled)? The engine's own {@code HasEffect} names one effect; a family names every burn at once, a mod's own
+ * Hindered)? The engine's own {@code HasEffect} names one effect; a family names every burn at once, a mod's own
  * included through its {@code ZigEffectFamily} tag. Registered into the engine's entity condition map as
  * {@value #TYPE_NAME} (R700).
  *
@@ -37,7 +37,7 @@ public final class ZigEffectFamilyCondition extends Condition {
                 .documentation("Holds while the entity carries an effect of the family (an EffectFamilies file).")
                 .append(new KeyedCodec<>("Family", Codec.STRING, false), (c, v) -> c.family = v, c -> c.family)
                 .documentation("The family's id: an EffectFamilies file name (Burning, Poisoned, Slowed, "
-                        + "Controlled). An unknown family never holds.")
+                        + "Hindered). An unknown family never holds.")
                 .add()
                 .build();
     }

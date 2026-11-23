@@ -45,8 +45,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.cast.WorldTasks;
 import com.ziggfreed.common.effect.EffectAdds;
 import com.ziggfreed.common.effect.control.AggroControl;
-import com.ziggfreed.common.effect.control.StunControl;
-import com.ziggfreed.common.effect.duration.EffectDurations;
+import com.ziggfreed.common.effect.control.ControlLanding;
+import com.ziggfreed.common.effect.landing.EffectLandings;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.interaction.NativeChainFire;
@@ -152,7 +152,7 @@ final class ProcActions {
         }
         if (action.applyEffect() != null && action.applyEffect().onSelf()) {
             guarded("ApplyEffect", () -> applyEffect(moment, moment.holder(), action.applyEffect(), strength,
-                    context));
+                    context, action.byTalent()));
         }
         if (action.changeStat() != null && action.changeStat().onSelf()) {
             guarded("ChangeStat", () -> changeStat(moment, moment.holder(), action.changeStat(), strength, context));
@@ -182,7 +182,8 @@ final class ProcActions {
             guarded("RemoveEffect", () -> removeEffect(moment, on, action.removeEffect()));
         }
         if (action.applyEffect() != null && !action.applyEffect().onSelf()) {
-            guarded("ApplyEffect", () -> applyEffect(moment, on, action.applyEffect(), strength, context));
+            guarded("ApplyEffect", () -> applyEffect(moment, on, action.applyEffect(), strength, context,
+                    action.byTalent()));
         }
         if (action.changeStat() != null && !action.changeStat().onSelf()) {
             guarded("ChangeStat", () -> changeStat(moment, on, action.changeStat(), strength, context));
@@ -285,7 +286,8 @@ final class ProcActions {
     // ==================== The groups ====================
 
     private static void applyEffect(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
-            @Nonnull ProcAction.ApplyEffect apply, double strength, @Nonnull FactorContext context) {
+            @Nonnull ProcAction.ApplyEffect apply, double strength, @Nonnull FactorContext context,
+            boolean byTalent) {
         String id = apply.effect();
         if (!on.isValid() || id == null) {
             return;
@@ -299,6 +301,7 @@ final class ProcActions {
             return;
         }
         boolean added;
+        boolean onFoe = !Nearby.same(on, moment.holder());
         if (apply.duration() == null && effect.isInfinite()) {
             added = EffectAdds.asAuthored(controller, on, index, effect, accessor);
         } else {
@@ -306,8 +309,8 @@ final class ProcActions {
                     : (float) Math.max(0.0, Procs.evaluate(apply.duration(), context));
             OverlapBehavior overlap = apply.overlap() == null ? effect.getOverlapBehavior() : apply.overlap();
             ProcAction.Control control = apply.control();
-            added = control != null && !Nearby.same(on, moment.holder())
-                    ? controlled(moment, on, index, effect, controller, seconds, overlap, control)
+            added = onFoe && !effect.isInfinite() && (control != null || EffectFamilies.controlKindMask(index) != 0)
+                    ? ControlLanding.land(accessor, on, controlled(moment, id, seconds, overlap, control, byTalent))
                     : controller.addEffect(on, index, effect, seconds, overlap, accessor, moment.holder());
         }
         if (!added) {
@@ -319,53 +322,32 @@ final class ProcActions {
             active.setDamageMultiplier((float) scaledMultiplier(multiplier, strength));
             ProcMarks.markApplied(active);
         }
-        if (!Nearby.same(on, moment.holder())) {
-            EffectWatch.noteFoe(moment.holder(), on, System.nanoTime());
+        if (onFoe) {
+            EffectLandings.watch(on, System.nanoTime());
         }
     }
 
     /**
-     * An ApplyEffect with {@code Control} landing on a foe: the wait per foe a stun keeps (zc-effects'
-     * {@code StunControl}). A foe whose rules refuse the effect's kind is passed over, asked first so the holder sees the
-     * shrug word, and so is an {@code Immune} one or one whose own stun immunity no window opens; the rules read
-     * (zc-entity's {@code BossRules}, the kind its effect families name, {@code SpareBossOrElite} read as a talent's
-     * step: a boss or an elite takes a talent's stun, hold, slow, interrupt or wither only where its rules let every
-     * one land); a boss or an elite takes it with no owner, so
-     * the holder's length stats never reach one (bosses stay bosses); the length goes through the effect families'
-     * Duration rules as it lands, then shrinks by the Immunity the foe already carries; and a landing adds the Ramp,
-     * never scaled by the proc's strength.
-     *
-     * @return true when the effect went on
+     * An ApplyEffect landing a control on a foe (any effect whose families name a kind of control, or one with
+     * {@code Control} written), as zc-effects' one landing ({@code ControlLanding}): the foe's rules for the kinds its
+     * effect families name, asked as a talent's unless the step says it is the move's own (R1149: {@code Control}'s
+     * {@code SpareBossOrElite} where written, else the entry's {@code ByTalent}, true unless written false, so a
+     * forgotten setting keeps a boss safe); the foe's immunity, the shrink on repeat and the Immunity ramp by each kind's
+     * own rule, which {@code Control}'s {@code Diminish} and {@code Ramp} override where written (never scaled by the
+     * proc's strength); a boss or an elite taking it with no owner, so the holder's length stats never reach one.
      */
-    private static boolean controlled(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on, int index,
-            @Nonnull EntityEffect effect, @Nonnull EffectControllerComponent controller, float seconds,
-            @Nonnull OverlapBehavior overlap, @Nonnull ProcAction.Control control) {
-        ComponentAccessor<EntityStore> accessor = moment.accessor();
-        // The foe's rules first, so a refused talent's control shows the holder the shrug word even on a foe that is
-        // also immune.
-        if (!BossRules.landsEffect(accessor, on, index, control.spareBossOrElite(), moment.holder())) {
-            return false;
-        }
-        // Immune by the game's ramp, or by a stun immunity of its own that no window it wears opens for these kinds.
-        if (StunControl.isImmune(accessor, on, EffectFamilies.controlKindMask(index))) {
-            return false;
-        }
-        boolean bossOrElite = BossRules.isBossOrElite(accessor, on);
-        Ref<EntityStore> owner = bossOrElite ? null : moment.holder();
-        float share = control.diminish() ? StunControl.immunityShare(accessor, on) : 0f;
-        float lasting = StunControl.diminished(EffectDurations.lengthAsLanded(accessor, on, index, owner, seconds),
-                share);
-        if (!(lasting > 0f) || !controller.addEffect(on, index, effect, lasting, overlap, accessor, owner)) {
-            return false;
-        }
-        ActiveEntityEffect active = controller.getActiveEffects().get(index);
-        if (active != null) {
-            EffectDurations.markLanded(active, active.getRemainingDuration());
-        }
-        if (control.ramp() > 0.0) {
-            StunControl.rampImmunity(accessor, on, (float) control.ramp());
-        }
-        return true;
+    @Nonnull
+    private static ControlLanding.Landing controlled(@Nonnull ProcMoment moment, @Nonnull String effectId,
+            float seconds, @Nonnull OverlapBehavior overlap, @Nullable ProcAction.Control control,
+            boolean byTalent) {
+        Boolean spare = control == null ? null : control.writtenSpareBossOrElite();
+        Double ramp = control == null ? null : control.writtenRamp();
+        return ControlLanding.Landing.effect(effectId, ControlLanding.Amount.of(seconds))
+                .by(moment.holder())
+                .talent(spare != null ? spare : byTalent)
+                .overlap(overlap)
+                .shrinks(control == null ? null : control.writtenDiminish())
+                .ramp(ramp == null ? null : ControlLanding.Amount.of(ramp));
     }
 
     private static void removeEffect(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,

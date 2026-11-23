@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.entity.movement.MovementStatesComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.damage.onhit.ZigCritEvent;
+import com.ziggfreed.common.effect.landing.EffectLandings;
 import com.ziggfreed.common.health.ZigHealGivenEvent;
 import com.ziggfreed.common.progress.runtime.Moment;
 import com.ziggfreed.common.progress.runtime.MomentListener;
@@ -21,8 +22,9 @@ import com.ziggfreed.common.track.source.VictimPayload;
  * creature ({@code DEAL_DAMAGE}: Hit, and SprintHit while they sprint; the creature struck is watched for a landing,
  * {@link ThrownLandings}), a kill ({@code KILL_ENTITY}, its amount the overkill {@link KillBlows} reads), a block broken
  * ({@code BREAK_BLOCK}) and a harvest ({@code PICKUP_ITEM}). A hit counts for the player who struck it, never for an
- * owner a turret's hit was credited to; it also marks the foe struck for the effect moments' watch
- * ({@link EffectWatch}). World thread, inside the producer's own dispatch. A heal given (HealGiven) rides zc-core's
+ * owner a turret's hit was credited to; it also puts the foe struck under the one landing watch, read every tick a
+ * while ({@code EffectLandings.watch}, for {@link EffectWatch}). World thread, inside the producer's own dispatch. A
+ * heal given (HealGiven) rides zc-core's
  * one heal the same way, through its native event ({@link #onHealGiven}).
  */
 final class ProcMoments implements MomentListener {
@@ -84,7 +86,7 @@ final class ProcMoments implements MomentListener {
         double amount = exact == null ? moment.amount() : exact.exactAmount();
         Ref<EntityStore> victim = payload.victimRef();
         if (watch) {
-            EffectWatch.noteFoe(moment.ref(), victim, System.nanoTime());
+            EffectLandings.watch(victim, System.nanoTime());
         }
         if (thrown && !ProcMarks.fromProc(damage)) {
             ThrownLandings.launched(moment.ref(), victim, System.nanoTime());

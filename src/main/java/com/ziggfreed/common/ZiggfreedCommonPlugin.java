@@ -49,6 +49,7 @@ import com.ziggfreed.common.effect.control.ControlBootstrap;
 import com.ziggfreed.common.effect.warcry.WarCryBootstrap;
 import com.ziggfreed.common.effect.costume.CostumeBootstrap;
 import com.ziggfreed.common.effect.duration.DurationBootstrap;
+import com.ziggfreed.common.effect.landing.LandingBootstrap;
 import com.ziggfreed.common.effect.movement.MovementBootstrap;
 import com.ziggfreed.common.effect.outgoing.OutgoingBootstrap;
 import com.ziggfreed.common.effect.resist.ResistBootstrap;
@@ -348,8 +349,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Per-type damage resistance: gear raising DamageResist_<Type> stats takes less of that type,
         // through a hidden native resistance effect kept in step with the stat every tick.
         ResistBootstrap.install(this);
-        // Effect length by stats: an effect family's Duration rule (a stat of whoever put the effect on, one of
-        // whoever carries it), read as each effect lands on a player or on something a player's hit just struck.
+        // The one landing watch (an effect landing, refreshed or ended, on every living carrier), and effect length by
+        // stats as its first reader: an effect family's Duration rule (a stat of whoever put the effect on, one of
+        // whoever carries it) and a kind of control's longest hold, read as each effect lands.
+        LandingBootstrap.install(this);
         DurationBootstrap.install(this);
         // Speed and knockback: gear raising MoveSpeed or KnockbackResist moves the player faster or shrugs off
         // knockback, through one hidden native effect per channel kept in step with the stat every tick.

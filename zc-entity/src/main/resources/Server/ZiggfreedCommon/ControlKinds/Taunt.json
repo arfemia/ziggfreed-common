@@ -1,0 +1,6 @@
+{
+  "$Comment": "Taunts that turn a foe onto whoever cast them. Immunity never stops one. A boss or an elite takes every taunt, a talent's included, unless a rule of its own says otherwise (a phase that cannot be taunted). Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Taunt.",
+  "Description": "A taunt that turns the foe onto its caster",
+  "RefusedByImmune": false,
+  "OnBossOrElite": "Lands"
+}

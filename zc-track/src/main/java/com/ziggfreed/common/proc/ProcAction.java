@@ -109,11 +109,12 @@ public final class ProcAction {
             .appendInherited(new KeyedCodec<>("ByTalent", Codec.BOOLEAN, false),
                     (o, v) -> o.byTalent = v, o -> o.byTalent, (o, p) -> o.byTalent = p.byTalent)
             .metadata(EditorSchema.defaultValue(true))
-            .documentation("True: this entry's Push, Taunt and BreakGuard are a talent's control, added to the move, "
-                    + "which a boss or an elite takes only where its rules let every one of the kind land (a window, "
-                    + "a phase), so a file that forgets the setting keeps bosses safe. False: the move's own control, "
-                    + "as an ability's own push is, which one takes at the cast's own strength unless its rules shrug "
-                    + "the kind. An ApplyEffect's Control keeps its own SpareBossOrElite. True when unauthored.")
+            .documentation("True: this entry's Push, Taunt, BreakGuard and every control its ApplyEffect lands on a "
+                    + "foe are a talent's, added to the move, which a boss or an elite takes only where its rules let "
+                    + "every one of the kind land (a window, a phase), so a file that forgets the setting keeps bosses "
+                    + "safe. False: the move's own control, as an ability's own push is, which one takes at the "
+                    + "cast's own strength unless its rules shrug the kind. An ApplyEffect's Control may say its own "
+                    + "with SpareBossOrElite. True when unauthored.")
             .add()
             .appendInherited(new KeyedCodec<>("RunInteraction", RunInteraction.CODEC, false),
                     (o, v) -> o.runInteraction = v, o -> o.runInteraction,
@@ -161,7 +162,7 @@ public final class ProcAction {
     @Nullable public Push push() { return push; }
     @Nullable public Taunt taunt() { return taunt; }
     public boolean breakGuard() { return Boolean.TRUE.equals(breakGuard); }
-    /** Are this entry's Push, Taunt and BreakGuard a talent's control (true unless written false)? */
+    /** Are this entry's Push, Taunt, BreakGuard and ApplyEffect controls a talent's (true unless written false)? */
     public boolean byTalent() { return byTalent == null || byTalent; }
     @Nullable public RunInteraction runInteraction() { return runInteraction; }
     @Nullable public Heal heal() { return heal; }
@@ -708,15 +709,16 @@ public final class ProcAction {
                         + "DamageCalculator), a formula, times the proc's strength. 1 when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Control", Control.CODEC, false),
                         (o, v) -> o.control = v, o -> o.control, (o, p) -> o.control = p.control)
-                .documentation("Present: the effect holds a foe back (a slow, a root, a freeze, a stun) and waits "
-                        + "per foe the way ZigStun does. A target wearing the game's Immune is passed over, and so is "
-                        + "one whose rules refuse the kind its effect families name (Stunned is a Stun, Rooted a "
-                        + "Hold); the effect lasts less the "
-                        + "more Immunity the target already carries (Diminish); each landing adds Ramp to that "
-                        + "Immunity, so a foe held over and over turns Immune for a while; and a boss or an elite "
-                        + "takes it with no owner, so nothing the holder's stats add to an effect's length reaches "
-                        + "one, or with SpareBossOrElite only where its rules let a talent's land. It changes nothing "
-                        + "on the holder (OnSelf) or a timeless effect. A plain effect when unauthored.").add()
+                .documentation("This step's own word over how its control lands. Every effect whose families name a "
+                        + "kind of control (Stunned is a Stun, Rooted a Hold, Slowed a Slow) lands on a foe through the "
+                        + "one landing whether or not this is written: a foe whose rules refuse the kind is passed "
+                        + "over (asked as a talent's unless SpareBossOrElite or the entry's ByTalent says it is the "
+                        + "move's own), and so is an immune one where the kind says so; it lasts less the more "
+                        + "Immunity the target already carries and each landing adds Immunity where the kind says so "
+                        + "(Diminish and Ramp override it); and a boss or an elite takes it with no owner, so nothing "
+                        + "the holder's stats add to an effect's length reaches one. Written on an effect of no kind, "
+                        + "it lands that one the same way. It changes nothing on the holder (OnSelf) or a timeless "
+                        + "effect.").add()
                 .build();
 
         public ApplyEffect() {
@@ -760,14 +762,11 @@ public final class ProcAction {
     }
 
     /**
-     * An ApplyEffect's Control group: the wait per foe a control keeps (zc-effects' {@code StunControl}, the game's
-     * stun bomb shape), so a foe a proc slows or roots over and over is held less each time and then not at all for a
-     * while. Never scaled by the proc's strength.
+     * An ApplyEffect's Control group: this step's own word over how its control lands (zc-effects' one landing,
+     * {@code ControlLanding}), each leaf overriding the kind's own rule (the Control Kinds screen) only where written.
+     * Never scaled by the proc's strength.
      */
     public static final class Control {
-
-        /** The Immunity a landing adds unless written: the game's stun bomb step. */
-        public static final double DEFAULT_RAMP = 25.0;
 
         @Nullable protected Double ramp;
         @Nullable protected Boolean diminish;
@@ -776,41 +775,44 @@ public final class ProcAction {
         public static final BuilderCodec<Control> CODEC = BuilderCodec.builder(Control.class, Control::new)
                 .appendInherited(new KeyedCodec<>("Ramp", Codec.DOUBLE, false),
                         (o, v) -> o.ramp = v, o -> o.ramp, (o, p) -> o.ramp = p.ramp)
-                .metadata(EditorSchema.defaultValue(DEFAULT_RAMP))
                 .documentation("The Immunity each landing adds to the target (the stat's Max, 100, puts the game's "
-                        + "Immune on, for 20 seconds); 0 adds none. 25 when unauthored.").add()
+                        + "Immune on for a while); 0 adds none. The kind's own when unauthored (the Control Kinds "
+                        + "screen: Stun, Hold and Slow build immunity as shipped).").add()
                 .appendInherited(new KeyedCodec<>("Diminish", Codec.BOOLEAN, false),
                         (o, v) -> o.diminish = v, o -> o.diminish, (o, p) -> o.diminish = p.diminish)
-                .metadata(EditorSchema.defaultValue(true))
                 .documentation("True: the effect lasts its time times 1 less the share of Immunity the target "
-                        + "already carries, so it is shorter each time on a foe held again soon. True when "
-                        + "unauthored.").add()
+                        + "already carries, so it is shorter each time on a foe held again soon. False: its full "
+                        + "time. The kind's own when unauthored (shorter on repeat for Stun, Hold and Slow as "
+                        + "shipped).").add()
                 .appendInherited(new KeyedCodec<>("SpareBossOrElite", Codec.BOOLEAN, false),
                         (o, v) -> o.spareBossOrElite = v, o -> o.spareBossOrElite,
                         (o, p) -> o.spareBossOrElite = p.spareBossOrElite)
-                .metadata(EditorSchema.defaultValue(false))
                 .documentation("True: the control is a talent's, which a boss or an elite takes only where its rules "
                         + "let every one of its kind land (a window, a phase), so the effect never holds one back "
-                        + "otherwise while the rest of the action still lands on it. False when unauthored: an "
-                        + "ability's own, which one takes with no owner unless its rules shrug the kind.").add()
+                        + "otherwise while the rest of the action still lands on it. False: an ability's own, which "
+                        + "one takes with no owner unless its rules shrug the kind. The entry's ByTalent when "
+                        + "unauthored, true unless written false.").add()
                 .build();
 
         public Control() {
         }
 
-        /** Is the control read as a talent's (a boss or an elite passed over unless its rules say otherwise)? */
-        public boolean spareBossOrElite() {
-            return Boolean.TRUE.equals(spareBossOrElite);
+        /** {@code SpareBossOrElite} as written, or null for the entry's {@code ByTalent}. */
+        @Nullable
+        public Boolean writtenSpareBossOrElite() {
+            return spareBossOrElite;
         }
 
-        /** The Immunity a landing adds, never below 0. */
-        public double ramp() {
-            return ramp == null || !Double.isFinite(ramp) ? DEFAULT_RAMP : Math.max(0.0, ramp);
+        /** {@code Ramp} as written (never below 0), or null for the kind's own. */
+        @Nullable
+        public Double writtenRamp() {
+            return ramp == null || !Double.isFinite(ramp) ? null : Math.max(0.0, ramp);
         }
 
-        /** Does the effect last less the more Immunity the target carries? True unless written false. */
-        public boolean diminish() {
-            return diminish == null || diminish;
+        /** {@code Diminish} as written, or null for the kind's own. */
+        @Nullable
+        public Boolean writtenDiminish() {
+            return diminish;
         }
     }
 

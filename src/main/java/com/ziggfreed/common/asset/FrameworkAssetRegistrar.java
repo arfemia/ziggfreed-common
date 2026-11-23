@@ -26,6 +26,10 @@ import com.ziggfreed.common.proc.ProcConfig;
 import com.ziggfreed.common.proc.ProcOwnerLayers;
 import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
 import com.ziggfreed.common.stats.condition.ConditionalStatConfig;
+import com.ziggfreed.common.stats.condition.ControlKindAsset;
+import com.ziggfreed.common.stats.condition.ControlKindConfig;
+import com.ziggfreed.common.stats.condition.ControlSettingsAsset;
+import com.ziggfreed.common.stats.condition.ControlSettingsConfig;
 import com.ziggfreed.common.stats.condition.EffectFamilyAsset;
 import com.ziggfreed.common.stats.condition.EffectFamilyConfig;
 import com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig;
@@ -1371,7 +1375,7 @@ public final class FrameworkAssetRegistrar {
                 });
 
         // --- Effect families (Pattern A) - one family of effects a conditional stat or an effect stat names as one
-        //     (Burning, Slowed, Controlled) per file: the game's own effects it lists and the families it includes;
+        //     (Burning, Slowed, Hindered) per file: the game's own effects it lists and the families it includes;
         //     a mod's own effect joins through its ZigEffectFamily tag in its own file. The library ships its
         //     families. Owner file mods/ziggfreedcommon/effect-families.json, re-read on this same event. ---
         AssetStoreRegistrar.registerStore(EffectFamilyAsset.class,
@@ -1381,6 +1385,31 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, EffectFamilyAsset, DefaultAssetMap<String, EffectFamilyAsset>> ev) -> {
                     EffectFamilyConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     EffectFamilyConfig.reloadOwner();
+                });
+
+        // --- Kinds of control (Pattern A) - one kind of crowd control per file (Stun, Hold, Slow, a pack's own):
+        //     how every control of it lands on a foe (stopped by immunity, shorter on repeat, building immunity, its
+        //     longest hold) and what a boss or an elite takes of it. The library ships its twelve. Owner file
+        //     mods/ziggfreedcommon/control-kinds.json, re-read on this same event. ---
+        AssetStoreRegistrar.registerStore(ControlKindAsset.class,
+                new DefaultAssetMap<String, ControlKindAsset>(), ControlKindAsset.TYPE_ROOT,
+                ControlKindAsset::getId, ControlKindAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ControlKindAsset.class,
+                (LoadedAssetsEvent<String, ControlKindAsset, DefaultAssetMap<String, ControlKindAsset>> ev) -> {
+                    ControlKindConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ControlKindConfig.reloadOwner();
+                });
+
+        // --- Crowd control settings (Pattern A) - the server's one word on crowd control as a whole: the Immunity a
+        //     landing of a kind that ramps adds, and what a fixed control skips. The library ships Default.json.
+        //     Owner file mods/ziggfreedcommon/control-settings.json, re-read on this same event. ---
+        AssetStoreRegistrar.registerStore(ControlSettingsAsset.class,
+                new DefaultAssetMap<String, ControlSettingsAsset>(), ControlSettingsAsset.TYPE_ROOT,
+                ControlSettingsAsset::getId, ControlSettingsAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ControlSettingsAsset.class,
+                (LoadedAssetsEvent<String, ControlSettingsAsset, DefaultAssetMap<String, ControlSettingsAsset>> ev) -> {
+                    ControlSettingsConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ControlSettingsConfig.reloadOwner();
                 });
 
         // --- Conditional stats (Pattern A) - what makes one native entity stat a conditional one (R757): the

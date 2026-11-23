@@ -1,0 +1,7 @@
+{
+  "$Comment": "Roots, snares and pins in place (the Rooted and Held effect families). A foe wearing the game's Immune takes none; each one lasts less on a foe that already carries Immunity and adds Immunity as it lands, so a foe rooted over and over is held shorter each time and then shrugs holds for a while. A boss or an elite takes an ability's own hold and never a talent's. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Hold.",
+  "Description": "A root, a snare or a pin in place",
+  "RefusedByImmune": true,
+  "Shrinks": true,
+  "Ramps": true
+}

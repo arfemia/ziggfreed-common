@@ -17,24 +17,23 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.interaction.type.InteractionCtx;
 import com.ziggfreed.common.interaction.type.InteractionOutcome;
-import com.ziggfreed.common.stats.condition.ControlKind;
 
 /**
- * Stuns (or staggers) the entity a chain names, through {@link StunControl}:
+ * Stuns (or staggers) the entity a chain names, through the one landing ({@link ControlLanding}, a Stun):
  *
  * <pre>{@code
  * { "Type": "ZigStun", "Entity": "Target", "Duration": 1.5 }
- * { "Type": "ZigStun", "Entity": "Target", "Duration": 1.5, "Diminish": true }
+ * { "Type": "ZigStun", "Entity": "User", "Duration": 8, "IgnoreImmune": true, "ImmunityRamp": 0 }
  * }</pre>
  *
  * <p>Written where vanilla's bomb writes its {@code EffectCondition} + {@code ChangeStat Immunity} +
  * {@code Interrupt} + {@code ApplyEffect Stun} run, it is that whole run in one node, plus what no asset can say: a
- * creature's current combat action ends and its attacks hold for the stun. An immune target ({@link
- * StunControl#isImmune}) is passed over unless {@code IgnoreImmune} is written true;
- * a landed stun adds {@code ImmunityRamp} to the target's {@code Immunity}, so repeated stuns earn a window of
- * immunity. {@code Diminish} (off unless written) also shrinks each stun by the Immunity the target already carries
- * ({@link StunControl#immunityShare}, read before this landing ramps it, then {@link StunControl#diminished}), so a
- * target stunned again soon is stunned less each time. On a player the hold is their own game's ({@link StunControl}).
+ * creature's current combat action ends and its attacks hold for the stun. It lands as every stun does, by the Stun
+ * kind's own rule (the Control Kinds screen): the target's rules first (as an ability's own), an immune target passed
+ * over, a target stunned again soon stunned less each time, and each landing adding Immunity, so repeated stuns earn
+ * a window of immunity. {@code Diminish} and {@code ImmunityRamp} override the kind's shrink and ramp for this step;
+ * {@code IgnoreImmune} is a fight's own stun on its boss, which no immunity refuses or shortens. On a player the hold
+ * is their own game's ({@link StunControl}).
  *
  * <p>Always resolves Finished, a target that was not stunned included, so the chain carries on either way.
  */
@@ -44,7 +43,6 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
     public static final String TYPE_NAME = "ZigStun";
 
     static final double DEFAULT_DURATION = 2.0;
-    static final double DEFAULT_IMMUNITY_RAMP = 25.0;
 
     @Nullable
     protected InteractionTarget entity;
@@ -58,6 +56,8 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
     protected Boolean diminish;
     @Nullable
     protected Boolean ignoreImmune;
+    @Nullable
+    protected Boolean byTalent;
 
     /** Lazy holder: an eager codec would class-init {@code Interaction}, which throws outside a live server. */
     private static final class Holder {
@@ -83,21 +83,30 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
                 .appendInherited(new KeyedCodec<>("ImmunityRamp", Codec.DOUBLE),
                         (i, v) -> i.immunityRamp = v, i -> i.immunityRamp, (i, p) -> i.immunityRamp = p.immunityRamp)
                 .documentation("How much a landed stun adds to the entity's Immunity stat, which gives it the Immune"
-                        + " effect once it fills, as the game's own bombs do. 25 when unauthored; 0 adds none.")
+                        + " effect once it fills, as the game's own bombs do; 0 adds none. The Stun kind's own when"
+                        + " unauthored (the Control Kinds screen).")
                 .add()
                 .appendInherited(new KeyedCodec<>("Diminish", Codec.BOOLEAN),
                         (i, v) -> i.diminish = v, i -> i.diminish, (i, p) -> i.diminish = p.diminish)
-                .metadata(EditorSchema.defaultValue(false))
                 .documentation("True: the stun lasts its Duration times 1 less the share of Immunity the entity"
                         + " already carries, so an entity stunned again soon is stunned less each time until it turns"
-                        + " Immune. False when unauthored: the stun lasts its full Duration.")
+                        + " Immune. False: its full Duration. The Stun kind's own when unauthored (shorter on repeat"
+                        + " as shipped).")
                 .add()
                 .appendInherited(new KeyedCodec<>("IgnoreImmune", Codec.BOOLEAN),
                         (i, v) -> i.ignoreImmune = v, i -> i.ignoreImmune, (i, p) -> i.ignoreImmune = p.ignoreImmune)
                 .metadata(EditorSchema.defaultValue(false))
-                .documentation("True: the stun lands even on an entity that is immune to stuns (wearing Immune, or an"
-                        + " effect tagged ZigStunImmune), for a stun a fight itself deals, such as a boss crashing into"
-                        + " a pillar while no player's stun can touch him. False when unauthored.")
+                .documentation("True: the stun lands at its full Duration even on an entity that is immune to stuns"
+                        + " (wearing Immune, or an effect tagged ZigStunImmune) or carries Immunity, for a stun a fight"
+                        + " itself deals, such as a boss crashing into a pillar while no player's stun can touch him."
+                        + " False when unauthored.")
+                .add()
+                .appendInherited(new KeyedCodec<>("ByTalent", Codec.BOOLEAN),
+                        (i, v) -> i.byTalent = v, i -> i.byTalent, (i, p) -> i.byTalent = p.byTalent)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: a talent added this stun to the move (a knack a proc runs), which a boss or an"
+                        + " elite takes only where its rules let a talent's stun land (a window, a phase). False when"
+                        + " unauthored: the chain's own move, which one takes unless its rules shrug a stun.")
                 .add()
                 .build();
     }
@@ -121,13 +130,16 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
         return Boolean.TRUE.equals(stagger);
     }
 
-    double immunityRamp() {
-        return ControlTargets.orDefault(immunityRamp, DEFAULT_IMMUNITY_RAMP);
+    /** The Immunity a landing adds as written, or null for the Stun kind's own. */
+    @Nullable
+    Double immunityRamp() {
+        return immunityRamp == null || !Double.isFinite(immunityRamp) ? null : Math.max(0.0, immunityRamp);
     }
 
-    /** Does the stun shrink by the Immunity the entity already carries? False unless written true. */
-    boolean diminishes() {
-        return Boolean.TRUE.equals(diminish);
+    /** Does the stun shrink by the Immunity the entity already carries, as written, or null for the kind's own? */
+    @Nullable
+    Boolean diminishes() {
+        return diminish;
     }
 
     /** Does the stun land on an immune entity? False unless written true. */
@@ -151,24 +163,18 @@ public final class ZigStunInteraction extends SimpleInstantInteraction {
                 return false;
             }
             Ref<EntityStore> target = ControlTargets.resolve(ctx, entity, InteractionTarget.TARGET);
-            if (target == null
-                    || (!ignoresImmunity() && StunControl.isImmune(buffer, target, ControlKind.STUN.bit()))) {
+            if (target == null) {
                 return true;
             }
-            // Diminish: the share is read before this landing ramps it, the one formula every shrinking control keeps.
-            float seconds = diminishes()
-                    ? StunControl.diminished((float) duration(), StunControl.immunityShare(buffer, target))
-                    : (float) duration();
-            if (!(seconds > 0f)) {
-                return true;
-            }
-            Ref<EntityStore> source = InteractionCtx.owner(ctx);
-            boolean landed = isStagger()
-                    ? StunControl.stagger(buffer, target, seconds, source)
-                    : StunControl.stun(buffer, target, seconds, source);
-            if (landed) {
-                StunControl.rampImmunity(buffer, target, (float) immunityRamp());
-            }
+            ControlLanding.Amount seconds = ControlLanding.Amount.of(duration());
+            Double ramp = immunityRamp();
+            ControlLanding.Landing landing = (isStagger() ? ControlLanding.Landing.stagger(seconds)
+                    : ControlLanding.Landing.stun(seconds))
+                    .by(InteractionCtx.owner(ctx))
+                    .talent(Boolean.TRUE.equals(byTalent))
+                    .shrinks(diminishes())
+                    .ramp(ramp == null ? null : ControlLanding.Amount.of(ramp));
+            ControlLanding.land(buffer, target, ignoresImmunity() ? landing.ignoringImmunity() : landing);
             return true;
         });
     }

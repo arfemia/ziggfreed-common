@@ -1,6 +1,7 @@
 package com.ziggfreed.common.proc;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
@@ -12,15 +13,16 @@ import javax.annotation.Nonnull;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 
 /**
- * The {@code defaults < pack < owner} fold of every {@link ProcAsset}, and the live procs each trigger asks, in id
+ * The {@code defaults < pack < owner} fold of every {@link ProcAsset}, and the live procs each trigger asks, in run
  * order (skeletons, switched-off procs and procs naming no known trigger left out), rebuilt on the first read after
  * any layer merges. Files may gate on a mod through their top-level {@code Requires} (its plain mod presence decided
  * at the fold, the rest asked of the player when the moment comes).
  *
- * <p><b>The order contract.</b> The procs answering one moment run in the order of their ids compared lower-cased
+ * <p><b>The order contract.</b> The procs answering one moment run by their {@code Order} ({@link ProcAsset#order},
+ * lower first, 0 unwritten), and procs of one {@code Order} in the order of their ids compared lower-cased
  * ({@code String} order after a {@code Locale.ROOT} fold), whatever case the files spell them in and whatever order
- * the packs load in: content relies on it (a proc that breaks a freeze is named to run before every proc that lays
- * one), and {@code ProcOrderTest} pins it.
+ * the packs load in, so a file that writes no {@code Order} runs exactly where its id put it: content relies on it (a
+ * proc that breaks a freeze runs before every proc that lays one), and {@code ProcOrderTest} pins it.
  */
 public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
 
@@ -70,7 +72,7 @@ public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
         folded = null;
     }
 
-    /** The live procs answering {@code trigger}, in id order. Empty, never null. */
+    /** The live procs answering {@code trigger}, in run order. Empty, never null. */
     @Nonnull
     public List<Def> forTrigger(@Nonnull ProcTrigger trigger) {
         List<Def> defs = folded().byTrigger().get(trigger);
@@ -104,7 +106,7 @@ public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
         return local;
     }
 
-    /** The live procs of {@code all} by trigger, each list in id order (compared lower-cased). Pure. */
+    /** The live procs of {@code all} by trigger, each list by Order then id (compared lower-cased). Pure. */
     @Nonnull
     static Map<ProcTrigger, List<Def>> fold(@Nonnull Map<String, ProcAsset> all) {
         return foldAll(all).byTrigger();
@@ -112,18 +114,22 @@ public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
 
     @Nonnull
     private static Folded foldAll(@Nonnull Map<String, ProcAsset> all) {
-        TreeMap<String, ProcAsset> sorted = new TreeMap<>();
+        TreeMap<String, ProcAsset> byId = new TreeMap<>();
         for (Map.Entry<String, ProcAsset> entry : all.entrySet()) {
             if (entry.getKey() != null) {
-                sorted.put(entry.getKey().trim().toLowerCase(Locale.ROOT), entry.getValue());
+                byId.put(entry.getKey().trim().toLowerCase(Locale.ROOT), entry.getValue());
             }
         }
+        // Order first, lower first; a tie keeps the lower-cased id order (a stable sort over the id-sorted entries).
+        List<Map.Entry<String, ProcAsset>> sorted = new ArrayList<>(byId.entrySet());
+        sorted.sort(Comparator.comparingInt((Map.Entry<String, ProcAsset> entry) ->
+                entry.getValue() == null ? 0 : entry.getValue().order()));
         Map<ProcTrigger, List<Def>> out = new EnumMap<>(ProcTrigger.class);
         boolean asksRoots = false;
         double allyReach = 0.0;
         List<ProcAsset.Effect> own = new ArrayList<>();
         List<ProcAsset.Effect> foe = new ArrayList<>();
-        for (Map.Entry<String, ProcAsset> entry : sorted.entrySet()) {
+        for (Map.Entry<String, ProcAsset> entry : sorted) {
             ProcAsset proc = entry.getValue();
             ProcTrigger trigger = proc == null ? null : proc.trigger();
             if (proc == null || proc.isAbstract() || !proc.isEnabled() || trigger == null) {

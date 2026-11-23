@@ -49,9 +49,9 @@ public final class ZigControlCondition extends Condition {
                 .documentation("Holds while a control of the kind lands on the entity now, by its rules (a boss's "
                         + "group tags, a phase's or a window's effect, the family default for bosses and elites).")
                 .append(new KeyedCodec<>("Kind", Codec.STRING, false), (c, v) -> c.kind = v, c -> c.kind)
-                .metadata(EditorSchema.oneOfDocumented(ControlKind.editorPairs()))
-                .documentation("The kind of crowd control, matched without regard to case. A name that is no kind "
-                        + "never holds.")
+                .metadata(EditorSchema.assetRef(ControlKindAsset.class))
+                .documentation("The kind of crowd control (a ControlKinds file: the library's own, or a pack's), "
+                        + "matched without regard to case. A name that is no kind never holds.")
                 .add()
                 .append(new KeyedCodec<>("ByTalent", Codec.BOOLEAN, false), (c, v) -> c.byTalent = v,
                         c -> c.byTalent)

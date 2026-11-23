@@ -653,11 +653,10 @@ public final class Procs {
 
     /**
      * The holder pass, every tick for every living player: the moves waiting for their proof and a guard going up
-     * ({@link MoveProofs}), the creatures they threw into the air ({@link ThrownLandings}) and the holder's own
-     * watched effects ({@link EffectWatch}) each tick; then, a few times a
-     * second ({@value #PASS_EVERY_NANOS} ns), the counters' sweep and decay, the held effects, the watched effects on
-     * the foes they struck, and the crouch a {@code CrouchStill} proc answers (its amount the seconds held). World
-     * thread; never throws.
+     * ({@link MoveProofs}) and the creatures they threw into the air ({@link ThrownLandings}) each tick; then, a few
+     * times a second ({@value #PASS_EVERY_NANOS} ns), the counters' sweep and decay, the held effects, and the crouch a
+     * {@code CrouchStill} proc answers (its amount the seconds held). The effect moments are zc-effects' one landing
+     * watch's ({@link EffectWatch}). World thread; never throws.
      */
     static void holderPass(@Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> holder) {
@@ -666,7 +665,6 @@ public final class Procs {
             MoveProofs.check(store, commandBuffer, holder, nanos);
             GuardBreaks.check(store, commandBuffer, holder, nanos);
             ThrownLandings.check(store, commandBuffer, holder, nanos);
-            EffectWatch.checkOwn(store, commandBuffer, holder);
             PassState state = PASSES.computeIfAbsent(holder, r -> new PassState());
             if (nanos < state.nextNanos) {
                 return;
@@ -677,7 +675,6 @@ public final class Procs {
             FactorContext context = context(self, null);
             Counters.pass(commandBuffer, holder, context, nanos);
             HeldEffects.pass(commandBuffer, holder, context, ConditionalStats.now(store), nanos);
-            EffectWatch.checkFoes(store, commandBuffer, holder, nanos);
             if (!listens(ProcTrigger.CROUCH_STILL)) {
                 state.crouchSince = -1L;
                 return;
@@ -714,7 +711,6 @@ public final class Procs {
         ProcCooldowns.forgetTarget(ref);
         MoveProofs.forget(ref);
         ChainRoots.forget(ref);
-        EffectWatch.forget(ref);
         HeldEffects.forget(ref);
         GuardBreaks.forget(ref);
         ThrownLandings.forget(ref);

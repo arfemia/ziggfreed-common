@@ -1,0 +1,6 @@
+{
+  "$Comment": "Decoys that draw a foe away. Immunity never stops one. A boss or an elite is never drawn by a decoy, an ability's own included: a taunt is the way to turn one. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Decoy.",
+  "Description": "A decoy that draws the foe away",
+  "RefusedByImmune": false,
+  "OnBossOrElite": "Shrugs"
+}

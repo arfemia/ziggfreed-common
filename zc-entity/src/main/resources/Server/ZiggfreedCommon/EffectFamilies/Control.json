@@ -1,5 +1,5 @@
 {
-  "$Comment": "What holds a player back: stuns, roots, freezes, slows and flinches. Whoever carries one takes EffectTaken_Control percent off it as it lands, never past 80.",
+  "$Comment": "What holds a player back: stuns, roots, freezes, slows and flinches. Whoever carries one takes EffectTaken_Control percent off it as it lands, never past 80; an effect tagged ZigControl Fixed is never cut. It names no kind of control, since its members are of several; Hindered is the other side, a foe held back, which what a hit on one pays reads.",
   "Effects": [
     "Hit_Interrupt_Flinch"
   ],

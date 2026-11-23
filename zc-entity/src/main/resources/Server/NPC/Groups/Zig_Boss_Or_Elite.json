@@ -1,32 +1,7 @@
 {
-  "$Comment": "Every boss and elite the foe families leave out, as one group: the game's boss and encounter groups, the world's own roaming bosses (Zig_World_Bosses, the dragons among them), the roles named like a boss or an elite, and the foes as strong as one (the Shadow Knight, the two larger Aberrant zombies and the Void Spawn). It holds no foe family and no family holds it. Its Tags are the crowd-control rule every boss and elite starts from: ZigControlLands names what lands on one from anyone, a talent's included (a taunt, a weakness, a mark), ZigControlShrugs what never lands (a pull, a grab or a drive, a decoy), and every other kind lands from an ability's own move at its own strength and never from a talent's. A boss's own NPC group can carry the same two lists to set its own rule, and a group tagged ZigRank Boss or Elite counts its roles as bosses or elites without being added here. To keep bosses and elites out of a proc's Area or a Target, ask { \"Id\": \"ZigBossOrElite\", \"Inverse\": true }; to ask whether one kind of control lands, { \"Id\": \"ZigControl\", \"Kind\": \"Push\", \"ByTalent\": true }. Add a role to IncludeRoles to count it as one too, and the same role to the families' ExcludeRoles; a roaming boss goes in Zig_World_Bosses instead.",
+  "$Comment": "Every boss and elite of the game's own, as one group: the bosses (Zig_Bosses) and the elites (Zig_Elites), each listed there by exact role id. Every foe family excludes this group, so no foe-family bonus counts a boss or an elite. What a boss or an elite takes of each kind of crowd control is each kind's own rule (OnBossOrElite on the Control Kinds screen, /zigadmin), and a boss's own NPC group can carry ZigControlLands and ZigControlShrugs tags to set its own. A mod's own boss or elite is counted by an NPC group of its own tagged ZigRank Boss or Elite; it never needs to change this file. To keep bosses and elites out of a proc's Area or a Target, ask { \"Id\": \"ZigBossOrElite\", \"Inverse\": true }; to ask whether one kind of control lands, { \"Id\": \"ZigControl\", \"Kind\": \"Push\", \"ByTalent\": true }. A roaming boss goes in Zig_World_Bosses, any other game role in Zig_Bosses or Zig_Elites.",
   "IncludeGroups": [
-    "Zig_World_Bosses",
-    "Goblin_Gobliterator_Boss_Group",
-    "Skeleton_Elite_Encounter_Target",
-    "Trork_Chieftain",
-    "Dungeon_Feastmaster_Group",
-    "Hunt_Predators",
-    "Bear_Voidtaken_Family"
-  ],
-  "IncludeRoles": [
-    "*Boss*",
-    "*Elite*",
-    "*Gobliterator*",
-    "*Chieftain*",
-    "*Praetorian*",
-    "*Captain*",
-    "*Broodmother*",
-    "Goblin_Duke*",
-    "Goblin_Pilot*",
-    "Bear_Voidtaken*",
-    "Shadow_Knight",
-    "Zombie_Aberrant",
-    "Zombie_Aberrant_Big",
-    "Void_Spawn*"
-  ],
-  "Tags": {
-    "ZigControlLands": [ "Taunt", "Weakness", "Mark" ],
-    "ZigControlShrugs": [ "Pull", "Carry", "Decoy" ]
-  }
+    "Zig_Bosses",
+    "Zig_Elites"
+  ]
 }

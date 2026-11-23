@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.grid.EffectBodies;
 import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
+import com.ziggfreed.common.effect.landing.EffectLandings;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.stats.condition.BossRules;
 import com.ziggfreed.common.stats.condition.ControlKind;
@@ -201,7 +202,7 @@ final class FoeMarks {
         boolean added = controller.addEffect(foe, index, effect, SHOW_SECONDS, OverlapBehavior.OVERWRITE, accessor,
                 holder);
         if (added) {
-            EffectWatch.noteFoe(holder, foe, System.nanoTime());
+            EffectLandings.watch(foe, System.nanoTime());
         }
         return added;
     }

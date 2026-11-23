@@ -28,6 +28,7 @@ import com.hypixel.hytale.server.npc.role.support.CombatSupport;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.stats.condition.BossRules;
 import com.ziggfreed.common.stats.condition.ControlKind;
+import com.ziggfreed.common.stats.condition.EffectFamilies;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -37,8 +38,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>What a stun is.</b> The native effect {@value #STUNNED_EFFECT} (a stagger {@value #STAGGERED_EFFECT}),
  * shipped by this library with the game's own {@code Stun} as its {@code Parent}, for the caller's duration and
  * attributed to the caller's source through the engine's {@code addEffect} owner overload. The effect is the whole
- * record: {@link #isStunned}, {@link #remainingSeconds} and {@link #wake} read and take it off the entity's own
- * effect controller, so nothing else is kept and nothing needs a tick. On top of the effect, the same call:
+ * record: {@link #isStunned}, {@link #remainingSeconds} and {@link #wake} read and take off every effect of the
+ * {@value #STUNNED_FAMILY} family on the entity's own effect controller, so nothing else is kept and nothing needs a
+ * tick. On top of the effect, the same call:
  * <ul>
  *   <li>cancels every interaction chain the entity is running whose root is not tagged
  *       {@value #UNINTERRUPTIBLE_TAG}, exactly as the native {@code Interrupt} interaction does with that
@@ -63,11 +65,12 @@ import com.ziggfreed.common.util.SafeLog;
  * own stun included, so nothing of the hold (the chains, the action, the attack pause) lands either, and a player
  * source sees the shrug word. Free while no loaded rule shrugs a stun.
  *
- * <p>The native diminishing ramp (vanilla's bomb shape: an {@code Immune} target is skipped and a landed stun adds
- * {@code Immunity}, whose {@code MaxValueEffects} put {@code Immune} on at its {@code Max}) is the caller's to ask
- * for, through {@link #isImmune} and {@link #rampImmunity}; {@code ZigStun} does both. A control that also shrinks on
- * repeat (a slow, a proc's {@code ApplyEffect} with {@code Control}) reads {@link #immunityShare} before it lands and
- * lasts {@link #diminished} by it.
+ * <p>A stun here is the bare hold: no rule, no immunity and no ramp. A stun on a foe lands through
+ * {@link ControlLanding} (the foe's rules, the native diminishing ramp in vanilla's bomb shape: an {@code Immune}
+ * target is skipped, a landing shrinks by the {@code Immunity} share it carries and adds {@code Immunity}, whose
+ * {@code MaxValueEffects} put {@code Immune} on at its {@code Max}), which calls this; {@link #isImmune},
+ * {@link #immunityShare}, {@link #diminished} and {@link #rampImmunity} are the pieces it reads. A stun is in the
+ * {@value #STUNNED_FAMILY} family, which the queries and {@link #wake} read.
  *
  * <p>World thread only. Every call takes a {@link ComponentAccessor} (a system's or an interaction's
  * {@code CommandBuffer}, or the {@code Store} outside a tick) and degrades to a false or zero answer, never a throw.
@@ -79,6 +82,13 @@ public final class StunControl {
 
     /** The stagger effect this library ships ({@code Parent: Zig_Stunned}). */
     public static final String STAGGERED_EFFECT = "Zig_Staggered";
+
+    /**
+     * The effect family every stun is in (zc-entity's {@code EffectFamilies}): the library's two effects, the game's own
+     * stuns, and a mod's own stun effect tagged {@code ZigEffectFamily} Stunned. What {@link #isStunned} and
+     * {@link #wake} read.
+     */
+    public static final String STUNNED_FAMILY = "Stunned";
 
     /** The game's own immunity effect, which the {@code Immunity} stat puts on at its {@code Max}. */
     public static final String IMMUNE_EFFECT = "Immune";
@@ -125,16 +135,23 @@ public final class StunControl {
 
     /**
      * Stun {@code target} for {@code seconds} with the caller's own stun effect {@code effectId} in place of
-     * {@value #STUNNED_EFFECT}: the same hold (its chains cancelled, a creature's action ended and its attacks paused
-     * for the stun and the wake), under an effect the caller ships, built on the game's {@code Stun} as
-     * {@value #STUNNED_EFFECT} is. For a stun that must stay exactly as long as asked, whatever reads the Stunned and
-     * Control effect families (a carrier's control resistance cuts every member as it lands): ship the effect in no
-     * family and stun with it. {@link #isStunned} and {@link #wake} know only this library's two effects, so the caller
-     * reads and ends its own.
+     * {@value #STUNNED_EFFECT}: the same hold, under an effect the caller ships. A stun that must stay exactly as long
+     * as asked is now a fixed control: its effect joins the Stunned family (so {@link #isStunned} and {@link #wake} see
+     * it) and is tagged {@code "ZigControl": ["Fixed"]}, and it lands through {@link ControlLanding}
+     * ({@code Landing.stun(...).under(effectId)}), which this overload's last caller moves onto before it goes.
      *
      * @return true when the stun landed
      */
     public static boolean stun(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
+            float seconds, @Nullable Ref<EntityStore> source, @Nonnull String effectId) {
+        return stunUnder(accessor, target, seconds, source, effectId);
+    }
+
+    /**
+     * The hold of a stun under {@code effectId}: its chains cancelled, a creature's action ended and its attacks paused
+     * for the stun and the wake. {@link ControlLanding}'s stun under a caller's own effect.
+     */
+    static boolean stunUnder(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
             float seconds, @Nullable Ref<EntityStore> source, @Nonnull String effectId) {
         if (!usable(target) || !(seconds > 0f) || effectId.isBlank() || shrugged(accessor, target, source)) {
             return false;
@@ -160,7 +177,8 @@ public final class StunControl {
     }
 
     /**
-     * End a stun or stagger early: both effects come off, and a creature may attack again after the short wake.
+     * End a stun or stagger early: every timed effect of the {@value #STUNNED_FAMILY} family comes off (the library's
+     * two, the game's own, a mod's own stun such as a minigame's), and a creature may attack again after the short wake.
      *
      * @return true when there was one to end
      */
@@ -168,26 +186,44 @@ public final class StunControl {
         if (!usable(target)) {
             return false;
         }
-        boolean full = NativeEffectUtil.has(accessor, target, STUNNED_EFFECT);
-        boolean staggered = NativeEffectUtil.has(accessor, target, STAGGERED_EFFECT);
-        if (!full && !staggered) {
+        try {
+            EffectControllerComponent effects = accessor.getComponent(target, EffectControllerComponent.getComponentType());
+            if (effects == null || effects.getActiveEffects().isEmpty()) {
+                return false;
+            }
+            int stagger = EntityEffect.getAssetMap().getIndex(STAGGERED_EFFECT);
+            boolean any = false;
+            boolean full = false;
+            for (int index : effects.getActiveEffects().keySet().toIntArray()) {
+                ActiveEntityEffect active = effects.getActiveEffects().get(index);
+                if (active == null || active.isInfinite() || !EffectFamilies.contains(STUNNED_FAMILY, index)) {
+                    continue;
+                }
+                any = true;
+                full |= index != stagger;
+                effects.removeEffect(target, index, accessor);
+            }
+            if (any) {
+                holdAttacks(accessor, target, full ? STUN_WAKE_SECONDS : STAGGER_WAKE_SECONDS);
+            }
+            return any;
+        } catch (Throwable t) {
+            SafeLog.fine("[control] could not wake a stunned entity: " + t.getMessage());
             return false;
         }
-        NativeEffectUtil.remove(accessor, target, STUNNED_EFFECT);
-        NativeEffectUtil.remove(accessor, target, STAGGERED_EFFECT);
-        holdAttacks(accessor, target, full ? STUN_WAKE_SECONDS : STAGGER_WAKE_SECONDS);
-        return true;
     }
 
-    /** Whether {@code target} is stunned or staggered right now. */
+    /**
+     * Whether {@code target} is stunned or staggered right now: it wears an effect of the {@value #STUNNED_FAMILY}
+     * family (the library's two, the game's own stuns, a mod's own stun that joins the family).
+     */
     public static boolean isStunned(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target) {
-        return usable(target) && (NativeEffectUtil.has(accessor, target, STUNNED_EFFECT)
-                || NativeEffectUtil.has(accessor, target, STAGGERED_EFFECT));
+        return stunLeft(accessor, target, true) >= 0f;
     }
 
-    /** Whether {@code target} carries a full stun (not only a stagger) right now. */
+    /** Whether {@code target} carries a full stun (a {@value #STUNNED_FAMILY} effect but the stagger) right now. */
     public static boolean isFullStun(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target) {
-        return usable(target) && NativeEffectUtil.has(accessor, target, STUNNED_EFFECT);
+        return stunLeft(accessor, target, false) >= 0f;
     }
 
     /** Whether {@code target} carries a stagger right now. */
@@ -195,18 +231,41 @@ public final class StunControl {
         return usable(target) && NativeEffectUtil.has(accessor, target, STAGGERED_EFFECT);
     }
 
-    /** The seconds left on {@code target}'s stun or stagger, 0 when it has neither. */
+    /** The seconds left on {@code target}'s longest stun or stagger, 0 when it has none. */
     public static float remainingSeconds(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nullable Ref<EntityStore> target) {
+        return Math.max(0f, stunLeft(accessor, target, true));
+    }
+
+    /**
+     * The seconds left on the longest {@value #STUNNED_FAMILY} effect {@code target} wears (the stagger only when
+     * {@code staggerCounts}), {@code Float.MAX_VALUE} for an infinite one, or -1 for none or whenever it cannot tell.
+     */
+    private static float stunLeft(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
+            boolean staggerCounts) {
         if (!usable(target)) {
-            return 0f;
+            return -1f;
         }
-        Float stun = NativeEffectUtil.remaining(accessor, target, STUNNED_EFFECT);
-        if (stun != null) {
-            return Math.max(0f, stun);
+        try {
+            EffectControllerComponent effects = accessor.getComponent(target, EffectControllerComponent.getComponentType());
+            if (effects == null || effects.getActiveEffects().isEmpty()) {
+                return -1f;
+            }
+            int stagger = EntityEffect.getAssetMap().getIndex(STAGGERED_EFFECT);
+            float longest = -1f;
+            for (ActiveEntityEffect active : effects.getActiveEffects().values()) {
+                int index = active.getEntityEffectIndex();
+                if ((!staggerCounts && index == stagger) || !EffectFamilies.contains(STUNNED_FAMILY, index)) {
+                    continue;
+                }
+                longest = Math.max(longest, active.isInfinite() ? Float.MAX_VALUE
+                        : Math.max(0f, active.getRemainingDuration()));
+            }
+            return longest;
+        } catch (Throwable t) {
+            SafeLog.fine("[control] could not read a target's stun: " + t.getMessage());
+            return -1f;
         }
-        Float stagger = NativeEffectUtil.remaining(accessor, target, STAGGERED_EFFECT);
-        return stagger == null ? 0f : Math.max(0f, stagger);
     }
 
     /**
@@ -324,7 +383,7 @@ public final class StunControl {
             return false;
         }
         if (!full) {
-            if (NativeEffectUtil.has(accessor, target, STUNNED_EFFECT)) {
+            if (isFullStun(accessor, target)) {
                 return false;
             }
             Float staggerLeft = NativeEffectUtil.remaining(accessor, target, STAGGERED_EFFECT);

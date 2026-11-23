@@ -1,4 +1,4 @@
-package com.ziggfreed.common.effect.duration;
+package com.ziggfreed.common.effect.landing;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -13,7 +13,6 @@ import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
-import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
@@ -24,18 +23,20 @@ import com.ziggfreed.common.stats.StatCarriers;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The systems behind {@link EffectDurations}, registered once by {@link DurationBootstrap} (the system registry is
- * class-keyed): the carrier pass, the hit-target pass, the watch a hit puts on its target, and the forgetting of an
- * entity that left its store.
+ * The systems behind {@link EffectLandings}, registered once by {@link LandingBootstrap} (the system registry is
+ * class-keyed): the carrier pass, the watch a hit puts on its target, and the forgetting of an entity that left its
+ * store.
  */
-public final class EffectDurationSystems {
+public final class EffectLandingSystems {
 
-    private EffectDurationSystems() {
+    private EffectLandingSystems() {
     }
 
     /**
      * Every living carrier's effects (a heal over time a friend put on, a stun on them, a burn a creature put on
-     * another): a player every tick, a creature on its turn of the carrier cadence ({@link StatCarriers#due}, R860).
+     * another): a player every tick, a creature on its turn of the carrier cadence ({@link StatCarriers#due}, R860),
+     * and every tick a creature a hit or a control landed on lately ({@link EffectLandings#watch}), so its effects are
+     * read as they land.
      */
     public static final class Carriers extends EntityTickingSystem<EntityStore> {
 
@@ -56,22 +57,9 @@ public final class EffectDurationSystems {
         @Override
         public void tick(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
                 @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-            if (StatCarriers.due(store, archetypeChunk, index)) {
-                EffectDurations.adjust(store, archetypeChunk.getReferenceTo(index));
-            }
-        }
-    }
-
-    /**
-     * Once per world tick, every creature a hit landed on lately (a burn, a slow, a root put on it), so its effects
-     * are read as they land rather than on its next turn of the cadence.
-     */
-    public static final class Watched extends TickingSystem<EntityStore> {
-
-        @Override
-        public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-            for (Ref<EntityStore> ref : EffectDurations.watchedIn(store, System.nanoTime())) {
-                EffectDurations.adjust(store, ref);
+            Ref<EntityStore> ref = archetypeChunk.getReferenceTo(index);
+            if (StatCarriers.due(store, archetypeChunk, index) || EffectLandings.watched(ref, System.nanoTime())) {
+                EffectLandings.look(store, commandBuffer, ref);
             }
         }
     }
@@ -103,17 +91,18 @@ public final class EffectDurationSystems {
                     return;
                 }
                 Ref<EntityStore> attacker = source.getRef();
-                if (attacker == null || !attacker.isValid() || StatCarriers.isPlayer(chunk)) {
+                if (attacker == null || !attacker.isValid() || StatCarriers.isPlayer(chunk)
+                        || !chunk.getArchetype().contains(EffectControllerComponent.getComponentType())) {
                     return;
                 }
-                EffectDurations.watch(chunk.getReferenceTo(index), System.nanoTime());
+                EffectLandings.watch(chunk.getReferenceTo(index), System.nanoTime());
             } catch (Throwable t) {
-                SafeLog.fine("[duration] watching a hit target failed: " + t.getMessage());
+                SafeLog.fine("[landing] watching a hit target failed: " + t.getMessage());
             }
         }
     }
 
-    /** A watched entity left its store: drop its watch. */
+    /** An entity left its store: drop its watch and its record. */
     public static final class Left extends RefSystem<EntityStore> {
 
         @Nonnull
@@ -130,7 +119,7 @@ public final class EffectDurationSystems {
         @Override
         public void onEntityRemove(@Nonnull Ref<EntityStore> ref, @Nonnull RemoveReason reason,
                 @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-            EffectDurations.forget(ref);
+            EffectLandings.forget(ref);
         }
     }
 }

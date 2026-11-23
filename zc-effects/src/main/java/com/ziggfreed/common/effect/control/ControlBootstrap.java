@@ -1,13 +1,16 @@
 package com.ziggfreed.common.effect.control;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.event.RemovedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
-import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.interaction.type.InteractionTypeSpec;
+import com.ziggfreed.common.interaction.type.InteractionTypes;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -57,14 +60,22 @@ public final class ControlBootstrap {
         }
     }
 
+    /** The four Types as specs. Building them never builds a codec. */
+    @Nonnull
+    static List<InteractionTypeSpec> specs() {
+        return List.of(
+                InteractionTypeSpec.of(ZigStunInteraction.TYPE_NAME, ZigStunInteraction.class,
+                        ZigStunInteraction::getCODEC),
+                InteractionTypeSpec.of(ZigTauntInteraction.TYPE_NAME, ZigTauntInteraction.class,
+                        ZigTauntInteraction::getCODEC),
+                InteractionTypeSpec.of(ZigAggroDropInteraction.TYPE_NAME, ZigAggroDropInteraction.class,
+                        ZigAggroDropInteraction::getCODEC),
+                InteractionTypeSpec.of(ZigAggroSuppressInteraction.TYPE_NAME, ZigAggroSuppressInteraction.class,
+                        ZigAggroSuppressInteraction::getCODEC));
+    }
+
+    /** The Types, through zc-cast's one registration path, which rethrows a failed one at setup (R700). */
     private static void registerTypes(@Nonnull PluginBase plugin) {
-        plugin.getCodecRegistry(Interaction.CODEC).register(ZigStunInteraction.TYPE_NAME, ZigStunInteraction.class,
-                ZigStunInteraction.getCODEC());
-        plugin.getCodecRegistry(Interaction.CODEC).register(ZigTauntInteraction.TYPE_NAME, ZigTauntInteraction.class,
-                ZigTauntInteraction.getCODEC());
-        plugin.getCodecRegistry(Interaction.CODEC).register(ZigAggroDropInteraction.TYPE_NAME,
-                ZigAggroDropInteraction.class, ZigAggroDropInteraction.getCODEC());
-        plugin.getCodecRegistry(Interaction.CODEC).register(ZigAggroSuppressInteraction.TYPE_NAME,
-                ZigAggroSuppressInteraction.class, ZigAggroSuppressInteraction.getCODEC());
+        InteractionTypes.registerAll(plugin, specs());
     }
 }

@@ -1,0 +1,9 @@
+{
+  "$Comment": "The server's one word on crowd control as a whole, beside each kind's own rule (ControlKinds). RampAmount is the Immunity one landing of a kind that Ramps adds (Stun, Hold and Slow as shipped): the game's Immunity stat runs to 100, where its Immune effect goes on for a while, and drains on its own, so at 25 a foe held four times close together then shrugs those kinds. Fixed says what a fixed control skips: an effect tagged \"ZigControl\": [\"Fixed\"] in its own file, such as a minigame's stun that must last the round's full length on every server. Retune it on the Crowd Control screen (/zigadmin), or in mods/ziggfreedcommon/control-settings.json under Default.",
+  "RampAmount": 25,
+  "Fixed": {
+    "SkipsImmunity": true,
+    "SkipsResist": true,
+    "SkipsAddedSeconds": true
+  }
+}

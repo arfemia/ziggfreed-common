@@ -1,0 +1,6 @@
+{
+  "$Comment": "Weaknesses: the foe takes more damage (the Exposed effect family, a counter's weakness on a foe). Immunity never stops one. A boss or an elite takes every weakness, a talent's included, unless a rule of its own says otherwise. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Weakness.",
+  "Description": "A weakness: the foe takes more damage",
+  "RefusedByImmune": false,
+  "OnBossOrElite": "Lands"
+}

@@ -1,38 +1,13 @@
 {
-  "$Comment": "The Undead foe family: the game's undead and the undead roles outside that group, the ones a foe-family bonus counts on. Bosses and elites never count, so every family excludes the game's boss and encounter groups and their role names (the elite skeleton, the praetorians and the pirate captains among them), and so do the foes as strong as an elite (the Shadow Knight, the two larger Aberrant zombies and the Void Spawn); add a role to ExcludeRoles to take it out too.",
+  "$Comment": "The Undead foe family: the game's undead and the undead roles outside that group (Zig_Undead_Roles), the ones a foe-family bonus counts on. Bosses and elites never count: every family excludes Zig_Boss_Or_Elite, the game's bosses and elites by exact role id (the elite skeleton, the praetorians, the pirate captains and the Shadow Knight among them), after every group it includes, since the game reads a group's IncludeRoles last. Add a role to ExcludeRoles to take it out too, and a role it should count to an included group, never to IncludeRoles here.",
   "IncludeGroups": [
-    "Undead"
+    "Undead",
+    "Zig_Undead_Roles"
   ],
   "ExcludeGroups": [
-    "Goblin_Gobliterator_Boss_Group",
-    "Skeleton_Elite_Encounter_Target",
-    "Trork_Chieftain",
-    "Dungeon_Feastmaster_Group",
-    "Hunt_Predators",
-    "Bear_Voidtaken_Family"
-  ],
-  "IncludeRoles": [
-    "*_Undead",
-    "Ghoul*",
-    "Risen_*",
-    "Wraith*",
-    "Hound_Bleached*"
+    "Zig_Boss_Or_Elite"
   ],
   "ExcludeRoles": [
-    "*Boss*",
-    "*Elite*",
-    "*Gobliterator*",
-    "*Chieftain*",
-    "*Praetorian*",
-    "*Captain*",
-    "*Broodmother*",
-    "Goblin_Duke*",
-    "Goblin_Pilot*",
-    "Bear_Voidtaken*",
-    "Shadow_Knight",
-    "Zombie_Aberrant",
-    "Zombie_Aberrant_Big",
-    "Void_Spawn*",
     "Cinematic_*",
     "Tamed_*"
   ]

@@ -14,9 +14,10 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
- * The order contract content leans on: the procs answering one moment run in the order of their ids compared
- * lower-cased, whatever case the files spell them in and whatever order the packs handed them over (a shatter proc is
- * named to run before every proc that freezes, so a freeze the same hit lays is never broken by it).
+ * The order contract content leans on: the procs answering one moment run by their {@code Order}, lower first, and
+ * procs of one {@code Order} (every file that writes none) in the order of their ids compared lower-cased, whatever
+ * case the files spell them in and whatever order the packs handed them over (a shatter proc runs before every proc
+ * that freezes, so a freeze the same hit lays is never broken by it).
  */
 class ProcOrderTest {
 
@@ -34,6 +35,31 @@ class ProcOrderTest {
         }
         assertEquals(List.of("mmo_arcana_drain", "mmo_frostweaving_break_1", "mmo_frostweaving_break_shatter",
                 "mmo_frostweaving_chill", "mmo_frostweaving_freeze"), order);
+    }
+
+    @Test
+    void aWrittenOrder_runsByItsNumber_andProcsOfOneOrderKeepTheirIdOrder() throws IOException {
+        Map<String, ProcAsset> loaded = new LinkedHashMap<>();
+        loaded.put("Mmo_B", hit());
+        loaded.put("Mmo_A_Late", proc("{ \"Trigger\": \"Hit\", \"Order\": 1 }"));
+        loaded.put("Mmo_Z_Early", proc("{ \"Trigger\": \"Hit\", \"Order\": -1 }"));
+        loaded.put("mmo_c", proc("{ \"Trigger\": \"Hit\", \"Order\": 0 }"));
+        loaded.put("Mmo_A_Also_Late", proc("{ \"Trigger\": \"Hit\", \"Order\": 1 }"));
+        List<String> order = new ArrayList<>();
+        for (ProcConfig.Def def : ProcConfig.fold(loaded).get(ProcTrigger.HIT)) {
+            order.add(def.key());
+        }
+        assertEquals(List.of("mmo_z_early", "mmo_b", "mmo_c", "mmo_a_also_late", "mmo_a_late"), order,
+                "lower Order first; an unwritten Order is 0; one Order keeps the lower-cased id order");
+    }
+
+    @Test
+    void anOrderIsInheritedFromItsParent_andReadsZeroUnwritten() throws IOException {
+        assertEquals(0, hit().order(), "0 when unauthored");
+        ProcAsset parent = proc("{ \"Trigger\": \"Hit\", \"Order\": -3 }");
+        ProcAsset child = ProcAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString("{ }"), parent,
+                new AssetExtraInfo<>(new AssetExtraInfo.Data(ProcAsset.class, "Your_Child_Proc", null)));
+        assertEquals(-3, child.order(), "a Parent's Order is its child's");
     }
 
     @Test

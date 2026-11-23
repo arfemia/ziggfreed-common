@@ -8,9 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -65,7 +65,7 @@ class BossRulesCodecTest {
     void aFamilysControl_decodes_andANameThatIsNoKindReadsNone() throws IOException {
         assertEquals(ControlKind.STUN, family("Stunned", "{ \"Effects\": [ \"Stun\" ], \"Control\": \"stun\" }")
                 .control());
-        assertNull(family("Controlled", "{ \"Includes\": [ \"Slowed\" ] }").control(), "a mixed family names none");
+        assertNull(family("Hindered", "{ \"Includes\": [ \"Slowed\" ] }").control(), "a mixed family names none");
         EffectFamilyAsset bogus = family("Odd", "{ \"Control\": \"Fear\" }");
         assertNull(bogus.control());
         assertEquals("Fear", bogus.rawControl(), "kept as written, for the warning");
@@ -79,8 +79,8 @@ class BossRulesCodecTest {
         List<String> unknown = new ArrayList<>();
 
         ControlRule rule = ControlRule.parse(raw, unknown::add);
-        assertEquals(EnumSet.of(ControlKind.STUN, ControlKind.INTERRUPT), rule.landing());
-        assertEquals(EnumSet.of(ControlKind.TAUNT), rule.shrugging(), "the key matched without regard to case");
+        assertEquals(Set.of(ControlKind.STUN, ControlKind.INTERRUPT), rule.landing());
+        assertEquals(Set.of(ControlKind.TAUNT), rule.shrugging(), "the key matched without regard to case");
         assertEquals(List.of("Fear"), unknown, "a value that names no kind is reported and counts nothing");
         assertTrue(ControlRule.ranked(raw, unknown::add), "ZigRank Boss counts the group's roles");
 

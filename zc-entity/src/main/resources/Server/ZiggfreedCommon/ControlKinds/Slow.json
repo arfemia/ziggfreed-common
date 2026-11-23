@@ -1,0 +1,7 @@
+{
+  "$Comment": "Slows (the Slowed effect family). A foe wearing the game's Immune takes none; each one lasts less on a foe that already carries Immunity and adds Immunity as it lands, so a foe slowed over and over is slowed shorter each time and then shrugs slows for a while. A boss or an elite takes an ability's own slow and never a talent's. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Slow.",
+  "Description": "A slow",
+  "RefusedByImmune": true,
+  "Shrinks": true,
+  "Ramps": true
+}

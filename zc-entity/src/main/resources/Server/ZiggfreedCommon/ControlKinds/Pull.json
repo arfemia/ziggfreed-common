@@ -1,0 +1,6 @@
+{
+  "$Comment": "Pulls toward whoever cast them. Free on repeat: Immunity neither stops nor shortens one, and none adds Immunity. A boss or an elite shrugs every pull, an ability's own included, unless a rule of its own says otherwise. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Pull.",
+  "Description": "A pull toward whoever cast it",
+  "RefusedByImmune": false,
+  "OnBossOrElite": "Shrugs"
+}

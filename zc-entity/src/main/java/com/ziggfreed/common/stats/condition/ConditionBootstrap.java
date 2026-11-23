@@ -10,6 +10,8 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.health.HealthUtil;
+import com.ziggfreed.common.owner.OwnerFileBinding;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.stats.RenamedStats;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 
@@ -22,9 +24,10 @@ import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
  * ({@link BossRules}) in step with effect and NPC group loads; the retired
  * conditional ids' aliases onto the plain stats a grant now binds ({@code ConditionalStats.RETIRED}) and the renamed
  * stats' onto their new ids ({@link RenamedStats}); and the
- * {@code ziggfreedcommon:station_stat} reading ({@link StationStatReading}) beside the station condition it reads.
- * Registration only. The two stores are the root's, with every framework store. A failed registration rethrows
- * (R700): every conditional stat would be gone.
+ * {@code ziggfreedcommon:station_stat} reading ({@link StationStatReading}) beside the station condition it reads;
+ * and the owner-form bindings of the two crowd-control owner files ({@link ControlKindConfig},
+ * {@link ControlSettingsConfig}). Registration only. The stores are the root's, with every framework store. A failed
+ * registration rethrows (R700): every conditional stat would be gone.
  */
 public final class ConditionBootstrap {
 
@@ -85,6 +88,14 @@ public final class ConditionBootstrap {
             plugin.getEventRegistry().register(RemovedAssetsEvent.class, NPCGroup.class,
                     (RemovedAssetsEvent<String, NPCGroup, IndexedLookupTableAssetMap<String, NPCGroup>> ev) ->
                             ControlRuleTables.groupsChanged());
+            // The two crowd-control owner files the owner forms write (Control_Kinds one kind at a time,
+            // Control_Settings under Default): each Default read off its store under the owner's layer, each write
+            // through the store's own entry writer, each reload the store's own owner read.
+            OwnerFileBindings.register(OwnerFileBinding.keyedStore(ControlKindConfig.BINDING, ControlKindConfig::file,
+                    ControlKindConfig.getInstance(), ControlKindAsset.CODEC, ControlKindConfig::reloadOwner));
+            OwnerFileBindings.register(OwnerFileBinding.keyedStore(ControlSettingsConfig.BINDING,
+                    ControlSettingsConfig::file, ControlSettingsConfig.getInstance(), ControlSettingsAsset.CODEC,
+                    ControlSettingsConfig::reloadOwner));
         } catch (Throwable t) {
             throw new IllegalStateException("[condition] could not register conditional stats", t);
         }

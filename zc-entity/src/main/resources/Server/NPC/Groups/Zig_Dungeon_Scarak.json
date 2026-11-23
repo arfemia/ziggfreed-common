@@ -1,0 +1,6 @@
+{
+  "$Comment": "The dungeon's scarak, by their role names (Dungeon_Scarak_*), which the game's Scarak group leaves out. Zig_Foe_Scarak includes this group before it leaves out every boss and elite, so the dungeon's broodmothers never come back into the family: the game reads a group's included groups, then its excluded groups, then its own role names, so a family names its extra roles through a group like this one, never through IncludeRoles of its own.",
+  "IncludeRoles": [
+    "Dungeon_Scarak_*"
+  ]
+}

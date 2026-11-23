@@ -1,0 +1,5 @@
+{
+  "$Comment": "Knockbacks, launches and lifts. Free on repeat, like the game's own weapon knockback: Immunity neither stops nor shortens one, and none adds Immunity. A boss or an elite takes an ability's own push and never a talent's. Retune it on the Control Kinds screen (/zigadmin), or in mods/ziggfreedcommon/control-kinds.json under Push.",
+  "Description": "A knockback, a launch or a lift",
+  "RefusedByImmune": false
+}
