@@ -28,6 +28,8 @@ import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.sound.Sound3D;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
 import com.ziggfreed.common.ui.kit.KitText;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -36,7 +38,8 @@ import com.ziggfreed.common.util.SafeLog;
  * The library's item-cost confirm page: before anything that spends a player's items (a dungeon's way in, a summon, a
  * shrine), the page shows what it is and what it takes, and asks. Built as a copy of the game's own portal summon
  * screen, the one a Fragment Key opens at a portal device (the client's {@code Portals/PortalSummonPanel.xaml}), in the
- * library's words: the title, a rule, the description, then each item it takes in a slot with its picture, its own
+ * library's words: the title, a rule and the description as the band frame's hero ({@link HeroPainter}), then each
+ * item it takes in a slot with its picture, its own
  * name and how many the player holds over how many it needs (green when they hold enough, red when not), a line
  * saying what the button uses from their bag, and the button beside Close. While the player holds too few the button
  * is off and the caller's hint shows under it (where the items are found). When the caller hands over a key (an item
@@ -115,13 +118,9 @@ public final class ItemCostConfirmPage extends ToastablePage<ItemCostConfirmEven
     }
 
     private void paint(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
-        cmd.set("#Title.TextSpans", spec.title());
-        Message description = spec.description();
-        if (description != null) {
-            cmd.set("#Description.TextSpans", description);
-        } else {
-            cmd.set("#Description.Visible", false);
-        }
+        // The band frame's hero: the title as its gold headline, the description (when there is one) as the line
+        // under the game's rule, both through the kit's one hero painter.
+        HeroPainter.paint(cmd, new Hero(null, spec.title(), null, spec.description()));
 
         String key = spec.key();
         if (key != null) {

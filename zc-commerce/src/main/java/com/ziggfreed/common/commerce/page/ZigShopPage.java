@@ -60,6 +60,7 @@ import com.ziggfreed.common.ui.kit.Pill;
 import com.ziggfreed.common.ui.kit.TilePainter;
 import com.ziggfreed.common.ui.kit.Tone;
 import com.ziggfreed.common.ui.kit.WareTile;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -125,11 +126,19 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     /** A ceiling on the chips in one strip, so a wide price cannot push a row off the panel. */
     private static final int MAX_CHIPS = 6;
 
-    /** The reroll button's words at rest; armed, they turn the short colour. */
-    private static final String REROLL_TEXT = "#c6d4e4";
+    /** The reroll button's words at rest, as Pages/ZigShopPage.ui authors them; armed, they turn the short colour. */
+    private static final String REROLL_TEXT = ZigTokens.INK_STRONG;
 
     /** The Buy button's words, as Pages/ZigShopPage.ui authors them. */
-    private static final String BUY_TEXT = "#eef4fb";
+    private static final String BUY_TEXT = ZigTokens.INK_BRIGHT;
+
+    /**
+     * A button that will refuse: the game's patch dimmed to the band's own body, its words in the muted ink. A tint
+     * only multiplies, so the fill is never lighter than {@link ZigTokens#BAND_BODY} and the words keep at least 4.7:1
+     * on it, over the 4.5 text floor. Still bound, so the press answers with its reason.
+     */
+    private static final String LOCKED_FILL = ZigTokens.BAND_BODY;
+    private static final String LOCKED_TEXT = ZigTokens.INK_MUTED;
 
     /** The rich buttons' style document, rooted at {@code Common/UI/Custom/} as {@code Value.ref} takes it. */
     private static final String BUTTON_STYLES = "Common/ZigButtons.ui";
@@ -1016,8 +1025,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     /** Grey a button that will refuse, without unbinding it: the press still answers with a reason. */
     private static void paintLocked(@Nonnull UICommandBuilder cmd, @Nonnull String selector) {
-        UiRetint.retintButtonStates(cmd, selector, "#2b3240", "#2b3240", "#2b3240");
-        ZigRichButton.color(cmd, selector, "#7d8895");
+        UiRetint.retintButtonStates(cmd, selector, LOCKED_FILL, LOCKED_FILL, LOCKED_FILL);
+        ZigRichButton.color(cmd, selector, LOCKED_TEXT);
     }
 
     /**

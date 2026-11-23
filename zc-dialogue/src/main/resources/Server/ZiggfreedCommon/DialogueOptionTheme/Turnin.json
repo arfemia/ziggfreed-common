@@ -1,7 +1,7 @@
 {
   "Name": "Turnin",
-  "Color": "#5ab0ff",
-  "HoverColor": "#8acbff",
-  "PressColor": "#3f8fd6",
+  "Color": "#7a9cc6",
+  "HoverColor": "#7a9cc6",
+  "PressColor": "#4274a5",
   "Glyph": "turnin"
 }

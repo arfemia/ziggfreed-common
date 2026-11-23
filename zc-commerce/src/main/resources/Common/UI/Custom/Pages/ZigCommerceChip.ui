@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
 
 // One chip of a commerce strip: a picture and how much ("6 Hallow Sweets"), side by side. A balance
 // reading in a page header, one component of a price, one component of a reroll's price - all the same
@@ -13,7 +14,8 @@ $ZT = "../Common/ZigType.ui";
 // box hugging its own words at the start of its line with a 4px gap under it.
 //
 // The picture slot hides itself when a wallet has no icon, and the line lands on #ChipText.TextSpans
-// like every other piece of text in this library.
+// like every other piece of text in this library. Its colour is pushed per chip (CommerceChips: a balance in the
+// kit's gold, a price component in the strong ink or the danger tone), the gold at rest; every colour is a kit token.
 //
 // Two sibling pictures, exactly one ever visible. #ChipIcon is an item slot, for an item price: its
 // own tooltip names the item, which is the point. #IcoTex draws a wallet's picture plain (the item's
@@ -52,7 +54,7 @@ Group #ZigCommerceChip {
     Label #ChipText {
       Text: "";
       Anchor: (Height: 26);
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+      Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigAccent, RenderBold: true);
     }
   }
 }

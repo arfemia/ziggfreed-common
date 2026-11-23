@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.dialogue.type.DialogueActionType;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 
 /**
  * The semantic look of a dialogue option row: a per-state button tint family plus
@@ -16,23 +17,27 @@ import com.ziggfreed.common.dialogue.type.DialogueActionType;
  * {@code Style} picks only the tint; the glyph always follows what the option does
  * ({@link DialogueOptionGlyphs}).
  *
- * <p>The tint hexes match the families in the shared {@code Common/ZigButtons.ui}
- * comment vocabulary (green = accept, blue = turn-in, steel = neutral/continue,
- * muted = farewell). The glyph element ids match the hidden children in
- * {@code Pages/ZigDialogueOptionRow.ui}.
+ * <p>Every tint is a kit token ({@link ZigTokens}, the mirror of {@code Common/ZigTokens.ui}), multiplying the
+ * game's Secondary button patch the row sits on: an accept is the done tone, a hand-in the active tone (each its text
+ * colour at rest and under the cursor, its fill pressed), talking on and opening a screen the strong ink (the patch
+ * near as the game draws it, the bright ink under the cursor), and goodbye the muted ink. The button's own hovered and
+ * pressed patches lighten and darken it, so a tone that keeps one colour still answers the cursor. The shipped
+ * {@code DialogueOptionTheme/<Kind>.json} files carry the same values. The glyph element ids match the hidden
+ * children in {@code Pages/ZigDialogueOptionRow.ui}, whose tints are the same tokens.
  */
 public enum DialogueOptionStyle {
 
-    /** Positive / accept. Green, with a checkmark. */
-    ACCEPT("accept", "#4aff7f", "#7affa0", "#33cc66", "#IcoAccept"),
-    /** Hand-off / turn in. Blue, with a checkmark. */
-    TURN_IN("turnin", "#5ab0ff", "#8acbff", "#3f8fd6", "#IcoTurnIn"),
-    /** Jump to another node (re-renders elsewhere): talking on. Steel, with a speech bubble. */
-    CONTINUE("continue", "#b6c9de", "#d6e3f0", "#97aabf", "#IcoTalk"),
-    /** Open another page / nav. Steel, with a gold "open" chevron. */
-    NEUTRAL("neutral", "#b6c9de", "#d6e3f0", "#97aabf", "#IcoOpen"),
-    /** End the dialogue. Muted, with an X. */
-    FAREWELL("farewell", "#6f8398", "#9fb3c8", "#5a6e82", "#IcoFarewell");
+    /** Positive / accept. The done tone, with a checkmark. */
+    ACCEPT("accept", ZigTokens.TONE_DONE_TEXT, ZigTokens.TONE_DONE_TEXT, ZigTokens.TONE_DONE_FILL, "#IcoAccept"),
+    /** Hand-off / turn in. The active tone, with a checkmark. */
+    TURN_IN("turnin", ZigTokens.TONE_ACTIVE_TEXT, ZigTokens.TONE_ACTIVE_TEXT, ZigTokens.TONE_ACTIVE_FILL,
+            "#IcoTurnIn"),
+    /** Jump to another node (re-renders elsewhere): talking on. The strong ink, with a speech bubble. */
+    CONTINUE("continue", ZigTokens.INK_STRONG, ZigTokens.INK_BRIGHT, ZigTokens.INK_BODY, "#IcoTalk"),
+    /** Open another page / nav. The strong ink, with a gold "open" chevron. */
+    NEUTRAL("neutral", ZigTokens.INK_STRONG, ZigTokens.INK_BRIGHT, ZigTokens.INK_BODY, "#IcoOpen"),
+    /** End the dialogue. The muted ink, with an X. */
+    FAREWELL("farewell", ZigTokens.INK_MUTED, ZigTokens.INK_BODY, ZigTokens.MARK_UNLIT, "#IcoFarewell");
 
     private final String key;
     private final String tintDefault;

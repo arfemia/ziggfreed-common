@@ -1,7 +1,7 @@
 {
   "Name": "Neutral",
-  "Color": "#b6c9de",
-  "HoverColor": "#d6e3f0",
-  "PressColor": "#97aabf",
+  "Color": "#d1dae6",
+  "HoverColor": "#ffffff",
+  "PressColor": "#98a2b1",
   "Glyph": "open"
 }

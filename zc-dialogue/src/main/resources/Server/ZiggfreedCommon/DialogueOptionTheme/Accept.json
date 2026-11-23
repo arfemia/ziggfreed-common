@@ -1,7 +1,7 @@
 {
   "Name": "Accept",
-  "Color": "#4aff7f",
-  "HoverColor": "#7affa0",
-  "PressColor": "#33cc66",
+  "Color": "#7fc893",
+  "HoverColor": "#7fc893",
+  "PressColor": "#4f9e63",
   "Glyph": "accept"
 }

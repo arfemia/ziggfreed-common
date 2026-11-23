@@ -1,14 +1,20 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
 
-// Generic branching NPC dialogue page: the character's name, an optional note under it, then one
-// scrolling body holding what the character says over the answers the player can give. Answer rows
+// Generic branching NPC dialogue page: the character's name as the band frame's hero, an optional note under it, then
+// one scrolling body holding what the character says over the answers the player can give. Answer rows
 // (Pages/ZigDialogueOptionRow.ui) are appended from Java, the implicit Farewell row last. Shipped once in
 // ziggfreed-common and resolved client-side across the merged asset tree, so any consumer mod that
 // opens com.ziggfreed.common.dialogue.page.DialoguePage renders this without shipping its own copy.
 // Neutral names (Zig*) avoid colliding with a consumer's own Pages/DialoguePage.ui when both jars are
 // installed.
+//
+// The name is the frame's #Hero (the headline under the game's gold text gradient, over the game's rule), painted
+// through com.ziggfreed.common.ui.kit.HeroPainter; a conversation whose character has no name leaves it hidden. The
+// frame is 690 high, so with the band's head and foot (78 each) it fits a 1080 screen, and under the hero the body
+// holds a one-line text and about ten answers.
 //
 // Nothing in the body has a fixed height. #TextPanel is as tall as its wrapped words and #OptionsList
 // as tall as its rows, both stacked in #Body, the one scroller: a one-line text leaves room for about
@@ -16,18 +22,12 @@ $ZT = "../Common/ZigType.ui";
 // note under the name (#ActiveQuestHint) wraps onto a second line the same way, over a 22px strut.
 
 $C.@PageOverlay {}
-// Shared decorated frame (top + bottom rune flourishes; no header bar).
+// The band frame, its hero the character's name.
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 720, Height: 640);
+  Anchor: (Width: 720, Height: 690);
 
   #Content {
-    Label #NpcName {
-      Text: "";
-      Anchor: (Height: 30, Bottom: 6);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
-    }
-
     // Optional note under the name (hidden until a header source the conversation names returns a
     // Message; #HintText is then set from Java): what the player is doing on a quest this character gave.
     Group #ActiveQuestHint {
@@ -41,18 +41,16 @@ $F.@ZigDecoratedFrame {
 
       Group #HintIcon {
         Anchor: (Width: 16, Height: 16, Top: 3);
-        Background: (TexturePath: "../Common/Glyphs/Quest.png", Color: #ffd97a);
+        Background: (TexturePath: "../Common/Glyphs/Quest.png", Color: $ZK.@ZigMarkLit);
       }
 
       Label #HintText {
         FlexWeight: 1;
         Padding: (Left: 8, Top: 2);
         Text: "";
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de, Wrap: true);
+        Style: (...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigInkBody, Wrap: true);
       }
     }
-
-    Group { Anchor: (Height: 1, Bottom: 10); Background: #1e2a36; }
 
     Group #Body {
       FlexWeight: 1;
@@ -68,7 +66,7 @@ $F.@ZigDecoratedFrame {
 
         Label #NodeText {
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, Wrap: true);
+          Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true);
         }
       }
 

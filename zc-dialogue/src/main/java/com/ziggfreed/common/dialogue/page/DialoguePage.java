@@ -43,6 +43,8 @@ import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.DestinationKind;
@@ -52,7 +54,8 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The generic branching NPC dialogue page: a name header, an optional one-line
+ * The generic branching NPC dialogue page: the character's name as the band frame's hero
+ * ({@link HeroPainter}), an optional one-line
  * annotation, then one scrolling body holding the localized node text (as tall as its
  * words) over one button per option whose conditions pass, so a short line leaves room
  * for a long menu and a long one still reads whole; and an implicit "Farewell" close row
@@ -212,13 +215,11 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         // on a provider that only implements the single-arg form, or when there is no live ref.
         Message name = NpcNames.nameFor(contextNpcId, npcRef, store);
         if (name != null) {
-            // A Label's Message goes on .TextSpans, never .Text: .Text is a client-side String sink
-            // that resolves a translation and nothing else, so a raw or composed Message there fails
-            // the set command ("couldn't set value. Selector: #NpcName.Text") and disconnects the
-            // player. TextSpans takes a whole message tree and has none of that. The option rows
-            // below are rich buttons whose #Label takes TextSpans too (ZigRichButton). Matches
-            // #NodeText.TextSpans; see hytale-rich-text-textspans.
-            commandBuilder.set("#NpcName.TextSpans", name);
+            // The name is the band frame's hero, its headline under the game's gold gradient, painted
+            // through the kit's one hero painter (on .TextSpans, so a raw or composed Message reads
+            // whole). A character with no name leaves the hero hidden. The option rows below are rich
+            // buttons whose #Label takes TextSpans too (ZigRichButton).
+            HeroPainter.paint(commandBuilder, Hero.of(name));
         }
         NpcDialogue dialogue = DialogueAssetStore.getInstance().dialogue(dialogueId);
         if (dialogue != null) {

@@ -1,17 +1,16 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$ZT = "../Common/ZigType.ui";
 $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 $ZS = "../Common/ZigStyles.ui";
 
 // The item-cost confirm page (com.ziggfreed.common.ui.confirm.ItemCostConfirmPage): what something that spends a
 // player's items is, what it takes, and the button that spends them. A copy of the game's own portal summon screen
-// (the client's Portals/PortalSummonPanel.xaml), in the library's words: a centred column on the decorated frame.
+// (the client's Portals/PortalSummonPanel.xaml), in the library's words: a centred column on the band frame.
 //
-//   #Title          the thing being paid for, uppercase, the summon screen's heading
-//   #TitleRule      the rule under it
-//   #Description    what it is (hidden when the caller gives none)
+//   the frame's hero the thing being paid for as the headline under the game's gold gradient, the game's rule under
+//                    it, and what it is as the line under the rule (hidden when the caller gives none), painted
+//                    through com.ziggfreed.common.ui.kit.HeroPainter
 //   #CostList       one Pages/ZigItemCostRow.ui slot per item it takes, centred in a row; with a key (an item the
 //                   player holds that pays it all), that key's slot alone
 //   #Uses           what the button takes from the player's bag, or with a key, that the key is not used up
@@ -19,7 +18,8 @@ $ZS = "../Common/ZigStyles.ui";
 //   #Actions        Close, and the button (#ConfirmAction), greyed while the player holds too few
 //
 // Every word is set from Java on .TextSpans (each button is a Button holding Label #Label), so nothing here is a
-// literal. Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in game.
+// literal. The frame is 560 x 580, so with the band's head and foot (78 each) it fits a 1080 screen. Shipped once in
+// ziggfreed-common; neutral Zig* ids. Smoke-test in game.
 
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
@@ -27,23 +27,6 @@ $F.@ZigDecoratedFrame {
   Anchor: (Width: 560, Height: 580);
 
   #Content {
-    Label #Title {
-      Anchor: (Bottom: $ZK.@ZigSpace2);
-      Text: "";
-      Style: (...$ZX.@ZigTitleStyle, HorizontalAlignment: Center, RenderUppercase: true);
-    }
-
-    Group #TitleRule {
-      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace4);
-      Background: (Color: $ZK.@ZigDivider);
-    }
-
-    Label #Description {
-      Anchor: (Bottom: $ZK.@ZigSpace3);
-      Text: "";
-      Style: (...$ZX.@ZigLeadStyle, HorizontalAlignment: Center);
-    }
-
     Group #Spacer {
       FlexWeight: 1;
     }
@@ -63,7 +46,7 @@ $F.@ZigDecoratedFrame {
       Anchor: (Bottom: $ZK.@ZigSpace2);
       Text: "";
       Visible: false;
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigToneAvailableText, HorizontalAlignment: Center, VerticalAlignment: Center, Wrap: true);
+      Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigToneAvailableText, HorizontalAlignment: Center, Wrap: true);
     }
 
     Group #Actions {

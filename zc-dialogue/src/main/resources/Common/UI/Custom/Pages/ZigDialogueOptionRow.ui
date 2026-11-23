@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $M = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
 $ZW = "../Common/ZigKit.ui";
 
 // One answer line, appended into #OptionsList (see DialoguePage). Its words go on #OptionBtn #Label's
@@ -16,8 +17,10 @@ $ZW = "../Common/ZigKit.ui";
 //   #IcoBook      opens something to read             #IcoTrophy    opens achievements or records
 //   #IcoOpen      opens any other screen              #IcoContinue  the plain arrow, by its token
 // The six kind glyphs are white textures from tools/ui/make_ui_textures.py, tinted here; the others are
-// the client's own. A Presentation.Icon.Item draws instead in #OptPic, the kit's plain picture painted
-// through IconRenderer.applyPlainIcon: the item's own icon, with no item tooltip and no rarity square.
+// the client's own. Every tint is a kit token (Common/ZigTokens.ui): an accept the done tone, a hand-in the active
+// tone, talking on the body ink, goodbye the muted ink, and a screen it opens the gold of a lit mark. A
+// Presentation.Icon.Item draws instead in #OptPic, the kit's plain picture painted through IconRenderer.applyPlainIcon:
+// the item's own icon, with no item tooltip and no rarity square.
 
 Group #DialogueOptionRow {
   LayoutMode: Left;
@@ -25,18 +28,18 @@ Group #DialogueOptionRow {
 
   Group #OptIcon {
     Anchor: (Width: 28, Height: 22, Top: 9, Left: 14);
-    Group #IcoAccept   { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/Checkmark.png", Color: #4aff7f); Visible: false; }
-    Group #IcoTurnIn   { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/Checkmark.png", Color: #5ab0ff); Visible: false; }
-    Group #IcoContinue { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #b6c9de); Visible: false; }
-    Group #IcoOpen     { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #ffd97a); Visible: false; }
-    Group #IcoFarewell { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/ClearInputIcon.png", Color: #8696a8); Visible: false; }
-    Group #IcoTalk     { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Talk.png", Color: #b6c9de); Visible: false; }
-    Group #IcoQuest    { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Quest.png", Color: #ffd97a); Visible: false; }
-    Group #IcoShop     { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Bag.png", Color: #ffd97a); Visible: false; }
-    Group #IcoBoard    { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Board.png", Color: #ffd97a); Visible: false; }
-    Group #IcoStanding { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Star.png", Color: #ffd97a); Visible: false; }
-    Group #IcoBook     { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Book.png", Color: #ffd97a); Visible: false; }
-    Group #IcoTrophy   { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Trophy.png", Color: #ffd97a); Visible: false; }
+    Group #IcoAccept   { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/Checkmark.png", Color: $ZK.@ZigToneDoneText); Visible: false; }
+    Group #IcoTurnIn   { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/Checkmark.png", Color: $ZK.@ZigToneActiveText); Visible: false; }
+    Group #IcoContinue { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: $ZK.@ZigInkBody); Visible: false; }
+    Group #IcoOpen     { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: $ZK.@ZigMarkLit); Visible: false; }
+    Group #IcoFarewell { Anchor: (Width: 14, Height: 14, Top: 4, Left: 2); Background: (TexturePath: "../Common/ClearInputIcon.png", Color: $ZK.@ZigInkMuted); Visible: false; }
+    Group #IcoTalk     { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Talk.png", Color: $ZK.@ZigInkBody); Visible: false; }
+    Group #IcoQuest    { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Quest.png", Color: $ZK.@ZigMarkLit); Visible: false; }
+    Group #IcoShop     { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Bag.png", Color: $ZK.@ZigMarkLit); Visible: false; }
+    Group #IcoBoard    { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Board.png", Color: $ZK.@ZigMarkLit); Visible: false; }
+    Group #IcoStanding { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Star.png", Color: $ZK.@ZigMarkLit); Visible: false; }
+    Group #IcoBook     { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Book.png", Color: $ZK.@ZigMarkLit); Visible: false; }
+    Group #IcoTrophy   { Anchor: (Width: 18, Height: 18, Top: 2, Left: 0); Background: (TexturePath: "../Common/Glyphs/Trophy.png", Color: $ZK.@ZigMarkLit); Visible: false; }
     $ZW.@ZigPicture #OptPic {
       @Size = 20;
       @Anchor = (Top: 1, Left: 0);
@@ -51,7 +54,7 @@ Group #DialogueOptionRow {
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
+      Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Start);
     }
   }
 }

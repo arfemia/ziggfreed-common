@@ -26,6 +26,7 @@ import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.kit.DetailLine;
 import com.ziggfreed.common.ui.kit.Picture;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -50,23 +51,26 @@ public final class CommerceChips {
     /** A picture and a sentence, stacked down a panel. */
     public static final String LINE_TEMPLATE = "Pages/ZigDetailLine.ui";
 
-    /** A balance reading: gold, because it is a statement rather than a comparison. */
-    public static final String COLOR_BALANCE = "#ffd97a";
+    // Every colour is a kit token (ZigTokens, the mirror of Common/ZigTokens.ui), so a price, a balance and a refusal
+    // read in the Chapter look's inks and tones on every commerce surface, and a token change repaints them all.
 
-    /** A price component the subject can cover. */
-    public static final String COLOR_AFFORDABLE = "#c6d4e4";
+    /** A balance reading: the kit's gold (points and Collect), because it is a statement rather than a comparison. */
+    public static final String COLOR_BALANCE = ZigTokens.ACCENT;
 
-    /** A price component they cannot. */
-    public static final String COLOR_SHORT = "#ff6b6b";
+    /** A price component the subject can cover: the strong ink. */
+    public static final String COLOR_AFFORDABLE = ZigTokens.INK_STRONG;
 
-    /** An ordinary line of a detail panel. */
-    public static final String COLOR_LINE = "#c6d4e4";
+    /** A price component they cannot: the danger tone's text, the kit's hard refusal ({@code StatusTones.LOCKED}). */
+    public static final String COLOR_SHORT = ZigTokens.TONE_DANGER_TEXT;
 
-    /** A line that says why something is out of reach. */
-    public static final String COLOR_REFUSAL = "#ff9944";
+    /** An ordinary line of a detail panel: the strong ink. */
+    public static final String COLOR_LINE = ZigTokens.INK_STRONG;
 
-    /** A step or a component that is already satisfied. */
-    public static final String COLOR_DONE = "#7affa0";
+    /** A line that says why something is out of reach: the danger tone's text, as a short price component reads. */
+    public static final String COLOR_REFUSAL = ZigTokens.TONE_DANGER_TEXT;
+
+    /** A step or a component that is already satisfied: the done tone's text ({@code StatusTones.READY}). */
+    public static final String COLOR_DONE = ZigTokens.TONE_DONE_TEXT;
 
     /**
      * One chip: an optional picture, a composed line, the colour that line reads in, and what hovering

@@ -3,11 +3,15 @@ $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 $ZT = "../Common/ZigType.ui";
 $ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
 $ZW = "../Common/ZigKit.ui";
 
 // The storefront page (com.ziggfreed.common.commerce.page.ZigShopPage), in the look of vanilla's Memories page
 // (Pages/Memories/MemoriesPanel.ui): its size and centring, the runes pane under a grid of tiles on the left, the
-// secondary container on the right for the ware being read.
+// secondary container on the right for the ware being read. It sits on the band frame (1070 x 825, so with the band's
+// head and foot, 78 each, it fits a 1080 screen); every label reads a kit text style (Common/ZigText.ui) and every
+// colour a kit token: the shop's name and the ware's in the Chapter's flat gold title, the section heads in its head,
+// the buttons' words in its button label.
 //
 // TOP: the shop's name and icon, then one strip holding what the buyer carries (#BalanceRow, one
 // Pages/ZigCommerceChip.ui per wallet the shop authored, side by side), the two list filters (#FilterRow: a run of
@@ -68,7 +72,7 @@ $C.@PageOverlay {
           FlexWeight: 1;
           Text: "";
           Anchor: (Height: 34);
-          Style: (FontSize: $ZT.@ZigFontTitle, TextColor: $ZK.@ZigAccent, FontName: "Secondary", RenderBold: true, RenderUppercase: true, LetterSpacing: 0.5, VerticalAlignment: Center);
+          Style: (...$ZX.@ZigTitleStyle, Wrap: false, VerticalAlignment: Center);
         }
       }
 
@@ -105,7 +109,7 @@ $C.@PageOverlay {
         Label #OfferCount {
           Text: "";
           Anchor: (Width: 120, Height: 34, Left: 12);
-          Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, HorizontalAlignment: End, VerticalAlignment: Center);
+          Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End);
         }
       }
 
@@ -131,7 +135,7 @@ $C.@PageOverlay {
             Text: "";
             Visible: false;
             Anchor: (Height: 40, Top: 8);
-            Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkMuted, HorizontalAlignment: Center, Wrap: true);
+            Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkMuted, HorizontalAlignment: Center, Wrap: true);
           }
         }
 
@@ -144,14 +148,14 @@ $C.@PageOverlay {
           Label #DetailTitle {
             Text: "";
             Anchor: (Bottom: 2);
-            Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: $ZK.@ZigInkStrong, FontName: "Secondary", RenderBold: true, RenderUppercase: true, LetterSpacing: 0.5, HorizontalAlignment: Center, Wrap: true);
+            Style: (...$ZX.@ZigTitleStyle, FontSize: $ZT.@ZigFontDisplay, HorizontalAlignment: Center);
           }
 
           Label #DetailCategory {
             Text: "";
             Visible: false;
             Anchor: (Height: 20);
-            Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (...$ZX.@ZigSmallCapsStyle, HorizontalAlignment: Center);
           }
 
           Group #DetailPicRow {
@@ -173,7 +177,7 @@ $C.@PageOverlay {
               Text: "";
               Visible: false;
               Anchor: (Bottom: 12);
-              Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBody, HorizontalAlignment: Center, Wrap: true);
+              Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
             }
 
             Group { Anchor: (Height: 1, Bottom: 12); Background: (Color: $ZK.@ZigDivider); }
@@ -181,7 +185,7 @@ $C.@PageOverlay {
             Label #CostHeader {
               Text: "";
               Anchor: (Height: 20, Bottom: 6);
-              Style: $Z.@ZigSectionHeaderStyle;
+              Style: $ZX.@ZigSectionLabelStyle;
             }
 
             Group #CostRow {
@@ -193,14 +197,14 @@ $C.@PageOverlay {
               Text: "";
               Visible: false;
               Anchor: (Height: 20, Bottom: 12);
-              Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, VerticalAlignment: Center);
+              Style: $ZX.@ZigCaptionStyle;
             }
 
             Label #RewardsHeader {
               Text: "";
               Visible: false;
               Anchor: (Height: 20, Top: 6, Bottom: 6);
-              Style: $Z.@ZigSectionHeaderStyle;
+              Style: $ZX.@ZigSectionLabelStyle;
             }
 
             Group #RewardsList {
@@ -215,7 +219,7 @@ $C.@PageOverlay {
               Text: "";
               Visible: false;
               Anchor: (Bottom: 12);
-              Style: (FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, Wrap: true);
+              Style: (...$ZX.@ZigLeadStyle, TextColor: $ZK.@ZigInkStrong);
             }
 
             Group #StatusList {
@@ -243,7 +247,7 @@ $C.@PageOverlay {
               Label #Label {
                 FlexWeight: 1;
                 Text: "";
-                Style: (FontSize: $ZT.@ZigFontBody, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+                Style: (...$ZX.@ZigButtonLabelStyle, TextColor: $ZK.@ZigInkStrong);
               }
             }
 
@@ -254,7 +258,7 @@ $C.@PageOverlay {
               Label #Label {
                 FlexWeight: 1;
                 Text: "";
-                Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+                Style: (...$ZX.@ZigButtonLabelStyle, TextColor: $ZK.@ZigInkBright);
               }
             }
 
