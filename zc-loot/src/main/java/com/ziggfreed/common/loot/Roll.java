@@ -89,6 +89,7 @@ public final class Roll {
     @Nullable protected Boolean expected;
     @Nullable protected Boolean hideInPreview;
     @Nullable protected Pity pity;
+    @Nullable protected String nameKey;
 
     /**
      * The table gates this roll carries, never authored: the live {@code Requires} of the table it was
@@ -161,6 +162,14 @@ public final class Roll {
                         + "one count. Only a payout written as a Claim reads or counts it; a world drop or a "
                         + "bonus row rolls the plain Chance, and a table's preview shows the plain odds. Omit "
                         + "for a roll whose odds never grow.").add()
+                .appendInherited(new KeyedCodec<>("NameKey", Codec.STRING, false),
+                        (o, v) -> o.nameKey = v, o -> o.nameKey, (o, p) -> o.nameKey = p.nameKey)
+                .documentation("The localization key of what this roll hands over, in words, such as \"a gem\": "
+                        + "wherever a table's pays are listed by name (hovering a reward that pays the table, a "
+                        + "dungeon tier's card and its tooltip) the roll reads as this, its ladder included, in "
+                        + "place of its grants one by one, so a native drop list, which names nothing on its own, "
+                        + "reads as what it is. It changes nothing about what the roll pays or when. Unauthored, "
+                        + "each grant reads as itself.").add()
                 .build();
     }
 
@@ -251,6 +260,15 @@ public final class Roll {
         return hideInPreview != null && hideInPreview;
     }
 
+    /**
+     * {@code NameKey}, trimmed: the localization key of what this roll hands over in words, which a list of a
+     * table's pays reads in place of the roll's grants one by one; null when it names none. Presentation only.
+     */
+    @Nullable
+    public String getNameKey() {
+        return nameKey == null || nameKey.isBlank() ? null : nameKey.trim();
+    }
+
     /** The authored {@code Pity} group, or null for a roll whose odds never grow. */
     @Nullable
     public Pity getPity() {
@@ -284,6 +302,7 @@ public final class Roll {
         copy.expected = expected;
         copy.hideInPreview = hideInPreview;
         copy.pity = pity;
+        copy.nameKey = nameKey;
         GateSpec[] more = new GateSpec[gates.length + 1];
         System.arraycopy(gates, 0, more, 0, gates.length);
         more[gates.length] = gate;

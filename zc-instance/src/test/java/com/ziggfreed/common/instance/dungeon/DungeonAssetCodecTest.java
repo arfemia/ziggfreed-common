@@ -241,6 +241,36 @@ class DungeonAssetCodecTest {
                 "the schema the Asset Editor loads declares the leaf");
     }
 
+    /**
+     * {@code Gate.Chests}, the chests a gate shows: each entry's chest and line read trimmed, an entry naming no chest
+     * dropped, kept whole by a tier that does not restate it, written back, and declared in the editor's schema.
+     */
+    @Test
+    void theGatesChestsReadTrimmedDropAnEntryNamingNoneAndATierKeepsThem() throws IOException {
+        assertTrue(decode("Bare", "{}", null).gateChests().isEmpty(), "a dungeon without a gate shows no chests");
+
+        DungeonAsset base = decode("MyPack_Deep_T1", """
+                { "Gate": { "Chests": [ { "Chest": " MyPack_Weekly ", "WaitingKey": " mypack.weekly.waiting " },
+                                        { "WaitingKey": "mypack.orphan" },
+                                        { "Chest": "MyPack_Daily" } ] } }
+                """, null);
+        List<DungeonAsset.GateChest> chests = base.gateChests();
+        assertEquals(2, chests.size(), "an entry naming no chest is dropped");
+        assertEquals("MyPack_Weekly", chests.get(0).chest());
+        assertEquals("mypack.weekly.waiting", chests.get(0).waitingKey());
+        assertEquals("MyPack_Daily", chests.get(1).chest());
+        assertNull(chests.get(1).waitingKey(), "an entry may name no line of its own");
+
+        DungeonAsset tier = decode("MyPack_Deep_T2", "{ \"Tier\": { \"Rank\": 2, \"Opens\": \"MyPack_Deep_T1\" } }",
+                base);
+        assertEquals(2, tier.gateChests().size(), "a tier keeps the gate of the file it names as its Parent");
+
+        DungeonAsset again = decode("MyPack_Deep_T1", DungeonAsset.CODEC.encode(base, new ExtraInfo()).toJson(), null);
+        assertEquals("MyPack_Weekly", again.gateChests().get(0).chest(), "written back and read the same");
+        assertNotNull(DungeonAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Gate"),
+                "the schema the Asset Editor loads declares the group");
+    }
+
     private static void assertCrypt(@Nonnull DungeonAsset crypt) {
         assertEquals("MyPack_Crypt", crypt.getId());
         assertEquals("MyPack_Crypt", crypt.templateId());

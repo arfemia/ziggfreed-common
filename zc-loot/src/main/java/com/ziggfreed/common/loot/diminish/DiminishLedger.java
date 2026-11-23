@@ -22,9 +22,9 @@ import com.ziggfreed.common.util.RecordFile;
  * earlier window reads as none, and the file keeps only current windows (it is pruned on load and on
  * every write).
  *
- * <p>Read and written only through {@code ClaimStore.award} and {@code awardOrTopUp}, which count a clear only
+ * <p>Written only through {@code ClaimStore.award} and {@code awardOrTopUp}, which count a clear only
  * when a payout is written (a new Claim, or a top-up of a held one), so a second write {@code award} refuses
- * never counts.
+ * never counts; read for a page through {@code ClaimStore.nextShare} ({@link #next}), which writes nothing.
  *
  * <p>A payout that names an occasion counts once per occasion ({@link #count(UUID, String, DiminishSpec, String,
  * long)}): every payout of one key naming the occasion the count last counted, in the same window, pays at the step
@@ -149,6 +149,22 @@ public final class DiminishLedger {
         mine.put(folded, next);
         flush(nowMs);
         return spec.multiplier(prior);
+    }
+
+    /**
+     * The multiplier {@code player}'s next clear of {@code key} would pay at under {@code spec} at {@code nowMs}: the
+     * step the clears already counted in this window reach, as {@link #count} would answer for a payout naming no
+     * occasion, counting nothing and writing nothing. A count from an earlier window, or under the other window,
+     * reads as none, so a new window answers the first step.
+     */
+    public synchronized double next(@Nonnull UUID player, @Nonnull String key, @Nonnull DiminishSpec spec,
+            long nowMs) {
+        DiminishSpec.Window window = spec.window();
+        Map<String, Count> mine = counts.get(player);
+        Count held = mine == null ? null : mine.get(fold(key));
+        boolean current = held != null && window.word().equals(held.window)
+                && held.period == window.periodIndex(nowMs);
+        return spec.multiplier(current ? held.clears : 0);
     }
 
     // ==================== persistence ====================

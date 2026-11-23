@@ -208,3 +208,52 @@ lock.root_wall.name = Root Wall
 lock.sunken_chest.name = Sunken Chest
 lock.rubble_heap.name = Rubble Heap
 lock.glowing_bloom.name = Glowing Bloom
+
+# ---- The gate page on the game's Chapter look: the depths as cards, the party's place, what each depth pays. ----
+# A dungeon's name with a daily's (tier.daily_named): {0} is the dungeon's name. The one name a list of every depth
+# shows a daily by, as tier.named.own names a depth.
+tier.daily_named = {0}: Daily Run
+# The head over the cards: in a party with anyone else, or alone.
+gate.open.party = Open to your party
+gate.open.you = Open to you
+# The head over this week's omens, and the line under it.
+gate.omens.head = This week's omens
+gate.omens.sub = New every Monday at midnight UTC
+gate.chests = Chests
+# A card's words. gate.daily.tag sits over the daily's card. In gate.daily.target, {0} is the daily's target time (m:ss).
+gate.daily.tag = Today's daily
+gate.daily.target = Target time {0}
+gate.go = Go in
+# What a depth pays. gate.pays is the small head over its pictures; gate.pays.line is the card's tooltip, {0} what
+# each clear pays, joined by gate.list; a pay that comes only some clears reads as gate.pays.sometimes, and the first
+# such one shows under the pictures as gate.pays.note. gate.pays.one_of names a pay that is one of a few items, {0}
+# their names joined by gate.list.
+gate.pays = Pays
+gate.pays.line = Pays: {0}
+gate.pays.sometimes = sometimes {0}
+gate.pays.note = Sometimes {0}
+gate.pays.one_of = one of {0}
+# Two things in a list, the list so far first: {0}, {1}.
+gate.list = {0}, {1}
+# What the next clear of a depth today pays, over its diamonds: four lit for full, three, two, one, none.
+gate.mark.head = Next clear
+gate.mark.full = Full pay
+gate.mark.most = Three quarters pay
+gate.mark.half = Half pay
+gate.mark.quarter = Quarter pay
+gate.mark.none = No pay
+# Where the party is. {0} in gate.party.in and gate.party.join is a depth; in gate.party.inside, the names of the
+# party inside it. gate.party.unopened sits on a locked depth's card when someone with you holds it back: {0} is who,
+# {1} the depth; in gate.party.unopened.how {0} is the depth, {1} who and {2} the depth they need to clear.
+gate.party.in = Your party is in {0}
+gate.party.join = Pick {0} to join them.
+gate.party.inside = Inside now: {0}.
+gate.party.unopened = {0} has not opened {1} yet
+gate.party.unopened.how = Your party can pick {0} once {1} clears {2}.
+# A chest the gate shows: its state word, and once taken, when it fills again (by its window). gate.chest.name names a
+# chest whose file names no title.
+gate.chest.waiting = Waiting
+gate.chest.taken = Taken
+gate.chest.taken.week = You took it this week. It fills again on Monday.
+gate.chest.taken.day = You took it today. It fills again at midnight UTC.
+gate.chest.name = Reward Chest

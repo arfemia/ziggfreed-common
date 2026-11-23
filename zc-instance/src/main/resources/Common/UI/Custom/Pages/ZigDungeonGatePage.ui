@@ -3,54 +3,113 @@ $F = "../Common/ZigFrames.ui";
 $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 
-// A dungeon's gate (com.ziggfreed.common.instance.dungeon.tier.DungeonGatePage): the ways into a dungeon that has
-// tiers or a daily, a centred column on the decorated frame.
+// A dungeon's gate (com.ziggfreed.common.instance.dungeon.tier.DungeonGatePage), and its week board (the same page with
+// nothing to click): the game's Chapter screen on the band frame, in two columns.
 //
-//   #Title          the dungeon's name
-//   #TitleRule      the rule under it
-//   #Lead           the dungeon's own description, else the library's line on picking a tier
-//   #GateList       where the kit's LedgerPainter appends its sections of Pages/ZigLedgerRow.ui rows: the tiers the
-//                   party may pick, the daily, then this week's omens (read only)
-//   #Hint           which dungeon to clear to open the next tier, or that nothing is open; hidden with nothing to say
+// The left column is the frame's own hero (#Hero, filled by com.ziggfreed.common.ui.kit.HeroPainter: the dungeon's
+// emblem, its name under the gold gradient, the copper line saying where the party is or where to go in, the rule and
+// the line under it), given the column's width here, with the page's notes under it:
+//   #GateNotes      the column's scrolling rest, holding:
+//   #GateLead       the dungeon's own description, else the library's line on picking a tier
+//   #GateOmensHead  This week's omens, over #GateOmensSub (when they change) and #GateOmens, where
+//                   com.ziggfreed.common.ui.kit.DetailPainter.lines appends one bullet line per omen, its name over what
+//                   it does; all three hidden in a week that has none
+//   #GateChestsHead Chests, over #GateChests, where each chest the dungeon's Gate.Chests names is appended as a
+//                   Pages/ZigDungeonGateChest.ui row; both hidden with none
+// The right column (#GateRight), after the rule (#GateRule):
+//   #GateHead       Open to your party, or Open to you; hidden with no card
+//   #GateCards      where com.ziggfreed.common.ui.kit.TierCardPainter appends one Pages/ZigTierCard.ui per depth (each
+//                   ONE button, R1180): the depths open to the party, the next depth locked, then the daily. Four
+//                   cards fill it.
+//   #GateHint       that no depth is open to the party here yet; hidden while one is
 //
-// The frame owns the size, the padding and the close button (#CloseButton). Every word is set from Java on
-// .TextSpans, so nothing here is a literal. Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in game.
+// The hero is named by its own insertion block at the frame's level (#Hero), which the client finds wherever the
+// frame's template holds it; #Content is laid out Left so the hero is the first column. The frame owns the band, the
+// padding and the close button (#CloseButton). Every word is set from Java on .TextSpans, so nothing here is a literal.
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in game.
 
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 600, Height: 680);
+  Anchor: (Width: 1600, Height: 700);
 
   #Content {
-    Label #Title {
-      Anchor: (Bottom: $ZK.@ZigSpace2);
-      Text: "";
-      Style: (...$ZX.@ZigTitleStyle, HorizontalAlignment: Center, RenderUppercase: true);
-    }
+    LayoutMode: Left;
 
-    Group #TitleRule {
-      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace3);
+    Group #GateRule {
+      Anchor: (Width: 1, Left: $ZK.@ZigSpace5, Right: $ZK.@ZigSpace5, Top: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
       Background: (Color: $ZK.@ZigDivider);
     }
 
-    Label #Lead {
-      Anchor: (Bottom: $ZK.@ZigSpace3);
-      Text: "";
-      Style: (...$ZX.@ZigLeadStyle, HorizontalAlignment: Center);
-    }
+    Group #GateRight {
+      FlexWeight: 1;
+      LayoutMode: Top;
 
-    Group #GateList {
+      Label #GateHead {
+        Anchor: (Height: 32, Bottom: $ZK.@ZigSpace2);
+        Text: "";
+        Visible: false;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group #GateCards {
+        LayoutMode: Left;
+        Anchor: (Height: 576);
+      }
+
+      Label #GateHint {
+        Anchor: (Top: $ZK.@ZigSpace3);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+      }
+    }
+  }
+
+  #Hero {
+    Anchor: (Width: 440);
+
+    Group #GateNotes {
       FlexWeight: 1;
       LayoutMode: TopScrolling;
       ScrollbarStyle: $C.@DefaultScrollbarStyle;
-      Padding: (Right: 8);
-    }
+      Padding: (Right: $ZK.@ZigSpace2);
 
-    Label #Hint {
-      Anchor: (Top: $ZK.@ZigSpace2);
-      Text: "";
-      Visible: false;
-      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
+      Label #GateLead {
+        Anchor: (Bottom: $ZK.@ZigSpace4);
+        Text: "";
+        Style: (...$ZX.@ZigLeadStyle, HorizontalAlignment: Center);
+      }
+
+      Label #GateOmensHead {
+        Anchor: (Height: 22);
+        Text: "";
+        Visible: false;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Label #GateOmensSub {
+        Anchor: (Height: 18, Bottom: $ZK.@ZigSpace2);
+        Text: "";
+        Visible: false;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group #GateOmens {
+        LayoutMode: Top;
+        Anchor: (Bottom: $ZK.@ZigSpace3);
+      }
+
+      Label #GateChestsHead {
+        Anchor: (Height: 22, Bottom: $ZK.@ZigSpace2);
+        Text: "";
+        Visible: false;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group #GateChests {
+        LayoutMode: Top;
+      }
     }
   }
 }

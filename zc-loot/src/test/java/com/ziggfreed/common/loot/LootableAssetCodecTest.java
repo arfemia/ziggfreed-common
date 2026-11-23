@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
+import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
  * What authored loot JSON actually decodes to, and what a {@code Parent} does to it.
@@ -168,6 +169,23 @@ class LootableAssetCodecTest {
         assertFalse(table.getRolls()[0].hidesInPreview(), "a roll that writes nothing shows in the preview");
         assertNull(table.getRolls()[0].getHideInPreview());
         assertTrue(table.getRolls()[1].hidesInPreview());
+    }
+
+    /** A roll's {@code NameKey} decodes trimmed, a blank one reads as none, and a gated copy keeps it. */
+    @Test
+    void aRollsNameKeyDecodesTrimmedAndSurvivesAGatedCopy() throws Exception {
+        LootableAsset table = decodeRoot("""
+                { "Rolls": [ { "Chance": { "Base": 25 }, "Grants": { "DropLists": [ "Gems" ] },
+                               "NameKey": "  mypack.pay.gem " },
+                             { "NameKey": "  ", "Grants": { "Items": [ { "Item": "Coin_Gold" } ] } },
+                             { "Grants": { "Items": [ { "Item": "Coin_Gold" } ] } } ] }
+                """, "named_finds");
+
+        assertEquals("mypack.pay.gem", table.getRolls()[0].getNameKey());
+        assertNull(table.getRolls()[1].getNameKey(), "a blank NameKey names nothing");
+        assertNull(table.getRolls()[2].getNameKey(), "a roll that writes none names nothing");
+        assertEquals("mypack.pay.gem", table.getRolls()[0].gatedBy(new GateSpec()).getNameKey(),
+                "a table's gated copy of a roll keeps its name");
     }
 
     @Test

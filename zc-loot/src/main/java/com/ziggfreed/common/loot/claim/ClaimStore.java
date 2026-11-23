@@ -185,6 +185,16 @@ public final class ClaimStore {
         return write(player, claim, spec, diminishKey, null, nowMs, true);
     }
 
+    /**
+     * The share of its full pay {@code player}'s next payout of {@code diminishKey} would be scaled by under
+     * {@code spec} at {@code nowMs} (1 for a full one, 0 for nothing), read and never counted: what a page shows
+     * before the payout ({@link DiminishLedger#next}). A null spec pays every payout in full.
+     */
+    public double nextShare(@Nonnull UUID player, @Nullable DiminishSpec spec, @Nonnull String diminishKey,
+            long nowMs) {
+        return spec == null ? 1.0 : ledger.next(player, diminishKey, spec, nowMs);
+    }
+
     /** Every Claim {@code player} has waiting, oldest first. */
     @Nonnull
     public synchronized List<Claim> list(@Nonnull UUID player) {

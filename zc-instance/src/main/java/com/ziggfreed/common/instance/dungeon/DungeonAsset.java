@@ -23,6 +23,7 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.Vec3;
+import com.ziggfreed.common.instance.claims.RewardChestAsset;
 import com.ziggfreed.common.instance.dungeon.layout.Cell;
 import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
 import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
@@ -57,7 +58,8 @@ import com.ziggfreed.common.season.SeasonGate;
  *   "Season": "Hallows_Eve",
  *   "Text": { "NameKey": "mypack.dungeon.crypt.name", "DescriptionKey": "mypack.dungeon.crypt.description",
  *             "GoalKey": "mypack.dungeon.crypt.goal" },
- *   "Emblem": "UI/Custom/Pages/Memories/categories/VoidspawnComplete.png"
+ *   "Emblem": "UI/Custom/Pages/Memories/categories/VoidspawnComplete.png",
+ *   "Gate": { "Chests": [ { "Chest": "MyPack_Crypt_Weekly", "WaitingKey": "mypack.dungeon.crypt.weekly.waiting" } ] }
  * }
  * }</pre>
  *
@@ -141,6 +143,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private String season;
     @Nullable private Text text;
     @Nullable private String emblem;
+    @Nullable private Gate gate;
 
     public static final AssetBuilderCodec<String, DungeonAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     DungeonAsset.class,
@@ -223,7 +226,12 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
             .documentation("The picture its gate draws over the dungeon's name: a texture path rooted at Common/, "
                     + "such as UI/Custom/Pages/Memories/categories/VoidspawnComplete.png (the game's own Memories "
                     + "emblems are one such set). A tier keeps the emblem of the file it names as its Parent. "
-                    + "Unauthored, the gate draws no emblem.").add(),
+                    + "Unauthored, the gate draws no emblem.").add()
+            .appendInherited(new KeyedCodec<>("Gate", Gate.CODEC, false),
+                    (a, v) -> a.gate = v, a -> a.gate, (a, p) -> a.gate = p.gate)
+            .documentation("What the dungeon's gate page shows beside its depths: the reward chests whose state it "
+                    + "shows each player, such as a weekly hoard still waiting or already taken. A tier keeps the "
+                    + "gate of the file it names as its Parent. Unauthored, the gate shows no chests.").add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
 
@@ -691,6 +699,25 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable
     public String emblem() {
         return blankToNull(emblem);
+    }
+
+    /**
+     * {@code Gate.Chests}: the reward chests the gate page shows the state of, each naming a chest file, in the order
+     * written, an entry naming none dropped; empty when the file names none. Inherited under {@code Parent} whole.
+     */
+    @Nonnull
+    public List<GateChest> gateChests() {
+        GateChest[] raw = gate == null ? null : gate.chests;
+        if (raw == null || raw.length == 0) {
+            return List.of();
+        }
+        List<GateChest> out = new ArrayList<>(raw.length);
+        for (GateChest entry : raw) {
+            if (entry != null && entry.chest() != null) {
+                out.add(entry);
+            }
+        }
+        return List.copyOf(out);
     }
 
     /**
@@ -1237,6 +1264,66 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .build();
 
         public Text() {
+        }
+    }
+
+    // ==================== Gate ====================
+
+    /** What the dungeon's gate page shows beside its depths. */
+    public static final class Gate {
+
+        @Nullable protected GateChest[] chests;
+
+        public static final BuilderCodec<Gate> CODEC = BuilderCodec.builder(Gate.class, Gate::new)
+                .appendInherited(new KeyedCodec<>("Chests", new ArrayCodec<>(GateChest.CODEC, GateChest[]::new), false),
+                        (o, v) -> o.chests = v, o -> o.chests, (o, p) -> o.chests = p.chests)
+                .documentation("The reward chests the gate page shows, each with its picture, its name and whether "
+                        + "it waits for the player or they took it already in its Contents.Diminish window (a "
+                        + "weekly hoard taken this week). A chest whose Contents.Diminish still pays the player's "
+                        + "next share reads as waiting; a chest counted apart per difficulty (Contents.PerDifficulty) "
+                        + "reads the count of the Difficulty of the dungeon file the gate opens on. This is ONE leaf: "
+                        + "authoring it replaces an inherited list whole. Unauthored or empty, the gate shows no "
+                        + "chests.").add()
+                .build();
+
+        public Gate() {
+        }
+    }
+
+    /** One reward chest the gate page shows, and the line it reads while the chest waits. */
+    public static final class GateChest {
+
+        @Nullable protected String chest;
+        @Nullable protected String waitingKey;
+
+        public static final BuilderCodec<GateChest> CODEC = BuilderCodec.builder(GateChest.class, GateChest::new)
+                .appendInherited(new KeyedCodec<>("Chest", Codec.STRING, false),
+                        (o, v) -> o.chest = v, o -> o.chest, (o, p) -> o.chest = p.chest)
+                .metadata(EditorSchema.assetRef(RewardChestAsset.class))
+                .documentation("The reward chest file, by its id (a file under "
+                        + "Server/ZiggfreedCommon/RewardChests/). The page shows its Look.Prop's picture and its "
+                        + "Contents.TitleKey as its name. A chest no loaded file answers to is left off the page.")
+                .add()
+                .appendInherited(new KeyedCodec<>("WaitingKey", Codec.STRING, false),
+                        (o, v) -> o.waitingKey = v, o -> o.waitingKey, (o, p) -> o.waitingKey = p.waitingKey)
+                .documentation("The localization key of the line the page shows under the chest's name while it "
+                        + "waits for the player, such as where in the dungeon it stands. Unauthored, the chest's own "
+                        + "Text.LeadKey.").add()
+                .build();
+
+        public GateChest() {
+        }
+
+        /** {@code Chest}, trimmed, or null when the entry names none. */
+        @Nullable
+        public String chest() {
+            return blankToNull(chest);
+        }
+
+        /** {@code WaitingKey}, trimmed, or null when the entry names none. */
+        @Nullable
+        public String waitingKey() {
+            return blankToNull(waitingKey);
         }
     }
 }

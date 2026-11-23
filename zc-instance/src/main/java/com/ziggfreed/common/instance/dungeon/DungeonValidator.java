@@ -438,6 +438,10 @@ public final class DungeonValidator {
                 "the line saying where the items are found shows as the raw key");
         TextKeyAudit.check(out, DOMAIN, id, where + " EntryCost.ConfirmKey", dungeon.entryCostConfirmKey(),
                 textShipped, "the confirm screen's button shows the raw key");
+        for (DungeonAsset.GateChest chest : dungeon.gateChests()) {
+            TextKeyAudit.check(out, DOMAIN, id, where + " Gate.Chests WaitingKey", chest.waitingKey(), textShipped,
+                    "the gate's line under the chest '" + chest.chest() + "' shows as the raw key");
+        }
     }
 
     /**

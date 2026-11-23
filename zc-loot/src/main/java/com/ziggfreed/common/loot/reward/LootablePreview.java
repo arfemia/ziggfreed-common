@@ -38,7 +38,8 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * <p><b>The contents</b> are decided from the table alone, asking no player anything ({@link #plan}): what
  * always comes, in authored order; then each grant whose roll has a plain percent chance, with that percent
  * ({@link #shownPercent}: at most one decimal); then what only sometimes comes, whatever a condition, a
- * factor, a ladder or a pool decides. Each reads as its own reward line would. A table inside it is named,
+ * factor, a ladder or a pool decides. Each reads as its own reward line would, and a roll that writes a
+ * {@code NameKey} reads as that one line, its ladder included (a drop list then reads as what it is). A table inside it is named,
  * never opened. Up to two closing lines follow, in this order: one saying there is more when a grant here
  * cannot be named (a native drop list, a console line that hands over no item, a kind nothing names), and one
  * saying a few more rare finds are left unsaid when a roll that can fire sets {@code HideInPreview}, which
@@ -214,9 +215,15 @@ public final class LootablePreview {
         return rounded;
     }
 
-    /** How a grant reads: a reward as its own chip's line, an item as a reward line for it; null when nothing names it. */
+    /**
+     * How a grant reads: a roll that names itself as its {@code NameKey} line, a reward as its own chip's line, an item
+     * as a reward line for it; null when nothing names it.
+     */
     @Nullable
     private static Message labelOf(@Nonnull Grant grant) {
+        if (grant.nameKey() != null) {
+            return ContentKeys.tr(grant.nameKey());
+        }
         if (grant.reward() != null) {
             RewardChip chip = RewardChips.chipFor(grant.reward());
             return chip == null ? null : chip.label();
@@ -226,8 +233,16 @@ public final class LootablePreview {
 
     // ==================== the plan (strings and numbers only) ====================
 
-    /** One thing a table may hand over: a reward read as its own chip, or an item and how many. */
-    record Grant(@Nullable RewardSpec reward, @Nullable String itemId, int count, int countMax) {
+    /**
+     * One thing a table may hand over: a reward read as its own chip, an item and how many, or a whole roll read as
+     * the words its {@code NameKey} names.
+     */
+    record Grant(@Nullable RewardSpec reward, @Nullable String itemId, int count, int countMax,
+            @Nullable String nameKey) {
+
+        Grant(@Nullable RewardSpec reward, @Nullable String itemId, int count, int countMax) {
+            this(reward, itemId, count, countMax, null);
+        }
     }
 
     /**
@@ -280,6 +295,11 @@ public final class LootablePreview {
             }
             if (roll.hidesInPreview()) {
                 hidden = true;
+                continue;
+            }
+            if (roll.getNameKey() != null) {
+                // The roll names what it hands over, its ladder included: one line, at the roll's own odds.
+                out.add(new Grant(null, null, 0, 0, roll.getNameKey()), odds);
                 continue;
             }
             out.addAll(roll.getGrants(), odds);
@@ -418,7 +438,7 @@ public final class LootablePreview {
             }
         }
 
-        private void add(@Nonnull Grant grant, @Nonnull Odds odds) {
+        void add(@Nonnull Grant grant, @Nonnull Odds odds) {
             Listed listed = new Listed(grant, odds);
             if (odds.sometimes()) {
                 sometimes.add(listed);

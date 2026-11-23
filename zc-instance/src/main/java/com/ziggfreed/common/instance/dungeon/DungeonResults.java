@@ -210,9 +210,12 @@ public final class DungeonResults {
         return DungeonRuns.SOURCE_PREFIX + dungeonId + ":" + runId + ":" + player;
     }
 
-    /** {@code dungeon:<id>:<difficulty>}, the difficulty empty for normal: the count every run of it shares. */
+    /**
+     * {@code dungeon:<id>:<difficulty>}, the difficulty empty for normal: the count every run of it shares, which a
+     * clear's Claim counts under and a gate reads its next clear's share by.
+     */
     @Nonnull
-    static String diminishKey(@Nonnull String dungeonId, @Nonnull String difficulty) {
+    public static String diminishKey(@Nonnull String dungeonId, @Nonnull String difficulty) {
         return DungeonRuns.SOURCE_PREFIX + dungeonId + ":" + difficulty.trim();
     }
 

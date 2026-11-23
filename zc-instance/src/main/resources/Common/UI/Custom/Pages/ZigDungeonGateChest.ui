@@ -1,0 +1,60 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+
+// One reward chest on a dungeon's gate (com.ziggfreed.common.instance.dungeon.tier.DungeonGatePage), appended into the
+// gate's #GateChests and addressed by index as "#GateChests[i] #ChestName": the chest as the kit's chest slot, its
+// words beside it.
+//
+//   #ChestSlot    where com.ziggfreed.common.ui.kit.TilePainter.chestSlots paints the chest's one slot
+//                 (Pages/ZigItemSlotTile.ui, 88 x 88 with its 8 margins): its picture, and the game's gold check under
+//                 it once taken
+//   #ChestName    the chest's name
+//   #ChestLine    while it waits, where it is; once taken, when it fills again
+//   #ChestWaiting the state word while it waits, in lit gold
+//   #ChestTaken   the state word once taken, in the strong ink
+//
+// Every word is set from Java on .TextSpans, so nothing here is a literal. Shipped once in ziggfreed-common; neutral
+// Zig* ids. Smoke-test in game.
+
+Group #ZigDungeonGateChest {
+  LayoutMode: Left;
+  Anchor: (Height: 104, Bottom: $ZK.@ZigSpace2);
+
+  Group #ChestSlot {
+    LayoutMode: Left;
+    Anchor: (Width: 96, Height: 96);
+    Background: (Color: $ZK.@ZigSurfaceClear);
+  }
+
+  Group #ChestWords {
+    FlexWeight: 1;
+    LayoutMode: Top;
+    Padding: (Left: $ZK.@ZigSpace3, Top: $ZK.@ZigSpace1);
+
+    Label #ChestName {
+      Anchor: (Height: 22);
+      Text: "";
+      Style: (...$ZX.@ZigBulletNameStyle, Wrap: true, WrapMaxLines: 1);
+    }
+
+    Label #ChestLine {
+      Anchor: (Top: 2, Bottom: $ZK.@ZigSpace1);
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+    }
+
+    Label #ChestWaiting {
+      Anchor: (Height: 18);
+      Text: "";
+      Visible: false;
+      Style: (...$ZX.@ZigSmallCapsStyle, TextColor: $ZK.@ZigMarkLit);
+    }
+
+    Label #ChestTaken {
+      Anchor: (Height: 18);
+      Text: "";
+      Visible: false;
+      Style: (...$ZX.@ZigSmallCapsStyle, TextColor: $ZK.@ZigInkStrong);
+    }
+  }
+}

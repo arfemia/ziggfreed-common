@@ -95,6 +95,15 @@ public final class DungeonTiers {
     }
 
     /**
+     * One member a gate asks: who, and their clears, asked of a dungeon id as {@link TierLadder} reads them.
+     *
+     * @param id      the member's uuid
+     * @param cleared whether they have cleared a dungeon, by its id
+     */
+    public record Member(@Nonnull UUID id, @Nonnull Predicate<String> cleared) {
+    }
+
+    /**
      * The clears of each member of {@code player}'s party standing in this world, the player first (at {@code ref} in
      * {@code store}): one answer per member, asked of a dungeon id, as {@link TierLadder} reads them. A member in
      * another world is not asked (lead's call). On that world's thread.
@@ -102,8 +111,22 @@ public final class DungeonTiers {
     @Nonnull
     public static List<Predicate<String>> party(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull UUID player) {
-        List<Predicate<String>> members = new ArrayList<>();
-        members.add(opens -> cleared(store, ref, opens));
+        List<Predicate<String>> out = new ArrayList<>();
+        for (Member member : members(ref, store, player)) {
+            out.add(member.cleared());
+        }
+        return out;
+    }
+
+    /**
+     * {@link #party}, each answer with the member it is: the player first, then each member of their party standing in
+     * this world, in the party's order. On that world's thread.
+     */
+    @Nonnull
+    public static List<Member> members(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull UUID player) {
+        List<Member> members = new ArrayList<>();
+        members.add(new Member(player, opens -> cleared(store, ref, opens)));
         Party party = ZcParty.service().partyOf(player);
         Universe universe = Universe.get();
         if (party != null && universe != null) {
@@ -114,7 +137,7 @@ public final class DungeonTiers {
                 PlayerRef other = universe.getPlayer(member);
                 Ref<EntityStore> otherRef = other == null ? null : other.getReference();
                 if (otherRef != null && otherRef.isValid() && otherRef.getStore() == store) {
-                    members.add(opens -> cleared(store, otherRef, opens));
+                    members.add(new Member(member, opens -> cleared(store, otherRef, opens)));
                 }
             }
         }

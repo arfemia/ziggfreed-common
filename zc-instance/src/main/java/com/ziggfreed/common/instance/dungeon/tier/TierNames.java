@@ -8,6 +8,7 @@ import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
+import com.ziggfreed.common.instance.dungeon.DungeonRefusals;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 
 /**
@@ -15,7 +16,9 @@ import com.ziggfreed.common.instance.dungeon.DungeonRuns;
  * so one line on a tier names it and every tier that inherits it; a tier whose file names none reads as the library's
  * own word, Tier and its rank ({@value #DEFAULT_KEY}), so a server running the library alone, or a pack that names no
  * word, never shows another pack's. The one reading the gate's rows and every line naming a tier take
- * ({@code DungeonRefusals.tierName}), and the one a Claim's difficulty takes ({@link #ofDifficulty}).
+ * ({@code DungeonRefusals.tierName}), and the one a Claim's difficulty takes ({@link #ofDifficulty}). A list that names
+ * every depth apart (Records' picker, a leaderboard line) reads {@link #displayName}, which names a daily as its
+ * dungeon's Daily Run; a depth's card on its gate is titled by {@link #word}.
  *
  * <p>A Claim carries only the {@code Difficulty} label of what paid it (a tier's clear, a boss fight fought in its run,
  * or a fight's own label), so the label is named by the tier file whose {@code Difficulty} it is, as
@@ -27,7 +30,50 @@ public final class TierNames {
     /** The library's own word for a tier whose file names none, {@code {0}} its rank: Tier 2. */
     static final String DEFAULT_KEY = "ziggfreedcommon.dungeon.tier.name";
 
+    /** A daily's display name, {@code {0}} its dungeon's name: The Shifting Deep: Daily Run. */
+    static final String DAILY_KEY = "ziggfreedcommon.dungeon.tier.daily_named";
+
     private TierNames() {
+    }
+
+    /**
+     * A dungeon file's display name, the one a list naming every depth apart reads (Records' picker, a leaderboard
+     * line, the gate's own lines): a daily ({@code Seed.Daily}) is its dungeon's name then Daily Run ("The Shifting
+     * Deep: Daily Run"); a tier is its dungeon's name then what players call the tier ("The Shifting Deep: Depth 2",
+     * {@link DungeonRefusals#tierName}); any other dungeon is its name alone. Never throws.
+     */
+    @Nonnull
+    public static Message displayName(@Nonnull DungeonAsset dungeon) {
+        if (dungeon.seedDaily()) {
+            return Msg.key(DAILY_KEY, DungeonRefusals.dungeonName(dungeon));
+        }
+        return DungeonRefusals.tierName(dungeon);
+    }
+
+    /**
+     * {@link #displayName(DungeonAsset)} of the dungeon file {@code dungeonId} names (any case), or null when it names
+     * none or no loaded file defines it, so the caller keeps its own reading.
+     */
+    @Nullable
+    public static Message displayName(@Nullable String dungeonId) {
+        if (dungeonId == null || dungeonId.isBlank()) {
+            return null;
+        }
+        DungeonAsset dungeon = DungeonConfig.getInstance().resolve(dungeonId.trim());
+        return dungeon == null ? null : displayName(dungeon);
+    }
+
+    /**
+     * What a depth's card on its gate is titled: a tier's own word ({@link #own}, "Depth 2"), else the library's, Tier
+     * and its rank; a dungeon that is no tier, its name. A daily reads as the tier it is a daily of.
+     */
+    @Nonnull
+    public static Message word(@Nonnull DungeonAsset dungeon) {
+        if (!dungeon.isTier()) {
+            return DungeonRefusals.dungeonName(dungeon);
+        }
+        Message own = own(dungeon);
+        return own != null ? own : Msg.key(DEFAULT_KEY, (long) dungeon.tierRank());
     }
 
     /** What {@code dungeon}'s own file calls its tier, or null when it is no tier or names no word of its own. */
