@@ -20,11 +20,11 @@ import com.ziggfreed.common.util.SafeLog;
  * and how it is painted.
  *
  * <p>Deliberately NOT a registered destination: an admin screen must not be pack-addressable, so
- * the only route here is this direct static call from a consumer's own gated admin surface. And
- * unlike every other shared page, the unfilled page is a page NOBODY can open: the deps' audience
- * seam defaults to DENY, and {@link #open} refuses unless the registered audience passes - the
- * library cannot know what "is an admin" means on a given server, so it refuses rather than
- * guessing. A throwing audience denies too (fail-closed).
+ * the only route here is this direct static call, from the owner menu ({@code /zigadmin}) or a
+ * consumer's own gated admin surface. {@link #open} refuses unless the audience passes: the deps'
+ * audience seam defaults to the library's owner audience (zc-core's {@code OwnerAudience}: a
+ * consumer's admin rule where one filled it, else a holder of {@code /zigadmin}'s node), never to
+ * everyone. A throwing audience denies too (fail-closed).
  *
  * <p>World thread.
  */
@@ -39,13 +39,13 @@ public final class ProgressionAdminPages {
     /**
      * Say who may open the page, how Back routes, and how the frame is painted
      * ({@link ProgressionAdminDeps}). Call once from a consumer's setup; pass null to go back to
-     * the library defaults (which deny every open). Resolved lazily on each open.
+     * the library defaults (the owner audience, Back to the owner menu). Resolved lazily on each open.
      */
     public static void deps(@Nullable Supplier<ProgressionAdminDeps> supplier) {
         DEPS.set(supplier);
     }
 
-    /** The deps in force right now: the registered consumer's, else the deny-all defaults. Guarded. */
+    /** The deps in force right now: the registered consumer's, else the defaults. Guarded. */
     @Nonnull
     static ProgressionAdminDeps resolvedDeps() {
         Supplier<ProgressionAdminDeps> supplier = DEPS.get();
@@ -64,7 +64,7 @@ public final class ProgressionAdminPages {
 
     /**
      * Open the admin page for {@code player}, audience-checked. True when the screen was taken;
-     * false when the audience refused (the default), the entity is not a player, or the open threw.
+     * false when the audience refused, the entity is not a player, or the open threw.
      */
     public static boolean open(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Player player) {

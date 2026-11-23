@@ -37,8 +37,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The progression admin page: one row per registered {@link SystemSwitch}, each showing its label,
  * its live SERVER-WIDE state and, where the switch is writable, an on/off toggle. Opened only
- * through {@link ProgressionAdminPages#open}, whose audience seam defaults to DENY - this page
- * never checks permissions itself, on the family's usual terms.
+ * through {@link ProgressionAdminPages#open}, whose audience seam defaults to the library's owner
+ * audience - this page never checks permissions itself, on the family's usual terms.
  *
  * <p>Three toggle paints, one per honest answer: ON / OFF for a value that read cleanly, a locked
  * tint (no binding) for a read-only switch, and an UNKNOWN "?" for a read that threw - never OFF,

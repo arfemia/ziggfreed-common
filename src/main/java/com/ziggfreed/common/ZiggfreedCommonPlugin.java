@@ -92,10 +92,13 @@ import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
+import com.ziggfreed.common.npc.placement.admin.NpcPlacementAdminPages;
 import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
+import com.ziggfreed.common.objectives.admin.ProgressionAdminPages;
+import com.ziggfreed.common.objectives.admin.UseGateAdminPages;
 import com.ziggfreed.common.objectives.authoring.AchievementEditorBootstrap;
 import com.ziggfreed.common.objectives.authoring.QuestEditorBootstrap;
 import com.ziggfreed.common.objectives.bonus.BonusRowBootstrap;
@@ -146,8 +149,13 @@ import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
+import com.ziggfreed.common.ui.form.OwnerFormValidator;
 import com.ziggfreed.common.ui.kit.ZigKitCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
+import com.ziggfreed.common.ui.owner.OwnerMenu;
+import com.ziggfreed.common.ui.owner.OwnerMenuBootstrap;
+import com.ziggfreed.common.ui.owner.OwnerText;
+import com.ziggfreed.common.ui.owner.OwnerTile;
 import com.ziggfreed.common.ui.route.RouteBootstrap;
 import com.ziggfreed.common.util.RetiredLibrarySettings;
 import com.ziggfreed.common.util.SafeLog;
@@ -407,6 +415,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerHudSettings();
         registerMenu();
         registerKitGallery();
+        // The owner menu (/zigadmin): its command, the library's section and its owner screens' tiles; every owner
+        // form joins on its own from its store, and a consumer adds its section and tiles at its own setup.
+        registerOwnerMenu();
         // The Settings tab: its destination, its tab on the rail after Records, and the library's own
         // Notifications and Combat sections. zc-objectives fills the quest tracker and title sections from its own
         // bootstrap; a consumer adds its sections with ZigSettings.consumer.
@@ -691,6 +702,32 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
+     * The owner menu, {@code /zigadmin}: zc-presentation's bootstrap registers the command, the library's section and
+     * its own HUD layout tile; the tiles of the library's other owner screens are wired here, the one place that sees
+     * their modules (the progression switches and the use gates in zc-objectives, the NPC placements in zc-dialogue).
+     * Each opens through its page's own audience seam, which defaults to the owner audience.
+     */
+    private void registerOwnerMenu() {
+        try {
+            OwnerMenuBootstrap.install(this);
+            OwnerMenu.add(OwnerTile.screen(OwnerMenu.LIBRARY, "ziggfreedcommon:progression",
+                            OwnerText.line("tile.progression.title"),
+                            viewer -> ProgressionAdminPages.open(viewer.store(), viewer.ref(), viewer.player()))
+                    .order(10).line(OwnerText.line("tile.progression.line")).icon("Objective_Bounty"));
+            OwnerMenu.add(OwnerTile.screen(OwnerMenu.LIBRARY, "ziggfreedcommon:use_gates",
+                            OwnerText.line("tile.usegates.title"),
+                            viewer -> UseGateAdminPages.open(viewer.store(), viewer.ref(), viewer.player()))
+                    .order(20).line(OwnerText.line("tile.usegates.line")).icon("Tool_Pickaxe_Iron"));
+            OwnerMenu.add(OwnerTile.screen(OwnerMenu.LIBRARY, "ziggfreedcommon:npc_placements",
+                            OwnerText.line("tile.placements.title"),
+                            viewer -> NpcPlacementAdminPages.open(viewer.store(), viewer.ref(), viewer.player()))
+                    .order(30).line(OwnerText.line("tile.placements.line")).icon("Furniture_Crude_Sign"));
+        } catch (Throwable t) {
+            SafeLog.warn("[owner] the owner menu could not be registered", t);
+        }
+    }
+
+    /**
      * The {@code /zigloot} family, whose {@code validate} verb audits every loaded loot table against
      * the reward kinds this server pays. On demand only, never a boot pass outside a headless dev boot's
      * {@code BootAudit} switch ({@link #registerBootChecks()}): a consumer that audits the tables at its
@@ -859,6 +896,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(ConditionalStatValidator.LOG_LABEL, ConditionalStatValidator::audit),
                     new BootAudit.Pass(StatTypeCeiling.LOG_LABEL, StatTypeCeiling::audit),
                     new BootAudit.Pass(ProcValidator.LOG_LABEL, ProcValidator::audit),
+                    new BootAudit.Pass(OwnerFormValidator.LOG_LABEL, OwnerFormValidator::audit),
                     new BootAudit.Pass(EditorSchemaAudit.LOG_LABEL, () -> EditorSchemaAudit.audit(List.of(
                             ProgressEditorDataSets.OBJECTIVE_KINDS, ProgressEditorDataSets.REWARD_KINDS,
                             EditorDataSets.assetIds("BlockType"), EditorDataSets.assetIds("Item"),

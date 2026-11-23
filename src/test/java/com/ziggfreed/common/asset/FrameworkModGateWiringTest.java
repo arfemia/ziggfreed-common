@@ -41,6 +41,7 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.boost.BoostConfig;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
+import com.ziggfreed.common.ui.form.OwnerFormConfig;
 import com.ziggfreed.common.world.gather.GatherShapeConfig;
 
 /**
@@ -114,6 +115,7 @@ class FrameworkModGateWiringTest {
         GATED.put("HeldEffectAsset", new Gated("HeldEffects", "HeldEffectConfig", HeldEffectConfig.MOD_GATE_STORE));
         GATED.put("HubDistrictAsset",
                 new Gated("HubDistricts", "HubDistrictConfig", HubDistrictConfig.MOD_GATE_STORE));
+        GATED.put("OwnerFormAsset", new Gated("OwnerForms", "OwnerFormConfig", OwnerFormConfig.MOD_GATE_STORE));
     }
 
     /**
@@ -172,6 +174,9 @@ class FrameworkModGateWiringTest {
                     "public static void reloadHeldEffects()", "GateSpec.missingMod("),
             new OwnerReader("HubDistrictAsset", "HubDistrictOwnerLayers.reload();",
                     module("zc-instance", "instance", "hub", "HubDistrictOwnerLayers.java"),
+                    "public static void reload()", "GateSpec.missingMod("),
+            new OwnerReader("OwnerFormAsset", "OwnerFormOwnerLayers.reload();",
+                    module("zc-presentation", "ui", "form", "OwnerFormOwnerLayers.java"),
                     "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("NpcPlacementAsset", "NpcPlacementOverrides.getInstance().applyOwnerLayer();",
                     module("zc-dialogue", "npc", "placement", "asset", "NpcPlacementOverrides.java"),
@@ -279,6 +284,7 @@ class FrameworkModGateWiringTest {
         assertEquals("Counters", CounterConfig.getInstance().modGateStore());
         assertEquals("HeldEffects", HeldEffectConfig.getInstance().modGateStore());
         assertEquals("HubDistricts", HubDistrictConfig.getInstance().modGateStore());
+        assertEquals("OwnerForms", OwnerFormConfig.getInstance().modGateStore());
     }
 
     @Test

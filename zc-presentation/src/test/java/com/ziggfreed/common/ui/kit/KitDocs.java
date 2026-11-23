@@ -30,7 +30,8 @@ final class KitDocs {
             "Pages/ZigKeepsakeTile.ui", "Pages/ZigStatTile.ui", "Pages/ZigSegment.ui", "Pages/ZigSegmentTwoLine.ui",
             "Pages/ZigViewTab.ui",
             "Pages/ZigPill.ui", "Pages/ZigItemSlotTile.ui", "Pages/ZigWareTile.ui", "Pages/ZigTileSection.ui",
-            "Pages/ZigRewardCard.ui", "Pages/ZigRewardDivider.ui", "Pages/ZigTierCard.ui", "Pages/ZigPayMark.ui");
+            "Pages/ZigRewardCard.ui", "Pages/ZigRewardDivider.ui", "Pages/ZigTierCard.ui", "Pages/ZigPayMark.ui",
+            "Pages/ZigFormLeafRow.ui");
 
     /** The appended templates (a page appends each by path), each rooted at a Group named after its file. */
     static final List<String> APPENDED = DOCUMENTS.subList(4, DOCUMENTS.size());

@@ -8,6 +8,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.owner.OwnerAudience;
 import com.ziggfreed.common.settings.page.SettingsDestinations;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.Destinations;
@@ -23,9 +24,10 @@ import com.ziggfreed.common.util.SafeLog;
  *       this module sits BELOW the ones that carry the other page-theme seams and may never import
  *       them; the signature is deliberately identical, so a consumer hands the same lambda to
  *       every one of them.</li>
- *   <li>{@link AdminAudience} - who may see the page. DEFAULT DENY, and a throwing audience
- *       denies too: the library cannot know what "is an admin" means on a given server, and the
- *       failure cost of guessing is an owner file rewritten by a player.</li>
+ *   <li>{@link AdminAudience} - who may see the page. The library's owner audience by default
+ *       ({@link #OWNERS}, zc-core's {@code OwnerAudience}: a consumer's own admin rule where one filled
+ *       it, else a holder of {@code /zigadmin}'s node), never everyone, and a throwing audience denies:
+ *       the failure cost of being wrong is an owner file rewritten by a player.</li>
  *   <li>{@link BackHandler} - what the Back button opens: the Settings tab by default
  *       ({@link #TO_SETTINGS}); return true ONLY when something else took the screen, and false
  *       closes the page.</li>
@@ -69,8 +71,11 @@ public final class HudSettingsDeps {
                 @Nonnull Player player);
     }
 
-    /** Nobody sees the page: the honest default for a surface nothing has gated yet. */
+    /** Nobody sees the page. */
     public static final AdminAudience DENY_ALL = (store, ref, player) -> false;
+
+    /** The library's owner audience (zc-core's {@code OwnerAudience}): the default. */
+    public static final AdminAudience OWNERS = OwnerAudience::mayAdminister;
 
     /** Back takes nothing, so the page closes. */
     public static final BackHandler CLOSE_PAGE = (store, ref, player) -> false;
@@ -79,7 +84,7 @@ public final class HudSettingsDeps {
     public static final BackHandler TO_SETTINGS = (store, ref, player) ->
             Destinations.open(SettingsDestinations.SETTINGS, DestinationContext.of(store, ref, player));
 
-    /** Every seam at its default: a plain page nobody sees, whose Back returns to the Settings tab. */
+    /** Every seam at its default: a plain page the owner audience sees, whose Back returns to the Settings tab. */
     public static final HudSettingsDeps DEFAULTS = builder().build();
 
     @Nonnull private final PageTheme theme;
@@ -139,7 +144,7 @@ public final class HudSettingsDeps {
     public static final class Builder {
 
         @Nonnull private PageTheme theme = PLAIN_THEME;
-        @Nonnull private AdminAudience audience = DENY_ALL;
+        @Nonnull private AdminAudience audience = OWNERS;
         @Nonnull private BackHandler back = TO_SETTINGS;
 
         private Builder() {
@@ -153,7 +158,7 @@ public final class HudSettingsDeps {
 
         @Nonnull
         public Builder audience(@Nullable AdminAudience value) {
-            this.audience = value != null ? value : DENY_ALL;
+            this.audience = value != null ? value : OWNERS;
             return this;
         }
 

@@ -1,0 +1,66 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The owner form (com.ziggfreed.common.ui.form.OwnerFormPage): one owner file's settings, drawn from an owner form
+// file (Server/ZiggfreedCommon/OwnerForms/), on the band with the frame's hero filled by the form's title. Each setting
+// is the kit's owner leaf row (Pages/ZigFormLeafRow.ui, FormLeafPainter); a section's heading and note are the settings
+// form's own rows (Pages/ZigFormHeaderRow.ui, Pages/ZigFormNoteRow.ui). #OwnerFormFields is the appendable list and
+// MUST stay childless here. #OwnerFormStatus is the line a save or a reset answers on. Back returns to the owner menu,
+// Save writes what changed. Every pushed word is on .TextSpans; OwnerFormPaint paints it all, which KitSelectorsTest
+// walks.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 960, Height: 820);
+
+  #Content {
+    Label #OwnerFormStatus {
+      Visible: false;
+      Text: "";
+      Anchor: (Bottom: 8);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    Group #OwnerFormFields {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 12);
+    }
+
+    Group #OwnerFormFooter {
+      LayoutMode: Left;
+      Anchor: (Height: 40, Top: 12);
+
+      Button #OwnerFormBack {
+        Anchor: (Width: 180, Height: 40);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.owner.form.back;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Button #OwnerFormSave {
+        Anchor: (Width: 220, Height: 40);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.owner.form.save;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

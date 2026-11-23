@@ -1,0 +1,41 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZX = "../Common/ZigText.ui";
+
+// The owner menu (com.ziggfreed.common.ui.owner.OwnerMenuPage, /zigadmin; a consumer's own admin command opens it with
+// its section first): one section per mod, each the Settings tab's own section card (Pages/ZigSettingsSection.ui)
+// holding its tiles (Pages/ZigSettingsTile.ui, the shared @ZigTile), on the band with the frame's hero filled.
+// #OwnerMenuStatus is the line a tile that acts in place (a reload) answers on; #OwnerMenuEmpty shows when no tile
+// does. #OwnerMenuSections is the appendable list and MUST stay childless here. Every word is pushed from Java on
+// .TextSpans (ziggfreedcommon.ui.lang owner.*, and each tile's own words); every appended piece is painted by
+// OwnerMenuPaint, which KitSelectorsTest walks.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 1000, Height: 820);
+
+  #Content {
+    Label #OwnerMenuStatus {
+      Visible: false;
+      Text: "";
+      Anchor: (Bottom: 8);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    Label #OwnerMenuEmpty {
+      Visible: false;
+      Text: "";
+      Anchor: (Top: 24);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    Group #OwnerMenuSections {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 8);
+    }
+  }
+}

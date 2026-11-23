@@ -1,0 +1,78 @@
+$C = "../Common.ui";
+$ZM = "../Common/ZigForm.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZX = "../Common/ZigText.ui";
+
+// ── ziggfreed-common appendable OWNER LEAF row: one setting of an owner file ─────────
+// Appended and painted by ui/kit/FormLeafPainter into a page's list container, then addressed by the INDEXED
+// PARENT ("#Fields[3] #Field"), so the bare ids below are safe across many rows. The settings form's look by name
+// (Common/ZigForm.ui), with what an owner editor adds over a settings row: whether the owner's file sets the value
+// (#State, a kit state style FormLeafPainter swaps), the value under the owner's word (#Default) and a Reset that
+// takes the owner's value out.
+//
+// #Control holds both controls in one spot: the text field (#Field) for a typed value and the dropdown
+// (#Dropdown) for a switch or a choice; the painter shows the one the setting needs. #Hint starts hidden until the
+// painter fills it. Every word is the caller's, pushed on .TextSpans.
+
+Group #ZigFormLeafRow {
+  LayoutMode: Top;
+  Anchor: (Bottom: 10);
+
+  $ZM.@ZigFormRow #Row {
+    Label #Title {
+      FlexWeight: 1;
+      Text: "";
+      Style: $ZM.@ZigFormLabelStyle;
+    }
+
+    Label #State {
+      Anchor: (Width: 110, Right: 12);
+      Text: "";
+      Style: $ZS.@ZigStateStyle;
+    }
+
+    Group #Control {
+      Anchor: (Width: 190, Height: 30);
+
+      $C.@TextField #Field {
+        Anchor: (Width: 190, Height: 30);
+        Padding: (Horizontal: 8);
+      }
+
+      $C.@DropdownBox #Dropdown {
+        Anchor: (Width: 190, Height: 30);
+        Style: $ZM.@ZigFormDropdownStyle;
+        Visible: false;
+      }
+    }
+
+    Group {
+      Anchor: (Width: 8);
+    }
+
+    Button #Reset {
+      Anchor: (Width: 110, Height: 30);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
+      }
+    }
+  }
+
+  Label #Hint {
+    Visible: false;
+    Text: "";
+    Padding: (Right: 440);
+    Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
+  }
+
+  Label #Default {
+    Text: "";
+    Padding: (Right: 440);
+    Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
+  }
+}

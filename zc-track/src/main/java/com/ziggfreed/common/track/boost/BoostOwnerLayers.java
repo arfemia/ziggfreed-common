@@ -36,6 +36,12 @@ public final class BoostOwnerLayers {
     /** The owner file over the server-wide settings. */
     public static final String SETTINGS_FILE = "boost-settings.json";
 
+    /**
+     * The settings file's id as an owner form names it (zc-core's {@code OwnerFileBindings}): its path under
+     * {@code mods/}. The boost settings form ({@code OwnerForms/Boost_Settings.json}) edits it through that binding.
+     */
+    public static final String SETTINGS_BINDING = "ziggfreedcommon/" + SETTINGS_FILE;
+
     private static final String LOG_TAG = "boost";
 
     @Nonnull

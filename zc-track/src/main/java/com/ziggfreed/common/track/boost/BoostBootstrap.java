@@ -9,13 +9,16 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.effect.buff.TimedBuffs;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.owner.OwnerFileBinding;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.track.command.ZigBoostCommand;
 import com.ziggfreed.common.track.gain.GainFactors;
 
 /**
  * Registers the boosts at library setup, from the track module's bootstrap: the {@code Boost} gain factor over the
  * neutral one, the tiles on the buff bar, the native {@code ZigBoost} interaction Type and reward Type, the server
- * boosts' read from their file on {@code BootEvent} ({@link ServerBoosts#onBoot}), and the {@code /zigboost} family;
+ * boosts' read from their file on {@code BootEvent} ({@link ServerBoosts#onBoot}), the {@code /zigboost} family and
+ * the settings file's owner-form binding;
  * the plugin-free half ({@link #registerVocabulary}) is the
  * {@code Boost} reward kind and its chip. The two stores (boosts, settings) are registered with the other
  * framework stores. Registration only ({@code RootRegistrationOnlyTest}).
@@ -36,6 +39,11 @@ public final class BoostBootstrap {
         TimedBuffs.register(BoostTiles.INSTANCE);
         plugin.getEventRegistry().register(BootEvent.class, ServerBoosts::onBoot);
         plugin.getCommandRegistry().registerCommand(new ZigBoostCommand());
+        // The settings file an owner form may write (the boost settings form), its Default read off the settings
+        // store under the owner's layer, its reload the store's own owner read.
+        OwnerFileBindings.register(OwnerFileBinding.keyedStore(BoostOwnerLayers.SETTINGS_BINDING,
+                BoostOwnerLayers::settingsFile, BoostSettingsConfig.getInstance(), BoostSettingsAsset.CODEC,
+                BoostOwnerLayers::reloadSettings));
     }
 
     /** The plugin-free half: the Boost reward kind and how it reads. Not guarded, as {@link #install} is not. */

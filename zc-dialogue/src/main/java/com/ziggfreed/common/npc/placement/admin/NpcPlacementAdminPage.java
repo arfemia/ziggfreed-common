@@ -49,8 +49,8 @@ import com.ziggfreed.common.util.SafeLog;
  * The NPC placement admin page: what should be standing in this world, what actually is, and the
  * two things an admin does about it - switch one off, or stand a new one where they are.
  *
- * <p>Opened only through {@link NpcPlacementAdminPages#open}, whose audience seam defaults to DENY;
- * this page never checks permissions itself, on the family's usual terms.
+ * <p>Opened only through {@link NpcPlacementAdminPages#open}, whose audience seam defaults to the
+ * library's owner audience; this page never checks permissions itself, on the family's usual terms.
  *
  * <p><b>The rows answer the question the command answers</b>, off the same reads: every placement
  * whose {@code Where} matches this world, its gate verdict, and how many of it the ledger says are

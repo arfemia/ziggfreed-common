@@ -9,26 +9,27 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.objectives.questlist.NpcQuestPageDeps;
+import com.ziggfreed.common.owner.OwnerAudience;
+import com.ziggfreed.common.ui.owner.OwnerMenu;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * What a consumer may say about {@link ProgressionAdminPage} without owning it - with ONE seam
- * whose default deliberately breaks the every-default-leaves-a-working-page rule the other page
- * deps keep: the {@link AdminAudience} defaults to DENY. This is an administrative surface, so a
- * bare server where nobody registered an audience gets a page nobody can open, and a consumer
- * grants access from its own gated admin surface (a permission check, an op check) rather than the
- * library guessing one.
+ * What a consumer may say about {@link ProgressionAdminPage} without owning it. Its
+ * {@link AdminAudience} defaults to the library's owner audience (zc-core's {@code OwnerAudience}:
+ * a consumer's own admin rule where one filled it, else a holder of {@code /zigadmin}'s node), never
+ * to everyone: this is an administrative surface, and the owner menu ({@code /zigadmin}) opens it on
+ * a server with no consumer.
  *
  * <ul>
  *   <li>{@link NpcQuestPageDeps.PageTheme} - how the frame is painted; the ONE theme signature
  *       every shared page takes, so a consumer's theme registered once covers this page too.</li>
  *   <li>{@link AdminAudience} - who may OPEN the page. Consulted by
- *       {@link ProgressionAdminPages#open}; DEFAULT DENY, and a throwing audience denies too
- *       (fail-closed, the inverse of a system gate, because here the failure cost of being wrong
- *       is an admin surface shown to a player it was never meant for).</li>
+ *       {@link ProgressionAdminPages#open}; the owner audience by default ({@link #OWNERS}), and a
+ *       throwing audience denies (fail-closed, the inverse of a system gate, because here the failure
+ *       cost of being wrong is an admin surface shown to a player it was never meant for).</li>
  *   <li>{@link BackHandler} - what the Back button opens, for a consumer routing here from its own
- *       admin hub. Return true ONLY when something else took the screen; the default takes nothing
- *       and the page closes.</li>
+ *       admin hub. Return true ONLY when something else took the screen; the default opens the owner
+ *       menu ({@link #TO_OWNER_MENU}), and the page closes when that does not open.</li>
  * </ul>
  *
  * <p>Immutable; build one at setup and hand the same instance back on every open.
@@ -55,13 +56,19 @@ public final class ProgressionAdminDeps {
                 @Nonnull Player player);
     }
 
-    /** Nobody may open the page: the honest default for an admin surface nothing has gated yet. */
+    /** Nobody may open the page. */
     public static final AdminAudience DENY_ALL = (store, ref, player) -> false;
+
+    /** The library's owner audience (zc-core's {@code OwnerAudience}): the default. */
+    public static final AdminAudience OWNERS = OwnerAudience::mayAdminister;
 
     /** Back takes nothing, so the page closes. */
     public static final BackHandler CLOSE_PAGE = (store, ref, player) -> false;
 
-    /** Every seam at its default: a themable, closeable page NOBODY can open until a consumer fills the audience. */
+    /** Back opens the owner menu ({@code /zigadmin}): the default. */
+    public static final BackHandler TO_OWNER_MENU = (store, ref, player) -> OwnerMenu.open(store, ref, player, null);
+
+    /** Every seam at its default: a themable page the owner audience opens, whose Back returns to the owner menu. */
     public static final ProgressionAdminDeps DEFAULTS = builder().build();
 
     @Nonnull private final NpcQuestPageDeps.PageTheme theme;
@@ -122,8 +129,8 @@ public final class ProgressionAdminDeps {
     public static final class Builder {
 
         @Nonnull private NpcQuestPageDeps.PageTheme theme = NpcQuestPageDeps.PLAIN_THEME;
-        @Nonnull private AdminAudience audience = DENY_ALL;
-        @Nonnull private BackHandler back = CLOSE_PAGE;
+        @Nonnull private AdminAudience audience = OWNERS;
+        @Nonnull private BackHandler back = TO_OWNER_MENU;
 
         private Builder() {
         }
@@ -136,13 +143,13 @@ public final class ProgressionAdminDeps {
 
         @Nonnull
         public Builder audience(@Nullable AdminAudience value) {
-            this.audience = value != null ? value : DENY_ALL;
+            this.audience = value != null ? value : OWNERS;
             return this;
         }
 
         @Nonnull
         public Builder back(@Nullable BackHandler value) {
-            this.back = value != null ? value : CLOSE_PAGE;
+            this.back = value != null ? value : TO_OWNER_MENU;
             return this;
         }
 

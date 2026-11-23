@@ -14,8 +14,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The way in to {@link UseGateAdminPage}: a direct static call from a consumer's own gated admin surface, never a
  * registered destination. It shares the progression admin page's deps ({@link ProgressionAdminPages#deps}): the
- * same audience (DENY until a consumer fills it), the same theme and the same Back, so a consumer that wired one
- * admin page has wired both. World thread.
+ * same audience (the library's owner audience until a consumer fills it), the same theme and the same Back, so a
+ * consumer that wired one admin page has wired both. World thread.
  */
 public final class UseGateAdminPages {
 
@@ -24,7 +24,7 @@ public final class UseGateAdminPages {
 
     /**
      * Open the Use Gates page for {@code player}, audience-checked. True when the screen was taken; false when the
-     * audience refused (the default), the entity is not a player, or the open threw.
+     * audience refused, the entity is not a player, or the open threw.
      */
     public static boolean open(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Player player) {

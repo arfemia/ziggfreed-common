@@ -205,6 +205,9 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.hud.card.HudCardConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardOwnerLayers;
+import com.ziggfreed.common.ui.form.OwnerFormAsset;
+import com.ziggfreed.common.ui.form.OwnerFormConfig;
+import com.ziggfreed.common.ui.form.OwnerFormOwnerLayers;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
@@ -1318,6 +1321,22 @@ public final class FrameworkAssetRegistrar {
                     WeakSpotSettingsConfig.reloadOwner();
                 });
 
+        // --- Owner forms (Pattern A, gated) - one in-game editor for one owner file per file: the file it edits (by
+        //     the id the mod reading it registered), the entry, its settings in headed sections with their kinds,
+        //     words, bounds and choices, and its tile on the owner menu. A file may gate on a mod through its
+        //     top-level Requires. The track module ships the boost settings form. Owner file
+        //     mods/ziggfreedcommon/owner-forms.json, re-read on this same event. No loadsAfter: a form names its file by
+        //     id and reads it at open. ---
+        AssetStoreRegistrar.registerStore(OwnerFormAsset.class,
+                new DefaultAssetMap<String, OwnerFormAsset>(), OwnerFormAsset.TYPE_ROOT,
+                OwnerFormAsset::getId, OwnerFormAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, OwnerFormAsset.class,
+                (LoadedAssetsEvent<String, OwnerFormAsset, DefaultAssetMap<String, OwnerFormAsset>> ev) -> {
+                    OwnerFormConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(OwnerFormConfig.MOD_GATE_STORE,
+                            ev.getAssetMap(), f -> GateSpec.missingMod(f.requires())));
+                    OwnerFormOwnerLayers.reload();
+                });
+
         // --- Effect families (Pattern A) - one family of effects a conditional stat or an effect stat names as one
         //     (Burning, Slowed, Controlled) per file: the game's own effects it lists and the families it includes;
         //     a mod's own effect joins through its ZigEffectFamily tag in its own file. The library ships its
@@ -1467,6 +1486,7 @@ public final class FrameworkAssetRegistrar {
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
                         + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
+                        + "OwnerForms (owner file mods/ziggfreedcommon/owner-forms.json), "
                         + "GatherRules (owner file mods/ziggfreedcommon/gather-rules.json), "
                         + "EffectFamilies (owner file mods/ziggfreedcommon/effect-families.json), "
                         + "ConditionalStats (owner file mods/ziggfreedcommon/conditional-stats.json), "

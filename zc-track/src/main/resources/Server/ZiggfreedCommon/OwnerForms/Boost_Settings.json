@@ -1,0 +1,88 @@
+{
+  "$Comment": "The in-game screen for mods/ziggfreedcommon/boost-settings.json, on the owner menu (/zigadmin): each setting below shows the value in force, the value the server would use without your file, and saves straight into the file under its Default entry. Every word is a key of ziggfreedcommon.boost.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Boost_Settings.",
+  "Title": "ziggfreedcommon.boost.form.settings.title",
+  "Description": "ziggfreedcommon.boost.form.settings.desc",
+  "Icon": "Potion_Mana_Large",
+  "Section": "ziggfreedcommon",
+  "Order": 50,
+  "File": "ziggfreedcommon/boost-settings.json",
+  "Entry": "Default",
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.boost.form.settings.heading.stacking",
+      "Fields": [
+        {
+          "Path": "Cap",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.boost.form.settings.cap",
+          "Hint": "ziggfreedcommon.boost.form.settings.cap.hint",
+          "Min": 0,
+          "Max": 10000
+        },
+        {
+          "Path": "HighestOnly",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.boost.form.settings.highest",
+          "Hint": "ziggfreedcommon.boost.form.settings.highest.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.boost.form.settings.heading.limits",
+      "Fields": [
+        {
+          "Path": "Limits.Personal",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.boost.form.settings.personal",
+          "Hint": "ziggfreedcommon.boost.form.settings.personal.hint",
+          "Min": 0,
+          "Max": 100
+        },
+        {
+          "Path": "Limits.Server",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.boost.form.settings.server",
+          "Hint": "ziggfreedcommon.boost.form.settings.server.hint",
+          "Min": 0,
+          "Max": 100
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.boost.form.settings.heading.start",
+      "Note": "ziggfreedcommon.boost.form.settings.start.note",
+      "Fields": [
+        {
+          "Path": "OnStart.Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.boost.form.settings.start.on",
+          "Hint": "ziggfreedcommon.boost.form.settings.start.on.hint"
+        },
+        {
+          "Path": "OnStart.Command",
+          "Kind": "Text",
+          "Label": "ziggfreedcommon.boost.form.settings.start.command",
+          "Hint": "ziggfreedcommon.boost.form.settings.start.command.hint"
+        },
+        {
+          "Path": "OnStart.Personal",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.boost.form.settings.start.personal",
+          "Hint": "ziggfreedcommon.boost.form.settings.start.personal.hint"
+        },
+        {
+          "Path": "OnStart.Server",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.boost.form.settings.start.server",
+          "Hint": "ziggfreedcommon.boost.form.settings.start.server.hint"
+        },
+        {
+          "Path": "OnStart.ReplacesAnnouncement",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.boost.form.settings.start.replaces",
+          "Hint": "ziggfreedcommon.boost.form.settings.start.replaces.hint"
+        }
+      ]
+    }
+  ]
+}

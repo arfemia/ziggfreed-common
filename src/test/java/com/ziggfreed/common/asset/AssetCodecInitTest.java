@@ -139,6 +139,7 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotCutout;
 import com.ziggfreed.common.ui.hud.panel.HudSpotGap;
 import com.ziggfreed.common.ui.hud.panel.HudSpotPosition;
 import com.ziggfreed.common.ui.hud.card.HudCardAsset;
+import com.ziggfreed.common.ui.form.OwnerFormAsset;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.gather.BlockFamilyAsset;
@@ -299,6 +300,16 @@ class AssetCodecInitTest {
         // fail inside an owner's Server/Rewards file instead of at this build. The ZigBoost interaction Type's
         // codec class-inits the engine's Interaction, which throws outside a live server, so the boot checks it.
         assertNotNull(ZigBoostReward.CODEC, "ZigBoostReward.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void ownerFormCodecsInitialize() {
+        assertNotNull(OwnerFormAsset.CODEC, "OwnerFormAsset.CODEC must static-init (PascalCase keys)");
+        // The section, field and choice groups are embedded rather than stored, so a lower-case key in one would
+        // fail at a form's decode instead of at this build.
+        assertNotNull(OwnerFormAsset.Section.CODEC, "the Sections entry codec must static-init");
+        assertNotNull(OwnerFormAsset.Field.CODEC, "the Fields entry codec must static-init");
+        assertNotNull(OwnerFormAsset.Choice.CODEC, "the Choices entry codec must static-init");
     }
 
     @Test

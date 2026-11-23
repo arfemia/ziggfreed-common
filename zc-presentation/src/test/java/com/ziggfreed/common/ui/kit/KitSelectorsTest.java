@@ -18,15 +18,25 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUICommand;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUICommandType;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBinding;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
+import com.hypixel.hytale.server.core.ui.LocalizableString;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
+import com.ziggfreed.common.ui.form.OwnerFormAsset;
+import com.ziggfreed.common.ui.form.OwnerFormPaint;
+import com.ziggfreed.common.ui.form.OwnerFormPlan;
 import com.ziggfreed.common.ui.icon.ItemQualityLook;
+import com.ziggfreed.common.ui.owner.OwnerMenu;
+import com.ziggfreed.common.ui.owner.OwnerMenuPaint;
+import com.ziggfreed.common.ui.owner.OwnerTile;
 
 /**
  * Every selector a painter sends or binds names only ids its target document declares, because a command against
@@ -353,6 +363,93 @@ class KitSelectorsTest {
         KitGallery.bindPanel(panel.events());
         panel.record();
         panel.assertDeclared("the kit gallery's panel view");
+    }
+
+    /**
+     * The owner leaf row (an owner form's setting): a typed setting with a hint and a switch picked from a dropdown,
+     * each appended and bound, then repainted in place as a save or a reset repaints them.
+     */
+    @Test
+    void theFormLeafPainterAddressesOnlyDeclaredIds() throws IOException {
+        Recorder r = new Recorder(Map.of());
+        r.cmd().clear("#Fields");
+        FormLeaf typed = new FormLeaf(Message.raw("Cap"), Message.raw("The most a boost adds"), FormLeaf.Control.FIELD,
+                "200", List.of(), Message.raw("Without your setting: 200"), false, Message.raw("Default"),
+                Message.raw("Reset"));
+        FormLeaf picked = new FormLeaf(Message.raw("Strongest only"), null, FormLeaf.Control.CHOICE, "on",
+                List.of(new DropdownEntryInfo(LocalizableString.fromString("On"), "on"),
+                        new DropdownEntryInfo(LocalizableString.fromString("Off"), "off")),
+                Message.raw("Without your setting: Off"), true, Message.raw("Set here"), Message.raw("Reset"));
+        String first = FormLeafPainter.append(r.cmd(), r.events(), "#Fields", 0, typed,
+                EventData.of("Action", "field").append("Field", "0"), EventData.of("Action", "reset"), null);
+        String second = FormLeafPainter.append(r.cmd(), r.events(), "#Fields", 1, picked,
+                EventData.of("Action", "field").append("Field", "1"), EventData.of("Action", "reset"), null);
+        r.record();
+        FormLeafPainter.paint(r.cmd(), first, typed.with("300", true, Message.raw("Set here")), null);
+        FormLeafPainter.paint(r.cmd(), second, picked.with("", false, Message.raw("Default")), null);
+        r.record();
+        r.assertDeclared("FormLeafPainter");
+    }
+
+    /**
+     * The owner menu, walked against its own document and the band frame: two sections of tiles (with a line and an
+     * item, and with neither), a status line, an empty menu and a refused one; then the owner form from a form file
+     * with a heading, a note and a setting of every kind, a status line and a refusal.
+     */
+    @Test
+    void theOwnerMenuAndTheOwnerFormAddressOnlyIdsTheirDocumentsDeclare() throws IOException {
+        String frames = KitDocs.document("Common/ZigFrames.ui");
+        String band = KitDocs.template(frames, "@ZigDecoratedFrame") + "\n" + KitDocs.template(frames, "@ZigBand");
+
+        Recorder menu = new Recorder(Map.of(), KitDocs.document(OwnerMenuPaint.PAGE_TEMPLATE) + "\n" + band);
+        OwnerMenuPaint.bind(menu.events());
+        OwnerTile full = OwnerTile.screen("ziggfreedcommon", "a", Message.raw("A"), viewer -> true)
+                .line(Message.raw("A line")).icon("Coin");
+        OwnerTile bare = OwnerTile.action("ziggfreedcommon", "b", Message.raw("B"), viewer -> null);
+        OwnerMenuPaint.paint(menu.cmd(), menu.events(), List.of(
+                new OwnerMenu.Section("ziggfreedcommon", Message.raw("CommonLib"), List.of(full, bare)),
+                new OwnerMenu.Section("yourmod", Message.raw("Your Mod"), List.of(full))),
+                Message.raw("Reloaded"), false);
+        menu.record();
+        OwnerMenuPaint.paint(menu.cmd(), menu.events(), List.of(), null, false);
+        OwnerMenuPaint.refused(menu.cmd());
+        OwnerMenuPaint.status(menu.cmd(), Message.raw("That screen did not open"), true);
+        menu.record();
+        menu.assertDeclared("the owner menu");
+
+        Recorder form = new Recorder(Map.of(), KitDocs.document(OwnerFormPaint.PAGE_TEMPLATE) + "\n" + band);
+        OwnerFormPaint.bind(form.events());
+        OwnerFormPlan plan = OwnerFormPlan.read(ownerForm());
+        List<String> rows = OwnerFormPaint.paint(form.cmd(), form.events(), plan, null);
+        form.record();
+        assertTrue(rows.size() == 7, "every setting of every kind is a row: " + rows);
+        FormLeafPainter.paint(form.cmd(), rows.get(0), OwnerFormPaint.leaf(plan.settings().get(0), "5", true), null);
+        OwnerFormPaint.status(form.cmd(), Message.raw("Saved"), false);
+        OwnerFormPaint.refused(form.cmd(), Message.raw("Gone"));
+        form.record();
+        form.assertDeclared("the owner form");
+    }
+
+    @Nonnull
+    private static OwnerFormAsset ownerForm() throws IOException {
+        String json = """
+                { "Title": "yourmod.form", "Description": "yourmod.form.line", "File": "yourmod/none.json",
+                  "Entry": "Default",
+                  "Sections": [
+                    { "Heading": "yourmod.head", "Note": "yourmod.note",
+                      "Fields": [ { "Path": "Cap", "Kind": "Number", "Label": "yourmod.cap", "Hint": "yourmod.hint" },
+                                  { "Path": "Limits.Max", "Kind": "Whole", "Min": 0, "Max": 5 },
+                                  { "Path": "Share", "Kind": "Chance" },
+                                  { "Path": "Name", "Kind": "Text" },
+                                  { "Path": "Ids", "Kind": "List" } ] },
+                    { "Fields": [ { "Path": "On", "Kind": "Switch" },
+                                  { "Path": "Mode", "Kind": "Choice",
+                                    "Choices": [ { "Value": "Fast", "Label": "yourmod.fast" }, { "Value": "Slow" } ] } ] }
+                  ] }
+                """;
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(OwnerFormAsset.class, "Your_Form", null);
+        return OwnerFormAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(json), null,
+                new AssetExtraInfo<>(data));
     }
 
     @Test

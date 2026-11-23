@@ -40,7 +40,7 @@ public final class HudSettingsPages {
     /**
      * Say who may see the page, how Back routes, and how the frame is painted
      * ({@link HudSettingsDeps}). Call once from a consumer's setup; pass null to go back to the
-     * library defaults (which withhold the page from everyone). Resolved lazily on each open.
+     * library defaults (the owner audience, Back to the Settings tab). Resolved lazily on each open.
      */
     public static void deps(@Nullable Supplier<HudSettingsDeps> supplier) {
         DEPS.set(supplier);
