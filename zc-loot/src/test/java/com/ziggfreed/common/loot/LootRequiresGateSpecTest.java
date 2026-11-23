@@ -19,10 +19,10 @@ import com.ziggfreed.common.loot.trigger.BonusRowAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
- * A loot table and a bonus row read the quest block's {@code Requires} shape, a child keeps its base's
+ * A loot table and a bonus row read their {@code Requires} as a {@link GateSpec}, a child keeps its base's
  * block, and the mod gate reads it; the editor lists the leaf with its sentence.
  */
-class PresenceRequiresLeafTest {
+class LootRequiresGateSpecTest {
 
     private static final String MMO = "Ziggfreed:MMOSkillTree";
     private static final String GATE = "\"Requires\": { \"Factors\": [ { \"Factor\": \"hytale:mod_installed\","

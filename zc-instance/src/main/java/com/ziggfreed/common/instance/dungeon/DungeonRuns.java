@@ -869,7 +869,7 @@ public final class DungeonRuns {
 
     /**
      * What a run's tag source names as its players read it: a dungeon's name ({@code Text.NameKey}, else its id)
-     * for {@code dungeon:<id>}, else the source as written. Boss Fights names a fight's dungeon through it.
+     * for {@code dungeon:<id>}, else the source as written. A room's reward chest names its run through it.
      */
     @Nonnull
     public static Message nameOfSource(@Nonnull String source) {
@@ -881,15 +881,6 @@ public final class DungeonRuns {
         DungeonAsset dungeon = id.isBlank() ? null : DungeonConfig.getInstance().resolve(id);
         return DungeonResults.nameOf(dungeon == null || dungeon.getId() == null ? id : dungeon.getId(),
                 dungeon == null ? null : dungeon.nameKey());
-    }
-
-    /**
-     * A fight's name with the run it was fought in, as Boss Fights' tab reads it ({@code records.fight}, the fight
-     * then the dungeon's name): a translation with nested params, so it goes on a {@code TextSpans} sink.
-     */
-    @Nonnull
-    public static Message fightIn(@Nonnull Message fight, @Nonnull String source) {
-        return Msg.key(DungeonResults.PREFIX + "records.fight", fight, nameOfSource(source));
     }
 
     // ==================== an objective's moments (the player's world thread) ====================

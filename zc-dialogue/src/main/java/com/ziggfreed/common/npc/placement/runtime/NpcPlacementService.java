@@ -209,7 +209,8 @@ public final class NpcPlacementService {
     // ==================== lifecycle knobs ====================
 
     /**
-     * Raise a placed NPC's max health enormously and fill the enlarged pool.
+     * Apply {@code bonus} as the {@code Fortify} max-health modifier on {@code stats}: a placed NPC's max
+     * health raised enormously.
      *
      * <p><b>Why a health pool rather than the role's own {@code Invulnerable} flag.</b> The engine
      * damage pipeline does honour that flag unconditionally, but it is NOT consulted by a direct
@@ -220,31 +221,10 @@ public final class NpcPlacementService {
      * {@code StaticModifier} mechanism the engine's own NPC balancing uses, so it folds with the
      * role's health rather than fighting it.
      *
-     * <p>Always fills the enlarged pool. The library applies the bonus through {@code applyFortify}
-     * ({@link PlacementFortifySystem} at the add, the sweep's {@code upkeep}), which fills it only on a
-     * fresh spawn or when the bonus was missing; this method is kept for a consumer linking 2.2.0.
-     *
-     * <p>Never throws: a stat-less entity simply keeps the role's own health.
-     */
-    public static void fortify(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, double bonus) {
-        try {
-            EntityStatMap stats = store.getComponent(ref,
-                    EntityStatsModule.get().getEntityStatMapComponentType());
-            if (stats == null) {
-                return;
-            }
-            applyFortify(stats, bonus, true);
-        } catch (Throwable t) {
-            SafeLog.fine("[placement] could not fortify a placed NPC: " + t.getMessage());
-        }
-    }
-
-    /**
-     * Apply {@code bonus} as the {@code Fortify} max-health modifier on {@code stats}. Idempotent: the
-     * modifier sits under one fixed key, so a second call replaces it with itself, and the enlarged pool
-     * is filled only on a fresh spawn or when the bonus was not there before ({@link #fillsPool}), so a
-     * copy that already had it keeps its current health. The one Fortify write behind {@link #fortify},
-     * {@link PlacementFortifySystem} and {@link #upkeep}.
+     * <p>Idempotent: the modifier sits under one fixed key, so a second call replaces it with itself, and
+     * the enlarged pool is filled only on a fresh spawn or when the bonus was not there before
+     * ({@link #fillsPool}), so a copy that already had it keeps its current health. The one Fortify write
+     * behind {@link PlacementFortifySystem} and {@link #upkeep}.
      */
     static void applyFortify(@Nonnull EntityStatMap stats, double bonus, boolean freshSpawn) {
         int healthIndex = DefaultEntityStatTypes.getHealth();
