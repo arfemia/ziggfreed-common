@@ -145,6 +145,7 @@ import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
+import com.ziggfreed.common.ui.kit.ZigKitCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
 import com.ziggfreed.common.ui.route.RouteBootstrap;
 import com.ziggfreed.common.util.RetiredLibrarySettings;
@@ -404,6 +405,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         HudPanels.install(this);
         registerHudSettings();
         registerMenu();
+        registerKitGallery();
         // The Settings tab: its destination, its tab on the rail after Records, and the library's own
         // Notifications and Combat sections. zc-objectives fills the quest tracker and title sections from its own
         // bootstrap; a consumer adds its sections with ZigSettings.consumer.
@@ -672,6 +674,18 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             getCommandRegistry().registerCommand(new ZigMenuCommand());
         } catch (Throwable t) {
             SafeLog.warn("[menu] /ziggui could not be registered", t);
+        }
+    }
+
+    /**
+     * {@code /zigkit}, the page kit's owner verbs: {@code gallery} opens the kit gallery, every piece of the kit in
+     * every state on the band and on the panel frame, behind the engine's own node for the verb.
+     */
+    private void registerKitGallery() {
+        try {
+            getCommandRegistry().registerCommand(new ZigKitCommand());
+        } catch (Throwable t) {
+            SafeLog.warn("[kit] /zigkit could not be registered", t);
         }
     }
 

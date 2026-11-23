@@ -91,7 +91,7 @@ $F.@ZigMenuFrame {
       }
 
       Group #TabBody {
-        Anchor: (Height: 896);
+        Anchor: (Height: 816);
         LayoutMode: Top;
       }
 

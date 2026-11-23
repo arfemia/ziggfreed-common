@@ -1,9 +1,163 @@
 $C = "../Common.ui";
 $ZT = "ZigType.ui";
+$ZK = "ZigTokens.ui";
+$ZX = "ZigText.ui";
 
-// ── ziggfreed-common shared decorated panel frame (de-MMO'd) ──────────────────
+// ── ziggfreed-common's frames: the band every page sits on, and the boxed panel ─────────────────────────────────
 // Imported per page as:  $F = "../Common/ZigFrames.ui";  then used as a container:
-//   $F.@ZigDecoratedFrame { @CloseButton = true; Anchor: (...); #Content { ...body... } }
+//   $F.@ZigDecoratedFrame { @CloseButton = true; Anchor: (Width: 600, Height: 680); #Content { ...body... } }
+//
+// The look is the game's Chapter screen, drawn the way the game's own server modal draws itself
+// (Common/IntroModal.ui): the world blurred and dimmed, then a wide band across the screen
+// (Common/BackgroundModal.png) with its runic head over the page and its darker foot under it. A page's own Anchor
+// keeps its meaning: its box is the content column, and the band is children that reach PAST that box, since the
+// client clips no child to its parent (vanilla's InGame/GamePageNavigation.ui stretches its bar 74 past both sides
+// the same way, as the panel frame's ornaments and close button sit past its edges). So a page gets the band with no
+// edit. com.ziggfreed.common.ui.ZigFrame names every id here in Java, and ZigFrameDocumentTest
+// holds the two together. Every colour is a Common/ZigTokens.ui token and every size a Common/ZigType.ui step.
+//
+// A panel or a HUD takes @ZigPanelFrame instead: the boxed frame, with no blur, scrim or band, so it never dims the
+// world during play.
+
+// ── @ZigBand: the blur, the scrim and the band, reaching past the box they are placed in ──────────────────────
+// #Blur and #Scrim cover the whole screen. The scrim (@ZigBandScrim) and a page's own $C.@PageOverlay together dim
+// the world as the game's modal does. The band is three pieces with the game's own nine-slice: its head and foot
+// kept whole (VerticalBorder 78, its stretch in between), 78 above and below the box. #Band is 1920 wide and centred
+// on the box, so on a screen that wide the texture draws at its own size, its head's centre tab and its foot's
+// knotwork unstretched; #BandLeft and #BandRight carry its plain body on past either edge for a wider screen (their
+// own centres, where the texture's ornament falls, sit 3000 past #Band's edges, off any screen). Each piece carries
+// the band's Background, so a theme tints the three (ZigFrame.tintBand), or swaps them to its own band art when it
+// names one (ZigFrame.swapBand).
+@ZigBand = Group {
+  SceneBlur #Blur {
+    Anchor: (Left: -8000, Right: -8000, Top: -8000, Bottom: -8000);
+  }
+
+  Group #Scrim {
+    Anchor: (Left: -8000, Right: -8000, Top: -8000, Bottom: -8000);
+    Background: (Color: $ZK.@ZigBandScrim);
+  }
+
+  Group #Band {
+    Anchor: (Width: 1920, Top: -78, Bottom: -78);
+    Background: (TexturePath: "../Common/BackgroundModal.png", VerticalBorder: 78, HorizontalBorder: 4);
+
+    Group #BandLeft {
+      Anchor: (Width: 6000, Left: -6000, Top: 0, Bottom: 0);
+      Background: (TexturePath: "../Common/BackgroundModal.png", VerticalBorder: 78, HorizontalBorder: 4);
+    }
+
+    Group #BandRight {
+      Anchor: (Width: 6000, Right: -6000, Top: 0, Bottom: 0);
+      Background: (TexturePath: "../Common/BackgroundModal.png", VerticalBorder: 78, HorizontalBorder: 4);
+    }
+  }
+};
+
+// ── @ZigDecoratedFrame: the band, for every page ───────────────────────────────────────────────────────────────
+// #Content is the page's column (LayoutMode Top, padded 18 on every side), its Background clear so a push there never
+// lands on an unset one. Its first child is #Hero, hidden until a painter fills it: #HeroEmblem (an emblem row, hidden
+// without one, holding the AssetImage #HeroEmblemArt), #HeroHeadline (the display title under the game's gold text
+// gradient, inside a LayoutMode Left group so the ramp spans the words), #HeroTagline (copper), the game's rule
+// (#HeroRule) and #HeroSub (a line under it); a page's own children follow it. #DecorTop and #DecorBottom stay
+// declared but hidden, since the band has its own head and foot; @Ornaments is still accepted. The close button sits
+// in the band's head over the box's top right (40 above the box, so it stays on a 1080 screen even for a box 1000
+// high), shown by @CloseButton.
+@ZigDecoratedFrame = Group {
+  @CloseButton = false;
+  @Ornaments = true;
+
+  @ZigBand {}
+
+  Group #Content {
+    LayoutMode: Top;
+    Anchor: (Top: 0);
+    Padding: (Full: 18);
+    Background: (Color: $ZK.@ZigSurfaceClear);
+
+    Group #Hero {
+      LayoutMode: Top;
+      Anchor: (Bottom: 16);
+      Visible: false;
+
+      Group #HeroEmblem {
+        LayoutMode: Center;
+        Anchor: (Height: 112, Bottom: 8);
+        Visible: false;
+
+        AssetImage #HeroEmblemArt {
+          Anchor: (Width: 112, Height: 112);
+          FallbackTexturePath: "UI/Custom/Common/Glyphs/Blank.png";
+        }
+      }
+
+      Group #HeroTitleRow {
+        LayoutMode: Center;
+        Anchor: (Height: 44);
+
+        Group {
+          LayoutMode: Left;
+
+          Label #HeroHeadline {
+            Text: "";
+            Style: $ZX.@ZigDisplayTitleStyle;
+            MaskTexturePath: $C.@TextHighlightGradientMask;
+          }
+        }
+      }
+
+      Label #HeroTagline {
+        Text: "";
+        Visible: false;
+        Anchor: (Top: 4);
+        Style: (...$ZX.@ZigTaglineStyle, HorizontalAlignment: Center);
+      }
+
+      Group #HeroRuleRow {
+        LayoutMode: Center;
+        Anchor: (Height: 11, Top: 12, Bottom: 12);
+
+        Group #HeroRule {
+          Anchor: (Width: 236, Height: 11);
+          Background: "../Common/ContainerDecorationTop.png";
+        }
+      }
+
+      Label #HeroSub {
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigLeadStyle, HorizontalAlignment: Center);
+      }
+    }
+  }
+
+  Group #DecorTop {
+    Anchor: (Width: 236, Height: 11, Top: -6);
+    Background: "../Common/ContainerDecorationTop.png";
+    Visible: false;
+  }
+  Group #DecorBottom {
+    Anchor: (Width: 236, Height: 11, Bottom: -6);
+    Background: "../Common/ContainerDecorationBottom.png";
+    Visible: false;
+  }
+
+  Button #CloseButton {
+    Anchor: (Width: 32, Height: 32, Top: -40, Right: -8);
+    Style: (
+      Default: (Background: "../Common/ContainerCloseButton.png"),
+      Hovered: (Background: "../Common/ContainerCloseButtonHovered.png"),
+      Pressed: (Background: "../Common/ContainerCloseButtonPressed.png"),
+      Sounds: $C.@ButtonsCancel
+    );
+    Visible: @CloseButton;
+  }
+};
+
+// ── @ZigPanelFrame: the boxed panel, for a panel or a HUD ───────────────────────────────────────────────────────
+// It draws no blur, scrim or band, so the world stays clear behind it during play. Imported per document as
+// $F = "../Common/ZigFrames.ui";  then used as a container:
+//   $F.@ZigPanelFrame { @CloseButton = true; Anchor: (...); #Content { ...body... } }
 //
 // Uses ContainerFullPatch.png (the native standalone @Panel patch, finished on ALL
 // four sides) so the border reads clean with NO header bar - the right base for a
@@ -12,7 +166,7 @@ $ZT = "ZigType.ui";
 // paths "../Common/..." resolve to the game's Common set whether the engine resolves
 // relative to this file or the consuming page.
 
-@ZigDecoratedFrame = Group {
+@ZigPanelFrame = Group {
   @CloseButton = false;
   @Ornaments = true;
 
@@ -50,39 +204,42 @@ $ZT = "ZigType.ui";
 // Four label styles for the shared menu frame and every page that wants to read like it: caption, body,
 // heading and title, each sized from the family's type scale (Common/ZigType.ui, imported as $ZT), so nothing
 // a player reads is under its 13px floor. Spread one and override a leaf:
-// Style: (...$F.@ZigBodyLabelStyle, TextColor: #ffffff);. The colours are the menu's default palette
-// (com.ziggfreed.common.ui.menu.MenuPalette), vanilla's own label grey and white; a page on the menu frame gets
-// them repainted from the palette in force.
-@ZigCaptionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center);
-@ZigBodyLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, VerticalAlignment: Center);
-@ZigHeadingLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center);
-@ZigTitleLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontTitle, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+// Style: (...$F.@ZigBodyLabelStyle, TextColor: $ZK.@ZigInkBright);. The colours are the kit's inks
+// (Common/ZigTokens.ui), the heading the kit's head and the title its page title (Common/ZigText.ui); a page on the
+// menu frame gets them repainted from the palette in force (com.ziggfreed.common.ui.menu.MenuPalette).
+@ZigCaptionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, VerticalAlignment: Center);
+@ZigBodyLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBody, VerticalAlignment: Center);
+@ZigHeadingLabelStyle = LabelStyle(...$ZX.@ZigHeadStyle, FontSize: $ZT.@ZigFontHeading, VerticalAlignment: Center);
+@ZigTitleLabelStyle = LabelStyle(...$ZX.@ZigTitleStyle, FontSize: $ZT.@ZigFontTitle, Wrap: false, VerticalAlignment: Center);
 
 // ── the shared menu frame (com.ziggfreed.common.ui.menu.ZigMenu) ──────────────
 // Imported per page as:  $F = "../Common/ZigFrames.ui";  then
 //   $F.@ZigMenuFrame { #Content { Group #RightPanel { ... } Group #SidePanel { ... } } }
 //
-// ONE size for every page on the rail (com.ziggfreed.common.ui.menu.MenuFrame holds the same numbers and a
-// test holds the two together). The rail is the first child of #Content, on vanilla's faint dark pane, then
-// vanilla's vertical separator; a page adds its own columns to #Content after them, the way a page adds
-// children to any template child. The rail's rows are appended into #MenuList from Java
+// The band (@ZigBand, as @ZigDecoratedFrame draws it) with the rail as its left column. ONE size for every page on
+// the rail (com.ziggfreed.common.ui.menu.MenuFrame holds the same numbers and a test holds the two together): its
+// height leaves the band's head and foot room on a 1080 screen. The rail is the first child of #Content, on
+// vanilla's faint dark pane, then vanilla's vertical separator; a page adds its own columns to #Content after them,
+// the way a page adds children to any template child. The rail's rows are appended into #MenuList from Java
 // (Pages/ZigMenuTab.ui, by index); the three branding hosts keep their ids, so a branding template appended
 // into #BrandingContainerLeft lands where it always has. A page never sets the frame's Anchor, LayoutMode or
 // Padding. The pane's colour is a palette token that ZigMenu.paint pushes after any frame paint.
 @ZigMenuFrame = Group {
   @CloseButton = true;
   @Ornaments = true;
-  Anchor: (Width: 1570, Height: 1000);
+  Anchor: (Width: 1570, Height: 920);
+
+  @ZigBand {}
 
   Group #Content {
     LayoutMode: Left;
     Anchor: (Top: 0);
     Padding: (Full: 12);
-    Background: (TexturePath: "../Common/ContainerFullPatch.png", Border: 20);
+    Background: (Color: $ZK.@ZigSurfaceClear);
 
     Group #MenuRail {
       Anchor: (Width: 250);
-      Background: (Color: #000000(0.15));
+      Background: (Color: $ZK.@ZigSurfacePane);
       LayoutMode: Top;
       Padding: (Full: 8);
 
@@ -96,7 +253,7 @@ $ZT = "ZigType.ui";
         Text: "";
         Visible: false;
         Anchor: (Bottom: 2);
-        Style: (...@ZigBodyLabelStyle, TextColor: #ffffff, RenderBold: true, Wrap: true);
+        Style: (...@ZigBodyLabelStyle, TextColor: $ZK.@ZigInkBright, RenderBold: true, Wrap: true);
       }
 
       Label #BrandingDescription {
@@ -124,16 +281,16 @@ $ZT = "ZigType.ui";
   Group #DecorTop {
     Anchor: (Width: 236, Height: 11, Top: -6);
     Background: "../Common/ContainerDecorationTop.png";
-    Visible: @Ornaments;
+    Visible: false;
   }
   Group #DecorBottom {
     Anchor: (Width: 236, Height: 11, Bottom: -6);
     Background: "../Common/ContainerDecorationBottom.png";
-    Visible: @Ornaments;
+    Visible: false;
   }
 
   Button #CloseButton {
-    Anchor: (Width: 32, Height: 32, Top: -8, Right: -8);
+    Anchor: (Width: 32, Height: 32, Top: -40, Right: -8);
     Style: (
       Default: (Background: "../Common/ContainerCloseButton.png"),
       Hovered: (Background: "../Common/ContainerCloseButtonHovered.png"),

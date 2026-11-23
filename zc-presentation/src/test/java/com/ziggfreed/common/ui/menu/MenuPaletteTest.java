@@ -11,11 +11,10 @@ import org.junit.jupiter.api.Test;
 import com.ziggfreed.common.ui.theme.Palette;
 
 /**
- * The shared menu's one palette: its defaults are vanilla's own rail colours, a document's alpha spelling
- * converts to Java's one way, a translucent fill is judged over what it covers, the default keeps every text
- * colour readable on the fill it sits on (WCAG's ratio, 4.5:1 for text and 3:1 for the selected tab's bar),
- * a palette with gaps falls back slot by slot, and the default leaves the frame as authored. The documents
- * are held to the same defaults (ZigMenuDocumentsTest).
+ * The shared menu's one palette: a document's alpha spelling converts to Java's one way, a translucent fill is
+ * judged over what it covers, the default (the kit's tokens) keeps every text colour readable on the fill it sits on
+ * over the band body (WCAG's ratio, 4.5:1 for text and 3:1 for the selected tab's bar), a palette with gaps falls back
+ * slot by slot, and the default leaves the frame as authored.
  */
 class MenuPaletteTest {
 
@@ -25,17 +24,6 @@ class MenuPaletteTest {
         assertEquals(1.0, MenuPalette.contrast("#1a2633", "#1a2633"), 1e-9);
         assertEquals(MenuPalette.contrast("#96a9be", "#131c28"), MenuPalette.contrast("#131c28", "#96a9be"), 1e-9,
                 "the ratio does not care which colour is in front");
-    }
-
-    @Test
-    void theDefaultsAreVanillasOwnRailColours() {
-        assertEquals("#96a9be", MenuPalette.TEXT_MUTED, "Common.ui @ColorDefaultLabel");
-        assertEquals("#ffffff", MenuPalette.TEXT_PRIMARY, "Common.ui @ColorDefault");
-        assertEquals(MenuPalette.fromMarkup("#000000(0.15)"), MenuPalette.BACKGROUND, "vanilla's pane");
-        assertEquals(MenuPalette.fromMarkup("#000000(0.2)"), MenuPalette.HEADER, "Common.ui @ColorSimpleButtonBackground");
-        assertEquals("#2b3542", MenuPalette.DIVIDER, "Common.ui @ContentSeparator");
-        assertEquals("#e8a93b", MenuPalette.ACCENT, "Common.ui @ColorGoldHighlight");
-        assertEquals(MenuPalette.fromMarkup("#000000(0)"), MenuPalette.CLEAR, "no fill");
     }
 
     @Test
@@ -96,5 +84,9 @@ class MenuPaletteTest {
         Palette textured = MenuPalette.defaults();
         textured.textureDir = "Common/Molten/";
         assertTrue(MenuFrameRetint.paints(textured));
+
+        Palette banded = MenuPalette.defaults();
+        banded.bandTexture = "Common/Molten/BackgroundModal.png";
+        assertTrue(MenuFrameRetint.paints(banded), "a theme's own band art paints the frame");
     }
 }

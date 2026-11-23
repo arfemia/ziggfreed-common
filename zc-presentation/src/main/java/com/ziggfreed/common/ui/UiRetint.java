@@ -1,5 +1,7 @@
 package com.ziggfreed.common.ui;
 
+import java.util.Locale;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -180,6 +182,24 @@ public final class UiRetint {
             patch.setColor(Value.of(tintHex));
         }
         cmd.setObject(selector + ".Background", patch);
+    }
+
+    /**
+     * The one conversion between a colour's two spellings: a document spells an alpha colour vanilla's way,
+     * {@code #rrggbb(a)} with {@code a} from 0 to 1, and Java {@code #rrggbbaa}, the last two digits being
+     * {@code round(a x 255)} in hex (the form {@link #isHex} takes); an opaque {@code #rrggbb} is itself. Lower-cased,
+     * so the two compare. It reads no other class, so the kit's token mirror can convert its own values while it is
+     * still being built.
+     */
+    @Nonnull
+    public static String fromMarkup(@Nonnull String spelled) {
+        String hex = spelled.substring(0, 7).toLowerCase(Locale.ROOT);
+        int open = spelled.indexOf('(');
+        if (open < 0) {
+            return hex;
+        }
+        double alpha = Double.parseDouble(spelled.substring(open + 1, spelled.indexOf(')', open)));
+        return hex + String.format(Locale.ROOT, "%02x", (int) Math.round(alpha * 255));
     }
 
     /** True only for a {@code #rrggbb} hex string (the button-state and patch tint form). */

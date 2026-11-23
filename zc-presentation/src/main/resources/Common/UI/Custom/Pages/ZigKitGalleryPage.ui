@@ -1,0 +1,868 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+$Z = "../Common/ZigButtons.ui";
+$K = "../Common/ZigCards.ui";
+$ZM = "../Common/ZigForm.ui";
+
+// The kit gallery (com.ziggfreed.common.ui.kit.gallery.KitGalleryPage, /zigkit gallery, owners only): every piece of
+// the page kit in every state it can be shown in, with sample words, on the band (@ZigDecoratedFrame), so the look
+// is reviewed in one place. The frame's hero is shown, filled from Java. Under it a scrolling body holds one section
+// per kind of piece: the type (every text style of Common/ZigText.ui and the styles the other kit documents name),
+// the tones (state words, fills and pills), the buttons (each look, at rest and switched off; hover and press by the
+// pointer), list rows (the kit's ledger rows in every tone, selected, pinned, tracked, faint, a closed section and a
+// capped one), view tabs and segments, the tiles (every tile style, then the kit's stat, collection, keepsake, item
+// slot and ware tiles), a card, the figures, the reading page (with its progress block, section headers and action
+// bar), and an empty state.
+// The panel frame (@ZigPanelFrame) is the gallery's second view, Pages/ZigKitGalleryPanel.ui.
+//
+// Every word is a key of ziggfreedcommon.ui.lang (gallery.*); the static ones are written inline here, the painted
+// ones are pushed by the page. Every appended template is painted by its kit painter, which owns its ids; this
+// document names only its own hosts and buttons. KitSelectorsTest walks every selector the page sends.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 1200, Height: 900);
+
+  #Content {
+    Group #GalleryBar {
+      LayoutMode: Left;
+      Anchor: (Height: 40, Bottom: 12);
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Button #GalleryPanelButton {
+        Anchor: (Width: 280, Height: 40);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.gallery.panel.open;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+
+    Group #GalleryBody {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 12);
+
+      // ── Type ──
+      Label {
+        Anchor: (Height: 32, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.type;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 44);
+
+        Label {
+          Text: %ziggfreedcommon.ui.gallery.text.displaytitle;
+          Style: $ZX.@ZigDisplayTitleStyle;
+          MaskTexturePath: $C.@TextHighlightGradientMask;
+        }
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 40);
+
+        Label {
+          Text: %ziggfreedcommon.ui.gallery.text.cardtitle;
+          Style: $ZX.@ZigCardTitleStyle;
+          MaskTexturePath: $C.@TextHighlightGradientMask;
+        }
+      }
+
+      Label {
+        Anchor: (Height: 44);
+        Text: %ziggfreedcommon.ui.gallery.text.herotitle;
+        Style: $ZX.@ZigHeroTitleStyle;
+      }
+
+      Label {
+        Anchor: (Height: 32);
+        Text: %ziggfreedcommon.ui.gallery.text.title;
+        Style: $ZX.@ZigTitleStyle;
+      }
+
+      Label {
+        Anchor: (Height: 28);
+        Text: %ziggfreedcommon.ui.gallery.text.tagline;
+        Style: $ZX.@ZigTaglineStyle;
+      }
+
+      Label {
+        Anchor: (Height: 28);
+        Text: %ziggfreedcommon.ui.gallery.text.mark;
+        Style: $ZX.@ZigMarkStyle;
+      }
+
+      Label {
+        Anchor: (Height: 28);
+        Text: %ziggfreedcommon.ui.gallery.text.head;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Label {
+        Anchor: (Height: 28);
+        Text: %ziggfreedcommon.ui.gallery.text.sectionlabel;
+        Style: $ZX.@ZigSectionLabelStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.smallcaps;
+        Style: $ZX.@ZigSmallCapsStyle;
+      }
+
+      Label {
+        Anchor: (Height: 28);
+        Text: %ziggfreedcommon.ui.gallery.text.subtitle;
+        Style: $ZX.@ZigSubtitleStyle;
+      }
+
+      Label {
+        Anchor: (Height: 26);
+        Text: %ziggfreedcommon.ui.gallery.text.heading;
+        Style: $ZX.@ZigHeadingStyle;
+      }
+
+      Label {
+        Anchor: (Height: 48);
+        Text: %ziggfreedcommon.ui.gallery.text.lead;
+        Style: $ZX.@ZigLeadStyle;
+      }
+
+      Label {
+        Anchor: (Height: 26);
+        Text: %ziggfreedcommon.ui.gallery.text.rowtitle;
+        Style: $ZX.@ZigRowTitleStyle;
+      }
+
+      Label {
+        Anchor: (Height: 26);
+        Text: %ziggfreedcommon.ui.gallery.text.ledgertitle;
+        Style: $ZX.@ZigLedgerTitleStyle;
+      }
+
+      Label {
+        Anchor: (Height: 26);
+        Text: %ziggfreedcommon.ui.gallery.text.tilename;
+        Style: $ZX.@ZigTileNameStyle;
+      }
+
+      Label {
+        Anchor: (Height: 26);
+        Text: %ziggfreedcommon.ui.gallery.text.bulletname;
+        Style: $ZX.@ZigBulletNameStyle;
+      }
+
+      Label {
+        Anchor: (Height: 26);
+        Text: %ziggfreedcommon.ui.gallery.text.bulletline;
+        Style: $ZX.@ZigBulletLineStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.body;
+        Style: $ZX.@ZigBodyStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.caption;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.faint;
+        Style: $ZX.@ZigFaintStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 40);
+
+        Label #GalFigure {
+          Anchor: (Width: 240);
+          Text: "";
+          Style: $ZX.@ZigFigureStyle;
+        }
+
+        Label #GalFigureAccent {
+          Anchor: (Width: 240);
+          Text: "";
+          Style: $ZS.@ZigFigureAccentStyle;
+        }
+
+        Label #GalCount {
+          Anchor: (Width: 240);
+          Text: "";
+          Style: $ZX.@ZigCountStyle;
+        }
+      }
+
+      Label {
+        Anchor: (Height: 24, Top: 8);
+        Text: %ziggfreedcommon.ui.gallery.text.frametitle;
+        Style: $F.@ZigTitleLabelStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.frameheading;
+        Style: $F.@ZigHeadingLabelStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.framebody;
+        Style: $F.@ZigBodyLabelStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.framecaption;
+        Style: $F.@ZigCaptionLabelStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24, Top: 8);
+        Text: %ziggfreedcommon.ui.gallery.text.cardheader;
+        Style: $K.@ZigCardHeaderStyle;
+      }
+
+      Label {
+        Anchor: (Height: 26);
+        Text: %ziggfreedcommon.ui.gallery.text.pagetitle;
+        Style: $K.@ZigPageTitleStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.pagedescription;
+        Style: $K.@ZigPageDescriptionStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.sectionheader;
+        Style: $Z.@ZigSectionHeaderStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.formheader;
+        Style: $ZM.@ZigFormHeaderStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.formlabel;
+        Style: $ZM.@ZigFormLabelStyle;
+      }
+
+      Label {
+        Anchor: (Height: 24);
+        Text: %ziggfreedcommon.ui.gallery.text.formnote;
+        Style: $ZM.@ZigFormNoteStyle;
+      }
+
+      // ── Tones ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.tones;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 24, Bottom: 8);
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.neutral;
+          Style: $ZS.@ZigStateStyle;
+        }
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.active;
+          Style: $ZS.@ZigStateActiveStyle;
+        }
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.collect;
+          Style: $ZS.@ZigStateCollectStyle;
+        }
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.done;
+          Style: $ZS.@ZigStateDoneStyle;
+        }
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.live;
+          Style: $ZS.@ZigStateLiveStyle;
+        }
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.available;
+          Style: $ZS.@ZigStateAvailableStyle;
+        }
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.waiting;
+          Style: $ZS.@ZigStateWaitingStyle;
+        }
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.blocked;
+          Style: $ZS.@ZigStateBlockedStyle;
+        }
+
+        Label {
+          Anchor: (Width: 120);
+          Text: %ziggfreedcommon.ui.gallery.tone.danger;
+          Style: $ZS.@ZigStateDangerStyle;
+        }
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 16, Bottom: 10);
+        Padding: (Left: 128);
+
+        Group {
+          Anchor: (Width: 112, Height: 16, Right: 8);
+          Background: (Color: $ZK.@ZigToneActiveFill);
+        }
+
+        Group {
+          Anchor: (Width: 112, Height: 16, Right: 8);
+          Background: (Color: $ZK.@ZigToneCollectFill);
+        }
+
+        Group {
+          Anchor: (Width: 112, Height: 16, Right: 8);
+          Background: (Color: $ZK.@ZigToneDoneFill);
+        }
+
+        Group {
+          Anchor: (Width: 112, Height: 16, Right: 8);
+          Background: (Color: $ZK.@ZigToneLiveFill);
+        }
+
+        Group {
+          Anchor: (Width: 112, Height: 16, Right: 8);
+          Background: (Color: $ZK.@ZigToneAvailableFill);
+        }
+
+        Group {
+          Anchor: (Width: 112, Height: 16, Right: 8);
+          Background: (Color: $ZK.@ZigToneWaitingFill);
+        }
+
+        Group {
+          Anchor: (Width: 112, Height: 16, Right: 8);
+          Background: (Color: $ZK.@ZigToneBlockedFill);
+        }
+
+        Group {
+          Anchor: (Width: 112, Height: 16, Right: 8);
+          Background: (Color: $ZK.@ZigToneDangerFill);
+        }
+      }
+
+      Group #GalleryPills {
+        LayoutMode: Left;
+        Anchor: (Height: 24, Bottom: 10);
+
+        $ZW.@ZigPill #GalPillNeutral {
+          @Anchor = (Right: 8);
+        }
+
+        $ZW.@ZigPill #GalPillActive {
+          @Anchor = (Right: 8);
+        }
+
+        $ZW.@ZigPill #GalPillCollect {
+          @Anchor = (Right: 8);
+        }
+
+        $ZW.@ZigPill #GalPillDone {
+          @Anchor = (Right: 8);
+        }
+
+        $ZW.@ZigPill #GalPillLive {
+          @Anchor = (Right: 8);
+        }
+
+        $ZW.@ZigPill #GalPillAvailable {
+          @Anchor = (Right: 8);
+        }
+
+        $ZW.@ZigPill #GalPillWaiting {
+          @Anchor = (Right: 8);
+        }
+
+        $ZW.@ZigPill #GalPillBlocked {
+          @Anchor = (Right: 8);
+        }
+
+        $ZW.@ZigPill #GalPillDanger {
+          @Anchor = (Right: 8);
+        }
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 40);
+        Padding: (Horizontal: 12);
+        Background: (Color: $ZK.@ZigSurfaceRowSelected);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.gallery.tone.selectedrow;
+          Style: $ZS.@ZigRowTitleOnSelectedStyle;
+        }
+
+        Label {
+          Anchor: (Width: 200);
+          Text: %ziggfreedcommon.ui.gallery.tone.onselected;
+          Style: $ZS.@ZigStateOnSelectedStyle;
+        }
+      }
+
+      // ── Buttons ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.buttons;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 40, Bottom: 10);
+
+        Button #GalPrimary {
+          Anchor: (Width: 200, Height: 40, Right: 10);
+          Style: $ZS.@ZigButtonPrimaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.primary;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Button #GalSecondary {
+          Anchor: (Width: 200, Height: 40, Right: 10);
+          Style: $ZS.@ZigButtonSecondaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.secondary;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Button #GalCollect {
+          Anchor: (Width: 200, Height: 40, Right: 10);
+          Style: $ZS.@ZigButtonCollectStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.collect;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Button #GalDanger {
+          Anchor: (Width: 200, Height: 40, Right: 10);
+          Style: $ZS.@ZigButtonDangerStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.danger;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+      }
+
+      Label {
+        Anchor: (Height: 24, Bottom: 6);
+        Text: %ziggfreedcommon.ui.gallery.head.disabled;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 40, Bottom: 10);
+
+        Button #GalPrimaryOff {
+          Anchor: (Width: 200, Height: 40, Right: 10);
+          Style: $ZS.@ZigButtonPrimaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.primary;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Button #GalSecondaryOff {
+          Anchor: (Width: 200, Height: 40, Right: 10);
+          Style: $ZS.@ZigButtonSecondaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.secondary;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Button #GalCollectOff {
+          Anchor: (Width: 200, Height: 40, Right: 10);
+          Style: $ZS.@ZigButtonCollectStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.collect;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Button #GalDangerOff {
+          Anchor: (Width: 200, Height: 40, Right: 10);
+          Style: $ZS.@ZigButtonDangerStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.danger;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+      }
+
+      Label {
+        Anchor: (Height: 24, Bottom: 6);
+        Text: %ziggfreedcommon.ui.gallery.head.morebuttons;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 32, Bottom: 10);
+
+        Button {
+          Anchor: (Width: 180, Height: 32, Right: 10);
+          Style: $Z.@ZigRichRowBtnStyle;
+
+          Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.richrow;
+            Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Center);
+          }
+        }
+
+        Button {
+          Anchor: (Width: 180, Height: 32, Right: 10);
+          Style: $Z.@ZigRichPrimaryBtnStyle;
+
+          Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.richprimary;
+            Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkBright, HorizontalAlignment: Center);
+          }
+        }
+
+        Button {
+          Anchor: (Width: 180, Height: 32, Right: 10);
+          Style: $Z.@ZigRichOptionBtnStyle;
+
+          Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.option;
+            Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Start);
+          }
+        }
+
+        Button #GalTabOn {
+          Anchor: (Width: 160, Height: 32, Right: 10);
+          Style: $Z.@ZigRichTabBtnStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.tabon;
+            Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center);
+          }
+        }
+
+        Button #GalTabOff {
+          Anchor: (Width: 160, Height: 32, Right: 10);
+          Style: $Z.@ZigRichTabBtnStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.ui.gallery.button.taboff;
+            Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center);
+          }
+        }
+
+        Button {
+          Anchor: (Width: 32, Height: 32, Right: 10);
+          Style: $Z.@ZigPinBtnStyle;
+        }
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 32, Bottom: 10);
+
+        $Z.@ZigRichBtn #GalRich {
+          @Anchor = (Width: 220, Right: 10);
+          @Height = 32;
+        }
+
+        $ZM.@ZigToggle #GalToggleOn {
+          @Anchor = (Right: 10);
+        }
+
+        $ZM.@ZigToggle #GalToggleOff {
+          @Anchor = (Right: 10);
+        }
+      }
+
+      // ── List rows ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.rows;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group #GalRows {
+        LayoutMode: Top;
+      }
+
+      Label {
+        Anchor: (Height: 24, Top: 8, Bottom: 6);
+        Text: %ziggfreedcommon.ui.gallery.head.tallrows;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group #GalRowsTall {
+        LayoutMode: Top;
+      }
+
+      Label {
+        Anchor: (Height: 24, Top: 8, Bottom: 6);
+        Text: %ziggfreedcommon.ui.gallery.head.compactrows;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group #GalRowsCompact {
+        LayoutMode: Top;
+      }
+
+      // ── Tabs and segments ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.tabs;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group #GalViews {
+        LayoutMode: Left;
+        Anchor: (Height: 40, Bottom: 12);
+      }
+
+      Group #GalSegments {
+        LayoutMode: Left;
+        Anchor: (Height: 32, Bottom: 12);
+      }
+
+      Group #GalSegmentsTwo {
+        LayoutMode: Left;
+        Anchor: (Height: 44, Bottom: 12);
+      }
+
+      // ── Tiles ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.tiles;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 120, Bottom: 12);
+
+        Button {
+          Anchor: (Width: 190, Height: 120, Right: 10);
+          Style: $ZS.@ZigTileStyle;
+          Padding: (Full: 12);
+
+          Label {
+            Text: %ziggfreedcommon.ui.gallery.tile.default;
+            Style: (...$ZX.@ZigTileNameStyle, HorizontalAlignment: Center);
+          }
+        }
+
+        Button {
+          Anchor: (Width: 190, Height: 120, Right: 10);
+          Style: $ZS.@ZigTileCompleteStyle;
+          Padding: (Full: 12);
+
+          Label {
+            Text: %ziggfreedcommon.ui.gallery.tile.complete;
+            Style: (...$ZX.@ZigTileNameStyle, HorizontalAlignment: Center);
+          }
+        }
+
+        Button {
+          Anchor: (Width: 190, Height: 120, Right: 10);
+          Style: $ZS.@ZigTileWarmStyle;
+          Padding: (Full: 12);
+
+          Label {
+            Text: %ziggfreedcommon.ui.gallery.tile.warm;
+            Style: (...$ZX.@ZigTileNameStyle, HorizontalAlignment: Center);
+          }
+        }
+
+        Button {
+          Anchor: (Width: 190, Height: 120, Right: 10);
+          Style: $ZS.@ZigTileSelectedStyle;
+          Padding: (Full: 12);
+
+          Label {
+            Text: %ziggfreedcommon.ui.gallery.tile.selected;
+            Style: (...$ZX.@ZigTileNameStyle, HorizontalAlignment: Center);
+          }
+        }
+
+        Button {
+          Anchor: (Width: 190, Height: 120, Right: 10);
+          Style: $ZS.@ZigTierCardStyle;
+          Padding: (Full: 12);
+
+          Label {
+            Text: %ziggfreedcommon.ui.gallery.tile.tiercard;
+            Style: (...$ZX.@ZigTileNameStyle, HorizontalAlignment: Center);
+          }
+        }
+      }
+
+      Group #GalStatTiles {
+        LayoutMode: LeftWrap;
+        Anchor: (Bottom: 12);
+      }
+
+      Group #GalCollection {
+        LayoutMode: LeftWrap;
+        Anchor: (Bottom: 12);
+      }
+
+      Group #GalKeepsakes {
+        LayoutMode: LeftWrap;
+        Anchor: (Bottom: 12);
+      }
+
+      Group #GalItemSlots {
+        LayoutMode: LeftWrap;
+        Anchor: (Bottom: 12);
+      }
+
+      Group #GalWareSections {
+        LayoutMode: Top;
+        Anchor: (Bottom: 12);
+      }
+
+      // ── Cards ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.cards;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      $K.@ZigSectionCard {
+        LayoutMode: Left;
+
+        $K.@ZigTile #GalCardTile {}
+      }
+
+      // ── Figures ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.figures;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 78, Bottom: 12);
+
+        $ZW.@ZigStat #GalStatPlain {
+          @Anchor = (Right: 16);
+        }
+
+        $ZW.@ZigStat #GalStatGold {
+          @Anchor = (Right: 16);
+        }
+
+        $ZW.@ZigStatTwoLine #GalStatTwo {
+          @Anchor = (Right: 16);
+        }
+      }
+
+      // ── Reading page and empty state: the reading page shows the progress block, a section header over each
+      // block, every line's tick, the badges, the header toggle and the action bar ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.reading;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group {
+        Anchor: (Height: 560, Bottom: 12);
+        Background: (Color: $ZK.@ZigSurfacePane);
+
+        $ZW.@ZigDetailPage #GalDetail {}
+      }
+
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.empty;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group {
+        Anchor: (Height: 300, Bottom: 24);
+        Background: (Color: $ZK.@ZigSurfacePane);
+
+        $ZW.@ZigEmptyState #GalEmpty {}
+      }
+    }
+  }
+}

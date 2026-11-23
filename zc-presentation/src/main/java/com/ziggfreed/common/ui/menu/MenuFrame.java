@@ -1,19 +1,25 @@
 package com.ziggfreed.common.ui.menu;
 
+import com.ziggfreed.common.ui.ZigFrame;
 import com.ziggfreed.common.ui.ZigType;
 
 /**
  * The shared menu frame's one set of numbers. {@code ZigFrames.ui}'s {@code @ZigMenuFrame} and
  * {@code Pages/ZigMenuTab.ui} spell the same values (a document cannot read a Java constant), and
  * {@code ZigMenuDocumentsTest} holds them together; a page on the frame derives its own widths from
- * {@link #BODY_WIDTH}, never a literal. The rail is vanilla's own left rail
- * ({@code Pages/WorldEvent/WorldEventNavButton.ui}, {@code Pages/UIGallery/CategoryButton.ui}).
+ * {@link #BODY_WIDTH}, never a literal. The frame is the band (the game's Chapter look, {@link ZigFrame}) with the
+ * rail as its left column, vanilla's own left rail ({@code Pages/WorldEvent/WorldEventNavButton.ui},
+ * {@code Pages/UIGallery/CategoryButton.ui}).
  */
 public final class MenuFrame {
 
-    /** The frame's one size, for every page on the rail. */
+    /**
+     * The frame's one size, for every page on the rail: the band's content column. The band ({@link ZigFrame})
+     * reaches {@link ZigFrame#BAND_HEAD} above and below it for its head and foot, so the column is short enough for
+     * the whole band, {@code FRAME_HEIGHT + 2 * BAND_HEAD} = 1076, to fit a 1080 screen.
+     */
     public static final int FRAME_WIDTH = 1570;
-    public static final int FRAME_HEIGHT = 1000;
+    public static final int FRAME_HEIGHT = 920;
 
     /** The frame's {@code #Content} padding, all four sides. */
     public static final int FRAME_PADDING = 12;

@@ -27,7 +27,9 @@
 @ZigInkCopper = #c58643;
 
 // Surfaces: vanilla's pane, a list row in three states and its warm selected row, the scrim under a pill, no fill
-// at all, the rule, and the band body every surface is judged over (the modal band's own colour).
+// at all, a hovered or selected rail tab (vanilla's simple button fill), the rule, the band body every surface is
+// judged over (the modal band's own colour), and the scrim the band frames lay over the blurred world, which with a
+// page's own overlay (Common.ui @PageOverlay, 0.45) darkens it as the game's modal does (Common/IntroModal.ui, 0.70).
 @ZigSurfacePane = #000000(0.15);
 @ZigSurfaceRow = #172230(0.85);
 @ZigSurfaceRowHover = #12203f(0.92);
@@ -35,8 +37,10 @@
 @ZigSurfaceRowSelected = #3b2e21(0.92);
 @ZigSurfaceScrim = #0a1119(0.8);
 @ZigSurfaceClear = #000000(0);
+@ZigSurfaceTab = #000000(0.2);
 @ZigDivider = #48455c(0.6);
 @ZigBandBody = #161e32;
+@ZigBandScrim = #000000(0.45);
 // Gold: points and Collect.
 @ZigAccent = #e8a93b;
 // Marks: a lit mark and a title in flat gold (the gold gradient's darkest stop, Common/TextGradient.png, so a flat

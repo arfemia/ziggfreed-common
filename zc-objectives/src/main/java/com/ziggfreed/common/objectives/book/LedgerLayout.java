@@ -9,9 +9,9 @@ import com.ziggfreed.common.ui.menu.MenuFrame;
  * holds the two together ({@code LedgerLayoutTest} for the shell; each tab's document test for its own).
  *
  * <pre>
- * inner 1266 x 968 (the frame's body less PANEL_PADDING all round)
+ * inner 1266 x 888 (the frame's body less PANEL_PADDING all round)
  *   header 60, then 12
- *   tab body 896: toolbar 32, then 12; split 852 high
+ *   tab body 816: toolbar 32, then 12; split 772 high
  *     list 500 (rows 492 inside its scroll gutter) | gutter 16 | page 750
  * </pre>
  */

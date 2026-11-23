@@ -19,8 +19,9 @@ import com.ziggfreed.common.ui.menu.MenuPalette;
  * {@link #colours()} and {@link #integers()}, keyed by the document's own names.
  *
  * <p>A document spells an alpha colour vanilla's way, {@code #rrggbb(a)}; the constants here are Java's
- * {@code #rrggbbaa} ({@link MenuPalette#fromMarkup}, the one conversion), and {@link #colours()} keeps the markup
- * spelling so the two compare as written.
+ * {@code #rrggbbaa} ({@link UiRetint#fromMarkup}, the one conversion, which {@link MenuPalette#fromMarkup} hands on
+ * to), and {@link #colours()} keeps the markup spelling so the two compare as written. Building these constants
+ * reads no other kit or menu class, so {@link MenuPalette}'s defaults can name them without a class-init cycle.
  *
  * <p>The palette is the game's Chapter screen over its modal band ({@code Common/BackgroundModal.png}). The tones
  * (accent fills and state-word colours) are semantic and never themed; {@code ZigTokensContrastTest} holds every
@@ -72,6 +73,11 @@ public final class ZigTokens {
     public static final String SURFACE_SCRIM = colour("ZigSurfaceScrim", "#0a1119(0.8)");
     /** No fill at all: a state that shows what lies under it. */
     public static final String SURFACE_CLEAR = colour("ZigSurfaceClear", "#000000(0)");
+    /**
+     * A hovered rail tab and the selected one: vanilla's simple button fill ({@code Common.ui}
+     * {@code @ColorSimpleButtonBackground}), the shared menu's default {@code header} ({@code MenuPalette.HEADER}).
+     */
+    public static final String SURFACE_TAB = colour("ZigSurfaceTab", "#000000(0.2)");
     /** The rule: the Chapter's separator slate. */
     public static final String DIVIDER = colour("ZigDivider", "#48455c(0.6)");
     /**
@@ -79,6 +85,12 @@ public final class ZigTokens {
      * runic head and foot, opaque (the band draws it at 0.72 over the scrimmed world, which only darkens it further).
      */
     public static final String BAND_BODY = colour("ZigBandBody", "#161e32");
+    /**
+     * The scrim the band frames lay over the blurred world under the band ({@code Common/ZigFrames.ui}'s
+     * {@code #Scrim}): with the page's own overlay ({@code Common.ui}'s {@code @PageOverlay}, {@code #000000(0.45)})
+     * it darkens the world as the game's own modal does ({@code Common/IntroModal.ui}'s {@code #000000(0.70)}).
+     */
+    public static final String BAND_SCRIM = colour("ZigBandScrim", "#000000(0.45)");
     /** {@code @ColorGoldHighlight}: points and Collect. */
     public static final String ACCENT = colour("ZigAccent", "#e8a93b");
     /**
@@ -226,7 +238,7 @@ public final class ZigTokens {
     @Nonnull
     private static String colour(@Nonnull String name, @Nonnull String markup) {
         COLOURS.put(name, markup);
-        return MenuPalette.fromMarkup(markup);
+        return UiRetint.fromMarkup(markup);
     }
 
     private static int integer(@Nonnull String name, int value) {

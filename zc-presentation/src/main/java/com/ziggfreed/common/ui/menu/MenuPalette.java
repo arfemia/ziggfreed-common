@@ -7,53 +7,64 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.theme.Palette;
 
 /**
  * The shared menu's colours as ONE {@link Palette}, the library's theme palette (the same fields a consumer's
- * theme carries), and the library's default palette, whose every colour is vanilla's own left rail
- * ({@code Common.ui}, {@code Pages/WorldEvent/WorldEventNavButton.ui}). The frame and the rail read every colour
- * and texture from the palette in force ({@link MenuDeps#palette()}); a slot a palette leaves unset or malformed
- * falls back to the default's, so a three-colour palette still paints a whole rail.
+ * theme carries), and the library's default palette, whose every colour is a kit token ({@link ZigTokens}, the
+ * game's Chapter look): vanilla's own rail fills (its pane and its simple button fill) under the Chapter's inks,
+ * gold and rule, on the band. The frame and the rail read every colour and texture from the palette in force
+ * ({@link MenuDeps#palette()}); a slot a palette leaves unset or malformed falls back to the default's, so a
+ * three-colour palette still paints a whole rail.
  *
  * <p>The rail reads {@code background} (the rail's pane), {@code header} (a hovered tab's fill and the selected
  * tab's), {@code textMuted} (a tab label, a section heading, a caption), {@code textPrimary} (the selected label
  * under its gold mask, the server name), {@code accent} (the selected tab's bar) and {@code divider} (the rule
  * between the consumer's section and the library's tabs). The three fills may carry an alpha
  * ({@code #rrggbbaa}); text and the bar are opaque ({@code #rrggbb}). The frame ({@link MenuFrameRetint}) reads
- * {@code frame}, {@code primary} and the texture set, which the default leaves unset.
+ * {@code frame}, {@code primary}, the texture set and the band texture, which the default leaves unset.
  *
  * <p>A document spells an alpha colour vanilla's way, {@code #rrggbb(a)}, and Java {@code #rrggbbaa}
- * ({@link #fromMarkup} is the one conversion); {@code ZigMenuDocumentsTest} holds {@code ZigFrames.ui} and
- * {@code Pages/ZigMenuTab.ui} to {@link #defaultColours()}. {@code MenuPaletteTest} holds the default to 4.5:1
- * (3:1 for the bar), judging a translucent fill over what it covers: the pane over the frame body
- * ({@link #BACKDROP}), a tab's fill over the pane.
+ * ({@link #fromMarkup} is the one conversion); the frame and the rail spell no colour, reading the same tokens from
+ * {@code Common/ZigTokens.ui}, so {@code ZigTokensDocumentTest} holds both documents to the tokens.
+ * {@code MenuPaletteTest} holds the default to 4.5:1 (3:1 for the bar), judging a translucent fill over what it
+ * covers: the pane over the band body ({@link #BACKDROP}), a tab's fill over the pane.
  */
 public final class MenuPalette {
 
-    /** The rail's pane: vanilla's {@code #000000(0.15)}. */
-    public static final String BACKGROUND = "#00000026";
+    /** The rail's pane: vanilla's {@code #000000(0.15)}, the kit's {@link ZigTokens#SURFACE_PANE}. */
+    public static final String BACKGROUND = ZigTokens.SURFACE_PANE;
 
-    /** A hovered tab's fill and the selected tab's: {@code Common.ui}'s {@code @ColorSimpleButtonBackground}, {@code #000000(0.2)}. */
-    public static final String HEADER = "#00000033";
+    /**
+     * A hovered tab's fill and the selected tab's: {@code Common.ui}'s {@code @ColorSimpleButtonBackground},
+     * {@code #000000(0.2)}, the kit's {@link ZigTokens#SURFACE_TAB}.
+     */
+    public static final String HEADER = ZigTokens.SURFACE_TAB;
 
-    /** A tab label, a section heading, a caption: {@code Common.ui}'s {@code @ColorDefaultLabel}. */
-    public static final String TEXT_MUTED = "#96a9be";
+    /** A tab label, a section heading, a caption: the kit's muted ink, {@link ZigTokens#INK_MUTED}. */
+    public static final String TEXT_MUTED = ZigTokens.INK_MUTED;
 
-    /** The selected label (under the gold gradient mask), the server name: {@code Common.ui}'s {@code @ColorDefault}. */
-    public static final String TEXT_PRIMARY = "#ffffff";
+    /** The selected label (under the gold gradient mask), the server name: {@link ZigTokens#INK_BRIGHT}. */
+    public static final String TEXT_PRIMARY = ZigTokens.INK_BRIGHT;
 
-    /** The selected tab's bar: {@code Common.ui}'s {@code @ColorGoldHighlight} (vanilla's rows have no bar). */
-    public static final String ACCENT = "#e8a93b";
+    /** The selected tab's bar: the kit's gold, {@link ZigTokens#ACCENT} (vanilla's rows have no bar). */
+    public static final String ACCENT = ZigTokens.ACCENT;
 
-    /** The rule between the consumer's section and the library's tabs: {@code Common.ui}'s {@code @ContentSeparator}. */
-    public static final String DIVIDER = "#2b3542";
+    /** The rule between the consumer's section and the library's tabs: the kit's rule, {@link ZigTokens#DIVIDER}. */
+    public static final String DIVIDER = ZigTokens.DIVIDER;
 
-    /** No fill: a resting tab's {@code Default} state. Not a palette slot, so no theme recolours it. */
-    public static final String CLEAR = "#00000000";
+    /**
+     * No fill: a resting tab's {@code Default} state, {@link ZigTokens#SURFACE_CLEAR}. Not a palette slot, so no
+     * theme recolours it.
+     */
+    public static final String CLEAR = ZigTokens.SURFACE_CLEAR;
 
-    /** The frame body under the rail: every pixel inside {@code Common/ContainerFullPatch@2x.png}'s 20px border. */
-    static final String BACKDROP = "#16212f";
+    /**
+     * What the rail sits on: the band's own body ({@link ZigTokens#BAND_BODY}), since the menu frame is the band
+     * and its body is clear.
+     */
+    static final String BACKDROP = ZigTokens.BAND_BODY;
 
     /** {@code Common/TextGradient.png}'s darkest stop, the shade the selected label's mask brings white down to. */
     static final String MASK_DARKEST = "#e8b962";
@@ -128,17 +139,11 @@ public final class MenuPalette {
      * The one conversion between a colour's two spellings: a document spells an alpha colour vanilla's way,
      * {@code #rrggbb(a)} with {@code a} from 0 to 1, and Java {@code #rrggbbaa}, the last two digits being
      * {@code round(a x 255)} in hex (the form {@link UiRetint#isHex} takes); an opaque {@code #rrggbb} is
-     * itself. Lower-cased, so the two compare.
+     * itself. Lower-cased, so the two compare. It is {@link UiRetint#fromMarkup}, which reads no other class.
      */
     @Nonnull
     public static String fromMarkup(@Nonnull String spelled) {
-        String hex = spelled.substring(0, 7).toLowerCase(Locale.ROOT);
-        int open = spelled.indexOf('(');
-        if (open < 0) {
-            return hex;
-        }
-        double alpha = Double.parseDouble(spelled.substring(open + 1, spelled.indexOf(')', open)));
-        return hex + String.format(Locale.ROOT, "%02x", (int) Math.round(alpha * 255));
+        return UiRetint.fromMarkup(spelled);
     }
 
     /** WCAG's contrast ratio between two {@code #rrggbb} colours, 1 to 21. */

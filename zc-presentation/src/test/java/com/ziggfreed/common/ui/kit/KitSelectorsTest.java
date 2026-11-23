@@ -35,12 +35,18 @@ import com.ziggfreed.common.ui.icon.ItemQualityLook;
  * kit's root convention: the page's own host (a list it owns, or an inline kit template it instantiated), then
  * {@code host[i]} as the root of the template appended there ({@code Pages/*.ui}, read from the recorded appends in
  * order, a clear starting the count again), then each {@code #Id} declared inside the scope before it, an inline
- * template instance ({@code $ZW.@ZigPicture #Pic}) opening that template's body from {@code Common/ZigKit.ui}. A
- * renamed template id or a mistyped painter selector fails here, not on a player's screen. Tagged
- * {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
+ * template instance ({@code $ZW.@ZigPicture #Pic}) opening that template's body from the kit's shared documents
+ * ({@link #TEMPLATE_DOCUMENTS}). A page the kit ships itself (the kit gallery) is walked against its own document and
+ * the frame it sits on: its first segment must be an id that document or that frame declares. A renamed template id or
+ * a mistyped painter selector fails here, not on a player's screen. Tagged {@code engine-items}: a
+ * {@link UICommandBuilder}'s static init reaches the engine's item codec.
  */
 @Tag("engine-items")
 class KitSelectorsTest {
+
+    /** The kit's shared documents whose templates a scope may instance, each template name defined once among them. */
+    private static final List<String> TEMPLATE_DOCUMENTS = List.of("Common/ZigKit.ui", "Common/ZigButtons.ui",
+            "Common/ZigCards.ui", "Common/ZigForm.ui", "Common/ZigFrames.ui");
 
     private static final String TEXTURE = "UI/Custom/Pages/Memories/MissingIcon.png";
 
@@ -54,7 +60,7 @@ class KitSelectorsTest {
 
     /** An inline kit template instance inside a scope, whose body the scope then holds too. */
     private static final Pattern INSTANCE =
-            Pattern.compile("(?:\\$ZW\\.)?@(Zig[A-Za-z0-9]*)\\s+#[A-Za-z][A-Za-z0-9]*\\s*\\{");
+            Pattern.compile("(?:\\$[A-Za-z]+\\.)?@(Zig[A-Za-z0-9]*)\\s+#[A-Za-z][A-Za-z0-9]*\\s*\\{");
 
     /** A scope inside a vanilla template ({@code $C.@CircularProgressBar #Ring}): the kit never reaches into one. */
     private static final String VANILLA = "\u0000vanilla";
@@ -214,6 +220,37 @@ class KitSelectorsTest {
         r.assertDeclared("the small painters");
     }
 
+    /**
+     * The kit gallery's band view: its bindings, the frame's hero it fills by {@code ZigFrame}'s ids, and every kit
+     * painter it runs, walked against its own document and the band frame it sits on; then its panel view's bindings
+     * against the panel document and the panel frame. A gallery that addresses an id its documents lack would
+     * disconnect the owner who opens it.
+     */
+    @Test
+    void theGalleryAddressesOnlyIdsItsDocumentsDeclare() throws IOException {
+        String frames = KitDocs.document("Common/ZigFrames.ui");
+        Recorder band = new Recorder(Map.of(), KitDocs.document(KitGallery.PAGE_TEMPLATE) + "\n"
+                + KitDocs.template(frames, "@ZigDecoratedFrame") + "\n" + KitDocs.template(frames, "@ZigBand"));
+        KitGallery.bindBand(band.events());
+        KitGallery.paint(band.cmd(), band.events(), null);
+        band.record();
+        band.assertDeclared("the kit gallery's band view");
+
+        Recorder panel = new Recorder(Map.of(), KitDocs.document(KitGallery.PANEL_TEMPLATE) + "\n"
+                + KitDocs.template(frames, "@ZigPanelFrame"));
+        KitGallery.bindPanel(panel.events());
+        panel.record();
+        panel.assertDeclared("the kit gallery's panel view");
+    }
+
+    @Test
+    void aPageScopeRefusesAnIdItsDocumentLacks() throws IOException {
+        Recorder r = new Recorder(Map.of(), KitDocs.document(KitGallery.PANEL_TEMPLATE));
+        r.cmd().set("#GalleryBandButon.Visible", true);
+        r.record();
+        assertTrue(r.failures().size() == 1, "a typo in a page's own id fails: " + r.failures());
+    }
+
     @Test
     void theAuditCatchesAnUndeclaredId() throws IOException {
         Recorder r = new Recorder(Map.of("#Page", "@ZigDetailPage"));
@@ -239,10 +276,22 @@ class KitSelectorsTest {
         private UICommandBuilder cmd = new UICommandBuilder();
         private UIEventBuilder events = new UIEventBuilder();
         private final String kit;
+        /** The page's own document (and its frame), when the page is one the kit ships; null for a painter alone. */
+        @Nullable
+        private final String page;
 
         Recorder(@Nonnull Map<String, String> inline) throws IOException {
+            this(inline, null);
+        }
+
+        Recorder(@Nonnull Map<String, String> inline, @Nullable String page) throws IOException {
             this.inline = inline;
-            this.kit = KitDocs.document("Common/ZigKit.ui");
+            this.page = page;
+            StringBuilder templates = new StringBuilder();
+            for (String document : TEMPLATE_DOCUMENTS) {
+                templates.append(KitDocs.document(document)).append('\n');
+            }
+            this.kit = templates.toString();
         }
 
         UICommandBuilder cmd() {
@@ -307,7 +356,16 @@ class KitSelectorsTest {
                 String id = "#" + m.group(1);
                 if (i == 0) {
                     String template = inline.get(id);
-                    scope = template == null ? null : expand(KitDocs.template(kit, template));
+                    if (template != null) {
+                        scope = expand(KitDocs.template(kit, template));
+                    } else if (page != null) {
+                        if (!KitDocs.declares(page, id)) {
+                            return id + " is not declared in the page's document or its frame";
+                        }
+                        scope = scopeOf(page, id);
+                    } else {
+                        scope = null;
+                    }
                 } else {
                     if (scope == null) {
                         return id + " would sit in the page's own document, which no painter addresses";
@@ -318,15 +376,7 @@ class KitSelectorsTest {
                     if (!KitDocs.declares(scope, id)) {
                         return id + " is not declared there";
                     }
-                    String type = KitDocs.type(scope, id);
-                    String block = KitDocs.block(scope, id);
-                    if (type.startsWith("$C.")) {
-                        scope = VANILLA;
-                    } else if (type.contains("@")) {
-                        scope = expand(KitDocs.template(kit, type.substring(type.indexOf('@'))) + block);
-                    } else {
-                        scope = expand(block);
-                    }
+                    scope = scopeOf(scope, id);
                 }
                 prefix = prefix.isEmpty() ? id : prefix + " " + id;
                 String indexes = m.group(2);
@@ -341,6 +391,23 @@ class KitSelectorsTest {
                 }
             }
             return null;
+        }
+
+        /**
+         * The scope {@code id} opens inside {@code in}: a vanilla template's (never reached into), a kit template's
+         * body with the instance's own block, or its own block.
+         */
+        @Nonnull
+        private String scopeOf(@Nonnull String in, @Nonnull String id) {
+            String type = KitDocs.type(in, id);
+            String block = KitDocs.block(in, id);
+            if (type.startsWith("$C.")) {
+                return VANILLA;
+            }
+            if (type.contains("@")) {
+                return expand(KitDocs.template(kit, type.substring(type.indexOf('@'))) + block);
+            }
+            return expand(block);
         }
 
         /** {@code scope} with the body of every inline kit template instantiated in it, recursively. */

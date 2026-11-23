@@ -25,9 +25,9 @@ $ZK = "../Common/ZigTokens.ui";
 // the selected bar to 52 as whole Anchors, so the fills and the click cover both lines. Vanilla grows a list row
 // the same way: Pages/TriggerVolume/TriggerVolumeBrowseVolumeRow.ui (a Button row, a FlexWeight Top text column
 // over a hidden second line) and TriggerVolumeInspectorPage, which pushes the row's whole Anchor taller.
-// Every ink, the bar and the rule are Common/ZigTokens.ui tokens, and the two fills (none at rest, the hover and
-// selected fill) are ui/menu/MenuPalette's own, spelled #rrggbb(a); ZigMenu repaints each from the palette in
-// force on every build (ZigMenuDocumentsTest). A picture slot (#TabIconSlot,
+// Every ink, the bar, the rule and the two fills (none at rest, @ZigSurfaceClear; the hover and selected fill,
+// @ZigSurfaceTab) are Common/ZigTokens.ui tokens, the same values ui/menu/MenuPalette's defaults name; ZigMenu
+// repaints each from the palette in force on every build (ZigMenuPaintTest). A picture slot (#TabIconSlot,
 // #SelIconSlot) takes an optional 28px picture, centred in the row, through ui/icon/IconRenderer.applyPlainIcon;
 // it ships hidden, and a tab never shows a picture without its label. The picture is an AssetImage of the item's
 // own icon texture, which only displays: an ItemGrid would show the item's tooltip and rarity square on the tab,
@@ -47,9 +47,9 @@ Group #ZigMenuTab {
     Padding: (Horizontal: 10);
     LayoutMode: Left;
     Style: ButtonStyle(
-      Default: (Background: (Color: #000000(0))),
-      Hovered: (Background: (Color: #000000(0.2))),
-      Pressed: (Background: (Color: #000000(0.2))),
+      Default: (Background: (Color: $ZK.@ZigSurfaceClear)),
+      Hovered: (Background: (Color: $ZK.@ZigSurfaceTab)),
+      Pressed: (Background: (Color: $ZK.@ZigSurfaceTab)),
       Sounds: $C.@ButtonSounds
     );
 
@@ -103,7 +103,7 @@ Group #ZigMenuTab {
     Anchor: (Height: 32);
     LayoutMode: Left;
     Padding: (Right: 10);
-    Background: (Color: #000000(0.2));
+    Background: (Color: $ZK.@ZigSurfaceTab);
     Visible: false;
 
     Group #Marker {

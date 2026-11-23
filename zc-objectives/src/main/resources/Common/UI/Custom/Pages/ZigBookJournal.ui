@@ -4,7 +4,7 @@ $ZW = "../Common/ZigKit.ui";
 $S = "../Common/ZigSearchRow.ui";
 
 // The Objective Book's Quests tab (com.ziggfreed.common.objectives.book.quest.QuestJournalTab), appended into
-// the shell's #TabBody: 1266 wide, 896 high (book/LedgerLayout holds the numbers, ZigBookJournalDocumentTest holds
+// the shell's #TabBody: 1266 wide, 816 high (book/LedgerLayout holds the numbers, ZigBookJournalDocumentTest holds
 // this document to them).
 //
 // #Toolbar: four status segments, the category dropdown, the tag dropdown (shown only while a quest carries a
@@ -13,7 +13,7 @@ $S = "../Common/ZigSearchRow.ui";
 // across the whole body instead when the log holds no quest at all.
 
 Group #Journal {
-  Anchor: (Height: 896);
+  Anchor: (Height: 816);
   LayoutMode: Top;
 
   Group #Toolbar {
@@ -47,7 +47,7 @@ Group #Journal {
 
   Group #Split {
     LayoutMode: Left;
-    Anchor: (Height: 852);
+    Anchor: (Height: 772);
 
     Group #ListColumn {
       Anchor: (Width: 500);

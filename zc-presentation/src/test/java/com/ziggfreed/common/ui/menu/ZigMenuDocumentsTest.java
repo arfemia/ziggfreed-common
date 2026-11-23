@@ -44,6 +44,7 @@ class ZigMenuDocumentsTest {
 
         assertTrue(frame.contains("Anchor: (Width: " + MenuFrame.FRAME_WIDTH + ", Height: "
                 + MenuFrame.FRAME_HEIGHT + ")"), "the frame is MenuFrame's one size");
+        assertTrue(frame.contains("@ZigBand {}"), "the frame is the band, the rail its left column");
         for (String declared : List.of("Group #Content", "Group #DecorTop", "Group #DecorBottom",
                 "Button #CloseButton", "Group #MenuRail", "Group #MenuList", "Group #BrandingContainerLeft",
                 "Label #BrandingServerName", "Label #BrandingDescription")) {
@@ -53,8 +54,9 @@ class ZigMenuDocumentsTest {
         String rail = block(frame, MenuFrame.RAIL);
         assertTrue(own(rail).contains("Width: " + MenuFrame.RAIL_WIDTH), "the rail is MenuFrame's rail width");
         assertTrue(own(rail).contains("Padding: (Full: " + MenuFrame.RAIL_PADDING + ")"), "the pane's padding");
-        assertTrue(own(rail).contains("Background: (Color: #000000(0.15))"),
-                "the rail sits on vanilla's faint pane, a Background a theme repaints (without one the client crashes)");
+        assertTrue(own(rail).contains("Background: (Color: $ZK.@ZigSurfacePane)"),
+                "the rail sits on vanilla's faint pane (the kit's pane token, MenuPalette.BACKGROUND), a Background a "
+                        + "theme repaints (without one the client crashes)");
         assertFalse(rail.contains("ContainerPanelPatch"), "no panel patch under the rail");
     }
 
@@ -133,8 +135,10 @@ class ZigMenuDocumentsTest {
 
         String button = block(row, ZigMenu.BUTTON);
         assertTrue(own(button).contains("Padding: (Horizontal: " + MenuFrame.ROW_PADDING + ")"), "10 in from each side");
-        assertTrue(own(button).contains("Default: (Background: (Color: #000000(0)))"), "no resting fill");
-        assertTrue(own(button).contains("Hovered: (Background: (Color: #000000(0.2)))"), "vanilla's hover fill");
+        assertTrue(own(button).contains("Default: (Background: (Color: $ZK.@ZigSurfaceClear))"),
+                "no resting fill (the kit's clear token, MenuPalette.CLEAR)");
+        assertTrue(own(button).contains("Hovered: (Background: (Color: $ZK.@ZigSurfaceTab))"),
+                "vanilla's hover fill (the kit's tab token, MenuPalette.HEADER)");
         assertTrue(own(button).contains("Sounds: $C.@ButtonSounds"), "a custom ButtonStyle clicks only with Sounds");
 
         String tabLabel = styleLine(row, "@TabLabelStyle");

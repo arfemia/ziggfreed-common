@@ -295,7 +295,7 @@ $ZS = "ZigStyles.ui";
   }
 };
 
-// ── @ZigDetailPage: the reading page. It fills its parent (a 750 x 852 card in the book, 640 wide elsewhere). ──
+// ── @ZigDetailPage: the reading page. It fills its parent (a 750 x 772 card in the book, 640 wide elsewhere). ──
 // #DHeader: picture, title (two lines), meta, a faint sub-meta, badge pills, and one labelled toggle (Pin, Track);
 // #DProgress; #DLead, the reading paragraph; #DBlocks, the scrolling host of Pages/ZigDetailBlock.ui blocks;
 // #DActions, the action bar the page binds once.

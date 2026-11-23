@@ -101,7 +101,7 @@ class ZigTokensContrastTest {
             assertTrue(colour.getKey().startsWith("Zig"), colour.getKey());
             assertTrue(UiRetint.isHex(MenuPalette.fromMarkup(colour.getValue())), colour.getKey());
         }
-        assertEquals(37, colours.size(), "21 inks, surfaces and marks, 16 tone colours");
+        assertEquals(39, colours.size(), "23 inks, surfaces and marks, 16 tone colours");
         assertEquals(Integer.valueOf(56), ZigTokens.integers().get("ZigRowHeight"));
         assertEquals(Integer.valueOf(64), ZigTokens.integers().get("ZigPicLarge"));
     }
@@ -171,6 +171,7 @@ class ZigTokensContrastTest {
         Map<String, String> surfaces = new LinkedHashMap<>();
         surfaces.put("band", body);
         surfaces.put("pane", ZigTokens.seenOver(ZigTokens.SURFACE_PANE, body));
+        surfaces.put("rail tab", ZigTokens.seenOver(ZigTokens.SURFACE_TAB, body));
         surfaces.put("row", row);
         surfaces.put("hovered row", ZigTokens.seenOver(ZigTokens.SURFACE_ROW_HOVER, body));
         surfaces.put("pressed row", ZigTokens.seenOver(ZigTokens.SURFACE_ROW_PRESSED, body));

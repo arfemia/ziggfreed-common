@@ -6,7 +6,7 @@ $ZS = "../Common/ZigStyles.ui";
 $ZW = "../Common/ZigKit.ui";
 
 // The Objective Book's Achievements tab (com.ziggfreed.common.objectives.book.achievement.AchievementsTab),
-// appended into the shell's #TabBody: 1266 wide, 896 high (book/LedgerLayout). AchievementsTab holds every number
+// appended into the shell's #TabBody: 1266 wide, 816 high (book/LedgerLayout). AchievementsTab holds every number
 // spelled here and ZigBookAchievementsDocumentTest holds the two together.
 //
 // #Toolbar is on every view: the view tabs (Overview, Browse, and Statistics while a module contributes any;
@@ -23,7 +23,7 @@ $ZW = "../Common/ZigKit.ui";
 // nothing at all to list.
 
 Group #Achievements {
-  Anchor: (Height: 896);
+  Anchor: (Height: 816);
   LayoutMode: Top;
 
   Group #Toolbar {

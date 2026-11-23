@@ -34,12 +34,14 @@ class ZigTokensDocumentTest {
     private static final String TOKENS = "Common/ZigTokens.ui";
 
     /**
-     * The kit's shared button, card, form, search, toast and row documents, which read their colours from the tokens
-     * as the kit documents of {@link KitDocs#DOCUMENTS} do.
+     * The kit's shared button, card, form, search, toast and row documents, its frames and the menu's rail row, and
+     * the kit gallery's two views, which read their colours from the tokens as the kit documents of
+     * {@link KitDocs#DOCUMENTS} do.
      */
     private static final List<String> ON_TOKENS = List.of("Common/ZigButtons.ui", "Common/ZigCards.ui",
             "Common/ZigForm.ui", "Common/ZigSearchRow.ui", "Pages/ZigToast.ui", "Pages/ZigListRow.ui",
-            "Pages/ZigSelectRow.ui");
+            "Pages/ZigSelectRow.ui", "Common/ZigFrames.ui", "Pages/ZigMenuTab.ui", "Pages/ZigKitGalleryPage.ui",
+            "Pages/ZigKitGalleryPanel.ui");
 
     /**
      * An item grid's durability bar colours, the one colour an {@code ItemGridStyle} spells: the kit's grid styles
@@ -117,6 +119,8 @@ class ZigTokensDocumentTest {
         assertTrue(colours().keySet().containsAll(List.of("ZigInkCopper", "ZigInkDim", "ZigMarkLit", "ZigMarkUnlit",
                 "ZigBandBody", "ZigSurfaceClear")),
                 "the Chapter's copper, dim ink, lit and unlit marks, the band body and no fill");
+        assertTrue(colours().keySet().containsAll(List.of("ZigSurfaceTab", "ZigBandScrim")),
+                "the rail tab's fill and the band frames' scrim, which the frame and the rail read");
         for (String tone : List.of("Active", "Collect", "Done", "Live", "Available", "Waiting", "Blocked", "Danger")) {
             assertTrue(colours().containsKey("ZigTone" + tone + "Fill"), "a fill for " + tone);
             assertTrue(colours().containsKey("ZigTone" + tone + "Text"), "a text colour for " + tone);

@@ -34,7 +34,7 @@ class LedgerLayoutTest {
         assertEquals(MenuFrame.FRAME_HEIGHT - 2 * MenuFrame.FRAME_PADDING - 2 * LedgerLayout.PANEL_PADDING,
                 LedgerLayout.INNER_HEIGHT);
         assertEquals(1266, LedgerLayout.INNER_WIDTH, "the plan's inner width, from the frame's numbers");
-        assertEquals(968, LedgerLayout.INNER_HEIGHT);
+        assertEquals(888, LedgerLayout.INNER_HEIGHT, "the band's menu frame (920 high) less its padding and the book's");
     }
 
     @Test
@@ -43,7 +43,7 @@ class LedgerLayoutTest {
                 LedgerLayout.HEADER_HEIGHT + LedgerLayout.HEADER_GAP + LedgerLayout.BODY_HEIGHT);
         assertEquals(LedgerLayout.BODY_HEIGHT,
                 LedgerLayout.TOOLBAR_HEIGHT + LedgerLayout.TOOLBAR_GAP + LedgerLayout.SPLIT_HEIGHT);
-        assertEquals(852, LedgerLayout.SPLIT_HEIGHT);
+        assertEquals(772, LedgerLayout.SPLIT_HEIGHT);
     }
 
     @Test

@@ -1,0 +1,54 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The kit gallery's second view (com.ziggfreed.common.ui.kit.KitGalleryPage): the boxed panel frame,
+// @ZigPanelFrame, which a panel or a HUD sits on. It draws no blur, no scrim and no band, so the world stays clear
+// behind it during play. Its button opens the gallery again on the band. Every word is a key of
+// ziggfreedcommon.ui.lang (gallery.panel.*).
+
+$C.@PageOverlay {}
+
+$F.@ZigPanelFrame {
+  @CloseButton = true;
+  Anchor: (Width: 560, Height: 300);
+
+  #Content {
+    Label {
+      Anchor: (Height: 32, Bottom: 8);
+      Text: %ziggfreedcommon.ui.gallery.panel.title;
+      Style: $ZX.@ZigTitleStyle;
+    }
+
+    Label {
+      Anchor: (Height: 66, Bottom: 8);
+      Text: %ziggfreedcommon.ui.gallery.panel.line;
+      Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+    }
+
+    Group {
+      FlexWeight: 1;
+    }
+
+    Group {
+      LayoutMode: Left;
+      Anchor: (Height: 40);
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Button #GalleryBandButton {
+        Anchor: (Width: 260, Height: 40);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.gallery.panel.back;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}
