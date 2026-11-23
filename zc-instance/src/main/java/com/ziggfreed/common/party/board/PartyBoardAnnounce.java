@@ -19,6 +19,7 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.i18n.PlainText;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
+import com.ziggfreed.common.instance.dungeon.tier.TierNames;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -115,7 +116,7 @@ public final class PartyBoardAnnounce {
             wants = PartyBoardText.line("announce.daily", name, notice.wants(), dungeonName);
         } else {
             wants = PartyBoardText.line("announce.tier", name, notice.wants(), dungeonName,
-                    PartyBoardText.tierWord(aim));
+                    TierNames.word(aim));
         }
         Message place = PartyBoardText.place(notice.place());
         Message where = place == null ? PartyBoardText.line("announce.board") : PartyBoardText.line("announce.at", place);

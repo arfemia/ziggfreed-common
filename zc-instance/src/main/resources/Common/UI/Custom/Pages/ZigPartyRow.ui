@@ -1,55 +1,59 @@
-$C = "../Common.ui";
-$M = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 
-// One party / invite / online-roster row (appended into #PartyList; see
-// PartyInvitePage). A name label + an optional owner badge + up to two action buttons
-// (primary/secondary), all revealed + labelled + bound from Java per row kind:
-//   invite tab  -> #RowBtnPrimary = Invite
-//   party member-> #RowBtnPrimary = Kick (owner viewing others)
-//   incoming inv-> #RowBtnPrimary = Accept, #RowBtnSecondary = Decline
-// The two buttons default hidden; Java sets Visible, the words (on the Button's #Label .TextSpans, through
-// ZigRichButton) and the event binding.
+// One party / invite / ask / online-roster row (appended into #PartyList; see PartyInvitePage), on the kit's row
+// surface: a name, an optional owner badge and up to two action buttons (primary / secondary), all revealed,
+// labelled and bound from Java per row kind:
+//   invite tab   -> #RowBtnPrimary = Invite
+//   party member -> #RowBtnPrimary = Remove (owner viewing others; swapped to the kit's Secondary look)
+//   incoming inv -> #RowBtnPrimary = Accept, #RowBtnSecondary = Decline
+//   ask to join  -> #RowBtnPrimary = Accept, #RowBtnSecondary = Decline, the row filled with the kit's warm
+//                   selected surface
+// The root declares its Background (the kit's row surface), so the fill Java pushes on an ask row lands. The two
+// buttons default hidden; Java sets Visible, the words (on the Button's #Label .TextSpans, through ZigRichButton)
+// and the event binding. Every colour is a Common/ZigTokens.ui token.
 
 Group #ZigPartyRow {
   LayoutMode: Left;
-  Anchor: (Height: 40, Bottom: 4);
+  Anchor: (Height: 44, Bottom: $ZK.@ZigSpace1);
+  Padding: (Horizontal: $ZK.@ZigSpace3);
+  Background: (Color: $ZK.@ZigSurfaceRow);
 
   Label #RowName {
     FlexWeight: 1;
-    Padding: (Left: 12);
     Text: "";
-    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center);
+    Style: $ZX.@ZigRowTitleStyle;
   }
 
   Label #RowBadge {
     Visible: false;
-    Anchor: (Width: 70, Height: 40);
+    Anchor: (Width: 90, Height: 44);
     Text: "";
-    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
+    Style: (...$ZX.@ZigSmallCapsStyle, TextColor: $ZK.@ZigMarkLit, HorizontalAlignment: End);
   }
 
   Button #RowBtnPrimary {
     Visible: false;
-    Anchor: (Width: 96, Height: 32, Top: 4, Left: 6);
-    Padding: (Horizontal: 8);
-    Style: $M.@ZigRichOptionBtnStyle;
+    Anchor: (Width: 116, Height: 32, Top: 6, Left: $ZK.@ZigSpace2);
+    Style: $ZS.@ZigButtonPrimaryStyle;
+
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
+      Style: $ZX.@ZigButtonLabelStyle;
     }
   }
 
   Button #RowBtnSecondary {
     Visible: false;
-    Anchor: (Width: 96, Height: 32, Top: 4, Left: 6);
-    Padding: (Horizontal: 8);
-    Style: $M.@ZigRichOptionBtnStyle;
+    Anchor: (Width: 116, Height: 32, Top: 6, Left: $ZK.@ZigSpace2);
+    Style: $ZS.@ZigButtonSecondaryStyle;
+
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
+      Style: $ZX.@ZigButtonLabelStyle;
     }
   }
 }

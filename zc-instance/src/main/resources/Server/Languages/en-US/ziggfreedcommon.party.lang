@@ -133,3 +133,5 @@ board.refuse.inparty = You are already in a party. Leave it first to ask to join
 board.refuse.full = That party is full now.
 # On the poster's party page, in the row an invite uses.
 board.request.row = {0} asks to join, from your notice
+# A poster said yes to an ask that could not land, the asker having joined another party since; {0} the poster.
+board.msg.accepted.inparty = {0} said yes, but you are in another party now. Leave it to join theirs.

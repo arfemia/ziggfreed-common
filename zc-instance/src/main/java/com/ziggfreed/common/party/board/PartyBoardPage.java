@@ -27,7 +27,7 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.dungeon.CopyRouter;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
-import com.ziggfreed.common.instance.dungeon.DungeonRefusals;
+import com.ziggfreed.common.instance.dungeon.tier.TierNames;
 import com.ziggfreed.common.instance.hub.ZigHubWorldGenProvider;
 import com.ziggfreed.common.party.Party;
 import com.ziggfreed.common.party.PartyService;
@@ -270,8 +270,8 @@ public final class PartyBoardPage extends ToastablePage<PartyBoardEventData> {
         String inside = world == null ? null : CopyRouter.dungeonOf(world.getName());
         DungeonAsset dungeon = inside == null ? null : DungeonConfig.getInstance().resolve(inside);
         if (dungeon != null) {
-            Message depth = ladder.holds(dungeon.getId()) ? PartyBoardText.tierWord(dungeon)
-                    : DungeonRefusals.tierName(dungeon);
+            // A depth of this board's dungeon by its word alone ("Depth 3"), any other dungeon by its full name.
+            Message depth = ladder.holds(dungeon.getId()) ? TierNames.word(dungeon) : TierNames.displayName(dungeon);
             return PartyBoardText.line("where.dungeon", name, depth);
         }
         return PartyBoardText.line("where.world", name);
@@ -284,11 +284,11 @@ public final class PartyBoardPage extends ToastablePage<PartyBoardEventData> {
         return minutes < 1 ? PartyBoardText.line("ago.now") : PartyBoardText.line("ago", minutes);
     }
 
-    /** What players call the dungeon {@code id} on a board, its id when no loaded file answers. */
+    /** What players call the dungeon {@code id} on a board ({@link TierNames#word}), its id when no loaded file answers. */
     @Nonnull
     private static Message tierWordOf(@Nonnull String id) {
         DungeonAsset dungeon = DungeonConfig.getInstance().resolve(id);
-        return dungeon == null ? Msg.raw(id) : PartyBoardText.tierWord(dungeon);
+        return dungeon == null ? Msg.raw(id) : TierNames.word(dungeon);
     }
 
     // ==================== putting up a notice ====================
@@ -305,7 +305,7 @@ public final class PartyBoardPage extends ToastablePage<PartyBoardEventData> {
         List<Message> labels = new ArrayList<>();
         for (DungeonAsset dungeon : ladder.postable()) {
             keys.add(dungeon.getId());
-            labels.add(dungeon.seedDaily() ? PartyBoardText.line("post.aim.daily") : PartyBoardText.tierWord(dungeon));
+            labels.add(dungeon.seedDaily() ? PartyBoardText.line("post.aim.daily") : TierNames.word(dungeon));
         }
         keys.add(ANY);
         labels.add(PartyBoardText.line("post.aim.any"));

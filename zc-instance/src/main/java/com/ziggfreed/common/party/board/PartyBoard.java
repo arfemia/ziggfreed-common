@@ -389,8 +389,8 @@ public final class PartyBoard {
     /**
      * {@code poster} says yes to {@code asker}: the ask goes, and the asker joins the poster's party (made now when
      * the poster is still alone) through {@link PartyService#admit}, called outside the board's lock. The asker hears
-     * it; the party hears its usual joined line. {@link AcceptResult#NO_INVITE} when there is no such ask or the
-     * notice is down.
+     * it; the party hears its usual joined line. A yes that cannot land tells the asker why: the party filled, or they
+     * joined another party since. {@link AcceptResult#NO_INVITE} when there is no such ask or the notice is down.
      */
     @Nonnull
     public AcceptResult admit(@Nonnull UUID poster, @Nonnull UUID asker) {
@@ -401,8 +401,23 @@ public final class PartyBoard {
             }
         }
         AcceptResult result = service.admit(poster, asker);
-        if (result == AcceptResult.JOINED) {
-            tell(asker, PartyBoardText.line("msg.accepted", PlayerDisplayNames.plainName(poster, null)), true);
+        switch (result) {
+            case JOINED -> tell(asker, PartyBoardText.line("msg.accepted", PlayerDisplayNames.plainName(poster, null)),
+                    true);
+            // The yes could not land: the asker hears why (the poster reads the page's own refusal).
+            case PARTY_FULL -> tell(asker, PartyBoardText.line("refuse.full"), false);
+            case ALREADY_IN_PARTY -> {
+                // Already in the poster's own party (an invite took them in first): nothing went wrong to tell.
+                Party theirs = service.partyOf(asker);
+                if (theirs == null || !theirs.contains(poster)) {
+                    tell(asker, PartyBoardText.line("msg.accepted.inparty",
+                            PlayerDisplayNames.plainName(poster, null)), false);
+                }
+            }
+            default -> {
+                // NO_INVITE (the asker is offline, or the poster follows someone else's lead) and EXPIRED, which
+                // admit never answers: nobody to tell.
+            }
         }
         return result;
     }

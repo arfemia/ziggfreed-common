@@ -24,9 +24,6 @@ public final class PartyBoardText {
     /** The key family every line here resolves under. */
     public static final String PREFIX = "ziggfreedcommon.party.board.";
 
-    /** The library's own word for a tier whose file names none, its rank as {@code {0}}: Tier 2 (the dungeon lang's). */
-    private static final String TIER_KEY = "ziggfreedcommon.dungeon.tier.name";
-
     private PartyBoardText() {
     }
 
@@ -37,26 +34,16 @@ public final class PartyBoardText {
     }
 
     /**
-     * What players call {@code dungeon} on a board: a tier's own word (Depth 2), else Tier and its rank; a dungeon that
-     * is no tier by its name.
+     * What a notice is for, as its title reads it: a depth's word ({@link TierNames#word}, the one reading of it),
+     * today's daily, or anything.
      */
-    @Nonnull
-    public static Message tierWord(@Nonnull DungeonAsset dungeon) {
-        Message own = TierNames.own(dungeon);
-        if (own != null) {
-            return own;
-        }
-        return dungeon.isTier() ? Msg.key(TIER_KEY, (long) dungeon.tierRank()) : DungeonRefusals.dungeonName(dungeon);
-    }
-
-    /** What a notice is for, as its title reads it: a depth's word, today's daily, or anything. */
     @Nonnull
     public static Message aim(@Nullable String aim) {
         DungeonAsset dungeon = aim == null ? null : DungeonConfig.getInstance().resolve(aim);
         if (dungeon == null) {
             return line("aim.any");
         }
-        return dungeon.seedDaily() ? line("aim.daily") : tierWord(dungeon);
+        return dungeon.seedDaily() ? line("aim.daily") : TierNames.word(dungeon);
     }
 
     /** A notice's notes as one line ("New players welcome. Quick run."), or null for none. */

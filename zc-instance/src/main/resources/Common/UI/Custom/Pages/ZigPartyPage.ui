@@ -1,63 +1,50 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$M = "../Common/ZigButtons.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 $S = "../Common/ZigSearchRow.ui";
-$ZT = "../Common/ZigType.ui";
 
-// Generic party + invite screen (com.ziggfreed.common.party.page.PartyInvitePage).
-// Two tabs over the one shared decorated frame: Party (roster + incoming invites +
-// footer) and Invite (the online roster behind the shared search row #SearchRow). Rows
-// are appended from Java (Pages/ZigPartyRow.ui). Shipped once in ziggfreed-common;
-// neutral Zig* ids avoid colliding with a consumer's own Pages/*.ui when both jars are
-// installed. Smoke-test in-game (.ui is not gradle-validated).
+// Generic party + invite screen (com.ziggfreed.common.party.page.PartyInvitePage) on the band
+// (@ZigDecoratedFrame), its title in the frame's hero (the kit's HeroPainter). Two views, Party (roster,
+// incoming invites, players asking to join from the viewer's party board notice, footer) and Invite (the online
+// roster behind the shared search row #SearchRow), switched by the game's header tabs the kit's ViewTabPainter
+// appends into #TabBar. Rows are appended from Java (Pages/ZigPartyRow.ui). Every button is a Button holding a
+// Label #Label whose words go on .TextSpans (ZigRichButton). Shipped once in ziggfreed-common; neutral Zig* ids
+// avoid colliding with a consumer's own Pages/*.ui when both jars are installed. Every colour is a
+// Common/ZigTokens.ui token and every size a Common/ZigType.ui step through the kit's styles.
 
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 640, Height: 600);
+  Anchor: (Width: 640, Height: 680);
 
   #Content {
-    Label #Title {
-      Text: "";
-      Anchor: (Height: 30, Bottom: 6);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
-    }
-
-    // Tab bar (active tab tinted from Java, its #Label turned white and bold). Every button on this page
-    // is a Button holding a Label #Label whose words go on .TextSpans (ZigRichButton).
+    // The two views, appended by ViewTabPainter (Pages/ZigViewTab.ui, 40 high), then the kit's rule under them.
     Group #TabBar {
       LayoutMode: Left;
-      Anchor: (Height: 34, Bottom: 8);
-      Button #TabParty {
-        FlexWeight: 1;
-        Anchor: (Height: 34);
-        Style: $M.@ZigRichTabBtnStyle;
-        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
-      }
-      Button #TabInvite {
-        FlexWeight: 1;
-        Anchor: (Height: 34, Left: 6);
-        Style: $M.@ZigRichTabBtnStyle;
-        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
-      }
+      Anchor: (Height: 40);
+    }
+
+    Group {
+      Anchor: (Height: 1, Bottom: 8);
+      Background: (Color: $ZK.@ZigDivider);
     }
 
     Label #MemberCount {
       Text: "";
       Visible: false;
-      Anchor: (Height: 18, Bottom: 6);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de);
+      Anchor: (Height: 20, Bottom: 6);
+      Style: $ZX.@ZigCaptionStyle;
     }
 
-    // Search row (revealed on the Invite tab from Java): the shared search row, its field
-    // flexing across the panel.
+    // Search row (revealed on the Invite tab from Java): the shared search row, its field flexing across the
+    // column.
     $S.@ZigSearchRow #SearchRow {
       @Anchor = (Bottom: 8);
       @SearchWidth = 90;
       Visible: false;
     }
-
-    Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
 
     // Appended rows (Pages/ZigPartyRow.ui).
     Group #PartyList {
@@ -70,43 +57,67 @@ $F.@ZigDecoratedFrame {
     Label #EmptyState {
       Text: "";
       Visible: false;
-      Anchor: (Height: 22, Top: 8);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center);
+      Anchor: (Top: 8);
+      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
     }
 
-    // Footer (revealed on the Party tab from Java; the buttons toggle per role). #PrivacyBtn is
-    // the owner's public/private pill (its label shows the current state; clicking flips it).
+    // Footer (revealed on the Party tab from Java; the buttons toggle per role). #PrivacyBtn is the owner's
+    // public/private switch (its label shows the current state; clicking flips it).
     Group #FooterRow {
       LayoutMode: Left;
-      Anchor: (Height: 36, Top: 8);
+      Anchor: (Height: 40, Top: 12);
       Visible: false;
+
       Button #QueueBtn {
         FlexWeight: 1;
-        Anchor: (Height: 36);
-        Style: $M.@ZigRichOptionBtnStyle;
+        Anchor: (Height: 40, Right: 8);
+        Style: $ZS.@ZigButtonPrimaryStyle;
         Visible: false;
-        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center); }
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
       }
+
       Button #PrivacyBtn {
         FlexWeight: 1;
-        Anchor: (Height: 36, Left: 6);
-        Style: $M.@ZigRichTabBtnStyle;
+        Anchor: (Height: 40, Right: 8);
+        Style: $ZS.@ZigButtonSecondaryStyle;
         Visible: false;
-        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
       }
+
       Button #DisbandBtn {
         FlexWeight: 1;
-        Anchor: (Height: 36, Left: 6);
-        Style: $M.@ZigRichOptionBtnStyle;
+        Anchor: (Height: 40);
+        Style: $ZS.@ZigButtonSecondaryStyle;
         Visible: false;
-        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center); }
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
       }
+
       Button #LeaveBtn {
         FlexWeight: 1;
-        Anchor: (Height: 36, Left: 6);
-        Style: $M.@ZigRichOptionBtnStyle;
+        Anchor: (Height: 40);
+        Style: $ZS.@ZigButtonSecondaryStyle;
         Visible: false;
-        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center); }
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
       }
     }
   }

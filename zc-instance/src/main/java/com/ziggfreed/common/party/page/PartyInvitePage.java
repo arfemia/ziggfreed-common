@@ -40,6 +40,12 @@ import com.ziggfreed.common.party.board.PartyBoard;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
+import com.ziggfreed.common.ui.kit.Picture;
+import com.ziggfreed.common.ui.kit.ViewTabPainter;
+import com.ziggfreed.common.ui.kit.ZigStyles;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -47,7 +53,10 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The generic party + invite screen (the {@code KweebecLeaderboardPage}/{@code DialoguePage}
- * twin). Two tabs over the one shared {@code $F.@ZigDecoratedFrame}:
+ * twin), on the band ({@code $F.@ZigDecoratedFrame}, its title the frame's hero through
+ * {@link HeroPainter}), its two views the game's header tabs ({@link ViewTabPainter}), its rows on
+ * the kit's row surface (an ask on the warm selected one) and its buttons the kit's Primary and
+ * Secondary; it spells no colour. The two views:
  * <ul>
  *   <li><b>Party</b> - the viewer's incoming invites (Accept / Decline), then the players
  *       asking to join from the viewer's notice on a party board ({@code party/board}, the
@@ -90,8 +99,8 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     /** A notice's ask, answered yes or no (its Target the asker). */
     private static final String ADMIT = "admit";
     private static final String REFUSE = "refuse";
-    /** Active-tab tint (matches the leaderboard page's painted active tab). */
-    private static final String TAB_ACTIVE = "#5a7ba8";
+    /** The host the kit's view tabs are appended into, one per view. */
+    private static final String TAB_BAR = "#TabBar";
 
     /** The invite tab's search row, an instance of the shared {@link ZigSearchRow}. */
     private static final String SEARCH_ROW = "#SearchRow";
@@ -171,31 +180,23 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
         // Labels take TextSpans (the viewer's locale, params filled), and so does every button's #Label:
-        // each button is a ZigRichButton.
-        cmd.set("#Title.TextSpans", t.title());
+        // each button is a ZigRichButton. The title is the band frame's hero.
+        HeroPainter.paint(cmd, Hero.of(t.title()));
 
-        ZigRichButton.text(cmd, "#TabParty", t.tabParty());
-        ZigRichButton.text(cmd, "#TabInvite", t.tabInvite());
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#TabParty",
-                EventData.of("Action", "tab").append("Target", TAB_PARTY), false);
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#TabInvite",
-                EventData.of("Action", "tab").append("Target", TAB_INVITE), false);
-        paintActiveTab(cmd, TAB_INVITE.equals(activeTab) ? "#TabInvite" : "#TabParty");
+        // The two views as the game's header tabs, the chosen one gold-framed (the kit's view tabs).
+        boolean onInvite = TAB_INVITE.equals(activeTab);
+        ViewTabPainter.append(cmd, events, TAB_BAR, t.tabParty(), Picture.NONE, !onInvite,
+                EventData.of("Action", "tab").append("Target", TAB_PARTY));
+        ViewTabPainter.append(cmd, events, TAB_BAR, t.tabInvite(), Picture.NONE, onInvite,
+                EventData.of("Action", "tab").append("Target", TAB_INVITE));
 
-        if (TAB_INVITE.equals(activeTab)) {
+        if (onInvite) {
             buildInviteTab(cmd, events, t, viewer);
         } else {
             buildPartyTab(cmd, events, t, viewer);
         }
 
         renderToastInto(cmd); // LAST: the toast overlay draws on top of the page content.
-    }
-
-    /** The chosen tab: its backgrounds in the active tint, and its #Label white and bold. */
-    private void paintActiveTab(@Nonnull UICommandBuilder cmd, @Nonnull String sel) {
-        UiRetint.retintButtonStates(cmd, sel, TAB_ACTIVE, TAB_ACTIVE, TAB_ACTIVE);
-        ZigRichButton.color(cmd, sel, "#ffffff");
-        cmd.set(sel + " " + ZigRichButton.LABEL + ".Style.RenderBold", true);
     }
 
     // ==================== Party tab ====================
@@ -221,12 +222,14 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             row++;
         }
 
-        // Players asking to join from the viewer's notice on a party board, in the row an invite uses.
+        // Players asking to join from the viewer's notice on a party board, in the row an invite uses, on the kit's
+        // warm selected surface (the row declares its Background, so the fill lands).
         for (UUID asker : PartyBoard.asksFor(svc, viewer)) {
             if (row >= MAX_ROWS) {
                 break;
             }
             String sel = appendRow(cmd, row, t.joinRequestRow(PlayerDisplayNames.displayName(asker, null)), null);
+            UiRetint.fill(cmd, sel, ZigTokens.SURFACE_ROW_SELECTED);
             bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.acceptButton(),
                     EventData.of("Action", ADMIT).append("Target", asker.toString()));
             bindRowButton(cmd, events, sel, "#RowBtnSecondary", t.declineButton(),
@@ -251,6 +254,8 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 if (viewerOwns && !ownerRow) {
                     bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.kickButton(),
                             EventData.of("Action", "kick").append("Target", m.toString()));
+                    // Remove is no go-ahead: the kit's Secondary look, by reference, rather than the slot's Primary.
+                    ZigStyles.apply(cmd, sel + " #RowBtnPrimary.Style", ZigStyles.Name.BUTTON_SECONDARY, playerRef);
                 }
                 row++;
             }
