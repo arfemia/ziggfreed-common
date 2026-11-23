@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntFunction;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
@@ -27,9 +28,11 @@ import com.ziggfreed.common.ui.form.FieldSpec;
  * the live reward kinds, the page after it filling each kind's parameters from its owner's description (a kind that
  * describes none takes {@code Name=Value} pairs), their checks, their preview lines, and the rows a save writes
  * ({@link ClaimSlots}). A slot's fields are {@code r<n>.<part>}, {@code n} from 1. World thread, as every wizard
- * method; the words are the editor's own ({@link EditorWords}), read under the key names used here.
+ * method; the words are the editor's own ({@link EditorWords}), read under the key names used here. Public so a
+ * consumer's own editor pays its rewards through the same pages (a skill's level rewards), writing the rows where its
+ * own file keeps them from {@link #collect}.
  */
-final class RewardSlotPages {
+public final class RewardSlotPages {
 
     /** Every reward slot's field ({@link #field}). */
     private static final Pattern FIELD = Pattern.compile("r\\d+\\..*");
@@ -40,20 +43,24 @@ final class RewardSlotPages {
     private final int slots;
     @Nonnull private final Pickers.Source kinds;
 
-    RewardSlotPages(@Nonnull EditorWords words, int slots, @Nonnull Pickers.Source kinds) {
+    /** {@code slots} reward slots labelled from {@code words}, each kind picked from {@code kinds}. */
+    public RewardSlotPages(@Nonnull EditorWords words, int slots, @Nonnull Pickers.Source kinds) {
         this.words = words;
         this.slots = slots;
         this.kinds = kinds;
     }
 
     /** How many reward rows the editor shows. */
-    int slots() {
+    public int slots() {
         return slots;
     }
 
-    /** A reward slot's field: {@code r<n>.<part>}, {@code n} from 1. */
+    /**
+     * A reward slot's field: {@code r<n>.<part>}, {@code n} from 1. A field an editor adds to a slot of its own (a
+     * level the reward pays at) takes this shape too, and is cleared with the slot's others by {@link #seed}.
+     */
     @Nonnull
-    static String field(int n, @Nonnull String part) {
+    public static String field(int n, @Nonnull String part) {
         return "r" + n + "." + part;
     }
 
@@ -67,12 +74,22 @@ final class RewardSlotPages {
 
     /** The page choosing each slot's kind. */
     @Nonnull
-    WizardStep kindsPage() {
+    public WizardStep kindsPage() {
+        return kindsPage(n -> List.of());
+    }
+
+    /**
+     * The page choosing each slot's kind, with {@code perSlot}'s rows for slot {@code n} under its heading and before
+     * its kind: an editor's own part of each reward (the level a skill's reward pays at).
+     */
+    @Nonnull
+    public WizardStep kindsPage(@Nonnull IntFunction<List<WizardField>> perSlot) {
         List<WizardField> fields = new ArrayList<>();
         fields.add(words.note("rewardsNote", "note.rewards"));
         for (int n = 1; n <= slots; n++) {
             fields.add(EditorWords.own(FieldSpec.header(field(n, "head"), field(n, "head")),
                     words.line("rewards.slot", n)));
+            fields.addAll(perSlot.apply(n));
             fields.add(words.picker(field(n, "kind"), "field.reward_kind", kinds));
         }
         return new WizardStep(words.key("page.rewards"), fields);
@@ -80,7 +97,7 @@ final class RewardSlotPages {
 
     /** The page filling each chosen kind's parameters, then {@code after}. */
     @Nonnull
-    WizardStep paramsPage(@Nonnull WizardSession session, @Nonnull List<WizardField> after) {
+    public WizardStep paramsPage(@Nonnull WizardSession session, @Nonnull List<WizardField> after) {
         List<WizardField> fields = new ArrayList<>();
         boolean any = false;
         for (int n = 1; n <= slots; n++) {
@@ -133,7 +150,7 @@ final class RewardSlotPages {
      * The slots from a file's Claim rows, each slot the row at its place: at an open, and again after every save,
      * since a save closes up an emptied slot's row and the slots must name the rows the next save writes over.
      */
-    void seed(@Nonnull WizardSession session, @Nonnull List<? extends ClaimSlots.Row> rows) {
+    public void seed(@Nonnull WizardSession session, @Nonnull List<? extends ClaimSlots.Row> rows) {
         for (String id : new ArrayList<>(session.values().keySet())) {
             if (FIELD.matcher(id).matches()) {
                 session.put(id, null);
@@ -161,13 +178,13 @@ final class RewardSlotPages {
 
     /** Slot {@code n}'s kind, or null for an empty slot. */
     @Nullable
-    static String kindOf(@Nonnull WizardSession session, int n) {
+    public static String kindOf(@Nonnull WizardSession session, int n) {
         return Typed.blankToNull(session.value(field(n, "kind")));
     }
 
     /** Every filled slot as the row a save writes, at its place from 0. */
     @Nonnull
-    List<ClaimSlots.Slot> collect(@Nonnull WizardSession session) {
+    public List<ClaimSlots.Slot> collect(@Nonnull WizardSession session) {
         List<ClaimSlots.Slot> out = new ArrayList<>();
         for (int n = 1; n <= slots; n++) {
             String kind = kindOf(session, n);
@@ -239,7 +256,7 @@ final class RewardSlotPages {
 
     /** {@code params} as {@code Name=Value, Name=Value}. */
     @Nonnull
-    static String freeText(@Nonnull Map<String, String> params) {
+    public static String freeText(@Nonnull Map<String, String> params) {
         List<String> parts = new ArrayList<>();
         for (Map.Entry<String, String> e : params.entrySet()) {
             parts.add(e.getKey() + "=" + e.getValue());
@@ -251,7 +268,7 @@ final class RewardSlotPages {
 
     /** Why the parameters page may not be left, or null: free settings that do not read, a needed one empty. */
     @Nullable
-    Message check(@Nonnull WizardSession session) {
+    public Message check(@Nonnull WizardSession session) {
         for (int n = 1; n <= slots; n++) {
             String kind = kindOf(session, n);
             if (kind == null) {
@@ -286,7 +303,7 @@ final class RewardSlotPages {
     }
 
     /** One line per filled slot, then whether there are rewards to collect. */
-    void preview(@Nonnull WizardSession session, @Nonnull List<Message> lines) {
+    public void preview(@Nonnull WizardSession session, @Nonnull List<Message> lines) {
         int rewards = 0;
         for (int n = 1; n <= slots; n++) {
             String kind = kindOf(session, n);
@@ -302,7 +319,7 @@ final class RewardSlotPages {
     }
 
     /** On the parameters page: what each chosen kind pays and what each parameter means, as its owner says. */
-    void previewKinds(@Nonnull WizardSession session, @Nonnull List<Message> lines) {
+    public void previewKinds(@Nonnull WizardSession session, @Nonnull List<Message> lines) {
         for (int n = 1; n <= slots; n++) {
             String kind = kindOf(session, n);
             RewardParams described = kind == null ? null : described(kind);

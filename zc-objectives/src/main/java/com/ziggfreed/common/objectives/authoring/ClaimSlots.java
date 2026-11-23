@@ -82,6 +82,16 @@ public final class ClaimSlots {
         }
     }
 
+    /**
+     * One reward row as {@link #write} writes it over {@code before} (the row at its place, or null): a row of the same
+     * kind keeps every leaf and parameter the editor did not show, any other row starts afresh. For an editor whose
+     * file keeps its reward rows somewhere other than {@code Rewards.Claim} (a track's level rewards).
+     */
+    @Nonnull
+    public static JsonObject row(@Nullable JsonElement before, @Nonnull Row reward) {
+        return written(before, reward);
+    }
+
     @Nonnull
     private static JsonObject written(@Nullable JsonElement before, @Nonnull Row reward) {
         JsonObject row = before != null && before.isJsonObject()
