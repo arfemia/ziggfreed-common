@@ -754,7 +754,7 @@ public final class DialogueStructureValidator {
                             + " can never pass and its content is invisible", id));
             return;
         }
-        if (!factors.isRegistered(factorId) && !DerivedFactorConfig.getInstance().refusedByModGate(factorId)) {
+        if (!factors.isRegistered(factorId) && !DerivedFactorConfig.getInstance().isKnown(factorId)) {
             out.add(warning("FACTOR_CONDITION_UNKNOWN_FACTOR",
                     "Dialogue '" + id + "' " + where + " gates on factor '" + factorId + "', which nothing"
                             + " has registered - it fails closed, so this content stays hidden until the"

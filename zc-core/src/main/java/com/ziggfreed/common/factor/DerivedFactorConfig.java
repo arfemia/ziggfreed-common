@@ -123,6 +123,29 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
     }
 
     /**
+     * The one answer an audit reading a factor id outside a Factors file (a bonus row's chance, a
+     * conversation's {@code Factor} condition) asks before calling it unknown: a folded file defines it
+     * ({@link #formulaFor}), whether or not a registry has resolved and adopted it yet; the mod gate left it
+     * out on purpose ({@link #refusedByModGate}); or the installed vocabularies answer it
+     * ({@link #knownFactors(Predicate)}). Matched trimmed and lower-cased, as factor ids are. Never throws:
+     * a vocabulary that cannot be asked answers no.
+     */
+    public boolean isKnown(@Nullable String factorId) {
+        if (factorId == null || factorId.isBlank()) {
+            return false;
+        }
+        String key = RegistryLedger.normalize(factorId);
+        if (formulaFor(key) != null || refusedByModGate(key)) {
+            return true;
+        }
+        try {
+            return knownFactors.test(key);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
      * Audit every folded file against the installed factor vocabularies ({@link #knownFactors(Predicate)}), so a
      * term naming a factor some mod registered in code is not reported. Findings are neutral values a consumer
      * can surface in its own validation command; {@link #logFindings()} is the always-on baseline, and zc's

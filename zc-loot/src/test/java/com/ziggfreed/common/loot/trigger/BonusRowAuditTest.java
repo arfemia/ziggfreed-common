@@ -11,6 +11,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.factor.DerivedFactorAsset;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.LootGrants;
@@ -36,6 +38,7 @@ class BonusRowAuditTest {
     @AfterEach
     void reset() {
         BonusRowConfig.getInstance().mergePackLayer(Map.of());
+        DerivedFactorConfig.getInstance().mergePackLayer(Map.of());
     }
 
     private static LootRef commanding() {
@@ -96,6 +99,24 @@ class BonusRowAuditTest {
                 BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Rock_*", chance, commanding(), null))),
                 BonusRowAudit.UNKNOWN_FACTOR, "fixture_factor"));
         assertFalse(has(BonusRowAudit.auditAll(kinds, null), BonusRowAudit.UNKNOWN_FACTOR, "fixture_factor"));
+    }
+
+    /** A Factors file's factor is known before any registry resolves it; one nothing defines still warns. */
+    @Test
+    void aFactorAFactorsFileDefinesIsKnownBeforeAnyRegistryHasResolvedIt() {
+        DerivedFactorConfig.getInstance().mergePackLayer(Map.of("yourpack_luck",
+                DerivedFactorAsset.of("yourpack_luck", FactorFormula.of(1.0, null, null), null, null, null, null)));
+        FactorFormula defined = FactorFormula.of(5.0,
+                new FactorFormula.Term[] {FactorFormula.Term.of("Yourpack_Luck", null, 1.0)}, null);
+        FactorFormula undefined = FactorFormula.of(5.0,
+                new FactorFormula.Term[] {FactorFormula.Term.of("Yourpack_Nothing", null, 1.0)}, null);
+
+        List<Finding> findings = audit(Map.of(
+                "fixture_defined", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Rock_*", defined, commanding(), null),
+                "fixture_undefined", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Ore_*", undefined, commanding(), null)));
+
+        assertFalse(has(findings, BonusRowAudit.UNKNOWN_FACTOR, "fixture_defined"), findings::toString);
+        assertTrue(has(findings, BonusRowAudit.UNKNOWN_FACTOR, "fixture_undefined"), findings::toString);
     }
 
     @Test

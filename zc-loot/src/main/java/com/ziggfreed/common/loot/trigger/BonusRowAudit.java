@@ -175,7 +175,7 @@ public final class BonusRowAudit {
                 continue;
             }
             String factorId = term.getFactor();
-            if (!factors.isRegistered(factorId) && !DerivedFactorConfig.getInstance().refusedByModGate(factorId)) {
+            if (!factors.isRegistered(factorId) && !DerivedFactorConfig.getInstance().isKnown(factorId)) {
                 findings.add(Finding.warning(codes.domain(), codes.unknownFactor(),
                         "The chance reads '" + factorId + "', which nothing on this server answers, so that "
                                 + "term adds nothing. Install the mod that owns it, or remove the term and "
