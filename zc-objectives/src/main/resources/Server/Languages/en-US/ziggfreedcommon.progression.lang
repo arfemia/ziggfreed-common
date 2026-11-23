@@ -39,6 +39,8 @@ book.quests.giver_hint_plain = Accept this quest from its quest giver.
 # The headline over what a conversation's Grant or a used item's ZigGrantReward just paid, one row
 # per thing it handed over (a loot table as what it rolled), the overflow line the book's own.
 reward.received = Rewards received.
+# What a player reads when another player points a gift at them ({0} is that player's name).
+reward.given_by = {0} gave you a gift.
 
 # The NPC quest page. It reuses the book's own progress and action lines above (the lock lines are the shared ziggfreedcommon.progress ones) rather than
 # minting a second wording for the same sentence, and adds only what a screen with a character in

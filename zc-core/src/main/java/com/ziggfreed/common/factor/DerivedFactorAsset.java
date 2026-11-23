@@ -15,7 +15,9 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.text.ContentTextAsset;
 
@@ -52,6 +54,16 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * is missing, and gate on a {@code Min} when an input is what really matters. A definition that
  * reaches itself, directly or through another one, cannot resolve and fails closed;
  * {@link DerivedFactorValidator} reports the cycle at load.
+ *
+ * <h2>Gating a file on a mod (since 2.5.3)</h2>
+ *
+ * <p>A top-level {@code Requires} (the shared block, {@link GateSpec}) follows
+ * the mod gate every keyed store reads: a plain {@code hytale:mod_installed} condition with {@code Min: 1}
+ * keeps the file out where that mod is missing, and one with {@code Max: 0} where it is installed
+ * ({@link ModGates}). A factor left out this way is absent ON PURPOSE ({@link DerivedFactorConfig#refusedByModGate}):
+ * a condition on it fails closed, a formula term naming it adds 0, a lock line on it reads as not met, and
+ * no validator reports it as unknown and no resolve warns about it. Only mod presence is read there;
+ * {@link DerivedFactorValidator} reports anything else in the block as ignored.
  *
  * <h2>Naming a factor - any factor, including one a mod registered in code</h2>
  *
@@ -97,6 +109,15 @@ public final class DerivedFactorAsset
     @Nullable private String paramDataSet;
     @Nullable private Double absentReads;
     @Nullable private String volatility;
+    @Nullable private GateSpec requires;
+
+    /** The sentence the Asset Editor shows beside this store's {@code Requires} leaf. */
+    static final String REQUIRES_DOCUMENTATION = "Whether this file loads on this server at all. A condition "
+            + "{ \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } keeps the file out "
+            + "where that mod is not installed, and one with \"Max\": 0 keeps it out where that mod is installed. "
+            + "A factor left out this way is absent on purpose: a condition on it fails, a formula term naming it "
+            + "adds 0, and nothing reports it as unknown. Only mod presence is read here; anything else in the "
+            + "block is reported and ignored.";
 
     public static final AssetBuilderCodec<String, DerivedFactorAsset> CODEC = AssetBuilderCodec.builder(
                     DerivedFactorAsset.class,
@@ -166,6 +187,10 @@ public final class DerivedFactorAsset
                     + "Moment (the default) never kept. Declare Server or Player only when it is true, or a "
                     + "gate keeps a stale answer.")
             .add()
+            .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
+                    (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
+            .documentation(REQUIRES_DOCUMENTATION)
+            .add()
             .build();
 
     public DerivedFactorAsset() {
@@ -185,6 +210,27 @@ public final class DerivedFactorAsset
         a.absentReads = absentReads;
         a.volatility = volatility;
         return a;
+    }
+
+    /**
+     * The file's top-level {@code Requires}, or null when it authors none: only its plain mod-presence gate
+     * (or its {@code Max: 0} mirror) is read, at the load handler's fold ({@link GateSpec#missingMod}).
+     */
+    @Nullable
+    public GateSpec requires() {
+        return requires;
+    }
+
+    /**
+     * The block's conditions in the old presence shape.
+     *
+     * @deprecated this file's {@code Requires} is the shared block now: {@link #requires()} is it. Removed in a
+     *     later release.
+     */
+    @Deprecated(since = "2.6.0")
+    @Nullable
+    public PresenceRequiresCodec.Block getRequires() {
+        return requires == null ? null : PresenceRequiresCodec.Block.of(requires.factorsOrEmpty());
     }
 
     /** Java-side factory; sets the same fields the codec fills, every leaf optional. */

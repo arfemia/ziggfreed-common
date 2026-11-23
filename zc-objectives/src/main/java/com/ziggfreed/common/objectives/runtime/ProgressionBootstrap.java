@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.commerce.fold.CommerceAudit;
 import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.factor.CounterFactors;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.feedback.moment.FeedbackSurfaces;
@@ -73,6 +74,14 @@ public final class ProgressionBootstrap {
      * whoever keeps the tallies installs the source that answers it at its own setup.
      */
     public static void setupProgressionRuntime(@Nonnull PluginBase plugin) {
+        // The derived-factor audit asks every factor vocabulary before calling a formula term unknown. Its own
+        // guard, first: it needs nothing below, and a failure further down must not leave it unsaid.
+        try {
+            DerivedFactorConfig.getInstance().knownFactors(KnownFactors::isKnown);
+        } catch (Throwable t) {
+            SafeLog.warn("[factor] the derived-factor audit could not be told the factor vocabularies, so it asks"
+                    + " the contributions alone and may call a factor registered in code unknown", t);
+        }
         // Outside the guard: an interaction Type that fails to register throws, at setup, after its own line.
         ObjectiveBookInteractions.register(plugin);
         try {

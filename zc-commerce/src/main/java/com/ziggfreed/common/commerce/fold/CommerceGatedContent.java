@@ -87,7 +87,7 @@ public final class CommerceGatedContent {
     /** Each slot of {@code board} that opens one more posting of its band to the players who meet it. */
     static void slots(@Nonnull BoardAsset board, @Nonnull List<GatedContent.Entry> out) {
         Message place = CommerceText.title(board.getText(), CommerceText.RAW_ARGS, Msg.raw(board.getId()));
-        for (BoardSlotAsset slot : board.slotsOrEmpty()) {
+        for (BoardSlotAsset slot : board.slotsHere()) {
             GateSpec lock = slot == null ? null : slot.getRequires();
             String band = slot == null ? null : slot.label();
             if (lock == null || lock.isEmpty() || band == null || band.isBlank()) {

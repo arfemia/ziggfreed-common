@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,9 @@ import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.factor.DerivedFactorAsset;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
+import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.factor.FactorRegistry;
 
 /**
@@ -173,6 +177,26 @@ class DialogueFactorConditionTest {
         assertFalse(DialogueStructureValidator.validate(unknown).stream()
                         .anyMatch(i -> i.code().equals("FACTOR_CONDITION_UNKNOWN_FACTOR")),
                 "no registry passed means cannot tell, so the check is skipped rather than guessed at");
+    }
+
+    /** A factor a Factors file defines is known before any registry has resolved it; one nothing defines still warns. */
+    @Test
+    void validatorKnowsAFactorAFactorsFileDefinesBeforeItIsResolved() {
+        DerivedFactorConfig.getInstance().mergePackLayer(Map.of("yourpack_key",
+                DerivedFactorAsset.of("yourpack_key", FactorFormula.of(1.0, null, null), null, null, null, null)));
+        try {
+            FactorRegistry factors = new FactorRegistry();
+            DialogueEngine engine = engine(factors);
+            NpcDialogue defined = gated(engine, "{\"Type\":\"Factor\",\"Factor\":\"Yourpack_Key\",\"Min\":1}");
+            NpcDialogue undefined = gated(engine, "{\"Type\":\"Factor\",\"Factor\":\"Yourpack_Nothing\",\"Min\":1}");
+
+            assertFalse(DialogueStructureValidator.validate(defined, factors).stream()
+                    .anyMatch(i -> i.code().equals("FACTOR_CONDITION_UNKNOWN_FACTOR")));
+            assertTrue(DialogueStructureValidator.validate(undefined, factors).stream()
+                    .anyMatch(i -> i.code().equals("FACTOR_CONDITION_UNKNOWN_FACTOR")));
+        } finally {
+            DerivedFactorConfig.getInstance().mergePackLayer(Map.of());
+        }
     }
 
     @Test

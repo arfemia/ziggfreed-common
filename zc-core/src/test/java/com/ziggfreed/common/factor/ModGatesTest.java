@@ -141,6 +141,54 @@ class ModGatesTest {
                 lines, "nothing dropped says nothing");
     }
 
+    // ==================== the mirror: Max 0 drops where the mod is installed ====================
+
+    @Test
+    void aPlainMaxZeroConditionOnAnInstalledModDropsTheFileNamedWithTheMark() {
+        ModGates.useProbeForTests(param -> 1.0);
+
+        FactorCondition[] standIn = {mod(null, 0.0)};
+        assertTrue(ModGates.isAbsenceGate(standIn[0]));
+        assertFalse(ModGates.keep(standIn));
+        assertEquals(ModGates.INSTALLED_MARK + MMO, ModGates.missingMod(standIn));
+        assertTrue(ModGates.dropsWhereInstalled(ModGates.missingMod(standIn)));
+        assertFalse(ModGates.keep(new FactorCondition[] {FactorCondition.of("HYTALE:MOD_INSTALLED", " " + MMO + " ", 0.0, 0.0)}),
+                "a Min of 0 beside the Max is the same form");
+    }
+
+    @Test
+    void theStandInLoadsWhereTheModIsMissingOrCannotBeRead() {
+        assertTrue(ModGates.keep(new FactorCondition[] {mod(null, 0.0)}), "the MMO is absent here");
+        ModGates.useProbeForTests(param -> null);
+        assertTrue(ModGates.keep(new FactorCondition[] {mod(null, 0.0)}), "cannot tell keeps the file");
+    }
+
+    @Test
+    void onlyThePlainMaxBelowOneFormIsTheMirror() {
+        ModGates.useProbeForTests(param -> 1.0);
+
+        assertFalse(ModGates.isAbsenceGate(mod(null, 1.0)), "a Max of 1 passes an installed mod");
+        assertFalse(ModGates.isAbsenceGate(mod(0.5, 0.0)), "a Min above 0 is a requirement");
+        assertFalse(ModGates.isAbsenceGate(FactorCondition.of("ziggfreedcommon:feature", MMO, null, 0.0)));
+        assertTrue(ModGates.keep(new FactorCondition[] {mod(null, 1.0)}));
+        assertFalse(ModGates.isPresenceGate(mod(null, 0.0)), "the two forms never overlap");
+    }
+
+    @Test
+    void aMirrorDropHasItsOwnLineSoTheMissingModLineNeverCountsIt() {
+        List<String> lines = new ArrayList<>();
+        ModGates.reportIntoForTests(lines::add);
+
+        ModGates.reportPackFiles("Quests", List.of(ModGates.INSTALLED_MARK + MMO, MMO, ModGates.INSTALLED_MARK + MMO));
+        ModGates.reportRewardRows("Bounties", List.of(ModGates.INSTALLED_MARK + MMO));
+
+        assertEquals(List.of(
+                "[zc] mod gate: Quests dropped 1 pack file(s) gated on a missing mod (Ziggfreed:MMOSkillTree)",
+                "[zc] mod gate: Quests dropped 2 pack file(s) that load only without a mod (Ziggfreed:MMOSkillTree)",
+                "[zc] mod gate: Bounties dropped 1 reward row(s) that load only without a mod (Ziggfreed:MMOSkillTree)"),
+                lines);
+    }
+
     /** The third kind of drop line: a store's fold counts the reward rows it left out, never naming one. */
     @Test
     void aRewardRowDropIsTheThirdLineCountingTheRowsPerMissingMod() {

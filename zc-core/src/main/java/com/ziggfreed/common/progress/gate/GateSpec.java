@@ -179,8 +179,9 @@ public class GateSpec extends GateClause {
     /**
      * Does a file whose top-level block is {@code requires} load on this server? False only when a
      * plain top-level {@code hytale:mod_installed} condition with {@code Min: 1} names a mod this server
-     * does not run (zc-core {@code ModGates}); every other condition, and any nested one, is left to the
-     * fold and the gate. The keep filter a quest, achievement or commerce store's load handler passes.
+     * does not run, or its mirror with {@code Max: 0} names one it does run (zc-core {@code ModGates});
+     * every other condition, and any nested one, is left to the fold and the gate. The keep filter a quest,
+     * achievement or commerce store's load handler passes.
      */
     public static boolean passesModGate(@Nullable GateSpec requires) {
         return missingMod(requires) == null;

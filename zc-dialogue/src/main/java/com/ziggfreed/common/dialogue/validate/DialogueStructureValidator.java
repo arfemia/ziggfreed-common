@@ -37,6 +37,7 @@ import com.ziggfreed.common.dialogue.state.DialogueStateKeys;
 import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.ui.route.Destinations;
@@ -753,7 +754,7 @@ public final class DialogueStructureValidator {
                             + " can never pass and its content is invisible", id));
             return;
         }
-        if (!factors.isRegistered(factorId)) {
+        if (!factors.isRegistered(factorId) && !DerivedFactorConfig.getInstance().isKnown(factorId)) {
             out.add(warning("FACTOR_CONDITION_UNKNOWN_FACTOR",
                     "Dialogue '" + id + "' " + where + " gates on factor '" + factorId + "', which nothing"
                             + " has registered - it fails closed, so this content stays hidden until the"

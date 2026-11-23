@@ -44,10 +44,19 @@ public final class BoardAssetSpec implements BoardSpec {
         String id = asset.getId() == null ? "" : asset.getId();
         this.rotation = CommerceFold.rotation(asset.getRotation(), id);
         this.selection = CommerceFold.selection(asset.getSelection());
-        this.slots = CommerceFold.slots(asset.slotsOrEmpty());
-        this.slotGates = slotGates(asset.slotsOrEmpty());
+        BoardSlotAsset[] here = asset.slotsHere();
+        // Every authored slot left out by the mod gate posts nothing, never the unslotted draw.
+        this.slots = here.length == 0 && asset.slotsOrEmpty().length > 0
+                ? List.of(NOTHING_POSTED) : CommerceFold.slots(here);
+        this.slotGates = slotGates(here);
         this.reroll = CommerceFold.reroll(asset.getReroll(), id);
     }
+
+    /**
+     * The one slot of a board whose every authored slot the mod gate left out: optional and on a band no
+     * contract carries, so the posting stays empty instead of falling back to the unslotted draw.
+     */
+    private static final PoolSlot NOTHING_POSTED = PoolSlot.of("(no slot on this server)", null, 1, true);
 
     /** The engine view of {@code asset}. */
     @Nonnull

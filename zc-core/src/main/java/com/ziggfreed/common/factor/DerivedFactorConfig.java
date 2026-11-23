@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.progress.gate.GateEpochs;
+import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -47,9 +48,13 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
     /** The label this audit's lines carry, at every fold and in zc's boot audit. */
     public static final String LOG_LABEL = "[factor] DerivedFactor";
 
+    /** The store's contract label, which its mod-gate drop line carries ({@code [zc] mod gate: Factors ...}). */
+    public static final String MOD_GATE_STORE = "Factors";
+
     private static final DerivedFactorConfig INSTANCE = new DerivedFactorConfig();
 
     private DerivedFactorConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Nonnull
@@ -110,25 +115,85 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
     }
 
     /**
-     * Audit every folded file. Findings are neutral values a consumer can surface in its own
-     * validation command; {@link #logFindings()} is the always-on baseline. A term naming a factor
-     * contributed process-wide ({@link FactorContributions}, such as {@code ziggfreedcommon:counter}) is
-     * known; one a consumer registers only in its own registry reads as unknown here, which that consumer's
-     * {@link #audit(Predicate)} with its registry's check answers.
+     * What {@link #audit()} asks before calling a formula term's factor unknown: the installed answer of
+     * "does a factor vocabulary on this server provide this id?". The production default is the
+     * contributions a mod made ({@link FactorContributions#isContributed}); the library installs the full
+     * answer at its own setup (zc-objectives' {@code KnownFactors}: the progression runtime's vocabulary,
+     * the placement, loot and encounter vocabularies, and the contributions), which every plugin's setup has
+     * run before the first fold logs.
+     */
+    @Nonnull
+    private volatile Predicate<String> knownFactors = FactorContributions::isContributed;
+
+    /**
+     * Install what {@link #audit()} asks of a formula term's factor id (see the field); null puts the
+     * contributions-only default back. A consumer passing its own registry to {@link #audit(Predicate)}
+     * still decides for that call alone.
+     */
+    public void knownFactors(@Nullable Predicate<String> known) {
+        this.knownFactors = known == null ? FactorContributions::isContributed : known;
+    }
+
+    /**
+     * The one answer an audit reading a factor id outside a Factors file (a bonus row's chance, a
+     * conversation's {@code Factor} condition) asks before calling it unknown: a folded file defines it
+     * ({@link #formulaFor}), whether or not a registry has resolved and adopted it yet; the mod gate left it
+     * out on purpose ({@link #refusedByModGate}); or the installed vocabularies answer it
+     * ({@link #knownFactors(Predicate)}). Matched trimmed and lower-cased, as factor ids are. Never throws:
+     * a vocabulary that cannot be asked answers no.
+     */
+    public boolean isKnown(@Nullable String factorId) {
+        if (factorId == null || factorId.isBlank()) {
+            return false;
+        }
+        String key = RegistryLedger.normalize(factorId);
+        if (formulaFor(key) != null || refusedByModGate(key)) {
+            return true;
+        }
+        try {
+            return knownFactors.test(key);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * Audit every folded file against the installed factor vocabularies ({@link #knownFactors(Predicate)}), so a
+     * term naming a factor some mod registered in code is not reported. Findings are neutral values a consumer
+     * can surface in its own validation command; {@link #logFindings()} is the always-on baseline, and zc's
+     * boot audit reads this too.
      */
     @Nonnull
     public List<Finding> audit() {
-        return audit(FactorContributions::isContributed);
+        return audit(knownFactors);
     }
 
     /**
      * As {@link #audit()}, with {@code registeredElsewhere} answering "does some registry already
      * provide this factor id?" - pass a consumer's own registry check (for instance the placement
-     * vocabulary's) so a term naming a genuinely unknown factor is reported rather than assumed.
+     * vocabulary's) so a term naming a genuinely unknown factor is reported rather than assumed. A term
+     * naming a factor the mod gate left out ({@link #refusedByModGate}) is never reported.
      */
     @Nonnull
     public List<Finding> audit(@Nullable Predicate<String> registeredElsewhere) {
-        return DerivedFactorValidator.validateAssets(all(), registeredElsewhere);
+        Predicate<String> known = id -> refusedByModGate(id)
+                || (registeredElsewhere != null && registeredElsewhere.test(id));
+        return DerivedFactorValidator.validateAssets(all(), known);
+    }
+
+    /**
+     * Did the mod gate leave the factor {@code factorId} out of this server on purpose (its {@code Factors}
+     * file gates on a mod this server does not run, or on one it does with {@code Max: 0})? Such a factor is
+     * absent by design: a condition on it fails closed and a term naming it adds 0, exactly as for an id
+     * nobody defines, but a validator reports nothing about it and a resolve warns nothing. Matched trimmed
+     * and lower-cased, as factor ids are.
+     */
+    public boolean refusedByModGate(@Nullable String factorId) {
+        if (factorId == null || factorId.isBlank()) {
+            return false;
+        }
+        String key = RegistryLedger.normalize(factorId);
+        return modGateRefused().containsKey(key) && resolve(key) == null;
     }
 
     /** Log this config's findings once per fold: an error as a warning line, anything else at info. */

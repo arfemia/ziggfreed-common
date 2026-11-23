@@ -2,6 +2,7 @@ package com.ziggfreed.common.npc.placement.asset;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -10,7 +11,9 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.inventory.ItemIds;
@@ -161,6 +164,78 @@ public final class NpcPlacementValidator {
         checkPropsShape(placement, id, out);
         checkPropsOnlyNpcFields(placement, id, out);
         checkTrainerSections(placement, id, out);
+        checkSeasonsShape(placement, id, out);
+    }
+
+    /** A {@code Seasons} entry naming the same event twice is never in effect: the first one always wins. */
+    public static final String SEASONS_DUPLICATE = "SEASONS_DUPLICATE";
+
+    /** A {@code Seasons} entry's {@code Interact} written both ways, as {@code INTERACT_BOTH_FORMS} is. */
+    public static final String SEASONS_INTERACT_BOTH_FORMS = "SEASONS_INTERACT_BOTH_FORMS";
+
+    /** A {@code Seasons} entry authoring an {@code Anchor} with no group: the character stands nowhere. */
+    public static final String SEASONS_EMPTY_ANCHOR = "SEASONS_EMPTY_ANCHOR";
+
+    /** A {@code Seasons} entry's {@code Role} names a role this server has not loaded. */
+    public static final String SEASONS_UNKNOWN_ROLE = "SEASONS_UNKNOWN_ROLE";
+
+    /**
+     * Each {@code Seasons} entry's {@code Role} against the roles the server loaded (the cross-asset audit, once
+     * roles are in): a role it lacks leaves the character in its old look while that entry is in effect. A
+     * WARNING, and nothing at all where no role registry can be asked (cannot tell).
+     */
+    private static void checkSeasonRoles(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        for (NpcPlacementAsset.SeasonEntry entry : placement.getSeasons()) {
+            String role = entry.roleId();
+            if (role != null && Boolean.FALSE.equals(roleLoaded(role))) {
+                out.add(Finding.warning(DOMAIN, SEASONS_UNKNOWN_ROLE,
+                        "the Seasons entry for '" + (entry.getSeason() == null ? "all year" : entry.getSeason())
+                                + "' names the role '" + role + "', which this server has not loaded, so the "
+                                + "character keeps the look it wears while that entry is in effect", id));
+            }
+        }
+    }
+
+    /** Whether the engine loaded {@code role}; null when there is no role registry to ask. */
+    @Nullable
+    private static Boolean roleLoaded(@Nonnull String role) {
+        try {
+            NPCPlugin npc = NPCPlugin.get();
+            return npc == null ? null : npc.getIndex(role) >= 0;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * The {@code Seasons} list's own shape: a season listed twice (the later entry is never in effect) and an
+     * entry's {@code Interact} written both ways. WARNINGs: the file loads and the first entry still stands.
+     */
+    private static void checkSeasonsShape(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        Set<String> seen = new HashSet<>();
+        for (NpcPlacementAsset.SeasonEntry entry : placement.getSeasons()) {
+            String tag = entry.tag();
+            if (!seen.add(tag)) {
+                out.add(Finding.warning(DOMAIN, SEASONS_DUPLICATE,
+                        "Seasons lists '" + (entry.getSeason() == null ? "all year" : entry.getSeason())
+                                + "' more than once; only the first such entry is ever in effect", id));
+            }
+            if (entry.getAnchor() != null && entry.getAnchor().isBlank()) {
+                out.add(Finding.warning(DOMAIN, SEASONS_EMPTY_ANCHOR,
+                        "the Seasons entry for '" + (entry.getSeason() == null ? "all year" : entry.getSeason())
+                                + "' authors an Anchor with no group in it, so while it is in effect the copy at "
+                                + "the file's spot goes and none stands anywhere. Author a group, or leave Anchor "
+                                + "out to keep the file's", id));
+            }
+            if (entry.getInteract() != null && entry.getInteract().hasBothForms()) {
+                out.add(Finding.warning(DOMAIN, SEASONS_INTERACT_BOTH_FORMS,
+                        "the Seasons entry for '" + (entry.getSeason() == null ? "all year" : entry.getSeason())
+                                + "' authors both Interact.Dialogue and "
+                                + "Interact.Open; Open is what runs", id));
+            }
+        }
     }
 
     private static void validateCrossAsset(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
@@ -169,6 +244,10 @@ public final class NpcPlacementValidator {
         checkAnchorProvider(placement, id, out);
         checkRequiresFactors(placement, id, out);
         SeasonGate.checkKnown(out, DOMAIN, placement.getSeason(), id);
+        for (NpcPlacementAsset.SeasonEntry entry : placement.getSeasons()) {
+            SeasonGate.checkKnown(out, DOMAIN, entry.getSeason(), id);
+        }
+        checkSeasonRoles(placement, id, out);
         checkChanceFormulaFactors(placement, id, out);
         checkDestinationParams(placement, id, out);
         checkDialogueExists(placement, id, out);
@@ -426,7 +505,8 @@ public final class NpcPlacementValidator {
             if (condition == null || condition.isBlank()) {
                 continue;
             }
-            if (!PlacementFactorRegistry.isRegistered(condition.getFactor())) {
+            if (!PlacementFactorRegistry.isRegistered(condition.getFactor())
+                    && !DerivedFactorConfig.getInstance().isKnown(condition.getFactor())) {
                 out.add(Finding.warning(DOMAIN, "UNREGISTERED_FACTOR",
                         "no provider is registered for factor '" + condition.getFactor()
                                 + "'. It cannot resolve and the gate fails closed, so this placement will not "
@@ -501,7 +581,8 @@ public final class NpcPlacementValidator {
             if (term == null || term.isBlank()) {
                 continue;
             }
-            if (!PlacementFactorRegistry.isRegistered(term.getFactor())) {
+            if (!PlacementFactorRegistry.isRegistered(term.getFactor())
+                    && !DerivedFactorConfig.getInstance().isKnown(term.getFactor())) {
                 out.add(Finding.warning(DOMAIN, "UNREGISTERED_FACTOR",
                         "Limits.ChanceFormula reads the factor '" + term.getFactor() + "', which no provider is "
                                 + "registered for. It contributes 0 to the chance rather than voiding it, so "
@@ -552,7 +633,15 @@ public final class NpcPlacementValidator {
      */
     private static void checkDialogueExists(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
             @Nonnull List<Finding> out) {
-        NpcPlacementAsset.Interact interact = placement.getInteract();
+        checkDialogueExists(placement.getInteract(), id, out);
+        for (NpcPlacementAsset.SeasonEntry entry : placement.getSeasons()) {
+            checkDialogueExists(entry.getInteract(), id, out);
+        }
+    }
+
+    /** {@link #checkDialogueExists(NpcPlacementAsset, String, List)} for one {@code Interact} group. */
+    private static void checkDialogueExists(@Nullable NpcPlacementAsset.Interact interact, @Nonnull String id,
+            @Nonnull List<Finding> out) {
         Destination destination = interact == null ? null : interact.destination();
         if (!(destination instanceof NpcDestinations.Dialogue conversation)) {
             return;

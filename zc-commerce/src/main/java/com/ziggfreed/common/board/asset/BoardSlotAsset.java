@@ -48,8 +48,10 @@ public final class BoardSlotAsset extends SlotAsset {
                             + "whatever band it carries. The board is drawn for the whole server, so the slot is "
                             + "always posted; a player who fails this sees its contract locked with the reason. "
                             + "The ordinary Requires block, checked after the board's own and the band's "
-                            + "AcceptRequires, and a lock only: nothing here hides the slot. Unauthored asks for "
-                            + "nothing.").add()
+                            + "AcceptRequires, and a lock only, with one exception: a plain hytale:mod_installed "
+                            + "condition at its top level (Min 1, or Max 0) leaves the slot off the board where "
+                            + "it does not fit, so a slot for servers without a mod is never posted where that "
+                            + "mod is installed. Unauthored asks for nothing.").add()
                     .build();
 
     public BoardSlotAsset() {
@@ -76,6 +78,15 @@ public final class BoardSlotAsset extends SlotAsset {
     @Nullable
     public GateSpec getRequires() {
         return requires;
+    }
+
+    /**
+     * Does this slot stand on THIS server's board: its own {@code Requires} carries no plain mod gate the way it
+     * does not fit here (a {@code Min: 1} condition on a missing mod, a {@code Max: 0} one on an installed mod)?
+     * The one read {@code BoardAsset.slotsHere} and the board audit share.
+     */
+    public boolean passesModGate() {
+        return GateSpec.missingMod(requires) == null;
     }
 
     /** The candidate label this slot posts, lower-cased for matching, or null for anything. */

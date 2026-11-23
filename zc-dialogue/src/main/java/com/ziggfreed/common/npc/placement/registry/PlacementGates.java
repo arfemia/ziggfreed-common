@@ -13,7 +13,6 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
 import com.ziggfreed.common.npc.placement.registry.PlacementGate.GateContext;
 import com.ziggfreed.common.npc.placement.registry.PlacementGate.GateVerdict;
-import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -59,8 +58,9 @@ public final class PlacementGates {
                 : GateVerdict.deny(REASON_OWNER_OVERRIDE));
         // 3. The Season leaf: a placement of a calendar event stands only while that event runs, read
         //    live through zc-core's SeasonGate (the reading a <Id>_Live hide gate gets), so the
-        //    calendar's forced start and end sweeps move it with nothing cached.
-        GATES.add(ctx -> SeasonGate.live(ctx.placement().getSeason())
+        //    calendar's forced start and end sweeps move it with nothing cached. A placement listing
+        //    Seasons stands while any listed event runs, and its own Season is not read.
+        GATES.add(ctx -> ctx.placement().inSeason()
                 ? GateVerdict.allow()
                 : GateVerdict.deny(REASON_SEASON));
         // 4. The authored Requires block, resolved through the open factor vocabulary. It sits in

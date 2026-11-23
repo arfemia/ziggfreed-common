@@ -367,6 +367,27 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return slots == null ? new BoardSlotAsset[0] : slots;
     }
 
+    /**
+     * The slots that stand on THIS server, in authored order: {@link #slotsOrEmpty()} less every slot whose
+     * own {@code Requires} carries the plain mod gate the way it does not fit here (a {@code Min: 1}
+     * condition on a missing mod, or a {@code Max: 0} one on an installed mod, zc-core {@code ModGates}), so a
+     * stand-in slot for a missing mod is never posted, nor shown locked, where that mod runs. What the draw
+     * and every surface read; the validator reads the authored list. A slot left out is never counted in a
+     * log line. When every authored slot is left out, the answer is empty and the engine view posts nothing
+     * ({@code BoardAssetSpec}), never the unslotted draw.
+     */
+    @Nonnull
+    public BoardSlotAsset[] slotsHere() {
+        BoardSlotAsset[] authored = slotsOrEmpty();
+        List<BoardSlotAsset> kept = new ArrayList<>(authored.length);
+        for (BoardSlotAsset slot : authored) {
+            if (slot == null || slot.passesModGate()) {
+                kept.add(slot);
+            }
+        }
+        return kept.size() == authored.length ? authored : kept.toArray(new BoardSlotAsset[0]);
+    }
+
     /** The header's wallets, ids lower-cased, blanks dropped, in authored order. */
     @Nonnull
     public List<String> currencyIds() {

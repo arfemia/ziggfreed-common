@@ -24,6 +24,7 @@ import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
 import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.instance.hub.HubDistrictConfig;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.trigger.BonusRowConfig;
@@ -60,7 +61,7 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * DialogueExtensions and Dialogues (a line gates on its own {@code Conditions}); Instances, RollPools, DropRarities,
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
  * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, DungeonRooms, DungeonLayouts, DungeonOmens, RewardChests,
- * DialogueOptionTheme, NpcIdentities, Factors,
+ * DialogueOptionTheme, NpcIdentities,
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
  * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
  * where its mod is missing, asked of each viewer otherwise), ShopPools, EncounterBindings,
@@ -116,6 +117,8 @@ class FrameworkModGateWiringTest {
         GATED.put("HubDistrictAsset",
                 new Gated("HubDistricts", "HubDistrictConfig", HubDistrictConfig.MOD_GATE_STORE));
         GATED.put("OwnerFormAsset", new Gated("OwnerForms", "OwnerFormConfig", OwnerFormConfig.MOD_GATE_STORE));
+        GATED.put("DerivedFactorAsset",
+                new Gated("Factors", "DerivedFactorConfig", DerivedFactorConfig.MOD_GATE_STORE));
     }
 
     /**
@@ -187,7 +190,7 @@ class FrameworkModGateWiringTest {
 
     /** The gated stores that keep no owner file, so there is no owner reader to wire. */
     private static final Set<String> NO_OWNER_FILE =
-            Set.of("LootableAsset", "AchievementAsset", "ShopEntryAsset", "BountyAsset");
+            Set.of("LootableAsset", "AchievementAsset", "ShopEntryAsset", "BountyAsset", "DerivedFactorAsset");
 
     private static final Path QUEST_STORE = module("zc-progression", "quest", "asset", "QuestAssetStore.java");
 
@@ -285,6 +288,7 @@ class FrameworkModGateWiringTest {
         assertEquals("HeldEffects", HeldEffectConfig.getInstance().modGateStore());
         assertEquals("HubDistricts", HubDistrictConfig.getInstance().modGateStore());
         assertEquals("OwnerForms", OwnerFormConfig.getInstance().modGateStore());
+        assertEquals("Factors", DerivedFactorConfig.getInstance().modGateStore());
     }
 
     @Test

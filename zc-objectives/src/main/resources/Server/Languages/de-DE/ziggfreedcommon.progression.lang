@@ -30,6 +30,7 @@ book.toast.turn_in_failed = Das kann hier nicht abgegeben werden.
 book.quests.giver_hint = Nimm diese Quest bei {0} an.
 book.quests.giver_hint_plain = Nimm diese Quest bei ihrem Questgeber an.
 reward.received = Belohnungen erhalten.
+reward.given_by = {0} hat dir ein Geschenk gemacht.
 
 npcquests.title.none = Quests
 npcquests.count = Quests: {0}

@@ -30,15 +30,17 @@ public final class StoreGates {
     public static final String DOCUMENTATION = "What a player must meet for this file to pay or apply, in the "
             + "Requires shape quests use (Factors, Permission, Quests, Custom, AllOf, AnyOf, Not), every "
             + "condition read. A plain { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } "
-            + "keeps the file out entirely where that mod is not installed; the rest is asked of the player each "
+            + "keeps the file out entirely where that mod is not installed, and one with \"Max\": 0 keeps it out where "
+            + "that mod IS installed (a stand-in for servers without it); the rest is asked of the player each "
             + "time. Write Min 1 on a presence check: a condition with no bound is met by a missing mod too.";
 
     /** The sentence the Asset Editor shows beside a reward row's own {@code Requires}. */
     public static final String ROW_DOCUMENTATION = "What a player must meet for this reward row to pay, in the "
             + "Requires shape quests use, every condition read. A plain { \"Factor\": \"hytale:mod_installed\", "
             + "\"Param\": \"Group:Name\", \"Min\": 1 } leaves the row out where that mod is not installed (it pays "
-            + "nothing, shows nowhere and is not reported); the rest is asked of the player when the row pays, and a "
-            + "row they do not meet pays them nothing while the rest of the list pays as written.";
+            + "nothing, shows nowhere and is not reported), and one with \"Max\": 0 leaves it out where that mod IS "
+            + "installed (a stand-in for servers without it); the rest is asked of the player when the row pays, and "
+            + "a row they do not meet pays them nothing while the rest of the list pays as written.";
 
     /** The last list each store reported, so a refold with nothing new says nothing again. */
     private static final Map<String, List<String>> REPORTED = new ConcurrentHashMap<>();

@@ -646,6 +646,9 @@ public final class NpcPlacementReconciler {
         // factor provider, and running that per entity inside a parallel iteration would be both
         // wasteful and a needless invitation for third-party code to touch the store mid-walk.
         Map<String, Boolean> standingAllowed = new ConcurrentHashMap<>();
+        // A placement listing Seasons: the anchor tag its entry in effect stands under ("" for the file's own
+        // anchor). A copy standing under another tag is an earlier season's, left at its old spot.
+        Map<String, String> seasonTags = new ConcurrentHashMap<>();
         for (NpcPlacementAsset placement : config.all().values()) {
             if (placement == null || placement.getId() == null) {
                 continue;
@@ -653,6 +656,9 @@ public final class NpcPlacementReconciler {
             boolean allowed = !PlacementGates.decide(placement, world, store).isDenied()
                     && matchesWorld(placement, world);
             standingAllowed.put(placement.getId(), allowed);
+            if (placement.hasSeasons()) {
+                seasonTags.put(placement.getId(), seasonTagKey(placement.inEffect().anchorTag()));
+            }
         }
 
         try {
@@ -671,8 +677,13 @@ public final class NpcPlacementReconciler {
                     Boolean allowed = standingAllowed.get(identity.placementId());
                     boolean known = allowed != null;
                     // The gate and the world match are folded into one pre-resolved boolean, since
-                    // both inputs carry it; the pure core still distinguishes "unknown".
-                    boolean instanceStillValid = known && allowed;
+                    // both inputs carry it; the pure core still distinguishes "unknown". A Seasons
+                    // placement's copy also has to stand under the tag of the entry in effect.
+                    // A tag no current entry carries (an entry renamed or dropped) is never wanted: that copy goes.
+                    String wantedTag = seasonTags.get(identity.placementId());
+                    boolean instanceStillValid = known && allowed
+                            && (wantedTag == null || wantedTag.equals(
+                                    seasonTagKey(NpcPlacementAsset.anchorTagOf(identity.anchorKey()))));
 
                     // Identity, not existence: TWO stamped entities can share one (placement,
                     // anchor) after an earlier REPLACE, and a mere hasRow() would call both of
@@ -742,8 +753,11 @@ public final class NpcPlacementReconciler {
         // so it gets its cached position, its keep-alive pin and its Fortify here. World thread, in the
         // sweep's world task, outside the walk; each step is idempotent.
         for (AdoptedRow row : upkeepRows(new ArrayList<>(kept), plan)) {
-            NpcPlacementService.upkeep(world, store, worldName, config.resolve(row.placementId()),
+            NpcPlacementAsset placement = config.resolve(row.placementId());
+            NpcPlacementService.upkeep(world, store, worldName, placement,
                     row.placementId(), row.anchorKey(), row.uuid());
+            // A Seasons placement's copy wears the role of the entry in effect (a role change in place).
+            PlacementLooks.wear(store, row.uuid(), placement);
         }
 
         // Bookkeeping happens OUTSIDE the iteration: dropping a ledger row writes a file, and the
@@ -817,10 +831,12 @@ public final class NpcPlacementReconciler {
         Map<String, PlacementProps.Want> wantedProps = new LinkedHashMap<>();
         // Placements this round could not decide (no position yet, a failure): their standing props stay.
         Set<String> undecidedProps = new HashSet<>();
-        for (NpcPlacementAsset placement : NpcPlacementConfig.getInstance().all().values()) {
-            if (placement == null || placement.getId() == null || placement.getId().isBlank()) {
+        for (NpcPlacementAsset file : NpcPlacementConfig.getInstance().all().values()) {
+            if (file == null || file.getId() == null || file.getId().isBlank()) {
                 continue;
             }
+            // What stands, where and with which props: the Seasons entry in effect where the file lists any.
+            NpcPlacementAsset placement = file.inEffect();
             String placementId = placement.getId();
             boolean propOnly = placement.hasProps() && NpcPlacementService.roleFor(placement) == null;
             try {
@@ -985,6 +1001,12 @@ public final class NpcPlacementReconciler {
      * layer, the same way any other leaf is overridden.
      */
     public static final String DEFAULT_WORLD_NAME = "default";
+
+    /** An anchor tag as the despawn pass compares it: the tag, or "" for the file's own (untagged) anchor. */
+    @Nonnull
+    static String seasonTagKey(@Nullable String tag) {
+        return tag == null ? "" : tag;
+    }
 
     private static boolean isResident(@Nonnull Store<EntityStore> store, @Nullable UUID uuid) {
         if (uuid == null) {

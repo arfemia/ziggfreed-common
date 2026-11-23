@@ -176,7 +176,10 @@ public final class BoardValidator {
                         "a slot asks for " + authoredCount + " contracts, which is read as 1; drop the slot "
                                 + "when you mean it to post nothing", id));
             }
-            if (!slot.isOptional()) {
+            // A slot the mod gate leaves off the board on this server (BoardAsset.slotsHere) posts nothing here, so
+            // it is never audited for fill; its band still counts as one the board can post, for the Grades check.
+            boolean leftOut = !slot.passesModGate();
+            if (!slot.isOptional() && !leftOut) {
                 required += slot.countOrOne();
             }
             String band = slot.label();
@@ -184,6 +187,9 @@ public final class BoardValidator {
                 continue;
             }
             slotBands.add(band);
+            if (leftOut) {
+                continue;
+            }
             int available = bands.getOrDefault(band, 0);
             if (available == 0 && slot.isOptional()) {
                 // Optional is for a band only some servers fill (a companion mod's contracts): a note, not an error.

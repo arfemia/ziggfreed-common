@@ -13,6 +13,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.validation.Finding;
 
@@ -75,6 +76,7 @@ public final class DerivedFactorValidator {
                         "Volatility '" + volatility + "' is not Server, Player or Moment, so it reads as Moment "
                                 + "and no gate keeps an answer over this factor", id));
             }
+            checkRequires(id, asset, out);
             if (asset.isOverlay() && asset.getFormula() != null) {
                 out.add(Finding.error(DOMAIN, "FACTOR_AND_FORMULA",
                         "this file carries both a Factor target and a Formula, which address two different "
@@ -108,6 +110,44 @@ public final class DerivedFactorValidator {
         }
         return out;
     }
+
+    /**
+     * A {@code Factors} file's {@code Requires} reads mod presence alone, at the load handler's fold: any
+     * other condition there (a level, a feature, a bounds-less presence check) or any other leaf or group of
+     * the block ({@code Permission}, {@code Quests}, {@code Custom}, {@code AllOf}, {@code AnyOf},
+     * {@code Not}) is never asked, so it is reported once per file rather than read as a restriction it is not.
+     */
+    private static void checkRequires(@Nonnull String id, @Nonnull DerivedFactorAsset asset,
+            @Nonnull List<Finding> out) {
+        GateSpec requires = asset.requires();
+        if (requires == null) {
+            return;
+        }
+        for (FactorCondition condition : requires.factorsOrEmpty()) {
+            if (condition != null && !condition.isBlank() && !ModGates.isPresenceGate(condition)
+                    && !ModGates.isAbsenceGate(condition)) {
+                out.add(Finding.warning(DOMAIN, REQUIRES_CONDITION_IGNORED,
+                        "Requires names '" + condition.getFactor() + "', which a Factors file never asks: only a "
+                                + "plain hytale:mod_installed condition (Min 1, or Max 0) decides whether the "
+                                + "file loads, so this condition is ignored", id));
+                return;
+            }
+        }
+        boolean otherLeaf = (requires.getPermission() != null && !requires.getPermission().isBlank())
+                || requires.questsOrEmpty().length > 0 || !requires.customOrEmpty().isEmpty()
+                || requires.allOfOrEmpty().length > 0 || requires.anyOfOrEmpty().length > 0
+                || requires.notOrEmpty().length > 0;
+        if (otherLeaf) {
+            out.add(Finding.warning(DOMAIN, REQUIRES_CONDITION_IGNORED,
+                    "Requires authors more than its top-level Factors (a Permission, Quests, Custom, AllOf, "
+                            + "AnyOf or Not), which a Factors file never asks: only a plain hytale:mod_installed "
+                            + "condition (Min 1, or Max 0) decides whether the file loads, so the rest is ignored",
+                    id));
+        }
+    }
+
+    /** A {@code Factors} file's {@code Requires} names a condition other than the plain mod gate. */
+    public static final String REQUIRES_CONDITION_IGNORED = "REQUIRES_CONDITION_IGNORED";
 
     /** As {@link #validateAll(Map, Predicate)} with no knowledge of any registry's ids. */
     @Nonnull

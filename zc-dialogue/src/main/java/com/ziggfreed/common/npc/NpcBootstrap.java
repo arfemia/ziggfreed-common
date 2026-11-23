@@ -21,6 +21,7 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
 import com.ziggfreed.common.npc.placement.runtime.NpcPlacementReconciler;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.runtime.PlacementFortifySystem;
+import com.ziggfreed.common.npc.placement.runtime.PlacementLooks;
 import com.ziggfreed.common.npc.placement.runtime.PlacementWorlds;
 import com.ziggfreed.common.npc.placement.runtime.PropSectionWatch;
 import com.ziggfreed.common.npc.placement.anchor.PlacementMarkerSystem;
@@ -71,6 +72,13 @@ public final class NpcBootstrap {
                 } catch (Throwable t) {
                     SafeLog.warn("[placement] could not register the Fortify system: placed NPCs get their"
                             + " Fortify bonus only from the sweep's upkeep", t);
+                }
+                // A Seasons placement's NPC coming back (a boot, a chunk loading) wears the season in effect.
+                try {
+                    plugin.getEntityStoreRegistry().registerSystem(new PlacementLooks.OnLoad(placedType));
+                } catch (Throwable t) {
+                    SafeLog.warn("[placement] could not register the seasonal look check: a seasonal NPC changes"
+                            + " its look only at a sweep", t);
                 }
             }
             PlacementNpcActions.register();

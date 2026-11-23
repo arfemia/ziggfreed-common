@@ -60,6 +60,12 @@ public final class InteractionRewards {
     /** The receipt toast's headline ("Rewards received."), in {@code ziggfreedcommon.progression.lang}. */
     static final String RECEIVED_KEY = "reward.received";
 
+    /**
+     * What a player paid by another player's use reads ("{0} gave you a gift."), in
+     * {@code ziggfreedcommon.progression.lang}: a {@code ZigGrantReward} with {@code PayTarget}.
+     */
+    static final String GIVEN_BY_KEY = "reward.given_by";
+
     private InteractionRewards() {
     }
 
@@ -171,6 +177,15 @@ public final class InteractionRewards {
     @Nonnull
     public static Consumer<ToastSpec> toPlayer(@Nonnull PlayerRef playerRef) {
         return toast -> ToastDelivery.deliverWhenSettled(playerRef, toast, InteractionRewards::more);
+    }
+
+    /**
+     * The line a player paid by another player's use reads, naming that player as the argument (a player's
+     * name is never translated).
+     */
+    @Nonnull
+    public static Message givenBy(@Nullable String giverName) {
+        return Msg.tr(PREFIX, DOMAIN + GIVEN_BY_KEY, giverName == null ? "" : giverName.trim());
     }
 
     /** "+N more", the book's own overflow line. */

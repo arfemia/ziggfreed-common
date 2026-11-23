@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -82,6 +83,9 @@ import com.ziggfreed.common.world.WorldSelector;
  *       {@link FactorCondition}); it feeds the same gate chain an admin override does.</li>
  *   <li><b>{@code Season}</b> - the calendar event it stands for; outside that event's run it is not
  *       placed, and a standing NPC is despawned on the next sweep.</li>
+ *   <li><b>{@link SeasonEntry Seasons}</b> (since 2.5.3) - one character through several events, each
+ *       entry with its own look, conversation, spot and props; the first entry whose event runs is in
+ *       effect ({@link #inEffect()}), and the list replaces {@code Season} as the season gate.</li>
  *   <li><b>{@link Limits}</b> - how many, and how likely.</li>
  *   <li><b>{@link Lifecycle}</b> - what happens to it afterwards. Every knob is OPT-IN and
  *       defaults false, because each one costs something (a pinned chunk, a re-place, a health
@@ -119,6 +123,13 @@ public final class NpcPlacementAsset
     @Nullable private Prop[] props;
     @Nullable private Trainer trainer;
     @Nullable private String season;
+    @Nullable private SeasonEntry[] seasons;
+
+    /**
+     * Set only on a view {@link #inEffect()} builds from an entry with an {@code Anchor} of its own: the tag its
+     * anchor keys carry, so that entry's standing is its own instance. Never decoded, never encoded.
+     */
+    @Nullable private String anchorTag;
 
     public static final AssetBuilderCodec<String, NpcPlacementAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     NpcPlacementAsset.class,
@@ -197,6 +208,19 @@ public final class NpcPlacementAsset
                     + "whose Where names this placement, the quests this character gives, and a respec for each "
                     + "track it teaches. Open the page with the Trainer destination (a conversation's Open, or this "
                     + "placement's Interact) or the ZigOpenTrainer interaction.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Seasons", new ArrayCodec<>(SeasonEntry.CODEC, SeasonEntry[]::new), false),
+                    (a, v) -> a.seasons = v, a -> a.seasons, (a, p) -> a.seasons = p.seasons)
+            .documentation("One character through several calendar events: each entry names an event (Season) "
+                    + "and, for while it is the entry in effect, its own Role (the look), Interact (what press-F "
+                    + "opens), Anchor (where it stands) and Props. The entry in effect is the first one, in list "
+                    + "order, whose event is running; a leaf it leaves out reads this file's own. With at least "
+                    + "one entry the NPC stands while any listed event runs, and this file's own Season is not "
+                    + "read. The character's id never changes (Identity.NpcId, else this file's Identity.Role), "
+                    + "so quests and talk steps find it in every season. A new Role changes the standing NPC in "
+                    + "place; a new Anchor stands it at the new spot instead of the old one. Both happen when an "
+                    + "event starts or ends and when the NPC is loaded, with no restart. Authoring this "
+                    + "replaces the parent's whole list.")
             .add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
@@ -243,7 +267,10 @@ public final class NpcPlacementAsset
         return enabled == null || enabled;
     }
 
-    /** The calendar event this placement stands for, trimmed, or null when it stands all year. */
+    /**
+     * The calendar event this placement stands for, trimmed, or null when it stands all year. Not the season
+     * gate when {@code Seasons} lists an entry ({@link #inSeason()} reads the list then).
+     */
     @Nullable
     public String getSeason() {
         return SeasonGate.normalize(season);
@@ -311,6 +338,182 @@ public final class NpcPlacementAsset
     /** True when this placement authors a trainer block (whether it stands right now is the gates' to say). */
     public boolean isTrainer() {
         return trainer != null;
+    }
+
+    // ==================== Seasons ====================
+
+    /** The authored {@code Seasons} entries, in list order (a null entry dropped); empty when it lists none. */
+    @Nonnull
+    public List<SeasonEntry> getSeasons() {
+        if (seasons == null || seasons.length == 0) {
+            return List.of();
+        }
+        List<SeasonEntry> out = new ArrayList<>(seasons.length);
+        for (SeasonEntry entry : seasons) {
+            if (entry != null) {
+                out.add(entry);
+            }
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /** True when {@code Seasons} lists at least one entry, so it, not {@code Season}, decides when this stands. */
+    public boolean hasSeasons() {
+        if (seasons == null) {
+            return false;
+        }
+        for (SeasonEntry entry : seasons) {
+            if (entry != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The {@code Seasons} entry in effect right now: the first, in list order, whose calendar event is running
+     * (zc-core {@code SeasonGate}, a blank one always); null when the placement lists none or none runs.
+     */
+    @Nullable
+    public SeasonEntry activeSeason() {
+        if (seasons == null) {
+            return null;
+        }
+        for (SeasonEntry entry : seasons) {
+            if (entry != null && SeasonGate.live(entry.getSeason())) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Is this placement's season running: with {@code Seasons}, any listed entry's event; otherwise its own
+     * {@code Season} leaf (blank is all year). The season gate's one read.
+     */
+    public boolean inSeason() {
+        return hasSeasons() ? activeSeason() != null : SeasonGate.live(getSeason());
+    }
+
+    /**
+     * This placement as it stands RIGHT NOW. Itself, unless {@code Seasons} has an entry in effect
+     * ({@link #activeSeason()}); then a view whose {@code Role}, {@code Interact}, {@code Anchor} and
+     * {@code Props} are that entry's where it authors them and this file's where it does not. Each is
+     * replaced whole, never merged (an anchor is a set of places, so a merged one would stand the NPC at
+     * both). The view keeps every other leaf, and its {@code Identity.NpcId} is always the character's own
+     * (this file's {@code NpcId}, else its {@code Role}), so a season's role never changes who stands here.
+     * An entry with its own {@code Anchor} tags the view ({@link #anchorTag()}), and every position its
+     * anchor resolves carries the tag, so that season's standing is an instance of its own.
+     *
+     * <p>What the sweep places, what press-F opens and what a standing NPC should wear all read this view;
+     * the identity index, the audit and the owner switch read the file. A fresh view per call: cheap, and
+     * read live, so a season starting or ending needs nothing cached dropped.
+     */
+    @Nonnull
+    public NpcPlacementAsset inEffect() {
+        SeasonEntry entry = activeSeason();
+        String role = entry == null ? null : entry.roleId();
+        if (entry == null || (role == null && entry.interact == null && entry.anchor == null && entry.props == null)) {
+            return this;
+        }
+        NpcPlacementAsset view = copy();
+        if (role != null) {
+            String npcId = identity == null ? null : identity.npcId;
+            if (npcId == null || npcId.isBlank()) {
+                npcId = identity == null ? null : identity.role;
+            }
+            view.identity = Identity.of(role, npcId, identity == null ? null : identity.aliases);
+        }
+        if (entry.interact != null) {
+            view.interact = entry.interact;
+        }
+        if (entry.anchor != null) {
+            view.anchor = entry.anchor;
+            view.anchorTag = entry.tag();
+        }
+        if (entry.props != null) {
+            view.props = entry.props;
+        }
+        return view;
+    }
+
+    /**
+     * The tag this view's anchor keys carry: the entry's, when the {@code Seasons} entry in effect authors an
+     * {@code Anchor} of its own; null when the file's own anchor stands (the file itself, or a view whose entry
+     * keeps it).
+     */
+    @Nullable
+    public String anchorTag() {
+        return anchorTag;
+    }
+
+    /**
+     * Does a standing instance keyed {@code anchorKey} belong to this placement as it stands now? Always
+     * true without {@code Seasons}; with them, true exactly when the key carries the tag the entry in effect
+     * stands under ({@link #anchorTagOf}), so a copy left at a season's old spot is taken away at the switch,
+     * and so is a copy under a tag no entry carries any more (an entry renamed, dropped or stripped of its
+     * {@code Anchor} by a pack update). Never asks whether the anchor resolves (absence proves nothing here
+     * either).
+     */
+    public boolean ownsAnchorKey(@Nullable String anchorKey) {
+        if (!hasSeasons()) {
+            return true;
+        }
+        return Objects.equals(anchorTagOf(anchorKey), inEffect().anchorTag());
+    }
+
+    /**
+     * The season tag an anchor key carries ({@code worldspawn:@christmas~0} carries {@code christmas}), or null
+     * for an untagged key, the file's own anchor. A key is tagged only when its instance id opens with
+     * {@link SeasonEntry#TAG_MARK} and holds {@link SeasonEntry#TAG_SEPARATOR}, so an ordinary id holding the
+     * separator stays untagged, and a tag no current entry carries still reads as a tag (a copy nobody owns).
+     * PURE.
+     */
+    @Nullable
+    public static String anchorTagOf(@Nullable String anchorKey) {
+        if (anchorKey == null) {
+            return null;
+        }
+        int mark = anchorKey.indexOf(':') + 1;
+        if (mark >= anchorKey.length() || anchorKey.charAt(mark) != SeasonEntry.TAG_MARK) {
+            return null;
+        }
+        int tilde = anchorKey.indexOf(SeasonEntry.TAG_SEPARATOR, mark + 1);
+        return tilde < 0 ? null : anchorKey.substring(mark + 1, tilde);
+    }
+
+    /**
+     * A copy of this placement listing {@code entries} as its {@code Seasons} (Java-side construction: tests,
+     * a consumer building a placement in code).
+     */
+    @Nonnull
+    public NpcPlacementAsset withSeasons(@Nullable SeasonEntry... entries) {
+        NpcPlacementAsset copy = copy();
+        copy.seasons = entries == null ? null : entries.clone();
+        copy.anchorTag = null;
+        return copy;
+    }
+
+    /** A shallow copy, every field shared. */
+    @Nonnull
+    private NpcPlacementAsset copy() {
+        NpcPlacementAsset copy = new NpcPlacementAsset();
+        copy.id = id;
+        copy.data = data;
+        copy.enabled = enabled;
+        copy.identity = identity;
+        copy.where = where;
+        copy.anchor = anchor;
+        copy.requires = requires;
+        copy.limits = limits;
+        copy.lifecycle = lifecycle;
+        copy.interact = interact;
+        copy.props = props;
+        copy.trainer = trainer;
+        copy.season = season;
+        copy.seasons = seasons;
+        copy.anchorTag = anchorTag;
+        return copy;
     }
 
     // ==================== Identity ====================
@@ -1414,6 +1617,136 @@ public final class NpcPlacementAsset
                 }
             }
             return List.copyOf(out.values());
+        }
+    }
+
+    // ==================== SeasonEntry ====================
+
+    /**
+     * One entry of {@code Seasons}: a calendar event, and what this placement stands as while that entry is
+     * the one in effect ({@link NpcPlacementAsset#inEffect()}).
+     *
+     * <pre>{@code
+     * "Seasons": [
+     *   { "Season": "Yourpack_Autumn_Fair" },
+     *   { "Season": "Yourpack_Winter_Fair", "Role": "Yourpack_Miller_Winter",
+     *     "Interact": { "Dialogue": "Yourpack_Miller_Winter" },
+     *     "Anchor": { "WorldSpawn": { "Offset": { "X": -18, "Z": -8 } } } } ]
+     * }</pre>
+     *
+     * <p>Every leaf but {@code Season} is optional and, authored, replaces the file's own leaf of that name
+     * whole. A blank {@code Season} is in effect all year: a fallback at the end of the list.
+     */
+    public static final class SeasonEntry {
+
+        /** What separates an entry's tag from the anchor's own instance id inside an anchor key. */
+        public static final char TAG_SEPARATOR = '~';
+
+        /**
+         * What opens a tagged instance id ({@code worldspawn:@christmas~0}): a tag reads only from an instance
+         * id that starts with it, so an ordinary id holding the separator is never mistaken for one.
+         */
+        public static final char TAG_MARK = '@';
+
+        /** The tag of an entry whose {@code Season} is blank (in effect all year). */
+        public static final String ALL_YEAR_TAG = "all_year";
+
+        @Nullable protected String season;
+        @Nullable protected String role;
+        @Nullable protected Interact interact;
+        @Nullable protected Anchor anchor;
+        @Nullable protected Prop[] props;
+
+        public static final BuilderCodec<SeasonEntry> CODEC = SeasonLeaf.append(
+                BuilderCodec.builder(SeasonEntry.class, SeasonEntry::new)
+                        .appendInherited(new KeyedCodec<>("Role", Codec.STRING, false),
+                                (o, v) -> o.role = v, o -> o.role, (o, p) -> o.role = p.role)
+                        .documentation("The NPC role this character wears while this entry is in effect: its "
+                                + "look, nameplate and what it holds. The standing NPC changes role in place, "
+                                + "keeping who it is. Leave it out to keep the file's Identity.Role.").add()
+                        .appendInherited(new KeyedCodec<>("Interact", Interact.CODEC, false),
+                                (o, v) -> o.interact = v, o -> o.interact, (o, p) -> o.interact = p.interact)
+                        .documentation("What pressing F opens while this entry is in effect, written as the "
+                                + "file's Interact is. Leave it out to keep the file's.").add()
+                        .appendInherited(new KeyedCodec<>("Anchor", Anchor.CODEC, false),
+                                (o, v) -> o.anchor = v, o -> o.anchor, (o, p) -> o.anchor = p.anchor)
+                        .documentation("Where the character stands while this entry is in effect, written as "
+                                + "the file's Anchor is, and replacing it whole. At the switch the NPC at the "
+                                + "old spot goes and one stands at this one, the same character. Leave it out "
+                                + "to keep the file's.").add()
+                        .appendInherited(new KeyedCodec<>("Props", new ArrayCodec<>(Prop.CODEC, Prop[]::new), false),
+                                (o, v) -> o.props = v, o -> o.props, (o, p) -> o.props = p.props)
+                        .documentation("The decorations drawn at the character's spot while this entry is in "
+                                + "effect, replacing the file's whole list. Leave it out to keep the file's.")
+                        .add(),
+                (o, v) -> o.season = v, o -> o.season,
+                "The calendar event this entry is for, by its id, such as Christmas. The first entry whose event "
+                        + "is running is the one in effect. Leave it out for an entry in effect all year, the "
+                        + "last word when no other entry's event runs.")
+                .build();
+
+        public SeasonEntry() {
+        }
+
+        /** Java-side construction (tests, a consumer building a placement in code); every leaf optional. */
+        @Nonnull
+        public static SeasonEntry of(@Nullable String season, @Nullable String role, @Nullable Interact interact,
+                @Nullable Anchor anchor, @Nullable Prop... props) {
+            SeasonEntry e = new SeasonEntry();
+            e.season = season;
+            e.role = role;
+            e.interact = interact;
+            e.anchor = anchor;
+            e.props = props == null || props.length == 0 ? null : props.clone();
+            return e;
+        }
+
+        /** The calendar event this entry is for, trimmed, or null when it is in effect all year. */
+        @Nullable
+        public String getSeason() {
+            return SeasonGate.normalize(season);
+        }
+
+        /** The authored role, as written. */
+        @Nullable
+        public String getRole() {
+            return role;
+        }
+
+        /** The authored role trimmed, or null when the entry keeps the file's. */
+        @Nullable
+        public String roleId() {
+            return role == null || role.isBlank() ? null : role.trim();
+        }
+
+        @Nullable
+        public Interact getInteract() {
+            return interact;
+        }
+
+        @Nullable
+        public Anchor getAnchor() {
+            return anchor;
+        }
+
+        /** The authored props in order, or empty when the entry keeps the file's. */
+        @Nonnull
+        public List<Prop> getProps() {
+            return props == null ? List.of() : Collections.unmodifiableList(Arrays.asList(props.clone()));
+        }
+
+        /**
+         * The tag an anchor key of this entry's own {@code Anchor} carries: its season id, lower-cased, with
+         * any {@link #TAG_SEPARATOR} or {@code :} taken out; {@link #ALL_YEAR_TAG} for a blank season.
+         */
+        @Nonnull
+        public String tag() {
+            String id = getSeason();
+            if (id == null) {
+                return ALL_YEAR_TAG;
+            }
+            return id.toLowerCase(Locale.ROOT).replace(String.valueOf(TAG_SEPARATOR), "")
+                    .replace(String.valueOf(TAG_MARK), "").replace(":", "");
         }
     }
 

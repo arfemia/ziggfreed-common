@@ -124,6 +124,25 @@ public final class NpcIdentities {
     }
 
     /**
+     * Who is this NPC, when something DECLARES it a character: the placement standing it, then an identity
+     * overlay on its role, then one on a group it belongs to; null for an NPC nothing declares (a wild
+     * creature, whose answer from {@link #npcIdOfEntity} would only be its role name). What a credit naming a
+     * character reads, so a hit on a cow never counts as one on a character. World thread.
+     */
+    @Nullable
+    public static String declaredNpcIdOfEntity(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> npcRef) {
+        if (npcRef == null || !npcRef.isValid()) {
+            return null;
+        }
+        String fromPlacement = npcIdOfPlacement(placementIdOf(store, npcRef));
+        if (fromPlacement != null) {
+            return fromPlacement;
+        }
+        String fromRoleOverlay = overlayForRole(roleNameOf(store, npcRef));
+        return fromRoleOverlay != null ? fromRoleOverlay : npcIdOfGroupMembership(store, npcRef);
+    }
+
+    /**
      * The id a placement gives whoever stands at it: its authored {@code Identity.NpcId}, or the
      * role it names when it authors none. Null when no such placement is loaded, or when it names
      * neither (a placement with no role stands nothing up, so there is nobody to be).
