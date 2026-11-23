@@ -27,9 +27,11 @@
 @ZigInkCopper = #c58643;
 
 // Surfaces: vanilla's pane, a list row in three states and its warm selected row, the scrim under a pill, no fill
-// at all, a hovered or selected rail tab (vanilla's simple button fill), the rule, the band body every surface is
-// judged over (the modal band's own colour), and the scrim the band frames lay over the blurred world, which with a
-// page's own overlay (Common.ui @PageOverlay, 0.45) darkens it as the game's modal does (Common/IntroModal.ui, 0.70).
+// at all, vanilla's simple button fill (@ZigSurfaceTab: kept for a document that reads it; no kit document or painter
+// draws it now that the rail's tabs take the row's hover and its warm selected row), the rule, the band body every
+// surface is judged over (the modal band's own colour), and the scrim the band frames lay over the blurred world,
+// which with a page's own overlay (Common.ui @PageOverlay, 0.45) darkens it as the game's modal does
+// (Common/IntroModal.ui, 0.70).
 @ZigSurfacePane = #000000(0.15);
 @ZigSurfaceRow = #172230(0.85);
 @ZigSurfaceRowHover = #12203f(0.92);

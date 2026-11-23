@@ -161,7 +161,10 @@ final class KitGallery {
         }
     }
 
-    /** The action buttons switched off, the two rich tabs chosen and not, the rich button and the two toggles. */
+    /**
+     * The action buttons switched off, the two rich tabs chosen and not, the rich button and the toggles: on, off, one
+     * nobody could read and one locked.
+     */
     private static void buttons(@Nonnull UICommandBuilder cmd) {
         for (String button : OFF_BUTTONS) {
             cmd.set(button + ".Disabled", true);
@@ -171,6 +174,8 @@ final class KitGallery {
         ZigRichButton.text(cmd, "#GalRich", text("button.rich"));
         SettingsUiUtil.setToggle(cmd, "#GalToggleOn", true, text("button.on"), text("button.off"));
         SettingsUiUtil.setToggle(cmd, "#GalToggleOff", false, text("button.on"), text("button.off"));
+        SettingsUiUtil.setToggleUnreadable(cmd, "#GalToggleUnknown", text("button.unknown"));
+        SettingsUiUtil.setToggleLocked(cmd, "#GalToggleLocked", true, text("button.on"), text("button.off"));
     }
 
     /**
@@ -249,12 +254,17 @@ final class KitGallery {
         };
     }
 
-    /** Three view tabs (the first chosen), four segments (chosen, live, taken part in, switched off), two two-line. */
+    /**
+     * Four view tabs (the first chosen, the last locked), four segments (chosen, live, taken part in, switched off),
+     * two two-line.
+     */
     private static void tabs(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
         cmd.clear("#GalViews");
         ViewTabPainter.append(cmd, events, "#GalViews", text("tab.overview"), BOOK, true, null);
         ViewTabPainter.append(cmd, events, "#GalViews", text("tab.browse"), Picture.NONE, false, null);
         ViewTabPainter.append(cmd, events, "#GalViews", text("tab.stats"), Picture.NONE, false, null);
+        String locked = ViewTabPainter.append(cmd, events, "#GalViews", text("tab.locked"), LOCK, false, null);
+        cmd.set(locked + ".Disabled", true);
 
         cmd.clear("#GalSegments");
         SegmentPainter.append(cmd, events, "#GalSegments", text("segment.all"), true, false, false, null);
@@ -269,11 +279,18 @@ final class KitGallery {
         SegmentPainter.appendTwoLine(cmd, events, "#GalSegmentsTwo", text("segment.long"), false, true, false, null);
     }
 
-    /** The kit's painted tiles: stat tiles, collection tiles, keepsakes in each state, item slots, and wares. */
+    /**
+     * The kit's painted tiles: stat tiles (one with every line, a first place in gold, a large figure with no picture
+     * taking the picture's room, a figure of nothing), collection tiles, keepsakes in each state, item slots, and
+     * wares.
+     */
     private static void tiles(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
         TilePainter.stats(cmd, "#GalStatTiles", List.of(
                 new StatTile("found", TROPHY, Msg.num(42), text("tile.stat"), text("tile.statline"),
                         text("tile.statserver"), false),
+                new StatTile("place", TROPHY, Msg.num(1), text("tile.statplace"), null, null, false)
+                        .withTone(Tone.COLLECT),
+                new StatTile("big", Picture.NONE, Msg.num(1234567890), text("tile.statbig"), null, null, false),
                 new StatTile("none", Picture.NONE, Msg.num(0), text("tile.statzero"), null, null, true)));
         TilePainter.collection(cmd, events, "#GalCollection", List.of(
                 new CollectionTile("under", text("tile.collection"), KitText.count(3, 8), STAR, new Progress(3, 8),
@@ -317,8 +334,9 @@ final class KitGallery {
 
     /**
      * Tier cards, each one button: an open card (gold under the pointer, its pay line as its tooltip), today's daily
-     * with its tag and copper line, one shown only to be read (no plate, as on a week board), and a locked card (its
-     * title dim, its pictures dimmed, a padlock and its two lines, switched off). Nothing is bound.
+     * with its tag and copper line, one shown only to be read (no plate and never gold under the pointer, as on a week
+     * board), and a locked card (its title dim, its pictures dimmed, a padlock and its two lines, switched off).
+     * Nothing is bound.
      */
     private static void tierCards(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
         List<PaySlot> pays = samplePays();
@@ -368,12 +386,17 @@ final class KitGallery {
         return Msg.key(PREFIX + "tier.title", rank);
     }
 
-    /** Bullet lines: the diamond, a name and a line under it, and one with its name alone. */
+    /**
+     * Bullet lines: the diamond, a name and a line under it, and one with its name alone; then a name and a line too
+     * long for the column, and a plain line too long for it, each ending in "..." inside it.
+     */
     private static void bullets(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
         DetailPainter.lines(cmd, events, "#GalBullets", List.of(
                 DetailLine.bullet(text("bullet.name1"), text("bullet.line1")),
                 DetailLine.bullet(text("bullet.name2"), text("bullet.line2")),
-                DetailLine.bullet(text("bullet.name3"), null)), line -> null);
+                DetailLine.bullet(text("bullet.name3"), null),
+                DetailLine.bullet(text("bullet.namelong"), text("bullet.linelong")),
+                DetailLine.of(QUEST, text("detail.line.long"))), line -> null);
     }
 
     /** The card's tile: a tile is filled by its ids, as its document says. */

@@ -120,7 +120,8 @@ class ZigTokensDocumentTest {
                 "ZigBandBody", "ZigSurfaceClear")),
                 "the Chapter's copper, dim ink, lit and unlit marks, the band body and no fill");
         assertTrue(colours().keySet().containsAll(List.of("ZigSurfaceTab", "ZigBandScrim")),
-                "the rail tab's fill and the band frames' scrim, which the frame and the rail read");
+                "vanilla's simple button fill, kept declared for a document that reads it, and the band frames' "
+                        + "scrim, which the frames read");
         for (String tone : List.of("Active", "Collect", "Done", "Live", "Available", "Waiting", "Blocked", "Danger")) {
             assertTrue(colours().containsKey("ZigTone" + tone + "Fill"), "a fill for " + tone);
             assertTrue(colours().containsKey("ZigTone" + tone + "Text"), "a text colour for " + tone);

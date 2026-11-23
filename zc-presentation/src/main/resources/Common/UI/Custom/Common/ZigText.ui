@@ -64,6 +64,7 @@ $ZK = "ZigTokens.ui";
 @ZigSmallCapsStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, RenderBold: true, FontName: "Secondary", RenderUppercase: true, LetterSpacing: 0.5, VerticalAlignment: Center);
 // A mark's word (FULL PAY over its diamonds): the headline face at 20 in capitals, lit gold.
 @ZigMarkStyle = LabelStyle(FontSize: $ZT.@ZigFontTitle, TextColor: $ZK.@ZigMarkLit, RenderBold: true, FontName: "Secondary", RenderUppercase: true, VerticalAlignment: Center);
-// A bullet's name beside its diamond, and the line under it.
-@ZigBulletNameStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center);
+// A bullet's name beside its diamond, and the line under it. The name keeps to one line and a long one ends in "...",
+// so it never runs past its card.
+@ZigBulletNameStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
 @ZigBulletLineStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkBody, Wrap: true);

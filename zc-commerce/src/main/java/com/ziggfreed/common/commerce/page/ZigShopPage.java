@@ -51,7 +51,6 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.SettingsUiUtil;
-import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
@@ -60,6 +59,7 @@ import com.ziggfreed.common.ui.kit.Pill;
 import com.ziggfreed.common.ui.kit.TilePainter;
 import com.ziggfreed.common.ui.kit.Tone;
 import com.ziggfreed.common.ui.kit.WareTile;
+import com.ziggfreed.common.ui.kit.ZigStyles;
 import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -131,14 +131,6 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     /** The Buy button's words, as Pages/ZigShopPage.ui authors them. */
     private static final String BUY_TEXT = ZigTokens.INK_BRIGHT;
-
-    /**
-     * A button that will refuse: the game's patch dimmed to the band's own body, its words in the muted ink. A tint
-     * only multiplies, so the fill is never lighter than {@link ZigTokens#BAND_BODY} and the words keep at least 4.7:1
-     * on it, over the 4.5 text floor. Still bound, so the press answers with its reason.
-     */
-    private static final String LOCKED_FILL = ZigTokens.BAND_BODY;
-    private static final String LOCKED_TEXT = ZigTokens.INK_MUTED;
 
     /** The rich buttons' style document, rooted at {@code Common/UI/Custom/} as {@code Value.ref} takes it. */
     private static final String BUTTON_STYLES = "Common/ZigButtons.ui";
@@ -1023,16 +1015,23 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         return Reach.LOCKED;
     }
 
-    /** Grey a button that will refuse, without unbinding it: the press still answers with a reason. */
+    /**
+     * Grey a button that will refuse, without unbinding it, so the press still answers with a reason: the kit's locked
+     * button ({@code ZigButtonLockedStyle}, the game's patch dimmed to the band's body in every state) and its words
+     * ({@code ZigButtonLockedLabelStyle}, the button label in the muted ink).
+     */
     private static void paintLocked(@Nonnull UICommandBuilder cmd, @Nonnull String selector) {
-        UiRetint.retintButtonStates(cmd, selector, LOCKED_FILL, LOCKED_FILL, LOCKED_FILL);
-        ZigRichButton.color(cmd, selector, LOCKED_TEXT);
+        ZigStyles.apply(cmd, selector + ".Style", ZigStyles.Name.BUTTON_LOCKED, null);
+        ZigStyles.apply(cmd, selector + " " + ZigRichButton.LABEL + ".Style", ZigStyles.Name.BUTTON_LOCKED_LABEL,
+                null);
     }
 
     /**
-     * Undo {@link #paintLocked}'s fill on a button that will take the press: its authored style sent whole by
+     * Undo {@link #paintLocked}'s look on a button that will take the press: its authored style sent whole by
      * reference, as the kit swaps a button style ({@code ZigStyles}). A selection is a partial repaint, so without
-     * this a button greyed for the last offer stays grey on one the player can take. The caller sets the words.
+     * this a button greyed for the last offer stays grey on one the player can take. The caller sets the words' colour
+     * ({@link ZigRichButton#color}), which is all the locked words differ by from the authored ones (both the kit's
+     * button label).
      */
     private static void paintUnlocked(@Nonnull UICommandBuilder cmd, @Nonnull String selector,
             @Nonnull String styleName) {

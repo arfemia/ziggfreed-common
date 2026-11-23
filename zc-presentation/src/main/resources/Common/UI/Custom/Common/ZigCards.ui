@@ -1,12 +1,13 @@
 $C = "../Common.ui";
 $ZT = "ZigType.ui";
 $ZK = "ZigTokens.ui";
+$ZX = "ZigText.ui";
 
 // ziggfreed-common's shared CARD shapes, for any page laid out as headed cards (the Settings tab today):
 // a section card, the heading over it, a page's title and description, and a tile that opens another
-// screen. Structure from the family's admin hub; type from the game's own World Event pages
-// (Pages/WorldEvent/WorldEventSectionLabel.ui and WorldEventPanelPage.ui), so a card page reads like a
-// native one. A page imports this file and uses the names:
+// screen. Structure from the family's admin hub; type from the game's Chapter screen through the kit's text
+// styles (Common/ZigText.ui): a card's heading is the head and a page's title the flat gold page title, so a
+// card page reads like the rest of the kit. A page imports this file and uses the names:
 //
 //   $K = "../Common/ZigCards.ui";
 //   Label #Heading { Anchor: (Top: 10, Bottom: 4, Left: 2); Style: $K.@ZigCardHeaderStyle; }
@@ -19,8 +20,11 @@ $ZK = "ZigTokens.ui";
 // ZigCardsDocumentTest pins them. All text is set from Java on .TextSpans. Every colour is a token of
 // Common/ZigTokens.ui.
 
-@ZigCardHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, RenderBold: true, RenderUppercase: true, TextColor: $ZK.@ZigInkHeading, HorizontalAlignment: Start);
-@ZigPageTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontSubtitle, RenderBold: true, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center);
+// A card's heading: the kit's head (the headline face at 15 in capitals) in the heading ink.
+@ZigCardHeaderStyle = LabelStyle(...$ZX.@ZigHeadStyle, TextColor: $ZK.@ZigInkHeading, HorizontalAlignment: Start);
+// A page's title on a card page: the kit's page title (the headline face in capitals, flat gold), on one line that
+// ends in "..." rather than running out of its row.
+@ZigPageTitleStyle = LabelStyle(...$ZX.@ZigTitleStyle, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
 @ZigPageDescriptionStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkFaint, Wrap: true);
 
 // One card: the inset panel a section's rows or tiles sit in.

@@ -58,7 +58,7 @@ $ZX = "ZigText.ui";
 // #Content is the page's column (LayoutMode Top, padded 18 on every side), its Background clear so a push there never
 // lands on an unset one. Its first child is #Hero, hidden until a painter fills it: #HeroEmblem (an emblem row, hidden
 // without one, holding the AssetImage #HeroEmblemArt), #HeroHeadline (the display title under the game's gold text
-// gradient, inside a LayoutMode Left group so the ramp spans the words), #HeroTagline (copper), the game's rule
+// gradient, as wide as the column so a long name shrinks to fit it), #HeroTagline (copper), the game's rule
 // (#HeroRule) and #HeroSub (a line under it); a page's own children follow it. #DecorTop and #DecorBottom stay
 // declared but hidden, since the band has its own head and foot; @Ornaments is still accepted. The close button sits
 // in the band's head over the box's top right (40 above the box, so it stays on a 1080 screen even for a box 1000
@@ -91,18 +91,18 @@ $ZX = "ZigText.ui";
         }
       }
 
+      // The headline takes the column's whole width (its FlexWeight in a row laid out Left), its words centred, so its
+      // ShrinkTextToFit always has a bound: a long name shrinks inside the column, never past it onto the band. The
+      // gold gradient spans the label, so a short name takes the middle of the ramp.
       Group #HeroTitleRow {
-        LayoutMode: Center;
+        LayoutMode: Left;
         Anchor: (Height: 44);
 
-        Group {
-          LayoutMode: Left;
-
-          Label #HeroHeadline {
-            Text: "";
-            Style: $ZX.@ZigDisplayTitleStyle;
-            MaskTexturePath: $C.@TextHighlightGradientMask;
-          }
+        Label #HeroHeadline {
+          FlexWeight: 1;
+          Text: "";
+          Style: (...$ZX.@ZigDisplayTitleStyle, HorizontalAlignment: Center);
+          MaskTexturePath: $C.@TextHighlightGradientMask;
         }
       }
 

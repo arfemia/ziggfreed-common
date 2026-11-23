@@ -100,6 +100,12 @@ class ZigFrameDocumentTest {
         assertTrue(hero.contains("AssetImage " + ZigFrame.HERO_EMBLEM_ART + " {"), "the emblem is a plain picture");
         assertTrue(own(block(hero, ZigFrame.HERO_HEADLINE)).contains("MaskTexturePath:"),
                 "the title carries the game's gold text gradient, which no style can");
+        String titleRow = block(hero, "#HeroTitleRow");
+        String headline = own(block(titleRow, ZigFrame.HERO_HEADLINE));
+        assertTrue(own(titleRow).contains("LayoutMode: Left") && !titleRow.contains("Group ")
+                && headline.contains("FlexWeight: 1") && headline.contains("$ZX.@ZigDisplayTitleStyle"),
+                "the title is its row's own child and takes the row's whole width, so its shrink-to-fit has a bound: "
+                        + "a long name shrinks inside the column, never past it onto the band");
         assertTrue(content.indexOf("Group " + ZigFrame.HERO + " {") < content.indexOf("}"),
                 "the hero is the column's first child, so a page's own children follow it");
 

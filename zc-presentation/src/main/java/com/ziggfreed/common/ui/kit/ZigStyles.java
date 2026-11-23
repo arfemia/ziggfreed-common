@@ -14,8 +14,10 @@ import com.ziggfreed.common.ui.UiRetint;
 
 /**
  * The kit's named state styles, swapped onto an element by reference: a row's normal and selected look, a segment
- * on and off, a tile, a complete tile, a selected tile and a card that is one button, the four action buttons, a
- * view tab and its name, the state word per tone, the gold figure and the selected row's words. Each is a style {@code Common/ZigStyles.ui} defines under {@link Name#styleName()}, and
+ * on and off, a tile, a complete tile, a selected tile, a card that is one button (a tier card, one shown only to be
+ * read, any card), the four action buttons and a locked one with its words, a view tab and its name, the state word
+ * per tone, the gold figure and the selected row's words. Each is a style {@code Common/ZigStyles.ui} defines under
+ * {@link Name#styleName()}, and
  * {@link #apply} sends it the way vanilla swaps a selected row
  * ({@code cmd.set(sel + ".Style", Value.ref("Pages/WorldEvent/WorldEventListRow.ui", "SelectedRowStyle"))},
  * {@code WorldEventPanelPage.java:88-92, 790}): no page Java pushes a colour for a row, segment, button or state word.
@@ -122,7 +124,26 @@ public final class ZigStyles {
         /** A view tab's name at rest, in the head ink. */
         VIEW_TAB_LABEL("ZigViewTabLabelStyle", Kind.LABEL, ZigTokens.INK_SECTION),
         /** The chosen view tab's name, white in its gold frame. */
-        VIEW_TAB_LABEL_ON("ZigViewTabLabelOnStyle", Kind.LABEL, ZigTokens.INK_BRIGHT);
+        VIEW_TAB_LABEL_ON("ZigViewTabLabelOnStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
+        /**
+         * A tier card shown only to be read ({@link TierCard#toRead()}, a week board's): the Memories tile in every
+         * state, never gold under the cursor; the fallback leaves the tile as drawn.
+         */
+        TIER_CARD_READ("ZigTierCardReadStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT,
+                ZigTokens.INK_BRIGHT),
+        /**
+         * A card that is one button, of any kind (a round's mode, a depth): the tier card's look under its own name;
+         * the fallback tints the tile gold under the cursor.
+         */
+        CARD_BUTTON("ZigCardButtonStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.ACCENT, ZigTokens.ACCENT),
+        /**
+         * A button that looks switched off in every state yet stays bound, so a press can say why it refuses: the
+         * Secondary patch dimmed to the band's body; pair it with {@link #BUTTON_LOCKED_LABEL} on its {@code #Label}.
+         */
+        BUTTON_LOCKED("ZigButtonLockedStyle", Kind.BUTTON, ZigTokens.BAND_BODY, ZigTokens.BAND_BODY,
+                ZigTokens.BAND_BODY),
+        /** A locked button's words ({@link #BUTTON_LOCKED}): the button label in the muted ink. */
+        BUTTON_LOCKED_LABEL("ZigButtonLockedLabelStyle", Kind.LABEL, ZigTokens.INK_MUTED);
 
         private final String styleName;
         private final Kind kind;

@@ -17,7 +17,8 @@ import com.ziggfreed.common.ui.ZigRichButton;
  * {@link SegmentPainter}'s choice tiles). The chosen tab swaps to {@code ZigViewTabOnStyle}, the game's gold-framed
  * selected tab, and its name to {@code ZigViewTabLabelOnStyle} by reference; a tab at rest keeps its authored look.
  * The template's gold {@code #Bar} under the button stays declared but is never shown, since the selected tab's own
- * gold frame marks the chosen tab.
+ * gold frame marks the chosen tab. A tab a page switches off ({@code .Disabled} on the returned selector) is locked:
+ * {@code ZigViewTabStyle}'s switched-off state, the game's empty Memories tile.
  */
 public final class ViewTabPainter {
 
@@ -30,7 +31,10 @@ public final class ViewTabPainter {
     /** A tab's height in its template, its gold bar included. */
     public static final int HEIGHT = 40;
 
-    /** The template's gold bar under each button, kept declared and never shown (the selected tab is gold-framed). */
+    /**
+     * The template's gold bar under each button, kept declared and never shown (the selected tab is gold-framed); the
+     * button's top margin takes its place, so the tab stands on the rule a page draws under the strip.
+     */
     public static final int BAR = 3;
 
     /** The template's right margin to the next tab ({@code $ZK.@ZigSpace1}). */

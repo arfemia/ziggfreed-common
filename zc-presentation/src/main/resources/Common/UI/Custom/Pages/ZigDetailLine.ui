@@ -125,10 +125,11 @@ Group #ZigDetailLine {
       FlexWeight: 1;
       LayoutMode: Top;
 
+      // One line: a long one ends in "..." inside the line's width, never past its card.
       Label #LineText {
         Anchor: (Height: $ZK.@ZigLineHeight);
         Text: "";
-        Style: (FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
       }
 
       Label #LineSub {

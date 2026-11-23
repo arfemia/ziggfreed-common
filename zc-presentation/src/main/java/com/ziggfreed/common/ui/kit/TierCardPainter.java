@@ -18,10 +18,13 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
  * tag, its title under the game's gold text gradient, its copper line, its week, what it pays (the head, the pay slots
  * through {@link TilePainter#paySlots} into its {@code #PayGrid}, the note), its pay mark ({@link PayMarkPainter}) and
  * its go-in plate, carries its pay line as its own tooltip, and is bound to {@code binding}'s answer; it lights gold
- * under the cursor by its style alone ({@code ZigTierCardStyle}). A locked card draws its title in the dim ink, its
- * week in the muted ink and its pay pictures dimmed, shows the padlock and the lock's lines in place of the mark and
- * the plate, and is switched off ({@code .Disabled}): the style's empty Memories tile, no click, no tooltip, no
- * binding. Nothing inside a card carries a tooltip, so a click anywhere on an open card reaches it.
+ * under the cursor by its style alone ({@code ZigTierCardStyle}). A card shown only to be read
+ * ({@link TierCard#toRead()}, no go-in word: a week board's) is the same template with nothing to click: unbound, and
+ * swapped to {@code ZigTierCardReadStyle}, the plain tile in every state, so it never lights gold. A locked card draws
+ * its title in the dim ink, its week in the muted ink and its pay pictures dimmed, shows the padlock and the lock's
+ * lines in place of the mark and the plate, and is switched off ({@code .Disabled}): the style's empty Memories tile,
+ * no click, no tooltip, no binding. Nothing inside a card carries a tooltip, so a click anywhere on an open card
+ * reaches it.
  */
 public final class TierCardPainter {
 
@@ -43,8 +46,8 @@ public final class TierCardPainter {
     }
 
     /**
-     * Clear {@code host} and paint {@code cards} into it, binding each open card to {@code binding}'s answer (null
-     * leaves it unbound, as on a week board).
+     * Clear {@code host} and paint {@code cards} into it, binding each open card that has a go-in word to
+     * {@code binding}'s answer (null leaves it unbound); a card shown only to be read is never bound.
      *
      * @return each card's button selector, in order
      */
@@ -58,7 +61,7 @@ public final class TierCardPainter {
             cmd.append(host, TEMPLATE);
             String c = KitPaint.child(host, i) + " #Card";
             paintCard(cmd, c, card);
-            EventData data = card.locked() ? null : binding.apply(card);
+            EventData data = card.locked() || card.toRead() ? null : binding.apply(card);
             if (data != null) {
                 events.addEventBinding(CustomUIEventBindingType.Activating, c, data);
             }
@@ -107,7 +110,13 @@ public final class TierCardPainter {
             KitPaint.optional(cmd, c + " #LockLine", card.lock().line());
             KitPaint.optional(cmd, c + " #LockHow", card.lock().how());
             cmd.set(c + ".Disabled", true);
-        } else if (card.tooltip() != null) {
+            return;
+        }
+        if (card.toRead()) {
+            // Nothing to click: the same card on the plain tile in every state, no gold under the cursor.
+            ZigStyles.apply(cmd, c + ".Style", ZigStyles.Name.TIER_CARD_READ, null);
+        }
+        if (card.tooltip() != null) {
             KitPaint.tooltip(cmd, c, card.tooltip());
         }
     }

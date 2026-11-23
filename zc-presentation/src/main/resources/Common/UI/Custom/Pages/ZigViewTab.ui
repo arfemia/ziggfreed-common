@@ -6,16 +6,17 @@ $ZW = "../Common/ZigKit.ui";
 // appended by com.ziggfreed.common.ui.kit.ViewTabPainter and addressed by index as "#Host[i] #Tab": 186 x 40, a
 // Button #Tab (37 high) holding a 28px plain item picture #Pic and an uppercase #Label: the game's header tab. At rest
 // it is the outlined tab with its name in the head ink; the chosen one swaps to ZigViewTabOnStyle, the game's
-// gold-framed selected tab, and its name to ZigViewTabLabelOnStyle by reference. The 3px gold #Bar under the button
-// stays declared but is never shown: the selected tab's own gold frame marks the chosen tab. The page draws a thin
-// rule under the strip.
+// gold-framed selected tab, and its name to ZigViewTabLabelOnStyle by reference; a locked one, switched off, sits on
+// the empty Memories tile. The 3px gold #Bar under the button stays declared but is never shown: the selected tab's
+// own gold frame marks the chosen tab. So the tab stands on the rule the page draws under the strip, its 3px top
+// margin takes the bar's place, and the strip keeps its 40.
 
 Group #ZigViewTab {
   LayoutMode: Top;
   Anchor: (Width: 186, Height: 40, Right: $ZK.@ZigSpace1);
 
   Button #Tab {
-    Anchor: (Height: 37);
+    Anchor: (Height: 37, Top: 3);
     LayoutMode: Left;
     Padding: (Horizontal: $ZK.@ZigSpace3);
     Style: $ZS.@ZigViewTabStyle;

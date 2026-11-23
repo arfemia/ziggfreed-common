@@ -14,10 +14,11 @@ import com.hypixel.hytale.server.core.Message;
  * an optional line of what it meets this week; the head over what it pays ("Pays", null for none) and the pay slots
  * themselves ({@link PaySlot}, the first {@link TierCardPainter#PAYS_SHOWN} drawn); an optional note under them
  * ("Sometimes a gem"); its pay mark ({@link PayMark}: what the next clear pays, null for none); the go-in plate's word
- * ("Go in", null for a card shown only to be read, a week board's); its tooltip (the pay line in words, the card's own,
- * since nothing inside a card that is one button carries one); and {@code lock}, null for an open card, else what keeps
- * it shut. A locked card draws its title in the dim ink, dims its pay pictures, shows a padlock over the lock's lines
- * in place of its mark and plate, carries no tooltip, and is switched off, so it takes no click.
+ * ("Go in", null for a card shown only to be read, a week board's, {@link #toRead()}); its tooltip (the pay line in
+ * words, the card's own, since nothing inside a card that is one button carries one); and {@code lock}, null for an
+ * open card, else what keeps it shut. A locked card draws its title in the dim ink, dims its pay pictures, shows a
+ * padlock over the lock's lines in place of its mark and plate, carries no tooltip, and is switched off, so it takes
+ * no click.
  */
 public record TierCard(@Nonnull String id, @Nullable Message tag, @Nonnull Message title, @Nullable Message sub,
         @Nullable Message week, @Nullable Message paysHead, @Nonnull List<PaySlot> pays, @Nullable Message payNote,
@@ -40,5 +41,13 @@ public record TierCard(@Nonnull String id, @Nullable Message tag, @Nonnull Messa
     /** True for a locked card. */
     public boolean locked() {
         return lock != null;
+    }
+
+    /**
+     * True for an open card shown only to be read, one with no go-in word (a week board's): it has nothing to click, so
+     * its painter leaves it unbound and draws it on the plain tile with no gold under the cursor.
+     */
+    public boolean toRead() {
+        return lock == null && go == null;
     }
 }

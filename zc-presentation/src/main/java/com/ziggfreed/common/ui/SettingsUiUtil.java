@@ -18,8 +18,9 @@ import com.ziggfreed.common.ui.kit.ZigTokens;
 
 /**
  * Mod-agnostic binding + widget helpers for a settings / config form page: dropdown populate + bind,
- * text-field bind, button bind, a status line, an on/off toggle, and a segmented-tab active paint. The
- * domain-free twin of a consumer's own {@code UIUtil} (engine types only - no i18n keys, no content
+ * text-field bind, button bind, a status line, an on/off toggle (and its two states a press cannot change:
+ * unreadable, {@link #setToggleUnreadable}, and locked, {@link #setToggleLocked}), and a segmented-tab active
+ * paint. The domain-free twin of a consumer's own {@code UIUtil} (engine types only - no i18n keys, no content
  * enums) so a settings page in any mod reuses ONE binding layer instead of re-deriving it.
  *
  * <p><b>Rich-text discipline (do NOT regress):</b> every text-bearing helper here targets a Label's
@@ -39,6 +40,12 @@ public final class SettingsUiUtil {
     private static final String TOGGLE_ON_LABEL = ZigTokens.TONE_DONE_TEXT;
     private static final String TOGGLE_OFF_BG = ZigTokens.MARK_UNLIT;
     private static final String TOGGLE_OFF_LABEL = ZigTokens.INK_BODY;
+    // The two toggle states a switch shows but a press cannot change, each a tone's own pair: a value nobody could read
+    // (the available tone's amber, never painted as off) and a switch shown but locked (the blocked tone's steel).
+    private static final String TOGGLE_UNREADABLE_BG = ZigTokens.TONE_AVAILABLE_FILL;
+    private static final String TOGGLE_UNREADABLE_LABEL = ZigTokens.TONE_AVAILABLE_TEXT;
+    private static final String TOGGLE_LOCKED_BG = ZigTokens.TONE_BLOCKED_FILL;
+    private static final String TOGGLE_LOCKED_LABEL = ZigTokens.TONE_BLOCKED_TEXT;
     private static final String TAB_ACTIVE_BG = ZigTokens.INK_BRIGHT;
     private static final String TAB_ACTIVE_LABEL = ZigTokens.INK_BRIGHT;
     private static final String TAB_INACTIVE_BG = ZigTokens.MARK_UNLIT;
@@ -197,9 +204,35 @@ public final class SettingsUiUtil {
     public static void setToggle(@Nonnull UICommandBuilder cmd, @Nonnull String selector, boolean on,
             @Nonnull Message onLabel, @Nonnull Message offLabel) {
         ZigRichButton.text(cmd, selector, on ? onLabel : offLabel);
-        String bg = on ? TOGGLE_ON_BG : TOGGLE_OFF_BG;
-        UiRetint.retintButtonStates(cmd, selector, bg, bg, bg);
-        ZigRichButton.color(cmd, selector, on ? TOGGLE_ON_LABEL : TOGGLE_OFF_LABEL);
+        paintToggle(cmd, selector, on ? TOGGLE_ON_BG : TOGGLE_OFF_BG, on ? TOGGLE_ON_LABEL : TOGGLE_OFF_LABEL);
+    }
+
+    /**
+     * Paint a toggle (as {@link #setToggle}) whose value nobody could read: {@code label} (a page's "?") in the
+     * available tone's amber, never painted as off, since the page must not claim a state it does not know. The page
+     * binds no press to it. Apply-only, like {@link #setToggle}.
+     */
+    public static void setToggleUnreadable(@Nonnull UICommandBuilder cmd, @Nonnull String selector,
+            @Nonnull Message label) {
+        ZigRichButton.text(cmd, selector, label);
+        paintToggle(cmd, selector, TOGGLE_UNREADABLE_BG, TOGGLE_UNREADABLE_LABEL);
+    }
+
+    /**
+     * Paint a toggle (as {@link #setToggle}) that shows its value but is locked, governed elsewhere: {@code onLabel} or
+     * {@code offLabel} in the blocked tone's steel. The page binds no press to it. Apply-only, like {@link #setToggle}.
+     */
+    public static void setToggleLocked(@Nonnull UICommandBuilder cmd, @Nonnull String selector, boolean on,
+            @Nonnull Message onLabel, @Nonnull Message offLabel) {
+        ZigRichButton.text(cmd, selector, on ? onLabel : offLabel);
+        paintToggle(cmd, selector, TOGGLE_LOCKED_BG, TOGGLE_LOCKED_LABEL);
+    }
+
+    /** A toggle's three button states tinted {@code fill} and its words {@code ink}. */
+    private static void paintToggle(@Nonnull UICommandBuilder cmd, @Nonnull String selector, @Nonnull String fill,
+            @Nonnull String ink) {
+        UiRetint.retintButtonStates(cmd, selector, fill, fill, fill);
+        ZigRichButton.color(cmd, selector, ink);
     }
 
     /**

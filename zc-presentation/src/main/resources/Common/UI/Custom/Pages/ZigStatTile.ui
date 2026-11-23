@@ -5,9 +5,10 @@ $ZW = "../Common/ZigKit.ui";
 // One counted thing (a season's tally, a statistic, a standing), 216 x 128: the Chapter look's figure tile, on the
 // game's own panel patch (Common/ContainerFullPatch.png, finished on all four sides, as the panel frame draws it),
 // appended by com.ziggfreed.common.ui.kit.TilePainter into a wrapping grid and addressed by index as
-// "#Grid[i] #StatTile": the 40px picture (#Pic, painted through IconRenderer.applyPlainIcon) beside the figure
-// (#Figure, at the end), the thing's name in two lines (#Name), a caption ("1,204 in all") and, when the server counts
-// it too, a faint server line (#Server, hidden otherwise). The padding keeps the words inside the patch's frame.
+// "#Grid[i] #StatTile": the 40px picture (#Pic, painted through IconRenderer.applyPlainIcon, and hidden with no picture
+// so the figure takes its room) beside the figure (#Figure, at the end, in its tone's colour when the tile has one),
+// the thing's name in two lines (#Name), a caption ("1,204 in all") and, when the server counts it too, a faint server
+// line (#Server, hidden otherwise). The padding keeps the words inside the patch's frame.
 
 Group #ZigStatTile {
   Anchor: (Width: 216, Height: 128, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);

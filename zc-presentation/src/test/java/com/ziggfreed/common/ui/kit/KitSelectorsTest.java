@@ -246,8 +246,9 @@ class KitSelectorsTest {
     }
 
     /**
-     * Tier cards (open with every part, locked, and bare), their pay slots in each card's grid and their marks; a pay
-     * mark painted into an inline {@code @ZigPayMark} and one appended on its own.
+     * Tier cards (open with every part, locked, and bare, which has no go-in word and so is shown only to be read, its
+     * style swapped to the read one), their pay slots in each card's grid and their marks; a pay mark painted into an
+     * inline {@code @ZigPayMark} and one appended on its own.
      */
     @Test
     void theTierCardAndPayMarkPaintersAddressOnlyDeclaredIds() throws IOException {

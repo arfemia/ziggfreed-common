@@ -23,7 +23,8 @@ $ZW = "../Common/ZigKit.ui";
 //             two rows), and #PayNote under it ("Sometimes a gem"); all three hidden on a card that pays nothing
 //   #Mark     the kit's pay mark (@ZigPayMark): what the next clear pays, hidden with none
 //   #GoPlate  the go-in plate, the game's Secondary button patch with #GoLabel on it; it is no button (the card is),
-//             and a card a page shows to be read (a week board) hides it
+//             and a card a page shows to be read (a week board) hides it, its painter swapping the card to
+//             ZigTierCardReadStyle (the plain tile in every state, no gold under the cursor) and binding nothing
 //   #LockBlock a locked card's padlock (#LockGlyph, the kit's Lock glyph) and its two lines (#LockLine, #LockHow); a
 //             locked card is the same button switched off (.Disabled), drawn on the game's empty Memories tile
 // A flexing #CardSpace keeps the mark, the plate and the lock at the card's foot.

@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $ZT = "ZigType.ui";
 $ZK = "ZigTokens.ui";
+$ZX = "ZigText.ui";
 
 // Every colour in this document is a token of ZigTokens.ui, but the item-grid ladder's own durability colours
 // at its end, which the HUDs read and which stay as they are. A tint MULTIPLIES the native patch under it, so
@@ -196,16 +197,14 @@ $ZK = "ZigTokens.ui";
 // ── ziggfreed-common shared SECTION HEADER label ──────────────────────────────
 // Imported per page as:  $Z = "../Common/ZigButtons.ui";  then  Style: $Z.@ZigSectionHeaderStyle;
 //
-// The quiet header above one section of a detail panel (OBJECTIVES, REWARDS, COST): small, bold and
-// letter-spaced so it reads as a label over the lines beneath it, not as one of them, in the head
-// ink (ZigTokens.ui's @ZigInkSection). ONE constant for every such header in the family, so a page
-// never spells its own and the look cannot drift between the board, the storefront and the quest
-// pages. A header that must carry its own colour (a warning requirements header) spreads this and
-// overrides the one leaf with a token:
+// The quiet header above one section of a detail panel (OBJECTIVES, REWARDS, COST): the kit's head
+// (ZigText.ui's @ZigHeadStyle: the headline face in capitals, letter-spaced, in the head ink) kept at the
+// section step, 13, so it reads as a label over the lines beneath it, not as one of them, and still fits the
+// narrow toolbar labels that read it. ONE constant for every such header in the family, so a page never spells
+// its own and the look cannot drift between the board, the storefront and the quest pages. A header that must
+// carry its own colour (a warning requirements header) spreads this and overrides the one leaf with a token:
 //   Style: (...$Z.@ZigSectionHeaderStyle, TextColor: $ZK.@ZigToneDangerText);
-// A heading painted from Java into an appended line (the objective book's step headings) sets the
-// same four leaves on its label, since a named style cannot be pushed whole from Java.
-@ZigSectionHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, TextColor: $ZK.@ZigInkSection, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+@ZigSectionHeaderStyle = LabelStyle(...$ZX.@ZigHeadStyle, FontSize: $ZT.@ZigFontSection, VerticalAlignment: Center);
 
 // Blank-icon-slot fix: an ItemGrid with no Style renders nothing. This ladder gives every
 // ItemGrid in the library a ready-made style; a page picks the rung matching its own

@@ -161,7 +161,9 @@ public final class TilePainter {
     }
 
     /**
-     * Statistic tiles into {@code grid}: picture, figure (faint when it is zero), name, caption and server line.
+     * Statistic tiles into {@code grid}: picture (its slot hidden with none, so the figure takes the whole head),
+     * figure (faint when it is zero, else in its tone's colour when it has one, as a header {@link Stat}'s), name,
+     * caption and server line.
      */
     public static void stats(@Nonnull UICommandBuilder cmd, @Nonnull String grid, @Nonnull List<StatTile> tiles) {
         cmd.clear(grid);
@@ -169,10 +171,12 @@ public final class TilePainter {
             StatTile tile = tiles.get(i);
             cmd.append(grid, STAT_TEMPLATE);
             String s = KitPaint.child(grid, i) + " #StatTile";
-            KitPaint.picture(cmd, s + " #Pic", tile.picture());
+            cmd.set(s + " #Pic.Visible", KitPaint.picture(cmd, s + " #Pic", tile.picture()));
             KitPaint.text(cmd, s + " #Figure", tile.figure());
             if (tile.zero()) {
                 cmd.set(s + " #Figure.Style.TextColor", ZigTokens.INK_FAINT);
+            } else if (tile.tone() != null) {
+                cmd.set(s + " #Figure.Style.TextColor", StatPainter.figureColour(tile.tone()));
             }
             KitPaint.text(cmd, s + " #Name", tile.name());
             KitPaint.optional(cmd, s + " #Caption", tile.caption());

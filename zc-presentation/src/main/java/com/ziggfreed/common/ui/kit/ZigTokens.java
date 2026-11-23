@@ -74,8 +74,10 @@ public final class ZigTokens {
     /** No fill at all: a state that shows what lies under it. */
     public static final String SURFACE_CLEAR = colour("ZigSurfaceClear", "#000000(0)");
     /**
-     * A hovered rail tab and the selected one: vanilla's simple button fill ({@code Common.ui}
-     * {@code @ColorSimpleButtonBackground}), the shared menu's default {@code header} ({@code MenuPalette.HEADER}).
+     * Vanilla's simple button fill ({@code Common.ui} {@code @ColorSimpleButtonBackground}), kept for a document or a
+     * consumer that reads it. No kit document or painter draws it: the shared menu's rail takes the row's hover for a
+     * hovered tab ({@code MenuPalette.HEADER}, {@link #SURFACE_ROW_HOVER}) and the warm selected row for the chosen
+     * one ({@code MenuPalette.SELECTED}, {@link #SURFACE_ROW_SELECTED}).
      */
     public static final String SURFACE_TAB = colour("ZigSurfaceTab", "#000000(0.2)");
     /** The rule: the Chapter's separator slate. */

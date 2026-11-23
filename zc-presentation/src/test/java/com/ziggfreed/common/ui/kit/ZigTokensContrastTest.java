@@ -171,7 +171,7 @@ class ZigTokensContrastTest {
         Map<String, String> surfaces = new LinkedHashMap<>();
         surfaces.put("band", body);
         surfaces.put("pane", ZigTokens.seenOver(ZigTokens.SURFACE_PANE, body));
-        surfaces.put("rail tab", ZigTokens.seenOver(ZigTokens.SURFACE_TAB, body));
+        surfaces.put("simple button fill", ZigTokens.seenOver(ZigTokens.SURFACE_TAB, body));
         surfaces.put("row", row);
         surfaces.put("hovered row", ZigTokens.seenOver(ZigTokens.SURFACE_ROW_HOVER, body));
         surfaces.put("pressed row", ZigTokens.seenOver(ZigTokens.SURFACE_ROW_PRESSED, body));

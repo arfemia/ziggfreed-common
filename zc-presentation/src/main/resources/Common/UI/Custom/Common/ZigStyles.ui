@@ -68,12 +68,14 @@ $ZX = "ZigText.ui";
 
 // ── View tabs (Pages/ZigViewTab.ui): a page's views as the game's header tabs. The outlined tab at rest
 // (Common/HeaderTabBackground.png), the row's hover under the cursor; the chosen tab in the game's gold-framed
-// selected tab (Common/HeaderTabSelectedBackground.png, Border 7 as Common.ui's @HeaderTabsStyle draws it). The
-// name is the headline face in capitals, the head ink at rest and white when chosen. ──
+// selected tab (Common/HeaderTabSelectedBackground.png, Border 7 as Common.ui's @HeaderTabsStyle draws it); a locked
+// tab, switched off (.Disabled), sits on the game's empty Memories tile, as a switched-off segment and tier card do.
+// The name is the headline face in capitals, the head ink at rest and white when chosen. ──
 @ZigViewTabStyle = ButtonStyle(
   Default: (Background: PatchStyle(TexturePath: "../Common/HeaderTabBackground.png", Border: 7)),
   Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
   Pressed: (Background: (Color: $ZK.@ZigSurfaceRowPressed)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileEmpty.png", Border: 8)),
   Sounds: $C.@ButtonSounds
 );
 
@@ -131,6 +133,28 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
+// A tier card shown only to be read (a week board's depth: no go-in plate and nothing to click): the same card on the
+// Memories tile in every state, so it never lights gold under the cursor; a locked one is still the empty tile. Like
+// every kit button style it keeps its click sound. TierCardPainter swaps it onto a card whose go-in word is null.
+@ZigTierCardReadStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileEmpty.png", Border: 8)),
+  Sounds: $C.@ButtonSounds
+);
+
+// A card that is one button, of any kind (a choice a player picks by clicking anywhere on it: a round's mode, a
+// depth): the tier card's look under its own name, the Memories tile at rest, the gold Selected tile under the cursor
+// and pressed, the empty tile switched off. A card page names this, so the tier card can change without it.
+@ZigCardButtonStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileEmpty.png", Border: 8)),
+  Sounds: $C.@ButtonSounds
+);
+
 // ── Action buttons (a Button holding Label #Label): each greys out when Java disables it ──
 // Primary: the game's Primary button. Its 12 border on all four sides, as the Secondary's, keeps a button narrower
 // than Common.ui's own 80-wide ends (a tile's 88-wide Show) whole.
@@ -170,6 +194,21 @@ $ZX = "ZigText.ui";
   Disabled: (Background: PatchStyle(TexturePath: "../Common/Buttons/Disabled.png", Border: $C.@ButtonBorder)),
   Sounds: $C.@ButtonsCancel
 );
+
+// Locked: a button that looks switched off in every state yet stays bound and clicks, so a press can say why it
+// refuses (a ware the player cannot buy yet). The Secondary patch dimmed to the band's own body (a tint multiplies)
+// at rest, under the cursor and pressed, so it never lights up; its words take @ZigButtonLockedLabelStyle, the muted
+// ink, which keeps over 5.7:1 on it. A button that must not answer at all is switched off (.Disabled) instead.
+@ZigButtonLockedStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: $C.@ButtonBorder, Color: $ZK.@ZigBandBody)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: $C.@ButtonBorder, Color: $ZK.@ZigBandBody)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: $C.@ButtonBorder, Color: $ZK.@ZigBandBody)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Common/Buttons/Disabled.png", Border: $C.@ButtonBorder)),
+  Sounds: $C.@ButtonSounds
+);
+
+// The words on a locked button: the button label in the muted ink.
+@ZigButtonLockedLabelStyle = LabelStyle(...$ZX.@ZigButtonLabelStyle, TextColor: $ZK.@ZigInkMuted);
 
 // ── State words: a row's or a pill's state, 13, bold, uppercase, one line, in its tone's text colour ──
 @ZigStateStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkBody, RenderBold: true, RenderUppercase: true, HorizontalAlignment: End, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);

@@ -483,6 +483,8 @@ class ZigKitDocumentsTest {
         String tab = block(ui, "#Tab");
         assertEquals("$ZS.@ZigViewTabStyle", property(tab, "Style"));
         assertEquals(ViewTabPainter.HEIGHT - ViewTabPainter.BAR, size(leaf(property(tab, "Anchor"), "Height")));
+        assertEquals(ViewTabPainter.BAR, size(leaf(property(tab, "Anchor"), "Top")),
+                "the tab's top margin takes the hidden bar's place, so the tab stands on the rule under the strip");
         assertEquals("$ZW.@ZigPicture", type(ui, "#Pic"), "the picture is the kit's plain slot");
         assertEquals("$ZK.@ZigPicLine", parameter(block(ui, "#Pic"), "Size"), "a 28px picture, as the rail's");
         assertEquals("$ZS.@ZigViewTabLabelStyle", property(block(ui, "#Label"), "Style"));
