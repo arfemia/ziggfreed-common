@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
+import com.ziggfreed.common.ui.kit.ZigTokens;
+
 /**
  * Mod-agnostic binding + widget helpers for a settings / config form page: dropdown populate + bind,
  * text-field bind, button bind, a status line, an on/off toggle, and a segmented-tab active paint. The
@@ -29,17 +31,20 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
  */
 public final class SettingsUiUtil {
 
-    // On/off + active-tab tints (steel/green convention; a consumer may override by not using these).
-    private static final String TOGGLE_ON_BG = "#1a3d2e";
-    private static final String TOGGLE_ON_LABEL = "#4aff7f";
-    private static final String TOGGLE_OFF_BG = "#2b3542";
-    private static final String TOGGLE_OFF_LABEL = "#96a9be";
-    private static final String TAB_ACTIVE_BG = "#2a4a3a";
-    private static final String TAB_ACTIVE_LABEL = "#4aff7f";
-    private static final String TAB_INACTIVE_BG = "#3a4658";
-    private static final String TAB_INACTIVE_LABEL = "#b6c9de";
-    private static final String STATUS_ERROR = "#ff6a6a";
-    private static final String STATUS_OK = "#4aff7f";
+    // On/off, active-tab and status tints, all the kit's tokens (ZigTokens, the mirror of Common/ZigTokens.ui), so a
+    // settings page reads as the rest of the Chapter look. Each tint multiplies the game's Secondary button patch the
+    // toggle and the tab sit on: the bright ink leaves the patch as the game draws it, the unlit mark dims it, and the
+    // done tone greens it. A consumer that wants other colours does not call these.
+    private static final String TOGGLE_ON_BG = ZigTokens.TONE_DONE_FILL;
+    private static final String TOGGLE_ON_LABEL = ZigTokens.TONE_DONE_TEXT;
+    private static final String TOGGLE_OFF_BG = ZigTokens.MARK_UNLIT;
+    private static final String TOGGLE_OFF_LABEL = ZigTokens.INK_BODY;
+    private static final String TAB_ACTIVE_BG = ZigTokens.INK_BRIGHT;
+    private static final String TAB_ACTIVE_LABEL = ZigTokens.INK_BRIGHT;
+    private static final String TAB_INACTIVE_BG = ZigTokens.MARK_UNLIT;
+    private static final String TAB_INACTIVE_LABEL = ZigTokens.INK_BODY;
+    private static final String STATUS_ERROR = ZigTokens.TONE_DANGER_TEXT;
+    private static final String STATUS_OK = ZigTokens.TONE_DONE_TEXT;
 
     private SettingsUiUtil() {
         // static helper
@@ -185,9 +190,9 @@ public final class SettingsUiUtil {
     /**
      * Paint an on/off toggle built as a vanilla {@code Button} + inner {@code #Label} (a
      * {@code @ZigRichRowBtnStyle} instance): the label shows {@code onLabel}/{@code offLabel} via
-     * {@code .TextSpans}, the three button states retint green (ON) / steel (OFF), and the label colour
-     * follows. Apply-only (the page re-renders each state), so it is safe in a full {@code build()} or a
-     * partial {@code sendUpdate}.
+     * {@code .TextSpans}, the three button states retint to the done tone (ON) or the unlit mark (OFF), and the
+     * label colour follows (the done tone's text, or the body ink). Apply-only (the page re-renders each state), so
+     * it is safe in a full {@code build()} or a partial {@code sendUpdate}.
      */
     public static void setToggle(@Nonnull UICommandBuilder cmd, @Nonnull String selector, boolean on,
             @Nonnull Message onLabel, @Nonnull Message offLabel) {
@@ -199,10 +204,11 @@ public final class SettingsUiUtil {
 
     /**
      * Paint a segmented RICH tab ({@code Button} + inner {@code #Label}) as active / inactive by
-     * retinting its three per-state backgrounds (via {@link UiRetint#retintButtonStates}) + its inner
-     * label colour (via {@link ZigRichButton#color}, the {@code .TextSpans} label - NOT a
-     * {@code TextButton} LabelStyle). Apply-only; call for every tab each render so switching resets the
-     * others. Pair with {@link ZigRichButton#text} to set each tab's label.
+     * retinting its three per-state backgrounds (via {@link UiRetint#retintButtonStates}: the game's patch as drawn
+     * when active, dimmed by the unlit mark when not) + its inner label colour (via {@link ZigRichButton#color},
+     * bright or the body ink, on the {@code .TextSpans} label - NOT a {@code TextButton} LabelStyle). Apply-only;
+     * call for every tab each render so switching resets the others. Pair with {@link ZigRichButton#text} to set each
+     * tab's label.
      */
     public static void setTabActive(@Nonnull UICommandBuilder cmd, @Nonnull String selector,
             boolean active) {

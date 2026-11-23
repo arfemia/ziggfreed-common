@@ -43,6 +43,12 @@ $ZW = "../Common/ZigKit.ui";
 //   #Tag         a pill at the line's end (a reward's state, "Collected")
 //   #LineSelect  a row-styled Button behind the whole line, shown when the line opens something; the line's
 //                words draw over it and carry no tooltip, so a click anywhere on the line reaches it
+//
+// And two more for a bullet (the Chapter look's diamond bullet with its name and a line under it, an omen on a gate):
+//   #Bullet      the picture slot's diamond, the game's own Common/BulletIcon.png at 10px, shown in place of a picture
+//                for a line whose picture is the kit's bullet (Picture.BULLET); its words take the bullet name style
+//   #LineSub     a line under #LineText, hidden until a line has one; DetailPainter grows the line's root to
+//                DetailPainter.SUB_LINE_HEIGHT (its whole Anchor) to hold it, so a line without one stays 32 high
 
 Group #ZigDetailLine {
   LayoutMode: Full;
@@ -107,12 +113,30 @@ Group #ZigDetailLine {
         Visible: false;
         FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
       }
+
+      Group #Bullet {
+        Anchor: (Left: 9, Top: 9, Width: 10, Height: 10);
+        Background: "../Common/BulletIcon.png";
+        Visible: false;
+      }
     }
 
-    Label #LineText {
+    Group #LineWords {
       FlexWeight: 1;
-      Text: "";
-      Style: (FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center);
+      LayoutMode: Top;
+
+      Label #LineText {
+        Anchor: (Height: $ZK.@ZigLineHeight);
+        Text: "";
+        Style: (FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center);
+      }
+
+      Label #LineSub {
+        Anchor: (Height: 18);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigBulletLineStyle, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 1);
+      }
     }
 
     Label #Count {

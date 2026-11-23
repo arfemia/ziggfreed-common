@@ -2,11 +2,12 @@ $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 $ZW = "../Common/ZigKit.ui";
 
-// One counted thing (a season's tally, a statistic), 216 x 128 on vanilla's Memories tile, appended by
-// com.ziggfreed.common.ui.kit.TilePainter
-// into a wrapping grid and addressed by index as "#Grid[i] #StatTile": the 40px picture (#Pic, painted through
-// IconRenderer.applyPlainIcon) beside the figure (#Figure, at the end), the thing's name in two lines (#Name), a
-// caption ("1,204 in all") and, when the server counts it too, a faint server line (#Server, hidden otherwise).
+// One counted thing (a season's tally, a statistic, a standing), 216 x 128: the Chapter look's figure tile, on the
+// game's own panel patch (Common/ContainerFullPatch.png, finished on all four sides, as the panel frame draws it),
+// appended by com.ziggfreed.common.ui.kit.TilePainter into a wrapping grid and addressed by index as
+// "#Grid[i] #StatTile": the 40px picture (#Pic, painted through IconRenderer.applyPlainIcon) beside the figure
+// (#Figure, at the end), the thing's name in two lines (#Name), a caption ("1,204 in all") and, when the server counts
+// it too, a faint server line (#Server, hidden otherwise). The padding keeps the words inside the patch's frame.
 
 Group #ZigStatTile {
   Anchor: (Width: 216, Height: 128, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
@@ -14,8 +15,8 @@ Group #ZigStatTile {
   Group #StatTile {
     Anchor: (Full: 0);
     LayoutMode: Top;
-    Padding: (Top: 10, Bottom: 8, Horizontal: $ZK.@ZigSpace3);
-    Background: (TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8);
+    Padding: (Top: 10, Bottom: 8, Horizontal: 14);
+    Background: (TexturePath: "../Common/ContainerFullPatch.png", Border: 20);
 
     Group #StatHead {
       LayoutMode: Left;

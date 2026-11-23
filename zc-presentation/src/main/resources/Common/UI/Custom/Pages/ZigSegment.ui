@@ -1,10 +1,11 @@
 $ZK = "../Common/ZigTokens.ui";
 $ZW = "../Common/ZigKit.ui";
 
-// One segment of a segmented control (a view, a status filter, a year), appended by
+// One segment of a segmented control (a view, a status filter, a year, a choice on a form), appended by
 // com.ziggfreed.common.ui.kit.SegmentPainter and addressed by index as "#Host[i] #Seg": the kit's @ZigSegment
-// (Common/ZigKit.ui), 132 x 32, a Button with its #Label, #Check and #Dot. The chosen segment swaps to
-// ZigSegmentOnStyle by reference.
+// (Common/ZigKit.ui), 132 x 32, a Button with its #Label, #Check and #Dot. It is the Chapter look's choice tile: the
+// game's Memories tile at rest (ZigSegmentStyle), and the chosen one swaps to ZigSegmentOnStyle by reference, the
+// gold Selected tile.
 
 Group #ZigSegment {
   LayoutMode: Left;

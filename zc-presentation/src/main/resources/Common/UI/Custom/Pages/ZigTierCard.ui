@@ -1,0 +1,177 @@
+$C = "../Common.ui";
+$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One tier as a card (a dungeon's depth on its gate, the game's Chapter card), appended by
+// com.ziggfreed.common.ui.kit.TierCardPainter into a host laid out Left and addressed by index as "#Host[i] #Card",
+// 248 x 576 with a 24 gap. The whole card is ONE Button (R1180): a click anywhere on it goes in, and it lights in the
+// game's gold Selected Memories tile under the cursor (ZigTierCardStyle). Nothing inside it carries a tooltip or a
+// button of its own, so nothing takes its click: its pictures are plain AssetImages, and what it pays in words rides
+// the card's own tooltip (#Card's TextTooltipStyle, the game's).
+//
+// Top to bottom, inside 20 / 18 of padding:
+//   #TagRow   18 high, holding #Tag, small capitals in copper over the title ("Today's daily"), hidden with none
+//   #TitleRow the title in the headline face at 28 in capitals: #Title under the game's gold text gradient (inside
+//             #TitleMask, a Left group, so the ramp spans the words), or #TitleDim in the dim ink on a locked card
+//   #SubRow   20 high, holding #Sub, a copper line under the title ("Inside now: Ana."), hidden with none
+//   #Week     what the tier meets this week, up to three lines
+//   #Rule     the game's rule (Common/ContainerDecorationTop.png)
+//   #PaysHead small capitals over #PayGrid, the host the pay slots go into (Pages/ZigItemSlotTile.ui, two a row,
+//             two rows), and #PayNote under it ("Sometimes a gem"); all three hidden on a card that pays nothing
+//   #Mark     the kit's pay mark (@ZigPayMark): what the next clear pays, hidden with none
+//   #GoPlate  the go-in plate, the game's Secondary button patch with #GoLabel on it; it is no button (the card is),
+//             and a card a page shows to be read (a week board) hides it
+//   #LockBlock a locked card's padlock (#LockGlyph, the kit's Lock glyph) and its two lines (#LockLine, #LockHow); a
+//             locked card is the same button switched off (.Disabled), drawn on the game's empty Memories tile
+// A flexing #CardSpace keeps the mark, the plate and the lock at the card's foot.
+
+Group #ZigTierCard {
+  Anchor: (Width: 248, Height: 576, Right: $ZK.@ZigSpace5);
+
+  Button #Card {
+    Anchor: (Full: 0);
+    LayoutMode: Top;
+    Padding: (Top: 20, Bottom: 20, Horizontal: 18);
+    Style: $ZS.@ZigTierCardStyle;
+    TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+
+    Group #TagRow {
+      LayoutMode: Top;
+      Anchor: (Height: 18);
+
+      Label #Tag {
+        Anchor: (Height: 18);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigSmallCapsStyle, TextColor: $ZK.@ZigInkCopper, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+      }
+    }
+
+    Group #TitleRow {
+      LayoutMode: Center;
+      Anchor: (Height: 36);
+
+      Group #TitleMask {
+        LayoutMode: Left;
+
+        Label #Title {
+          Text: "";
+          Style: $ZX.@ZigCardTitleStyle;
+          MaskTexturePath: $C.@TextHighlightGradientMask;
+        }
+      }
+
+      Label #TitleDim {
+        Anchor: (Width: 212);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigCardTitleStyle, TextColor: $ZK.@ZigInkDim);
+      }
+    }
+
+    Group #SubRow {
+      LayoutMode: Top;
+      Anchor: (Height: 20);
+
+      Label #Sub {
+        Anchor: (Height: 20);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigTaglineStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+      }
+    }
+
+    Label #Week {
+      Anchor: (Height: 57, Top: 6);
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 3);
+    }
+
+    Group #RuleRow {
+      LayoutMode: Center;
+      Anchor: (Height: 9, Top: 10, Bottom: 12);
+
+      Group #Rule {
+        Anchor: (Width: 184, Height: 9);
+        Background: "../Common/ContainerDecorationTop.png";
+      }
+    }
+
+    Label #PaysHead {
+      Anchor: (Height: 18, Bottom: 8);
+      Text: "";
+      Visible: false;
+      Style: (...$ZX.@ZigSmallCapsStyle, HorizontalAlignment: Center);
+    }
+
+    Group #PayGrid {
+      LayoutMode: LeftCenterWrap;
+      Anchor: (Height: 192);
+      Visible: false;
+    }
+
+    Label #PayNote {
+      Anchor: (Height: 18, Top: 2);
+      Text: "";
+      Visible: false;
+      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+    }
+
+    Group #CardSpace {
+      FlexWeight: 1;
+    }
+
+    $ZW.@ZigPayMark #Mark {
+      Visible: false;
+    }
+
+    Group #GoPlate {
+      LayoutMode: Center;
+      Anchor: (Height: 40, Top: 14);
+      Visible: false;
+
+      Group #GoFace {
+        LayoutMode: Left;
+        Anchor: (Width: 184, Height: 40);
+        Background: (TexturePath: "../Common/Buttons/Secondary.png", Border: $C.@ButtonBorder);
+
+        Label #GoLabel {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+
+    Group #LockBlock {
+      LayoutMode: Top;
+      Visible: false;
+
+      Group #LockRow {
+        LayoutMode: Center;
+        Anchor: (Height: 20, Bottom: 8);
+
+        Group #LockGlyph {
+          Anchor: (Width: 20, Height: 20);
+          Background: (TexturePath: "../Common/Glyphs/Lock.png", Color: $ZK.@ZigInkBody);
+        }
+      }
+
+      Label #LockLine {
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 2);
+      }
+
+      Label #LockHow {
+        Anchor: (Bottom: 10);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 3);
+      }
+    }
+  }
+}

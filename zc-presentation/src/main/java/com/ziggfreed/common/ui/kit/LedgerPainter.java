@@ -16,14 +16,17 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.ZigRichButton;
 
 /**
  * Paints a {@link LedgerModel} into a list: one {@code Pages/ZigLedgerSection.ui} per section (head with label,
  * count and chevron; rows in its {@code #Rows}), one row template per row up to the section's cap, then a
  * {@code Pages/ZigShowMoreRow.ui}. A row's look is its named styles ({@link ZigStyles}): the row and selected-row
- * button styles and the selected title; its state word sits on a pill tinted to its tone, its accent bar is what
- * the row asks for ({@link RowAccent}: the tone's fill by default), and its meta line may open with a glyph
- * ({@link MetaGlyph}). A closed section appends its rows only when first opened ({@link #openSection}).
+ * button styles and the selected title, and the selected row's gold edge ({@code #Edge}, clear at rest); its state
+ * word sits on a pill tinted to its tone, its accent bar is what the row asks for ({@link RowAccent}: the tone's fill
+ * by default), its meta line may open with a glyph ({@link MetaGlyph}), and a row may carry one action button
+ * ({@link LedgerRow#action}, {@code #Action}, bound through {@link LedgerBindings#action}). A closed section appends
+ * its rows only when first opened ({@link #openSection}).
  *
  * <p><b>Selectors</b> (every appended template is a {@code Group} root named after its file, the 2.8 ids inside):
  * section {@code list[s] #Section}, head {@code list[s] #Head}, rows host {@code list[s] #Rows}, a row's button
@@ -44,6 +47,12 @@ public final class LedgerPainter {
 
     /** The mark before a section id in {@code openSections} that the viewer closed. */
     public static final String CLOSED = "!";
+
+    /** A row's 3px edge, gold on the selected row and clear at rest (every row template declares it). */
+    static final String EDGE = "#Edge";
+
+    /** A row's one action button (every row template declares it, hidden). */
+    static final String ACTION = "#Action";
 
     private LedgerPainter() {
     }
@@ -89,9 +98,9 @@ public final class LedgerPainter {
     }
 
     /**
-     * Move the selection in a partial update: the old row back to its resting style, the new one steel blue with its
-     * title in bright ink. Every copy of a row (a pinned row shows twice) moves together. A row that is not painted
-     * (in a closed section, or gone) is skipped.
+     * Move the selection in a partial update: the old row back to its resting style, the new one on the warm
+     * selection with its gold edge and its title in bright ink. Every copy of a row (a pinned row shows twice) moves
+     * together. A row that is not painted (in a closed section, or gone) is skipped.
      */
     public static void select(@Nonnull UICommandBuilder cmd, @Nonnull LedgerIndex index, @Nullable String fromRowId,
             @Nonnull String toRowId, @Nullable PlayerRef viewer) {
@@ -202,10 +211,29 @@ public final class LedgerPainter {
             cmd.set(row + " #Mark #Pinned.Visible", mark == Mark.PINNED);
             cmd.set(row + " #Mark #Tracked.Visible", mark == Mark.TRACKED);
         }
+        action(cmd, row, data.action(), viewer);
         if (selected) {
             // A fresh row carries its authored resting styles; only the selected one is swapped, last.
             rowState(cmd, row, data, true, size, viewer);
         }
+    }
+
+    /**
+     * The row's one action ({@code #Action}): shown with its label and its look ({@link DetailPainter#style}: a slot's
+     * own unless its look says otherwise), greyed in place when it cannot be pressed now, its tooltip on the button;
+     * hidden for none. The template ships it hidden, so a row with none sends nothing.
+     */
+    private static void action(@Nonnull UICommandBuilder cmd, @Nonnull String row, @Nullable DetailAction action,
+            @Nullable PlayerRef viewer) {
+        if (action == null) {
+            return;
+        }
+        String button = row + " " + ACTION;
+        cmd.set(button + ".Visible", true);
+        ZigRichButton.text(cmd, button, action.label());
+        ZigStyles.apply(cmd, button + ".Style", DetailPainter.style(action.slot(), action.look()), viewer);
+        cmd.set(button + ".Disabled", !action.enabled());
+        KitPaint.tooltip(cmd, button, action.tooltip());
     }
 
     /** The accent bar's fill as the row asks for it ({@link RowAccent}), or null for no bar. */
@@ -253,9 +281,9 @@ public final class LedgerPainter {
     }
 
     /**
-     * A row's selected or resting look: the button's style, and its words and meta glyph white on the steel blue or
-     * back in their own inks (the title by its text style, the meta and value by colour, which keeps the one-line
-     * shape the selected styles share with the resting ones). The state pill keeps its look either way. A label the
+     * A row's selected or resting look: the button's style, its edge gold or clear, and its words and meta glyph white
+     * on the warm selection or back in their own inks (the title by its text style, the meta and value by colour,
+     * which keeps the one-line shape the selected styles share with the resting ones). The state pill keeps its look either way. A label the
      * row does not show is left alone.
      *
      * <p>A row whose meta wraps to two lines ({@link RowSize#metaWraps()}) turns its meta white by the colour leaf
@@ -266,6 +294,7 @@ public final class LedgerPainter {
     private static void rowState(@Nonnull UICommandBuilder cmd, @Nonnull String row, @Nullable LedgerRow data,
             boolean selected, @Nonnull RowSize size, @Nullable PlayerRef viewer) {
         ZigStyles.apply(cmd, row + ".Style", selected ? ZigStyles.Name.ROW_SELECTED : ZigStyles.Name.ROW, viewer);
+        UiRetint.fill(cmd, row + " " + EDGE, selected ? ZigTokens.MARK_LIT : ZigTokens.SURFACE_CLEAR);
         boolean meta = data != null && size.hasMeta() && data.meta() != null;
         boolean value = data != null && data.value() != null;
         metaGlyphInk(cmd, row, data, selected, size);
@@ -303,6 +332,9 @@ public final class LedgerPainter {
             String row = KitPaint.child(host, r) + " #Select";
             paintRow(cmd, row, data, data.id().equals(selected), index.size(), index.viewer());
             bind(events, row, bindings.row(section, data));
+            if (data.action() != null && data.action().enabled()) {
+                bind(events, row + " " + ACTION, bindings.action(section, data));
+            }
             index.row(data, row);
         }
         if (rows.size() > shown) {

@@ -21,4 +21,13 @@ public interface LedgerBindings {
     /** A section's "Show N more" row. */
     @Nullable
     EventData showMore(LedgerSection s);
+
+    /**
+     * A row's own action button ({@link LedgerRow#action}), pressed: none by default, so a list whose rows carry no
+     * action answers nothing new. Asked only for a row with an action that can be pressed.
+     */
+    @Nullable
+    default EventData action(LedgerSection s, LedgerRow r) {
+        return null;
+    }
 }

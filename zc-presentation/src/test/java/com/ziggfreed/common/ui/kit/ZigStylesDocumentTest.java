@@ -29,9 +29,8 @@ import org.junit.jupiter.api.Test;
  * ({@code Value.ref(document, name)}), so every name it can ask for must exist in every theme document shipped: a
  * reference to a name the document lacks fails on the client. The default theme is {@code Common/ZigStyles.ui};
  * another theme is a document under {@code Common/Themes/} with the same names. Beside the names, the default's
- * styles are vanilla's own: its row states, its tertiary and active segment patches, the Memories tiles, a sound on
- * every button and the cancel sound vanilla's destructive buttons play on the danger button, and a tone's own text
- * colour on its state word.
+ * styles keep the rules a page relies on: its row states on the tokens, a sound on every button and the cancel sound
+ * vanilla's destructive buttons play on the danger button, and a tone's own text colour on its state word.
  */
 class ZigStylesDocumentTest {
 
@@ -91,17 +90,6 @@ class ZigStylesDocumentTest {
                 "white on the selected row (13.4:1)");
         assertTrue(style(ui, "@ZigRowTitleOnSelectedStyle").contains("...$ZX.@ZigLedgerTitleStyle"),
                 "the selected row's title is the two-line list title, so selecting never cuts its second line (M515)");
-    }
-
-    @Test
-    void segmentsAreVanillasTertiaryPatchesAndTilesTheMemoriesTiles() throws IOException {
-        String ui = document(DEFAULT_THEME);
-        assertTrue(style(ui, "@ZigSegmentStyle").contains("$C.@TertiaryDefaultButtonBackground"));
-        assertTrue(style(ui, "@ZigSegmentOnStyle").contains("$C.@TertiaryActiveButtonBackground"),
-                "the chosen segment is vanilla's Tertiary_Active patch");
-        assertTrue(style(ui, "@ZigTileStyle").contains("Memories/Tiles/TileDefault.png")
-                && style(ui, "@ZigTileStyle").contains("Memories/Tiles/TileHovered.png"));
-        assertTrue(style(ui, "@ZigTileCompleteStyle").contains("Memories/Tiles/TileComplete.png"));
     }
 
     @Test

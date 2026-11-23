@@ -3,15 +3,24 @@ $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 $ZW = "../Common/ZigKit.ui";
 
-// One item of a collection grid (a season's items in the Almanac), 88 x 88, appended by
-// com.ziggfreed.common.ui.kit.TilePainter into a wrapping grid and addressed by index as "#Grid[i] #Slot".
+// One item slot, 88 x 88, appended by com.ziggfreed.common.ui.kit.TilePainter into a wrapping grid and addressed by
+// index as "#Grid[i] #Slot". It serves three ways, each showing exactly one background layer:
 //
-// Vanilla's Memories tiles (Pages/Memories/Memory.ui), showing the item's state by showing one background:
-// #SlotOwned (TileComplete) once the player has had it, #SlotSeen (TileDefault) while it is shown but not yet had,
-// #SlotHidden (TileEmpty) while it hides until found; exactly one visible. Over it the 64px picture (#Pic, painted
-// through IconRenderer.applyPlainIcon), the #Scrim that dims an item not yet had, the '?' a hidden one shows in
-// place of its picture (#Mystery), and the Memories #Check once had, or in its corner the kit's #Lock while
+// A collection's item (a season's items in the Almanac, TilePainter.itemSlots), on vanilla's Memories tiles
+// (Pages/Memories/Memory.ui): #SlotOwned (TileComplete) once the player has had it, #SlotSeen (TileDefault) while it
+// is shown but not yet had, #SlotHidden (TileEmpty) while it hides until found. Over it the 64px picture (#Pic,
+// painted through IconRenderer.applyPlainIcon), the #Scrim that dims an item not yet had, the '?' a hidden one shows
+// in place of its picture (#Mystery), and the Memories #Check once had, or in its corner the kit's #Lock while
 // something the player does not meet yet keeps it from them. The item's words show as #Slot's tooltip.
+//
+// A pay slot (what a tier pays, on its card; TilePainter.paySlots): #SlotArt, an AssetImage of the item quality's own
+// slot art (UI/ItemQualities/Slots/..., the art the game draws behind an item), under the item's 64px picture (#Pic);
+// or, for a drop list that hands over one of a few, #Choices, up to four 28px pictures two by two over #SlotSeen. A
+// pay slot inside a card carries no tooltip, so it never takes the card's click; on a locked card #Scrim dims it.
+//
+// A chest slot (a weekly hoard; TilePainter.chestSlots): #SlotFrame, the game's panel patch
+// (Common/ContainerFullPatch.png), under the chest's picture (#Pic), and once taken the game's gold check
+// (Common/RunicCheckChecked.png, #Taken) hanging under the slot's middle.
 
 Group #ZigItemSlotTile {
   Anchor: (Width: 88, Height: 88, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
@@ -38,9 +47,47 @@ Group #ZigItemSlotTile {
       Visible: false;
     }
 
+    AssetImage #SlotArt {
+      Anchor: (Full: 0);
+      FallbackTexturePath: "UI/Custom/Common/Glyphs/Blank.png";
+      Visible: false;
+    }
+
+    Group #SlotFrame {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Common/ContainerFullPatch.png", Border: 20);
+      Visible: false;
+    }
+
     $ZW.@ZigPicture #Pic {
       @Size = $ZK.@ZigPicLarge;
       @Anchor = (Left: 12, Top: 12);
+    }
+
+    Group #Choices {
+      Anchor: (Left: 14, Top: 14, Width: 60, Height: 60);
+      LayoutMode: Full;
+      Visible: false;
+
+      $ZW.@ZigPicture #Choice0 {
+        @Size = $ZK.@ZigPicLine;
+        @Anchor = (Left: 0, Top: 0);
+      }
+
+      $ZW.@ZigPicture #Choice1 {
+        @Size = $ZK.@ZigPicLine;
+        @Anchor = (Left: 32, Top: 0);
+      }
+
+      $ZW.@ZigPicture #Choice2 {
+        @Size = $ZK.@ZigPicLine;
+        @Anchor = (Left: 0, Top: 32);
+      }
+
+      $ZW.@ZigPicture #Choice3 {
+        @Size = $ZK.@ZigPicLine;
+        @Anchor = (Left: 32, Top: 32);
+      }
     }
 
     Group #Scrim {
@@ -65,6 +112,12 @@ Group #ZigItemSlotTile {
     Group #Lock {
       Anchor: (Top: 6, Right: 6, Width: 16, Height: 16);
       Background: (TexturePath: "../Common/Glyphs/Lock.png", Color: $ZK.@ZigInkMuted);
+      Visible: false;
+    }
+
+    Group #Taken {
+      Anchor: (Left: 30, Top: 67, Width: 27, Height: 27);
+      Background: "../Common/RunicCheckChecked.png";
       Visible: false;
     }
   }

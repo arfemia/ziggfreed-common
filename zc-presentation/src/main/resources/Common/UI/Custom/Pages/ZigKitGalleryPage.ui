@@ -10,13 +10,15 @@ $ZM = "../Common/ZigForm.ui";
 
 // The kit gallery (com.ziggfreed.common.ui.kit.gallery.KitGalleryPage, /zigkit gallery, owners only): every piece of
 // the page kit in every state it can be shown in, with sample words, on the band (@ZigDecoratedFrame), so the look
-// is reviewed in one place. The frame's hero is shown, filled from Java. Under it a scrolling body holds one section
-// per kind of piece: the type (every text style of Common/ZigText.ui and the styles the other kit documents name),
-// the tones (state words, fills and pills), the buttons (each look, at rest and switched off; hover and press by the
-// pointer), list rows (the kit's ledger rows in every tone, selected, pinned, tracked, faint, a closed section and a
-// capped one), view tabs and segments, the tiles (every tile style, then the kit's stat, collection, keepsake, item
-// slot and ware tiles), a card, the figures, the reading page (with its progress block, section headers and action
-// bar), and an empty state.
+// is reviewed in one place. The frame's hero is shown, filled by the kit's HeroPainter. Under it a scrolling body
+// holds one section per kind of piece: the type (every text style of Common/ZigText.ui and the styles the other kit
+// documents name), the tones (state words, fills and pills), the buttons (each look, at rest and switched off; hover
+// and press by the pointer), list rows (the kit's ledger rows in every tone, selected with its gold edge, pinned,
+// tracked, faint, a closed section and a capped one; tall and compact rows; notice rows with their one button, ready
+// and switched off), view tabs (the game's header tabs) and segments (choice tiles), the tiles (every tile style,
+// then the kit's figure, collection, keepsake, item slot, pay slot, chest slot and ware tiles), tier cards (open, a
+// daily, one only to be read, and a locked one) and pay marks (full, half, a quarter, none), a card, the figures,
+// the reading page (with its progress block, section headers and action bar), bullet lines, and an empty state.
 // The panel frame (@ZigPanelFrame) is the gallery's second view, Pages/ZigKitGalleryPanel.ui.
 //
 // Every word is a key of ziggfreedcommon.ui.lang (gallery.*); the static ones are written inline here, the painted
@@ -685,6 +687,16 @@ $F.@ZigDecoratedFrame {
         LayoutMode: Top;
       }
 
+      Label {
+        Anchor: (Height: 24, Top: 8, Bottom: 6);
+        Text: %ziggfreedcommon.ui.gallery.head.notices;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group #GalNotices {
+        LayoutMode: Top;
+      }
+
       // ── Tabs and segments ──
       Label {
         Anchor: (Height: 32, Top: 20, Bottom: 8);
@@ -794,9 +806,52 @@ $F.@ZigDecoratedFrame {
         Anchor: (Bottom: 12);
       }
 
+      Label {
+        Anchor: (Height: 24, Bottom: 6);
+        Text: %ziggfreedcommon.ui.gallery.head.payslots;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Bottom: 12);
+
+        Group #GalPaySlots {
+          LayoutMode: Left;
+          Anchor: (Right: 24);
+        }
+
+        Group #GalChestSlots {
+          LayoutMode: Left;
+        }
+      }
+
       Group #GalWareSections {
         LayoutMode: Top;
         Anchor: (Bottom: 12);
+      }
+
+      // ── Tier cards and pay marks ──
+      Label {
+        Anchor: (Height: 32, Top: 20, Bottom: 8);
+        Text: %ziggfreedcommon.ui.gallery.head.tiercards;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group #GalTierCards {
+        LayoutMode: Left;
+        Anchor: (Height: 576, Bottom: 12);
+      }
+
+      Label {
+        Anchor: (Height: 24, Bottom: 6);
+        Text: %ziggfreedcommon.ui.gallery.head.paymarks;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group #GalPayMarks {
+        LayoutMode: Left;
+        Anchor: (Height: 66, Bottom: 12);
       }
 
       // ── Cards ──
@@ -849,6 +904,17 @@ $F.@ZigDecoratedFrame {
         Background: (Color: $ZK.@ZigSurfacePane);
 
         $ZW.@ZigDetailPage #GalDetail {}
+      }
+
+      Label {
+        Anchor: (Height: 24, Bottom: 6);
+        Text: %ziggfreedcommon.ui.gallery.head.bullets;
+        Style: $ZX.@ZigCaptionStyle;
+      }
+
+      Group #GalBullets {
+        LayoutMode: Top;
+        Anchor: (Width: 480, Bottom: 12);
       }
 
       Label {

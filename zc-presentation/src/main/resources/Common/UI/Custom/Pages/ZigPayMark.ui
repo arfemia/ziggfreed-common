@@ -1,0 +1,14 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One pay mark on its own (a depth's next clear, a week's share), appended by
+// com.ziggfreed.common.ui.kit.PayMarkPainter.append and addressed by index as "#Host[i] #PayMark": the kit's
+// @ZigPayMark (Common/ZigKit.ui), 212 x 66: an optional small-capitals head, the mark's word in the headline face and
+// its four diamonds, lit gold for what it pays. A tier card holds the same template inline (Pages/ZigTierCard.ui
+// #Mark), so the two never drift.
+
+Group #ZigPayMark {
+  Anchor: (Width: 212, Height: 66, Right: $ZK.@ZigSpace5);
+
+  $ZW.@ZigPayMark #PayMark {}
+}

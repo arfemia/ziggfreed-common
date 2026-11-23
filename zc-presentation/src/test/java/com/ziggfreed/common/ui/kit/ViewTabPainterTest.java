@@ -18,9 +18,9 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
 /**
  * What a view tab sends: one template per tab by index, its name on {@code #Label.TextSpans}, its plain picture, and
- * its click; the chosen tab swaps to the "on" button and label styles by reference and shows its gold bar, while a
- * tab at rest keeps its authored look. Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches
- * the engine's item codec.
+ * its click; the chosen tab swaps to the "on" button and label styles by reference, while a tab at rest keeps its
+ * authored look. Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item
+ * codec.
  */
 @Tag("engine-items")
 class ViewTabPainterTest {
@@ -49,7 +49,6 @@ class ViewTabPainterTest {
 
         assertTrue(p.references("#Views[0] #Tab.Style", ZigStyles.DOCUMENT, "ZigViewTabOnStyle"));
         assertTrue(p.references("#Views[0] #Tab #Label.Style", ZigStyles.DOCUMENT, "ZigViewTabLabelOnStyle"));
-        assertTrue(p.shown("#Views[0] #Bar.Visible"), "the chosen tab shows its gold bar");
         assertFalse(p.has("#Views[1] #Tab.Style"), "a tab at rest keeps its authored look");
         assertFalse(p.has("#Views[1] #Tab #Label.Style"));
         assertFalse(p.has("#Views[1] #Bar.Visible"), "the bar ships hidden");

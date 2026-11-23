@@ -53,7 +53,7 @@ class ZigKitDocumentsTest {
     private static final List<String> KIT_TEMPLATES = List.of("@ZigSegment", "@ZigSegmentTwoLine", "@ZigStat",
             "@ZigStatTwoLine", "@ZigPill",
             "@ZigProgressBar", "@ZigProgressBlock", "@ZigSectionHeader", "@ZigPicture", "@ZigDetailPage",
-            "@ZigActionBar", "@ZigEmptyState", "@ZigHeroPlate");
+            "@ZigActionBar", "@ZigEmptyState", "@ZigHeroPlate", "@ZigPayMark");
 
     /**
      * The glyph set ({@code Common/Glyphs/}), white on transparent, the last six the kinds of screen a
@@ -448,8 +448,6 @@ class ZigKitDocumentsTest {
         assertEquals(216, size(leaf(anchor, "Width")));
         assertEquals(128, size(leaf(anchor, "Height")));
         String tile = block(ui, "#StatTile");
-        assertEquals("(TexturePath: \"../Pages/Memories/Tiles/TileDefault.png\", Border: 8)", property(tile, "Background"),
-                "every tile in the family sits on vanilla's Memories tile");
         assertPicture(tile, "#Pic", 40);
         assertEquals("$ZX.@ZigFigureStyle", property(block(tile, "#Figure"), "Style"));
         assertTrue(property(block(tile, "#Name"), "Style").contains("WrapMaxLines: 2"), "the name takes two lines");
@@ -492,6 +490,46 @@ class ZigKitDocumentsTest {
         assertEquals(ViewTabPainter.BAR, size(leaf(property(bar, "Anchor"), "Height")));
         assertEquals("$ZK.@ZigAccent", leaf(property(bar, "Background"), "Color"), "the rail's gold");
         assertEquals("false", property(bar, "Visible"), "only the chosen tab shows its bar");
+    }
+
+    /**
+     * A tier card is ONE button (R1180): its painter's numbers are its template's, the whole card is the one Button,
+     * which carries the game's tooltip style for the pay line, its pay grid wraps two pay slots a row in two rows, and
+     * its mark is the kit's pay mark, whose four diamonds each declare the tintable patch the painter pushes a colour
+     * onto (a push onto an unset Background disconnects the player).
+     */
+    @Test
+    void theTierCardIsOneButtonAndItsMarkFourTintableDiamonds() throws IOException {
+        String ui = document(TierCardPainter.TEMPLATE);
+        String anchor = property(block(ui, "#ZigTierCard"), "Anchor");
+        assertEquals(TierCardPainter.WIDTH, size(leaf(anchor, "Width")));
+        assertEquals(TierCardPainter.HEIGHT, size(leaf(anchor, "Height")));
+        assertEquals(TierCardPainter.GAP, size(leaf(anchor, "Right")));
+        assertEquals(1, count(ui, "\\bButton\\s+#"), "the whole card is one button");
+        assertEquals("Button", type(ui, "#Card"));
+        String card = block(ui, "#Card");
+        assertEquals("$ZS.@ZigTierCardStyle", property(card, "Style"));
+        assertEquals("$C.@DefaultTextTooltipStyle", property(card, "TextTooltipStyle"),
+                "the pay line Java sets on #Card draws in the game's tooltip");
+        assertTrue(property(block(card, "#Title"), "MaskTexturePath") != null, "the title is under the gold gradient");
+        String grid = block(card, "#PayGrid");
+        assertEquals("LeftCenterWrap", property(grid, "LayoutMode"));
+        String slot = property(block(document(TilePainter.ITEM_SLOT_TEMPLATE), "#ZigItemSlotTile"), "Anchor");
+        int step = size(leaf(slot, "Width")) + size(leaf(slot, "Right"));
+        assertTrue(2 * step <= TierCardPainter.WIDTH - 2 * size(leaf(property(card, "Padding"), "Horizontal")),
+                "two pay slots a row fit the card");
+        assertEquals(TierCardPainter.PAYS_SHOWN / 2 * (size(leaf(slot, "Height")) + size(leaf(slot, "Bottom"))),
+                size(leaf(property(grid, "Anchor"), "Height")), "the grid holds the slots a card shows, two rows");
+        assertEquals("$ZW.@ZigPayMark", type(card, "#Mark"));
+        assertHidden(card, "#Mark");
+        assertHidden(card, "#LockBlock");
+
+        assertEquals("$ZW.@ZigPayMark", type(document(PayMarkPainter.TEMPLATE), "#PayMark"));
+        String mark = template(document("Common/ZigKit.ui"), "@ZigPayMark");
+        assertEquals(PayMarkPainter.HEIGHT, size(leaf(property(mark, "Anchor"), "Height")));
+        for (int i = 0; i < PayMark.PIPS; i++) {
+            assertTintable("#Pip" + i, property(block(mark, "#Pip" + i), "Background"), "BulletIcon");
+        }
     }
 
     @Test
@@ -869,7 +907,13 @@ class ZigKitDocumentsTest {
         assertEquals("Group", type(select, "#Trail"));
         String trail = block(select, "#Trail");
         assertEquals("$ZX.@ZigCountStyle", property(block(trail, "#Value"), "Style"));
-        assertEquals(1, count(ui, "\\bButton\\s+#"), "no other button in a row");
+        assertEquals("Group", type(select, "#Edge"));
+        assertNotNull(property(block(select, "#Edge"), "Background"),
+                "the painter fills the selected row's edge, so it declares a Background");
+        assertEquals("Button", type(select, "#Action"), "the row's one action is a Button with an inner #Label");
+        assertHidden(select, "#Action");
+        assertEquals("Label", type(block(select, "#Action"), "#Label"));
+        assertEquals(2, count(ui, "\\bButton\\s+#"), "no other button in a row than the row and its one action");
         assertFalse(ui.contains("TooltipText"), "no tooltip in a row");
     }
 

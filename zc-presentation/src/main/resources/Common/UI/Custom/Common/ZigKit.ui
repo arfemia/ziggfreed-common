@@ -92,7 +92,8 @@ $ZS = "ZigStyles.ui";
   }
 };
 
-// ── @ZigSegment: one choice of a segmented control, 132 x 32; the chosen one swaps to ZigSegmentOnStyle. ──
+// ── @ZigSegment: one choice of a segmented control, 132 x 32: a choice tile, the Memories tile at rest and the gold
+// selected tile once chosen (ZigSegmentStyle, swapped to ZigSegmentOnStyle; Common/ZigStyles.ui). ──
 // #Check marks a choice taken part in (a year); #Dot marks one that is live.
 @ZigSegment = Button {
   @Anchor = ();
@@ -188,6 +189,54 @@ $ZS = "ZigStyles.ui";
     Anchor: (Height: 38);
     Text: "";
     Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+  }
+};
+
+// ── @ZigPayMark: a pay mark, 66 high, filling its parent's width (com.ziggfreed.common.ui.kit.PayMarkPainter). ──
+// #MarkHead, an optional small-capitals head ("Next clear"); #MarkWord, the mark's word in the headline face, lit gold
+// for a full mark, a lesser ink for less (its colour leaf, which the painter sets); #Pips, four diamonds (the game's
+// own Common/BulletIcon.png, a shaded silver diamond under a Color tint), each tinted lit (@ZigMarkLit) or unlit
+// (@ZigMarkUnlit) by its Background's colour leaf.
+@ZigPayMark = Group {
+  @Anchor = ();
+  LayoutMode: Top;
+  Anchor: (...@Anchor, Height: 66);
+
+  Label #MarkHead {
+    Anchor: (Height: 18);
+    Text: "";
+    Style: (...$ZX.@ZigSmallCapsStyle, HorizontalAlignment: Center);
+  }
+
+  Label #MarkWord {
+    Anchor: (Height: 28, Top: 2);
+    Text: "";
+    Style: (...$ZX.@ZigMarkStyle, HorizontalAlignment: Center);
+  }
+
+  Group #Pips {
+    LayoutMode: Center;
+    Anchor: (Height: 12, Top: 6);
+
+    Group #Pip0 {
+      Anchor: (Width: 12, Height: 12, Right: 6);
+      Background: (TexturePath: "../Common/BulletIcon.png", Color: $ZK.@ZigMarkUnlit);
+    }
+
+    Group #Pip1 {
+      Anchor: (Width: 12, Height: 12, Right: 6);
+      Background: (TexturePath: "../Common/BulletIcon.png", Color: $ZK.@ZigMarkUnlit);
+    }
+
+    Group #Pip2 {
+      Anchor: (Width: 12, Height: 12, Right: 6);
+      Background: (TexturePath: "../Common/BulletIcon.png", Color: $ZK.@ZigMarkUnlit);
+    }
+
+    Group #Pip3 {
+      Anchor: (Width: 12, Height: 12);
+      Background: (TexturePath: "../Common/BulletIcon.png", Color: $ZK.@ZigMarkUnlit);
+    }
   }
 };
 

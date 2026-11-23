@@ -56,7 +56,8 @@ import com.ziggfreed.common.season.SeasonGate;
  *   "Seed": { "Daily": false },
  *   "Season": "Hallows_Eve",
  *   "Text": { "NameKey": "mypack.dungeon.crypt.name", "DescriptionKey": "mypack.dungeon.crypt.description",
- *             "GoalKey": "mypack.dungeon.crypt.goal" }
+ *             "GoalKey": "mypack.dungeon.crypt.goal" },
+ *   "Emblem": "UI/Custom/Pages/Memories/categories/VoidspawnComplete.png"
  * }
  * }</pre>
  *
@@ -139,6 +140,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private Seed seed;
     @Nullable private String season;
     @Nullable private Text text;
+    @Nullable private String emblem;
 
     public static final AssetBuilderCodec<String, DungeonAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     DungeonAsset.class,
@@ -215,7 +217,13 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
             .appendInherited(new KeyedCodec<>("Text", Text.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
             .documentation("What players read the dungeon as, and what they are told to do there, by "
-                    + "localization key.").add(),
+                    + "localization key.").add()
+            .appendInherited(new KeyedCodec<>("Emblem", Codec.STRING, false),
+                    (a, v) -> a.emblem = v, a -> a.emblem, (a, p) -> a.emblem = p.emblem)
+            .documentation("The picture its gate draws over the dungeon's name: a texture path rooted at Common/, "
+                    + "such as UI/Custom/Pages/Memories/categories/VoidspawnComplete.png (the game's own Memories "
+                    + "emblems are one such set). A tier keeps the emblem of the file it names as its Parent. "
+                    + "Unauthored, the gate draws no emblem.").add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
 
@@ -673,6 +681,16 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable
     public String chestKey() {
         return blankToNull(text == null ? null : text.chestKey);
+    }
+
+    /**
+     * {@code Emblem}, trimmed: the texture its gate draws over the dungeon's name, rooted at {@code Common/} (an
+     * {@code AssetImage}'s root, as zc-presentation's {@code Hero} takes it); null when the file names none, and then
+     * the gate draws no emblem. Inherited under {@code Parent}, so every tier shows the base file's.
+     */
+    @Nullable
+    public String emblem() {
+        return blankToNull(emblem);
     }
 
     /**

@@ -1,3 +1,4 @@
+$C = "../Common.ui";
 $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 $ZS = "../Common/ZigStyles.ui";
@@ -14,7 +15,11 @@ $ZW = "../Common/ZigKit.ui";
 // if the client draws the two lines taller than 44. #Pic, #Mark and #BarTrack keep their
 // Top anchors and #Trail stacks from the top, so they stay where they were: #Value over #StatePill, the state
 // word on its tone's pill as in the standard row. Pages/ZigLedgerRow.ui names the client's and vanilla's
-// documents each shape comes from.
+// documents each shape comes from, and says how the selected row's gold #Edge and the row's one #Action work; here
+// the action is 32 high, to keep the compact row's 44. A shown #Action adds 168 px to the row's fixed parts (313 with
+// the edge and the pin), so a compact row carrying one goes only into a host about 540 px wide or more, else its
+// two-line title can fall under one ellipsis and crash the client (M560); a list of rows with actions takes the
+// standard row.
 
 Group #ZigLedgerRowCompact {
   LayoutMode: Left;
@@ -28,6 +33,11 @@ Group #ZigLedgerRowCompact {
 
     Group #RowStrut {
       Anchor: (Width: 0, Height: $ZK.@ZigCompactRowHeight);
+    }
+
+    Group #Edge {
+      Anchor: (Width: 3);
+      Background: (Color: $ZK.@ZigSurfaceClear);
     }
 
     Group #Accent {
@@ -94,6 +104,19 @@ Group #ZigLedgerRowCompact {
           Text: "";
           Style: (...$ZS.@ZigStateStyle, HorizontalAlignment: Center);
         }
+      }
+    }
+
+    Button #Action {
+      Anchor: (Width: 160, Height: $ZK.@ZigControlHeight, Top: 6, Left: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
       }
     }
   }

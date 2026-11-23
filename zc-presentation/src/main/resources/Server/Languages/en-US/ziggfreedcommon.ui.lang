@@ -60,7 +60,8 @@ confirm.key = Your {0} is not used up.
 # The kit gallery (ui/kit/KitGalleryPage), an owner's page opened by /zigkit gallery: every piece of the page kit in
 # every state with sample words, on the band and on the panel frame. family.desc and desc are what the engine's help
 # shows for the command and its verb; failed is said when the page could not open. The page's document writes most
-# of these keys inline, so none carries a parameter but row.title ({0} a tone's word) and row.points.
+# of these keys inline, so none carries a parameter but row.title ({0} a tone's word), row.points, tier.title and
+# tier.target, and notice.ago (each {0} a number).
 gallery.family.desc = The page kit's owner commands.
 gallery.desc = Open the kit gallery: every piece of the page kit in every state, to check the look.
 gallery.failed = The kit gallery could not open.
@@ -204,3 +205,40 @@ gallery.detail.abandon = Abandon
 gallery.detail.hint = A hint beside the buttons.
 gallery.empty.title = Nothing here yet
 gallery.empty.line = An empty state says what would show here, and how to get it.
+gallery.head.notices = Notice rows: one button each, ready to press or switched off
+gallery.head.payslots = Pay slots and chest slots
+gallery.head.tiercards = Tier cards
+gallery.head.paymarks = Pay marks
+gallery.head.bullets = Bullet lines
+gallery.notice.section = Notices
+gallery.notice.title = A notice: wants two more
+gallery.notice.meta = New players welcome.
+gallery.notice.ago = {0, number} min ago
+gallery.notice.ask = Ask to join
+gallery.notice.asked = Asked
+gallery.notice.askedtip = You asked already. You will get a message when they answer.
+gallery.notice.notopen = Not open
+gallery.chest.waiting = A chest waiting for you
+gallery.chest.taken = A chest you took this week
+gallery.tier.title = Depth {0, number}
+gallery.tier.daily = Today's daily
+gallery.tier.target = Target time: {0, number} minutes
+gallery.tier.inside = Inside now: your party.
+gallery.tier.week = This week: Tough Foes, Fast Foes
+gallery.tier.dailyweek = The same rooms for every party today.
+gallery.tier.pays = Pays
+gallery.tier.paynote = Sometimes a gem
+gallery.tier.next = Next clear
+gallery.tier.go = Go in
+gallery.tier.tip = Pays: Thorium Ingot, Void Crystal Shards, sometimes a gem, and a rare find
+gallery.tier.lockline = Your party has not opened this depth yet
+gallery.tier.lockhow = Clear the depth before it to open this one.
+gallery.mark.full = Full pay
+gallery.mark.half = Half pay
+gallery.mark.quarter = Quarter pay
+gallery.mark.none = No pay
+gallery.bullet.name1 = Tough Foes
+gallery.bullet.line1 = Foes take less damage.
+gallery.bullet.name2 = Fast Foes
+gallery.bullet.line2 = Foes move faster.
+gallery.bullet.name3 = A bullet with its name alone

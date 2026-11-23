@@ -47,20 +47,22 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
-// ── Segments: vanilla's tertiary button, and its gold-framed active patch for the chosen one ──
+// ── Segments: the Chapter look's choice tile, one of a few things to pick (a view, a filter, a year, a post form's
+// choices): the Memories tile at rest, lighter under the cursor, and the gold Selected tile for the chosen one, as
+// @ZigTileStyle and @ZigTileSelectedStyle draw a tile; switched off, the empty Memories tile. ──
 @ZigSegmentStyle = ButtonStyle(
-  Default: (Background: $C.@TertiaryDefaultButtonBackground),
-  Hovered: (Background: $C.@TertiaryHoveredButtonBackground),
-  Pressed: (Background: $C.@TertiaryPressedButtonBackground),
-  Disabled: (Background: $C.@TertiaryDisabledButtonBackground),
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileEmpty.png", Border: 8)),
   Sounds: $C.@ButtonSounds
 );
 
 @ZigSegmentOnStyle = ButtonStyle(
-  Default: (Background: $C.@TertiaryActiveButtonBackground),
-  Hovered: (Background: $C.@TertiaryActiveButtonBackground),
-  Pressed: (Background: $C.@TertiaryPressedButtonBackground),
-  Disabled: (Background: $C.@TertiaryDisabledButtonBackground),
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileEmpty.png", Border: 8)),
   Sounds: $C.@ButtonSounds
 );
 
@@ -118,12 +120,14 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
-// A card that is one button (a depth to go into): the Memories tile at rest, the gold selected tile under the
-// cursor and pressed, so a click anywhere on it is plainly one choice.
+// A card that is one button (a depth to go into, Pages/ZigTierCard.ui): the Memories tile at rest, the gold selected
+// tile under the cursor and pressed, so a click anywhere on it is plainly one choice; a locked card is the same button
+// switched off, on the game's empty Memories tile.
 @ZigTierCardStyle = ButtonStyle(
   Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
   Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
   Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileEmpty.png", Border: 8)),
   Sounds: $C.@ButtonSounds
 );
 

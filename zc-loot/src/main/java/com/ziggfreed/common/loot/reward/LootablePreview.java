@@ -300,6 +300,21 @@ public final class LootablePreview {
     }
 
     /**
+     * Whether {@code roll} pays on every pass, asked of no player ({@link #oddsOf}): no condition, and no chance or a
+     * plain one of 100. The one reading a surface that draws a table's payouts (a dungeon tier's card) asks to tell
+     * what always comes from what sometimes does, as this preview's own list tells them apart. A roll's table gates
+     * ({@link Roll#gates()}) are the caller's to weigh.
+     */
+    public static boolean alwaysPays(@Nonnull Roll roll) {
+        return oddsOf(roll).always();
+    }
+
+    /** Whether {@code roll} can never fire, asked of no player ({@link #oddsOf}): a plain chance of 0. */
+    public static boolean neverPays(@Nonnull Roll roll) {
+        return oddsOf(roll).never();
+    }
+
+    /**
      * A roll's odds with no player asked: always with no chance; its percent when the chance is a plain
      * one (a base, held by its clamp and 0..100); sometimes when a condition or a factor term decides.
      */

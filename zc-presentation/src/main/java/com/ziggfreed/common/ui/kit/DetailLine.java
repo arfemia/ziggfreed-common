@@ -22,10 +22,13 @@ import com.ziggfreed.common.loot.reward.RewardChip;
  * null for none, where an item's card shows the item's own quality and any other card none. On a reward card the
  * line's {@code tag} is the word over its picture saying where the reward came from ("Boss"). Every other painter
  * leaves {@code quality} alone.
+ *
+ * <p>{@code sub} is a line under the text (a bullet's line under its name, {@link #bullet}), drawn a step smaller in
+ * the body ink, one line; null for none, and the line stays one line high.
  */
 public record DetailLine(@Nonnull Picture picture, @Nonnull Message text, @Nullable Message count, @Nullable Pill tag,
         @Nonnull Tick tick, @Nullable String selectId, boolean current, @Nullable Message tooltip,
-        @Nullable String quality) {
+        @Nullable String quality, @Nullable Message sub) {
 
     public DetailLine {
         Objects.requireNonNull(text, "text");
@@ -33,6 +36,13 @@ public record DetailLine(@Nonnull Picture picture, @Nonnull Message text, @Nulla
         tick = tick == null ? Tick.NONE : tick;
         selectId = selectId == null || selectId.isBlank() ? null : selectId;
         quality = quality == null || quality.isBlank() ? null : quality;
+    }
+
+    /** A line with no line under its text, the common case. */
+    public DetailLine(@Nonnull Picture picture, @Nonnull Message text, @Nullable Message count, @Nullable Pill tag,
+            @Nonnull Tick tick, @Nullable String selectId, boolean current, @Nullable Message tooltip,
+            @Nullable String quality) {
+        this(picture, text, count, tag, tick, selectId, current, tooltip, quality, null);
     }
 
     /** A line naming no quality, the common case. */
@@ -54,6 +64,15 @@ public record DetailLine(@Nonnull Picture picture, @Nonnull Message text, @Nulla
     }
 
     /**
+     * A bullet: the Chapter look's diamond ({@link Picture#BULLET}) before {@code name}, in the bullet name style, and
+     * {@code line} under it (null for none), as a gate lists this week's omens.
+     */
+    @Nonnull
+    public static DetailLine bullet(@Nonnull Message name, @Nullable Message line) {
+        return new DetailLine(Picture.BULLET, name, null, null, Tick.NONE, null, false, null, null, line);
+    }
+
+    /**
      * One reward's line, {@code tag} at its end: the item it hands over keeps that item's own tooltip
      * ({@link Picture#tooltipItem}); a picture that only stands for the reward (a wallet's icon, a reputation's)
      * draws plain and says the chip's own tooltip on hover, never the name of the item it borrows; no picture
@@ -70,13 +89,13 @@ public record DetailLine(@Nonnull Picture picture, @Nonnull Message text, @Nulla
     /** This line with {@code tooltip} on its picture. */
     @Nonnull
     public DetailLine withTooltip(@Nullable Message tooltip) {
-        return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip, quality);
+        return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip, quality, sub);
     }
 
     /** This line shown as the item quality {@code quality} names on a reward card (null or blank for none). */
     @Nonnull
     public DetailLine withQuality(@Nullable String quality) {
-        return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip, quality);
+        return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip, quality, sub);
     }
 
     /**
@@ -86,6 +105,12 @@ public record DetailLine(@Nonnull Picture picture, @Nonnull Message text, @Nulla
      */
     @Nonnull
     public DetailLine withSelect(@Nullable String selectId) {
-        return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip, quality);
+        return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip, quality, sub);
+    }
+
+    /** This line with {@code sub} under its text (null for none). */
+    @Nonnull
+    public DetailLine withSub(@Nullable Message sub) {
+        return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip, quality, sub);
     }
 }

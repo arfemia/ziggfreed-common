@@ -1,3 +1,4 @@
+$C = "../Common.ui";
 $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 $ZS = "../Common/ZigStyles.ui";
@@ -12,6 +13,8 @@ $ZW = "../Common/ZigKit.ui";
 // row, so a click anywhere on it selects it, and it swaps between ZigRowStyle and ZigRowSelectedStyle by
 // reference (Common/ZigStyles.ui). Inside it, left to right:
 //   #RowStrut an empty, zero-wide Group 56 high: the row's least height (below)
+//   #Edge     a 3px edge, clear at rest and gold on the selected row (the Chapter's warm selection with its gold
+//             edge), filled by the painter; it always keeps its 3px, so selecting a row never moves its words
 //   #Accent   a 4px bar: the row's tone, the gold accent of a featured row, or hidden (RowAccent)
 //   #Pic      the 32px picture slot, painted through IconRenderer.applyPlainIcon (no tooltip, no rarity square)
 //   #Title    the name, up to two lines, a longer one ending its second line with "..."; #Mark after it shows #Pinned or #Tracked
@@ -21,7 +24,12 @@ $ZW = "../Common/ZigKit.ui";
 //   #Trail    120 wide at the end: #Value (points, a count, how long until a quest comes back) over #StatePill, the
 //             tone's state word (#State, one or two words, never a sentence) centred on a rounded pill tinted to
 //             the tone (Common/Kit/Pill.png, a white patch the painter tints)
-// No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
+//   #Action   the row's one action, hidden unless the row has one (a notice's Ask to join): the kit's Secondary
+//             button holding #Label, 160 x 36, after the trail. A button inside the row's button takes the click
+//             where it sits, as the client's own preset row holds its edit and delete buttons
+//             (Interface/MainMenu/MyAvatar/AvatarPreset/AvatarPresetItem.ui); the rest of the row keeps its own.
+// No other button in a row than #Action, and no tooltip on anything else in it: a label with a tooltip would swallow
+// the row's click.
 //
 // The row fixes no height. The root and #Select are Left rows with no Height, so each is as tall as its tallest
 // part, the way the client's own notification row is (Interface/InGame/Hud/Notification.ui: a Left row with no
@@ -48,6 +56,11 @@ Group #ZigLedgerRow {
 
     Group #RowStrut {
       Anchor: (Width: 0, Height: $ZK.@ZigRowHeight);
+    }
+
+    Group #Edge {
+      Anchor: (Width: 3);
+      Background: (Color: $ZK.@ZigSurfaceClear);
     }
 
     Group #Accent {
@@ -166,6 +179,19 @@ Group #ZigLedgerRow {
           Text: "";
           Style: (...$ZS.@ZigStateStyle, HorizontalAlignment: Center);
         }
+      }
+    }
+
+    Button #Action {
+      Anchor: (Width: 160, Height: 36, Top: 10, Left: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
       }
     }
   }

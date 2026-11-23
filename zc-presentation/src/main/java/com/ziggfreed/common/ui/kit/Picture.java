@@ -18,6 +18,13 @@ public record Picture(@Nullable String itemId, @Nullable String texturePath, boo
     /** Nothing to draw: the slot hides. */
     public static final Picture NONE = new Picture(null, null);
 
+    /**
+     * The Chapter look's diamond bullet, the game's own {@code Common/BulletIcon.png}: a detail line whose picture is
+     * this draws its slot's small diamond ({@code Pages/ZigDetailLine.ui}'s {@code #Bullet}) in place of a picture, and
+     * its words in the bullet name style ({@link DetailLine#bullet}). Any other slot draws it as the texture it is.
+     */
+    public static final Picture BULLET = texture("UI/Custom/Common/BulletIcon.png");
+
     public Picture {
         itemId = itemId == null || itemId.isBlank() ? null : itemId;
         texturePath = texturePath == null || texturePath.isBlank() ? null : texturePath;
@@ -65,5 +72,10 @@ public record Picture(@Nullable String itemId, @Nullable String texturePath, boo
     /** True when there is nothing to draw. */
     public boolean isEmpty() {
         return itemId == null && texturePath == null;
+    }
+
+    /** True for the kit's diamond bullet ({@link #BULLET}). */
+    public boolean isBullet() {
+        return BULLET.equals(this);
     }
 }

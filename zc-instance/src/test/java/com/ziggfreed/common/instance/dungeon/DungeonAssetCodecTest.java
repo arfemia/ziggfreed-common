@@ -219,6 +219,28 @@ class DungeonAssetCodecTest {
                 "the schema the Asset Editor loads declares the group");
     }
 
+    /**
+     * {@code Emblem}, the picture a gate draws over the dungeon's name: optional (a dungeon without one draws none),
+     * read trimmed, kept by a tier that does not restate it, written back, and declared in the editor's schema.
+     */
+    @Test
+    void anEmblemIsOptionalReadsTrimmedAndATierKeepsItsParents() throws IOException {
+        String path = "UI/Custom/Pages/Memories/categories/VoidspawnComplete.png";
+        assertNull(decode("Bare", "{}", null).emblem(), "a dungeon without one draws no emblem");
+        assertNull(decode("Blank", "{ \"Emblem\": \"  \" }", null).emblem(), "a blank emblem is none");
+
+        DungeonAsset base = decode("MyPack_Deep_T1", "{ \"Emblem\": \" " + path + " \" }", null);
+        assertEquals(path, base.emblem(), "Emblem reads trimmed");
+        DungeonAsset tier = decode("MyPack_Deep_T2", "{ \"Tier\": { \"Rank\": 2, \"Opens\": \"MyPack_Deep_T1\" } }",
+                base);
+        assertEquals(path, tier.emblem(), "a tier keeps the emblem of the file it names as its Parent");
+
+        DungeonAsset again = decode("MyPack_Deep_T1", DungeonAsset.CODEC.encode(base, new ExtraInfo()).toJson(), null);
+        assertEquals(path, again.emblem(), "written back and read the same");
+        assertNotNull(DungeonAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Emblem"),
+                "the schema the Asset Editor loads declares the leaf");
+    }
+
     private static void assertCrypt(@Nonnull DungeonAsset crypt) {
         assertEquals("MyPack_Crypt", crypt.getId());
         assertEquals("MyPack_Crypt", crypt.templateId());

@@ -4,9 +4,11 @@ $ZW = "../Common/ZigKit.ui";
 
 // One tab of a view strip (the views a page switches between, drawn as tabs so they never read as a filter),
 // appended by com.ziggfreed.common.ui.kit.ViewTabPainter and addressed by index as "#Host[i] #Tab": 186 x 40, a
-// Button #Tab (37 high) holding a 28px plain item picture #Pic and an uppercase #Label, over the 3px gold #Bar the
-// chosen tab shows. At rest a tab is a faint pane with a muted name; the chosen one swaps to ZigViewTabOnStyle and
-// its name to ZigViewTabLabelOnStyle by reference. The page draws a thin rule under the strip.
+// Button #Tab (37 high) holding a 28px plain item picture #Pic and an uppercase #Label: the game's header tab. At rest
+// it is the outlined tab with its name in the head ink; the chosen one swaps to ZigViewTabOnStyle, the game's
+// gold-framed selected tab, and its name to ZigViewTabLabelOnStyle by reference. The 3px gold #Bar under the button
+// stays declared but is never shown: the selected tab's own gold frame marks the chosen tab. The page draws a thin
+// rule under the strip.
 
 Group #ZigViewTab {
   LayoutMode: Top;

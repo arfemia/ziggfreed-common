@@ -153,7 +153,9 @@ public final class ZigStyles {
     enum Text {
         /** A list row's title at rest: the two-line list title its templates author (M515). */
         ROW_TITLE("ZigLedgerTitleStyle", ZigTokens.INK_STRONG),
-        FAINT("ZigFaintStyle", ZigTokens.INK_FAINT);
+        FAINT("ZigFaintStyle", ZigTokens.INK_FAINT),
+        /** A bullet's name beside its diamond ({@link DetailLine#bullet}). */
+        BULLET_NAME("ZigBulletNameStyle", ZigTokens.INK_STRONG);
 
         private final String styleName;
         private final String colour;

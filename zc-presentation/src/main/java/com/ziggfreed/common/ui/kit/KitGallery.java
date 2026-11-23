@@ -22,11 +22,12 @@ import com.ziggfreed.common.ui.ZigRichButton;
 /**
  * What the kit gallery shows ({@link KitGalleryPage}, {@code /zigkit gallery}): the painting, kept apart from the page
  * so a test walks every selector it sends without building a page. The band view is
- * {@code Pages/ZigKitGalleryPage.ui} on {@code @ZigDecoratedFrame}, its hero filled here; the panel view is
- * {@code Pages/ZigKitGalleryPanel.ui} on {@code @ZigPanelFrame}. Every appended template is painted by its own kit
- * painter (rows, tabs, segments, tiles, figures, the reading page, the empty state), so the gallery shows each piece
- * as a real page draws it; the document names only its own hosts and buttons, and the frame's hero ids are
- * {@link ZigFrame}'s. Every word is a key of {@code ziggfreedcommon.ui.lang} ({@code gallery.*}) or the kit's own
+ * {@code Pages/ZigKitGalleryPage.ui} on {@code @ZigDecoratedFrame}, its hero filled by {@link HeroPainter}; the panel
+ * view is {@code Pages/ZigKitGalleryPanel.ui} on {@code @ZigPanelFrame}. Every appended template is painted by its own
+ * kit painter (rows and notice rows, tabs, segments, tiles, pay and chest slots, tier cards, pay marks, figures, the
+ * reading page, bullet lines, the empty state), so the gallery shows each piece as a real page draws it; the document
+ * names only its own hosts and buttons. Every word is a key of {@code ziggfreedcommon.ui.lang} ({@code gallery.*}) or
+ * the kit's own
  * ({@link KitText}), every number a typed one. Nothing is bound but the page's own three buttons: the rest is there to
  * be looked at and hovered.
  */
@@ -60,6 +61,19 @@ final class KitGallery {
     private static final Picture BAG = Picture.texture(GLYPHS + "Bag.png");
     private static final Picture BOARD = Picture.texture(GLYPHS + "Board.png");
     private static final Picture LOCK = Picture.texture(GLYPHS + "Lock.png");
+
+    /** The game's own Memories chest pictures, for the chest slots. */
+    private static final Picture CHEST =
+            Picture.texture("UI/Custom/Pages/Memories/MemoriesProgress/IconChestActive.png");
+    private static final Picture CHEST_TAKEN =
+            Picture.texture("UI/Custom/Pages/Memories/MemoriesProgress/IconChestDisabled.png");
+
+    /** The game's own items a sample tier pays, on their own quality's slot art, and a quality a slot may name. */
+    private static final String BAR = "Ingredient_Bar_Thorium";
+    private static final String CRYSTAL = "Ingredient_Crystal_Void";
+    private static final List<String> GEMS = List.of("Rock_Gem_Ruby", "Rock_Gem_Sapphire", "Rock_Gem_Emerald",
+            "Rock_Gem_Topaz");
+    private static final String RARE = "Rare";
 
     /** The switched-off copies of the four action buttons. */
     private static final List<String> OFF_BUTTONS = List.of("#GalPrimaryOff", "#GalSecondaryOff", "#GalCollectOff",
@@ -122,24 +136,22 @@ final class KitGallery {
         tones(cmd);
         buttons(cmd);
         rows(cmd, events, viewer);
+        notices(cmd, events, viewer);
         tabs(cmd, events);
         tiles(cmd, events);
+        paySlots(cmd);
+        tierCards(cmd, events);
+        payMarks(cmd);
         cards(cmd);
         figures(cmd);
         reading(cmd, events, viewer);
+        bullets(cmd, events);
         empty(cmd, events);
     }
 
-    /** The frame's hero, which a page shows once a painter fills it: here the gallery fills it by the frame's ids. */
+    /** The frame's hero, which a page shows once a painter fills it: the emblem, the title, the tagline and a line. */
     private static void hero(@Nonnull UICommandBuilder cmd) {
-        cmd.set(ZigFrame.HERO + ".Visible", true);
-        cmd.set(ZigFrame.HERO_EMBLEM + ".Visible", true);
-        cmd.set(ZigFrame.HERO_EMBLEM_ART + ".AssetPath", EMBLEM);
-        cmd.set(ZigFrame.HERO_HEADLINE + ".TextSpans", text("title"));
-        cmd.set(ZigFrame.HERO_TAGLINE + ".Visible", true);
-        cmd.set(ZigFrame.HERO_TAGLINE + ".TextSpans", text("tagline"));
-        cmd.set(ZigFrame.HERO_SUB + ".Visible", true);
-        cmd.set(ZigFrame.HERO_SUB + ".TextSpans", text("sub"));
+        HeroPainter.paint(cmd, new Hero(EMBLEM, text("title"), text("tagline"), text("sub")));
     }
 
     /** One pill per tone, its word in the tone's text colour on the scrim, its dot in the tone's fill. */
@@ -189,6 +201,30 @@ final class KitGallery {
                 row("compact", Tone.WAITING)), true);
         LedgerPainter.paint(cmd, events, "#GalRowsCompact", new LedgerModel(List.of(compact), null), Set.of(), null,
                 NO_ROW_BINDINGS, RowSize.COMPACT, viewer);
+    }
+
+    /**
+     * Notice rows, each a plain row whose one button is its action: one ready to press, one switched off with its
+     * tooltip (asked already), and one for something not open yet, which has no button and a state word instead.
+     */
+    private static void notices(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nullable PlayerRef viewer) {
+        LedgerRow ready = notice("ready", Tone.NEUTRAL, null, false).withAction(new DetailAction(ActionSlot.SECONDARY,
+                text("notice.ask"), ActionLook.NORMAL, "ask", null, true, null));
+        LedgerRow asked = notice("asked", Tone.NEUTRAL, null, false).withAction(new DetailAction(ActionSlot.SECONDARY,
+                text("notice.asked"), ActionLook.NORMAL, "asked", null, false, text("notice.askedtip")));
+        LedgerRow shut = notice("shut", Tone.BLOCKED, text("notice.notopen"), true);
+        LedgerSection notices = new LedgerSection("notices", text("notice.section"), List.of(ready, asked, shut),
+                true);
+        LedgerPainter.paint(cmd, events, "#GalNotices", new LedgerModel(List.of(notices), null), Set.of(), null,
+                NO_ROW_BINDINGS, RowSize.STANDARD, viewer);
+    }
+
+    /** One sample notice: its title, its line, how long it has been up, and an optional state word. */
+    @Nonnull
+    private static LedgerRow notice(@Nonnull String id, @Nonnull Tone tone, @Nullable Message state, boolean faint) {
+        return new LedgerRow("notice/" + id, text("notice.title"), text("notice.meta"), Picture.NONE, tone, state,
+                Msg.key(PREFIX + "notice.ago", 4), null, Mark.NONE, faint, MetaGlyph.NONE, RowAccent.NONE);
     }
 
     /** One sample row in {@code tone}, each tone showing a different mix of the row's parts; its id is unique. */
@@ -266,6 +302,78 @@ final class KitGallery {
                 new WareTile("locked", text("tile.warelocked"), BOARD, STAR, Msg.num(900), false, null, true, true,
                         text("tile.warelockedtip"), false)),
                 tile -> null);
+    }
+
+    /**
+     * Pay slots (an item on its quality's slot art, a slot of four choices, a picture on the slot art a quality names)
+     * and chest slots (one waiting, one taken, its gold check hanging under it).
+     */
+    private static void paySlots(@Nonnull UICommandBuilder cmd) {
+        TilePainter.paySlots(cmd, "#GalPaySlots", samplePays(), false);
+        TilePainter.chestSlots(cmd, "#GalChestSlots", List.of(
+                new ChestSlot("waiting", CHEST, false, text("chest.waiting")),
+                new ChestSlot("taken", CHEST_TAKEN, true, text("chest.taken"))));
+    }
+
+    /**
+     * Tier cards, each one button: an open card (gold under the pointer, its pay line as its tooltip), today's daily
+     * with its tag and copper line, one shown only to be read (no plate, as on a week board), and a locked card (its
+     * title dim, its pictures dimmed, a padlock and its two lines, switched off). Nothing is bound.
+     */
+    private static void tierCards(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
+        List<PaySlot> pays = samplePays();
+        Message pay = text("tier.pays");
+        TierCard open = new TierCard("open", null, tierTitle(1), null, text("tier.week"), pay, pays,
+                text("tier.paynote"), mark("full", PayMark.PIPS), text("tier.go"), text("tier.tip"), null);
+        TierCard daily = new TierCard("daily", text("tier.daily"), tierTitle(1),
+                Msg.key(PREFIX + "tier.target", 15), text("tier.dailyweek"), pay, pays.subList(0, 2), null,
+                mark("none", 0), text("tier.go"), text("tier.tip"), null);
+        TierCard read = new TierCard("read", null, tierTitle(2), text("tier.inside"), text("tier.week"), pay,
+                pays.subList(0, 3), text("tier.paynote"), mark("half", 2), null, text("tier.tip"), null);
+        TierCard locked = new TierCard("locked", null, tierTitle(3), null, text("tier.week"), pay, pays,
+                text("tier.paynote"), null, null, null,
+                new TierCard.Lock(text("tier.lockline"), text("tier.lockhow")));
+        TierCardPainter.paint(cmd, events, "#GalTierCards", List.of(open, daily, read, locked), card -> null);
+    }
+
+    /** The four pay marks: full, half, a quarter and none, each under its head. */
+    private static void payMarks(@Nonnull UICommandBuilder cmd) {
+        cmd.clear("#GalPayMarks");
+        PayMarkPainter.append(cmd, "#GalPayMarks", mark("full", PayMark.PIPS));
+        PayMarkPainter.append(cmd, "#GalPayMarks", mark("half", 2));
+        PayMarkPainter.append(cmd, "#GalPayMarks", mark("quarter", 1));
+        PayMarkPainter.append(cmd, "#GalPayMarks", mark("none", 0));
+    }
+
+    /** What the sample tier pays: two items on their own slot art, a gem that is one of four, and a rare picture. */
+    @Nonnull
+    private static List<PaySlot> samplePays() {
+        List<Picture> gems = new ArrayList<>();
+        for (String gem : GEMS) {
+            gems.add(Picture.item(gem));
+        }
+        return List.of(PaySlot.of(Picture.item(BAR)), PaySlot.of(Picture.item(CRYSTAL)), PaySlot.oneOf(gems),
+                PaySlot.of(TROPHY).withQuality(RARE));
+    }
+
+    /** A sample pay mark: its head, the word for {@code share}, and {@code lit} diamonds. */
+    @Nonnull
+    private static PayMark mark(@Nonnull String share, int lit) {
+        return new PayMark(text("tier.next"), text("mark." + share), lit);
+    }
+
+    /** A sample tier's title, its rank a typed number. */
+    @Nonnull
+    private static Message tierTitle(int rank) {
+        return Msg.key(PREFIX + "tier.title", rank);
+    }
+
+    /** Bullet lines: the diamond, a name and a line under it, and one with its name alone. */
+    private static void bullets(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
+        DetailPainter.lines(cmd, events, "#GalBullets", List.of(
+                DetailLine.bullet(text("bullet.name1"), text("bullet.line1")),
+                DetailLine.bullet(text("bullet.name2"), text("bullet.line2")),
+                DetailLine.bullet(text("bullet.name3"), null)), line -> null);
     }
 
     /** The card's tile: a tile is filled by its ids, as its document says. */

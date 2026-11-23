@@ -1,3 +1,4 @@
+$C = "../Common.ui";
 $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 $ZS = "../Common/ZigStyles.ui";
@@ -10,6 +11,7 @@ $ZW = "../Common/ZigKit.ui";
 // The kit's named meta styles are one line, so the painter recolours this #Meta by its colour leaf alone
 // (RowSize.metaWraps) and never swaps its style.
 //   #RowStrut an empty, zero-wide Group 74 high: the row's least height
+//   #Edge     the selected row's 3px gold edge, clear at rest (Pages/ZigLedgerRow.ui says how)
 //   #Accent   a 4px bar: the row's tone, the gold accent of a featured row, or hidden (RowAccent)
 //   #Pic      the 32px picture slot, painted through IconRenderer.applyPlainIcon
 //   #Title    the name, up to two lines, a longer one ending its second line with "..."; #Mark after it shows #Pinned or #Tracked
@@ -18,7 +20,9 @@ $ZW = "../Common/ZigKit.ui";
 //   #BarTrack a 4px progress bar under the meta, hidden without progress
 //   #Trail    92 wide at the end: #Value over #StatePill, the state word #State on its tone's pill (narrower
 //             than the standard row's 120, since the Almanac, its one host, paints no state pill)
-// No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
+//   #Action   the row's one action, hidden unless the row has one (Pages/ZigLedgerRow.ui says how)
+// No other button in a row than #Action, and no tooltip on anything else in it: a label with a tooltip would swallow
+// the row's click.
 // Like the standard row it fixes no height and grows to fit a title on two lines, over #RowStrut and the
 // title line's #TitleStrut; Pages/ZigLedgerRow.ui says how, and which client and vanilla documents each shape
 // comes from.
@@ -35,6 +39,11 @@ Group #ZigLedgerRowTall {
 
     Group #RowStrut {
       Anchor: (Width: 0, Height: $ZK.@ZigTallRowHeight);
+    }
+
+    Group #Edge {
+      Anchor: (Width: 3);
+      Background: (Color: $ZK.@ZigSurfaceClear);
     }
 
     Group #Accent {
@@ -154,6 +163,19 @@ Group #ZigLedgerRowTall {
           Text: "";
           Style: (...$ZS.@ZigStateStyle, HorizontalAlignment: Center);
         }
+      }
+    }
+
+    Button #Action {
+      Anchor: (Width: 160, Height: 36, Top: 10, Left: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
       }
     }
   }

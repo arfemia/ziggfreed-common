@@ -8,6 +8,8 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.ui.Anchor;
+import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -25,6 +27,10 @@ import com.ziggfreed.common.ui.icon.IconRenderer;
  * is a {@code Pages/ZigTileSection.ui} instead, its lines reward cards in the section's wrapping grid,
  * {@link TilePainter#rewardCards}), and the action bar ({@code #DActions}: {@code #Hint}, {@code #Danger},
  * {@code #Secondary}, {@code #Primary}).
+ *
+ * <p>A line whose picture is the kit's bullet ({@link DetailLine#bullet}) shows its slot's diamond and its words in
+ * the bullet name style; a line with a line under its words ({@link DetailLine#sub}) shows it and grows to
+ * {@link #SUB_LINE_HEIGHT}.
  *
  * <p>The page is live: a selection repaints it in a partial update, so every leaf is painted both ways (shown and
  * hidden) and the pills and blocks are cleared and appended again. The header toggle and the three action buttons
@@ -44,6 +50,15 @@ public final class DetailPainter {
 
     /** The header toggle's id inside {@code @ZigDetailPage}. */
     public static final String TOGGLE = "#DToggle";
+
+    /**
+     * A detail line's height with a line under its words ({@link DetailLine#sub}, the template's {@code #LineSub}, 18
+     * high): its own {@link ZigTokens#LINE_HEIGHT} and that line. A line without one keeps the template's height.
+     */
+    public static final int SUB_LINE_HEIGHT = ZigTokens.LINE_HEIGHT + 18;
+
+    /** The gap the template keeps under every line ({@code Pages/ZigDetailLine.ui}'s root {@code Bottom}). */
+    static final int LINE_GAP = 2;
 
     /**
      * Whether a disabled action is greyed out from Java ({@code .Disabled}, vanilla {@code BarterPage}); the spike's
@@ -183,9 +198,17 @@ public final class DetailPainter {
     static void line(@Nonnull UICommandBuilder cmd, @Nonnull String line, @Nonnull DetailLine data) {
         Picture picture = data.picture();
         String slot = line + " #LineIconSlot";
-        boolean drawn = picture.tooltip()
-                ? IconRenderer.applyIcon(cmd, slot, picture.itemId(), picture.texturePath())
-                : KitPaint.picture(cmd, slot, picture);
+        boolean drawn;
+        if (picture.isBullet()) {
+            // The slot's own small diamond, never the texture stretched to the slot; the words take the bullet's name.
+            cmd.set(slot + " #Bullet.Visible", true);
+            ZigStyles.applyText(cmd, line + " #LineText.Style", ZigStyles.Text.BULLET_NAME);
+            drawn = true;
+        } else {
+            drawn = picture.tooltip()
+                    ? IconRenderer.applyIcon(cmd, slot, picture.itemId(), picture.texturePath())
+                    : KitPaint.picture(cmd, slot, picture);
+        }
         cmd.set(slot + ".Visible", drawn);
         // The picture's own words, for a picture that says nothing on hover; never over a line that opens
         // something (the tooltip would take its click) or an item grid whose tooltip is the point.
@@ -196,6 +219,13 @@ public final class DetailPainter {
         KitPaint.text(cmd, line + " #LineText", data.text());
         if (data.current()) {
             cmd.set(line + " #LineText.Style.TextColor", ZigTokens.INK_BRIGHT);
+        }
+        Message sub = data.sub();
+        if (sub != null) {
+            // The line grows by the line under its words; a line without one keeps the template's 32.
+            KitPaint.text(cmd, line + " #LineSub", sub);
+            cmd.set(line + " #LineSub.Visible", true);
+            cmd.setObject(line + ".Anchor", subLineAnchor());
         }
         KitPaint.optional(cmd, line + " #Count", data.count());
 
@@ -248,6 +278,15 @@ public final class DetailPainter {
                 case DANGER -> ZigStyles.Name.BUTTON_DANGER;
             };
         };
+    }
+
+    /** A line's whole Anchor with a line under its words: {@link #SUB_LINE_HEIGHT} high, the template's gap kept. */
+    @Nonnull
+    private static Anchor subLineAnchor() {
+        Anchor anchor = new Anchor();
+        anchor.setHeight(Value.of(SUB_LINE_HEIGHT));
+        anchor.setBottom(Value.of(LINE_GAP));
+        return anchor;
     }
 
     @Nonnull

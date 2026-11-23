@@ -22,8 +22,9 @@ import com.ziggfreed.common.ui.menu.MenuPalette;
 
 /**
  * Paints tile grids: category tiles ({@code Pages/ZigCollectionTile.ui}), keepsake shelves
- * ({@code Pages/ZigKeepsakeTile.ui}), statistic tiles ({@code Pages/ZigStatTile.ui}), item slots
- * ({@code Pages/ZigItemSlotTile.ui}), wares ({@code Pages/ZigWareTile.ui}) and reward cards
+ * ({@code Pages/ZigKeepsakeTile.ui}), statistic tiles ({@code Pages/ZigStatTile.ui}, the figure tile on the game's
+ * panel patch), item slots, pay slots and chest slots (one template, {@code Pages/ZigItemSlotTile.ui}, each showing
+ * one background layer), wares ({@code Pages/ZigWareTile.ui}) and reward cards
  * ({@code Pages/ZigRewardCard.ui}, with {@code Pages/ZigRewardDivider.ui} between a run that is not items and the
  * items), the last two under titled runs ({@code Pages/ZigTileSection.ui}). Each tile call clears its grid and appends
  * one template per tile, so a grid is repainted whole (in a build, or a partial update that binds only the tiles it
@@ -205,6 +206,88 @@ public final class TilePainter {
             }
             if (tile.tooltip() != null) {
                 KitPaint.tooltip(cmd, s, tile.tooltip());
+            }
+        }
+    }
+
+    /**
+     * Pay slots into {@code grid} (a tier card's {@code #PayGrid}, {@link TierCardPainter}, or a page's own wrapping
+     * grid), one {@code Pages/ZigItemSlotTile.ui} each: the quality's slot art ({@code #SlotArt}) under the picture
+     * ({@code #Pic}), or a slot of choices ({@code #Choices}, up to four pictures two by two) over the Memories tile;
+     * a slot with no slot art to read sits on the Memories tile ({@code #SlotSeen}). {@code dimmed} lays the scrim over
+     * every picture (a locked card's). No tooltip is set, so a slot inside a card that is one button never takes its
+     * click.
+     */
+    public static void paySlots(@Nonnull UICommandBuilder cmd, @Nonnull String grid, @Nonnull List<PaySlot> slots,
+            boolean dimmed) {
+        paySlots(cmd, grid, slots, dimmed, ItemQualityLook::of, ItemQualityLook::ofQuality);
+    }
+
+    /**
+     * {@link #paySlots} over injected readings: an item's quality ({@code looks}, null for an item the server does not
+     * ship) and a quality's by its id ({@code qualities}, null for one it does not ship).
+     */
+    static void paySlots(@Nonnull UICommandBuilder cmd, @Nonnull String grid, @Nonnull List<PaySlot> slots,
+            boolean dimmed, @Nonnull Function<String, ItemQualityLook> looks,
+            @Nonnull Function<String, ItemQualityLook> qualities) {
+        cmd.clear(grid);
+        for (int i = 0; i < slots.size(); i++) {
+            PaySlot slot = slots.get(i);
+            cmd.append(grid, ITEM_SLOT_TEMPLATE);
+            String s = KitPaint.child(grid, i) + " #Slot";
+            String art = slotArt(slot, looks, qualities);
+            cmd.set(s + " #SlotSeen.Visible", art == null);
+            cmd.set(s + " #SlotArt.Visible", art != null);
+            if (art != null) {
+                cmd.set(s + " #SlotArt.AssetPath", art);
+            }
+            if (slot.isChoice()) {
+                cmd.set(s + " #Choices.Visible", true);
+                List<Picture> choices = slot.choices();
+                for (int c = 0; c < PaySlot.MAX_CHOICES; c++) {
+                    KitPaint.picture(cmd, s + " #Choice" + c, c < choices.size() ? choices.get(c) : Picture.NONE);
+                }
+            } else {
+                KitPaint.picture(cmd, s + " #Pic", slot.picture());
+            }
+            cmd.set(s + " #Scrim.Visible", dimmed);
+        }
+    }
+
+    /**
+     * A pay slot's slot art: the quality it names, else for one item that item's own quality; null when neither reads
+     * (a slot of choices naming none, a picture that is no item, a quality or an item the server does not ship).
+     */
+    @Nullable
+    private static String slotArt(@Nonnull PaySlot slot, @Nonnull Function<String, ItemQualityLook> looks,
+            @Nonnull Function<String, ItemQualityLook> qualities) {
+        ItemQualityLook look = null;
+        if (slot.quality() != null) {
+            look = qualities.apply(slot.quality());
+        } else if (!slot.isChoice() && slot.picture().itemId() != null) {
+            look = looks.apply(slot.picture().itemId());
+        }
+        return look == null ? null : look.slotTexture();
+    }
+
+    /**
+     * Chest slots into {@code grid}, one {@code Pages/ZigItemSlotTile.ui} each: the game's panel patch
+     * ({@code #SlotFrame}) under the chest's picture ({@code #Pic}), the game's gold check hanging under it once taken
+     * ({@code #Taken}), and the tooltip on {@code #Slot}.
+     */
+    public static void chestSlots(@Nonnull UICommandBuilder cmd, @Nonnull String grid,
+            @Nonnull List<ChestSlot> chests) {
+        cmd.clear(grid);
+        for (int i = 0; i < chests.size(); i++) {
+            ChestSlot chest = chests.get(i);
+            cmd.append(grid, ITEM_SLOT_TEMPLATE);
+            String s = KitPaint.child(grid, i) + " #Slot";
+            cmd.set(s + " #SlotSeen.Visible", false);
+            cmd.set(s + " #SlotFrame.Visible", true);
+            KitPaint.picture(cmd, s + " #Pic", chest.picture());
+            cmd.set(s + " #Taken.Visible", chest.taken());
+            if (chest.tooltip() != null) {
+                KitPaint.tooltip(cmd, s, chest.tooltip());
             }
         }
     }

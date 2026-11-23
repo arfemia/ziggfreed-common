@@ -220,6 +220,118 @@ class KitSelectorsTest {
         r.assertDeclared("the small painters");
     }
 
+    /** The hero painter fills the band frame's own hero, with an emblem and every line and with its headline alone. */
+    @Test
+    void theHeroPainterAddressesOnlyTheFramesHeroIds() throws IOException {
+        String frames = KitDocs.document("Common/ZigFrames.ui");
+        Recorder r = new Recorder(Map.of(), KitDocs.template(frames, "@ZigDecoratedFrame") + "\n"
+                + KitDocs.template(frames, "@ZigBand"));
+        HeroPainter.paint(r.cmd(), new Hero("UI/Custom/Pages/Memories/categories/VoidspawnComplete.png",
+                Message.raw("A Dungeon"), Message.raw("Your party is in Depth 2"),
+                Message.raw("Pick it to join them.")));
+        r.record();
+        HeroPainter.paint(r.cmd(), Hero.of(Message.raw("A Dungeon")));
+        r.record();
+        r.assertDeclared("HeroPainter");
+    }
+
+    /**
+     * Tier cards (open with every part, locked, and bare), their pay slots in each card's grid and their marks; a pay
+     * mark painted into an inline {@code @ZigPayMark} and one appended on its own.
+     */
+    @Test
+    void theTierCardAndPayMarkPaintersAddressOnlyDeclaredIds() throws IOException {
+        Recorder r = new Recorder(Map.of("#Mark", "@ZigPayMark"));
+        Picture picture = Picture.texture(TEXTURE);
+        List<PaySlot> pays = List.of(PaySlot.of(picture).withQuality("Rare"), PaySlot.of(Picture.item("No_Such_Item")),
+                PaySlot.oneOf(List.of(picture, picture, picture)), PaySlot.of(picture), PaySlot.of(picture));
+        PayMark full = new PayMark(Message.raw("Next clear"), Message.raw("Full pay"), PayMark.PIPS);
+        TierCard open = new TierCard("open", Message.raw("Today's daily"), Message.raw("Depth 1"),
+                Message.raw("Inside now"), Message.raw("This week"), Message.raw("Pays"), pays,
+                Message.raw("Sometimes a gem"), full, Message.raw("Go in"), Message.raw("Pays: all of it"), null);
+        TierCard locked = new TierCard("locked", null, Message.raw("Depth 3"), null, Message.raw("This week"),
+                Message.raw("Pays"), pays, Message.raw("Sometimes a gem"), full, Message.raw("Go in"),
+                Message.raw("Pays: all of it"), new TierCard.Lock(Message.raw("Not open"), Message.raw("Clear 2")));
+        TierCard bare = new TierCard("bare", null, Message.raw("Depth 4"), null, null, null, List.of(), null, null,
+                null, null, null);
+        TierCardPainter.paint(r.cmd(), r.events(), "#Cards", List.of(open, locked, bare),
+                card -> EventData.of("Dungeon", card.id()));
+        PayMarkPainter.paint(r.cmd(), "#Mark", new PayMark(null, Message.raw("No pay"), 0));
+        r.cmd().clear("#Marks");
+        PayMarkPainter.append(r.cmd(), "#Marks", full);
+        r.record();
+        r.assertDeclared("TierCardPainter and PayMarkPainter");
+    }
+
+    /** Pay slots (on slot art, on the Memories tile, a slot of choices, dimmed) and chest slots (waiting, taken). */
+    @Test
+    void thePayAndChestSlotPaintersAddressOnlyDeclaredIds() throws IOException {
+        Recorder r = new Recorder(Map.of());
+        Picture picture = Picture.texture(TEXTURE);
+        TilePainter.paySlots(r.cmd(), "#Pays", List.of(PaySlot.of(Picture.item("Rare_Sword")),
+                PaySlot.of(picture).withQuality("Epic"), PaySlot.of(picture),
+                PaySlot.oneOf(List.of(picture, picture, picture, picture, picture))), true,
+                id -> "Rare_Sword".equals(id)
+                        ? new ItemQualityLook(3, Message.raw("Rare"), "#2770b7", SLOT_RARE) : null,
+                quality -> new ItemQualityLook(4, Message.raw("Epic"), "#8b339e", SLOT_EPIC));
+        TilePainter.chestSlots(r.cmd(), "#Chests", List.of(new ChestSlot("waiting", picture, false,
+                Message.raw("Waiting")), new ChestSlot("taken", picture, true, null)));
+        r.record();
+        r.assertDeclared("TilePainter.paySlots and chestSlots");
+    }
+
+    /**
+     * A row's one action (ready and switched off, bound and moved by a selection, which also paints the selected row's
+     * gold edge) in every row size; and bullet lines, with and without the line under their name.
+     */
+    @Test
+    void aRowsActionAndABulletLineAddressOnlyDeclaredIds() throws IOException {
+        LedgerBindings bindings = new LedgerBindings() {
+            @Override
+            public EventData row(LedgerSection s, LedgerRow r) {
+                return EventData.of("Row", r.id());
+            }
+
+            @Override
+            public EventData section(LedgerSection s) {
+                return null;
+            }
+
+            @Override
+            public EventData showMore(LedgerSection s) {
+                return null;
+            }
+
+            @Override
+            public EventData action(LedgerSection s, LedgerRow r) {
+                return EventData.of("Ask", r.id());
+            }
+        };
+        for (RowSize size : RowSize.values()) {
+            Recorder r = new Recorder(Map.of());
+            LedgerRow ready = full("ready", Mark.NONE).withAction(new DetailAction(ActionSlot.SECONDARY,
+                    Message.raw("Ask to join"), ActionLook.NORMAL, "ask", null, true, Message.raw("Tip")));
+            LedgerRow asked = full("asked", Mark.NONE).withAction(new DetailAction(ActionSlot.SECONDARY,
+                    Message.raw("Asked"), ActionLook.NORMAL, "asked", null, false, null));
+            LedgerSection notices = new LedgerSection("notices", Message.raw("Notices"), List.of(ready, asked), true);
+            LedgerIndex index = LedgerPainter.paint(r.cmd(), r.events(), "#List",
+                    new LedgerModel(List.of(notices), "ready"), Set.of(), "ready", bindings, size, null);
+            r.record();
+            LedgerPainter.select(r.cmd(), index, "ready", "asked", null);
+            r.record();
+            r.assertDeclared("LedgerPainter's row action, " + size);
+        }
+
+        Recorder d = new Recorder(Map.of());
+        DetailPainter.lines(d.cmd(), d.events(), "#Omens", List.of(
+                DetailLine.bullet(Message.raw("Tough Foes"), Message.raw("Foes take less damage.")),
+                DetailLine.bullet(Message.raw("A name alone"), null),
+                DetailLine.of(Picture.texture(TEXTURE), Message.raw("Plain")).withSub(Message.raw("Under it"))),
+                line -> null);
+        d.record();
+        d.assertDeclared("DetailPainter's bullet lines");
+    }
+
     /**
      * The kit gallery's band view: its bindings, the frame's hero it fills by {@code ZigFrame}'s ids, and every kit
      * painter it runs, walked against its own document and the band frame it sits on; then its panel view's bindings

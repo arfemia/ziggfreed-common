@@ -12,10 +12,12 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.ziggfreed.common.ui.ZigRichButton;
 
 /**
- * A strip of view tabs ({@code Pages/ZigViewTab.ui}): the views a page switches between, drawn as tabs with a picture
- * and an uppercase name so they never read as one of its filters (which stay {@link SegmentPainter}'s boxed
- * segments). The chosen tab swaps to {@code ZigViewTabOnStyle} and its name to {@code ZigViewTabLabelOnStyle} by
- * reference and shows its gold bar; a tab at rest keeps its authored look.
+ * A strip of view tabs ({@code Pages/ZigViewTab.ui}): the views a page switches between, drawn as the game's header
+ * tabs with a picture and an uppercase name so they never read as one of its filters (which stay
+ * {@link SegmentPainter}'s choice tiles). The chosen tab swaps to {@code ZigViewTabOnStyle}, the game's gold-framed
+ * selected tab, and its name to {@code ZigViewTabLabelOnStyle} by reference; a tab at rest keeps its authored look.
+ * The template's gold {@code #Bar} under the button stays declared but is never shown, since the selected tab's own
+ * gold frame marks the chosen tab.
  */
 public final class ViewTabPainter {
 
@@ -28,7 +30,7 @@ public final class ViewTabPainter {
     /** A tab's height in its template, its gold bar included. */
     public static final int HEIGHT = 40;
 
-    /** The chosen tab's gold bar, under its button. */
+    /** The template's gold bar under each button, kept declared and never shown (the selected tab is gold-framed). */
     public static final int BAR = 3;
 
     /** The template's right margin to the next tab ({@code $ZK.@ZigSpace1}). */
@@ -60,7 +62,6 @@ public final class ViewTabPainter {
         if (on) {
             ZigStyles.apply(cmd, tab + ".Style", ZigStyles.Name.VIEW_TAB_ON, null);
             ZigStyles.apply(cmd, tab + " #Label.Style", ZigStyles.Name.VIEW_TAB_LABEL_ON, null);
-            cmd.set(root + " #Bar.Visible", true);
         }
         if (binding != null) {
             events.addEventBinding(CustomUIEventBindingType.Activating, tab, binding);
