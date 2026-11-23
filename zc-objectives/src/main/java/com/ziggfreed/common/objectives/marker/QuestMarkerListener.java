@@ -10,8 +10,7 @@ import javax.annotation.Nonnull;
  *
  * <p>A surface listens on the engine bus: {@link QuestMarkers#registerSurface} hangs its two halves there,
  * {@link #evaluate} on {@link ZigQuestMarksEvaluatedEvent} and {@link #forget} on the engine's
- * {@code PlayerDisconnectEvent}. {@link QuestMarkers}' own list of these (its {@code addListener}) is
- * deprecated.
+ * {@code PlayerDisconnectEvent}.
  */
 @FunctionalInterface
 public interface QuestMarkerListener {

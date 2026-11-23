@@ -7,8 +7,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.component.Ref;
@@ -20,12 +18,6 @@ import com.ziggfreed.common.subject.Subject;
  * The hub's scope: the characters a scope hands a surface are read-only.
  */
 class QuestMarkersTest {
-
-    @BeforeEach
-    @AfterEach
-    void reset() {
-        QuestMarkers.resetForTests();
-    }
 
     @Test
     void aListenerReadsTheIndexedCharactersButCannotChangeThem() {

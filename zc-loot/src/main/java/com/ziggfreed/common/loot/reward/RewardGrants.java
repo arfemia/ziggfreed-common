@@ -8,7 +8,6 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateQuery;
 import com.ziggfreed.common.progress.gate.GateRuntime;
 import com.ziggfreed.common.progress.gate.StoreGates;
@@ -197,22 +196,6 @@ public final class RewardGrants {
             }
         }
         return null;
-    }
-
-    /**
-     * 2.5.0's form of {@link #firstRowFailure}: the factor id of the first condition a reward's row asks that
-     * {@code subject} fails, without the {@code factor:} prefix, or null when every reward would pay them. A
-     * refusal that is not a factor's comes back as the gate's whole token.
-     *
-     * @deprecated a row's gate is its whole {@code Requires}, which may refuse on more than a factor; use
-     *             {@link #firstRowFailure}, whose token a refusal carries as it is.
-     */
-    @Deprecated(since = "2.6.0")
-    @Nullable
-    public static String firstRefusal(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject) {
-        String failed = firstRowFailure(rewards, subject);
-        return failed != null && failed.startsWith(GateEvaluator.REASON_FACTOR)
-                ? failed.substring(GateEvaluator.REASON_FACTOR.length()) : failed;
     }
 
     /**

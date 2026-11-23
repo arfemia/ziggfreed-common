@@ -15,7 +15,6 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.registry.RegistryLedger;
@@ -219,18 +218,6 @@ public final class DerivedFactorAsset
     @Nullable
     public GateSpec requires() {
         return requires;
-    }
-
-    /**
-     * The block's conditions in the old presence shape.
-     *
-     * @deprecated this file's {@code Requires} is the shared block now: {@link #requires()} is it. Removed in a
-     *     later release.
-     */
-    @Deprecated(since = "2.6.0")
-    @Nullable
-    public PresenceRequiresCodec.Block getRequires() {
-        return requires == null ? null : PresenceRequiresCodec.Block.of(requires.factorsOrEmpty());
     }
 
     /** Java-side factory; sets the same fields the codec fills, every leaf optional. */

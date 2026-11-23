@@ -1,10 +1,8 @@
 package com.ziggfreed.common.objectives.marker;
 
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -65,29 +63,10 @@ public final class QuestMarkers {
     /** The placed characters standing in each world, indexed by the host system on its cadence. */
     private static final ConcurrentHashMap<World, Set<Ref<EntityStore>>> HOSTS = new ConcurrentHashMap<>();
 
-    /** The surfaces added through the deprecated {@link #addListener}. */
-    private static final CopyOnWriteArrayList<QuestMarkerListener> LISTENERS = new CopyOnWriteArrayList<>();
-    private static final Set<String> LISTENER_IDS = ConcurrentHashMap.newKeySet();
-
-    /** Where {@link ZigQuestMarksEvaluatedEvent} goes, after any surface added here; built only when somebody listens. */
+    /** Where {@link ZigQuestMarksEvaluatedEvent} goes; built only when somebody listens. */
     private static final NativeEventSeam EVENTS = new NativeEventSeam("[progression]");
 
     private QuestMarkers() {
-    }
-
-    /**
-     * Add a surface under {@code id}; a second add under the same id (any case) is ignored. Call from setup.
-     *
-     * @deprecated a surface listens on the engine bus: {@link ZigQuestMarksEvaluatedEvent} carries the
-     *     scope {@code evaluate} was handed, on the same thread at the same moments, and the engine's own
-     *     {@code PlayerDisconnectEvent} is where {@code forget} ran. {@link #registerSurface} hangs both on
-     *     a plugin's event registry, as the library's own surfaces do. Removed in a later release.
-     */
-    @Deprecated(since = "2.6.0")
-    public static void addListener(@Nonnull String id, @Nonnull QuestMarkerListener listener) {
-        if (LISTENER_IDS.add(id.trim().toLowerCase(Locale.ROOT))) {
-            LISTENERS.add(listener);
-        }
     }
 
     /**
@@ -110,8 +89,8 @@ public final class QuestMarkers {
     }
 
     /**
-     * Hang the overhead surface on the bus, subscribe the refresh to the six quest events, player ready
-     * and disconnect, and register the two delayed systems and the per-world eviction. Call once from
+     * Hang the overhead surface on the bus, subscribe the refresh to the six quest events and player
+     * ready, and register the two delayed systems and the per-world eviction. Call once from
      * setup; guarded and loud, since a subscription that failed is a mark that lags the sweep. The
      * surface has a guard of its own, so a failed refresh subscription never costs the overheads
      * themselves.
@@ -132,7 +111,6 @@ public final class QuestMarkers {
             events.registerGlobal(QuestClaimedEvent.class, event -> refresh(event.playerId()));
             events.registerGlobal(QuestAbandonedEvent.class, event -> refresh(event.playerId()));
             events.registerGlobal(EventPriority.LATE, PlayerReadyEvent.class, QuestMarkers::onPlayerReady);
-            events.register(PlayerDisconnectEvent.class, QuestMarkers::onPlayerDisconnect);
         } catch (Throwable t) {
             SafeLog.warn("[progression] the quest marks could not subscribe to the quest events", t);
         }
@@ -187,8 +165,8 @@ public final class QuestMarkers {
     }
 
     /**
-     * One viewer's whole answer, handed to every surface added here and then to the bus's, as
-     * {@link ZigQuestMarksEvaluatedEvent}. World thread.
+     * One viewer's whole answer, handed to every surface on the bus as {@link ZigQuestMarksEvaluatedEvent}.
+     * World thread.
      */
     static void evaluate(@Nonnull Store<EntityStore> store, @Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull World world, @Nonnull Ref<EntityStore> viewerRef, @Nonnull UUID viewerId) {
@@ -204,19 +182,9 @@ public final class QuestMarkers {
         }
         QuestMarkerScope scope = new QuestMarkerScope(store, accessor, world, viewerRef, viewerId, subject,
                 hostsIn(world));
-        for (QuestMarkerListener surface : LISTENERS) {
-            evaluateGuarded(surface, scope);
-        }
         if (EVENTS.listening(ZigQuestMarksEvaluatedEvent.class)) {
             EVENTS.fire("ZigQuestMarksEvaluated", ZigQuestMarksEvaluatedEvent.class,
                     () -> new ZigQuestMarksEvaluatedEvent(scope));
-        }
-    }
-
-    /** Tell every surface added here that a viewer left; one that throws costs only itself. Any thread. */
-    static void forgetEverywhere(@Nonnull UUID viewerId) {
-        for (QuestMarkerListener surface : LISTENERS) {
-            forgetGuarded(surface, viewerId);
         }
     }
 
@@ -243,12 +211,6 @@ public final class QuestMarkers {
     private static UUID viewerOf(@Nonnull PlayerDisconnectEvent event) {
         PlayerRef playerRef = event.getPlayerRef();
         return playerRef != null ? playerRef.getUuid() : null;
-    }
-
-    /** Drop every surface. Tests only. */
-    static void resetForTests() {
-        LISTENERS.clear();
-        LISTENER_IDS.clear();
     }
 
     /** The live placed characters indexed for {@code world}, pruning any that went away. */
@@ -285,13 +247,6 @@ public final class QuestMarkers {
             });
         } catch (Throwable t) {
             SafeLog.warn("[progression] quest marks failed at player ready", t);
-        }
-    }
-
-    private static void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent event) {
-        UUID uuid = viewerOf(event);
-        if (uuid != null) {
-            forgetEverywhere(uuid);
         }
     }
 

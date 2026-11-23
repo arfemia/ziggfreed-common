@@ -41,19 +41,6 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
     private final List<String> tierTitleKeys;
     private final List<String> nextTierTitleKeys;
 
-    /**
-     * The 2.3.0 form, which carries no tier size: {@link #tierSize()} reads 0 on an event built with it.
-     *
-     * @deprecated use the constructor taking the tier's size after its position.
-     */
-    @Deprecated(since = "2.4.0")
-    public ZigGearSetTierChangedEvent(@Nonnull UUID playerId, @Nonnull PlayerRef playerRef, @Nonnull String setId,
-            int tierIndex, boolean active, int pieces, int members, int fullSet, @Nullable String setTitleKey,
-            @Nonnull List<String> tierTitleKeys, @Nonnull List<String> nextTierTitleKeys) {
-        this(playerId, playerRef, setId, tierIndex, 0, active, pieces, members, fullSet, setTitleKey, tierTitleKeys,
-                nextTierTitleKeys);
-    }
-
     public ZigGearSetTierChangedEvent(@Nonnull UUID playerId, @Nonnull PlayerRef playerRef, @Nonnull String setId,
             int tierIndex, int tierSize, boolean active, int pieces, int members, int fullSet,
             @Nullable String setTitleKey, @Nonnull List<String> tierTitleKeys, @Nonnull List<String> nextTierTitleKeys) {
@@ -96,7 +83,7 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
     /**
      * How many pieces the tier takes, the larger of its {@code Pieces} and its {@code Armor + Held +
      * Utility}: the count its notice shows while it holds ("4/5" for a four-piece tier of a five-piece
-     * set). 0 for a tier with no count, or an event built through the deprecated constructor.
+     * set). 0 for a tier with no count.
      */
     public int tierSize() {
         return tierSize;

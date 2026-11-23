@@ -1,15 +1,12 @@
 package com.ziggfreed.common.loot.reward;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
@@ -180,41 +177,6 @@ public final class RewardSpec {
     @Nonnull
     public RewardSpec withRequires(@Nullable GateSpec requires) {
         return requires == this.requires ? this : new RewardSpec(kind, params, origin, pickupNoticed, requires);
-    }
-
-    /**
-     * The factor conditions of {@link #requires()}, empty when it asks none: 2.5.0's view of a row's gate, from
-     * before a row read its whole {@code Requires}. A copy on each call.
-     *
-     * @deprecated a row's gate is its whole {@code Requires}, which may ask more than factors; read
-     *             {@link #requires()}.
-     */
-    @Deprecated(since = "2.6.0")
-    @Nonnull
-    public FactorCondition[] conditions() {
-        FactorCondition[] factors = requires == null ? null : requires.getFactors();
-        return factors == null ? new FactorCondition[0] : factors.clone();
-    }
-
-    /**
-     * A copy asking {@code conditions} of the receiving player before it pays, as a {@code Requires} of those
-     * factors alone; null or empty clears it, and a null entry is dropped.
-     *
-     * @deprecated pass the row's whole {@code Requires} to {@link #withRequires}.
-     */
-    @Deprecated(since = "2.6.0")
-    @Nonnull
-    public RewardSpec withConditions(@Nullable FactorCondition[] conditions) {
-        List<FactorCondition> kept = new ArrayList<>();
-        if (conditions != null) {
-            for (FactorCondition condition : conditions) {
-                if (condition != null) {
-                    kept.add(condition);
-                }
-            }
-        }
-        return withRequires(kept.isEmpty() ? null
-                : GateSpec.of(kept.toArray(new FactorCondition[0]), null, null, null, null, null, null));
     }
 
     /**

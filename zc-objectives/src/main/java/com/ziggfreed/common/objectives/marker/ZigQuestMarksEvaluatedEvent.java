@@ -13,9 +13,8 @@ import com.hypixel.hytale.event.IEvent;
  * directly or through {@link QuestMarkers#registerSurface}.
  *
  * <p>Synchronous {@code IEvent<Void>} POJO on the shared engine event bus, fired by
- * {@link QuestMarkers} for one viewer with a quest subject (after any surface added through its
- * deprecated {@code addListener}): on each of the six quest events, at player ready and on the
- * {@value QuestMarkers#SWEEP_SECONDS} s sweep. Built only when somebody is listening.
+ * {@link QuestMarkers} for one viewer with a quest subject: on each of the six quest events, at player
+ * ready and on the {@value QuestMarkers#SWEEP_SECONDS} s sweep. Built only when somebody is listening.
  *
  * <p>Fired on the world thread. Everything in the scope is valid only synchronously during dispatch:
  * read through {@code scope().store()}, and spawn or write through {@code scope().accessor()}, which

@@ -5,8 +5,6 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
-import com.ziggfreed.common.cast.ObserverRegistry;
-
 /**
  * The generic ordered step-dispatch walk lifted from a consumer's cast / ability engine: iterate a
  * cast context's steps IN ORDER, look each step's handler up by key, short-circuit on the first
@@ -47,9 +45,9 @@ import com.ziggfreed.common.cast.ObserverRegistry;
  * {@code R} it has no way to construct, and would swallow a throw the ability caller currently lets
  * propagate). Instead, fault-isolation is a SEAM at the {@link StepHandler} boundary - a consumer
  * wraps each handler it REGISTERS (not the kernel's dispatch loop) in its own guard that catches a
- * throw and converts it to that consumer's own failure {@code R} + a guarded warn log, mirroring
- * {@link ObserverRegistry}'s per-listener guard
- * ("one throwing listener neither throws out of {@code fire} nor blocks the rest"). Once a handler
+ * throw and converts it to that consumer's own failure {@code R} + a guarded warn log, the same
+ * per-listener guard the engine's event bus keeps
+ * ("one throwing listener neither throws out of the dispatch nor blocks the rest"). Once a handler
  * degrades a throw to a failure result instead of propagating it, the kernel's ordinary
  * non-success short-circuit produces {@code Failed(atIndex, thatResult)} with the CORRECT
  * {@code atIndex} for free - no kernel change needed. A per-world-frame consumer (e.g. RpgStations'

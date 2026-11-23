@@ -14,7 +14,6 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootRef;
@@ -290,18 +289,6 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable
     public GateSpec requires() {
         return requires;
-    }
-
-    /**
-     * The block's conditions in the old presence shape.
-     *
-     * @deprecated this row's {@code Requires} is read whole now: {@link #requires()} is the block. Removed in
-     *     a later release.
-     */
-    @Deprecated(since = "2.6.0")
-    @Nullable
-    public PresenceRequiresCodec.Block getRequires() {
-        return requires == null ? null : PresenceRequiresCodec.Block.of(requires.factorsOrEmpty());
     }
 
     /** The part of {@link #requires()} asked of the player per moment, lifted once; null when nothing is. */

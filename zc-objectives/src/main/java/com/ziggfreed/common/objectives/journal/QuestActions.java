@@ -168,17 +168,6 @@ public final class QuestActions {
         return here != null ? here.collectionSite(q) != null : r.engine().canCompleteAt(r.subject(), q, null);
     }
 
-    /**
-     * The 2.2.0 form, kept so a caller built against it still links: in the book it reads only whether the quest
-     * names a site, so it cannot see a site that is gone.
-     *
-     * @deprecated ask {@link #collectableHere(Quest, QuestReader, CharacterQuestListing)}, which asks the engine
-     */
-    @Deprecated(since = "2.3.0")
-    public static boolean collectableHere(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
-        return here != null ? here.collectionSite(q) != null : q.turnInAt() == null;
-    }
-
     @Nonnull
     private static DetailAction action(@Nonnull ActionSlot slot, @Nonnull Message label, @Nonnull ActionLook look,
             @Nonnull String verb) {

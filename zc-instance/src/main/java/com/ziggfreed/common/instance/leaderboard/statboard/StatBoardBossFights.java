@@ -16,7 +16,6 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.instance.leaderboard.EncounterBoards;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
-import com.ziggfreed.common.instance.leaderboard.LeaderboardPageDeps;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardSplit;
 
 /**
@@ -65,33 +64,6 @@ public final class StatBoardBossFights {
     @Nonnull
     public static String pickOf(@Nonnull EncounterBindingAsset row) {
         return row.getId();
-    }
-
-    /**
-     * Records as it opens now, or null while the board is off or nothing shows.
-     *
-     * @deprecated Records no longer has a Boss Fights page of its own: the bosses are a section of the stat board.
-     *     Open {@code StatBoardRecords.INSTANCE.deps()}, whose primary tab {@link #SECTION} is the Bosses tab, and
-     *     pick a boss there by {@link #pickOf}; this answers the same deps.
-     */
-    @Deprecated(since = "2.4.0")
-    @Nullable
-    public static LeaderboardPageDeps deps() {
-        LeaderboardPageDeps deps = StatBoardRecords.INSTANCE.deps();
-        return deps != null && deps.split(SECTION) != null ? deps : null;
-    }
-
-    /**
-     * {@link #SECTION} when {@code deps}' Bosses tab offers {@code row}'s boss, else null.
-     *
-     * @deprecated a boss is a pick on the Bosses tab, never a tab of its own: open {@link #SECTION} and ask its split
-     *     ({@code deps.split(SECTION).choiceOf(pickOf(row))}) which choice offers the boss.
-     */
-    @Deprecated(since = "2.4.0")
-    @Nullable
-    public static String tabOf(@Nonnull LeaderboardPageDeps deps, @Nonnull EncounterBindingAsset row) {
-        LeaderboardSplit split = deps.split(SECTION);
-        return split != null && split.choiceOf(pickOf(row)) != null ? SECTION : null;
     }
 
     /** How the Bosses tab reads a recorded fight key: the binding rows read once, as Records opens. */

@@ -16,7 +16,6 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.KindSelectorCodec;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
@@ -75,15 +74,7 @@ public final class RewardEntryAsset {
     @Nullable protected String kind;
     @Nullable protected Map<String, String> params;
     @Nullable private GateSpec gate;
-    /**
-     * The old presence-shape field, no longer written: {@link #getRequires()} derives that view from the block
-     * on demand.
-     *
-     * @deprecated a row's {@code Requires} is read whole: {@link #requires()}. Removed in a later release.
-     */
-    @Deprecated(since = "2.6.0")
-    @Nullable protected PresenceRequiresCodec.Block requires;
-    /** The live part of {@link #requires}, lifted once per instance ({@link StoreGates#live}). */
+    /** The live part of {@link #requires()}, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
 
     public static final BuilderCodec<RewardEntryAsset> CODEC =
@@ -152,7 +143,7 @@ public final class RewardEntryAsset {
     /** Java-side factory for an ungated row; sets the same fields the codec fills. */
     @Nonnull
     public static RewardEntryAsset of(@Nullable String kind, @Nullable Map<String, String> params) {
-        return of(kind, params, (GateSpec) null);
+        return of(kind, params, null);
     }
 
     /** Java-side factory; sets the same fields the codec fills, {@code requires} included. */
@@ -176,36 +167,10 @@ public final class RewardEntryAsset {
         return params == null ? null : new LinkedHashMap<>(params);
     }
 
-    /**
-     * The 2.5 form, whose block was read for mod presence alone.
-     *
-     * @deprecated a row's {@code Requires} is read whole now: build it with
-     *     {@link #of(String, Map, GateSpec)}. Removed in a later release.
-     */
-    @Deprecated(since = "2.6.0")
-    @Nonnull
-    public static RewardEntryAsset of(@Nullable String kind, @Nullable Map<String, String> params,
-            @Nullable PresenceRequiresCodec.Block requires) {
-        return of(kind, params, requires == null ? null
-                : GateSpec.of(requires.factorsOrEmpty(), null, null, null, null, null, null));
-    }
-
     /** The row's own {@code Requires}, or null when it authors none (the row is on every server and pays everyone). */
     @Nullable
     public GateSpec requires() {
         return gate;
-    }
-
-    /**
-     * The block's conditions in the old presence shape, derived from the block on each call.
-     *
-     * @deprecated a row's {@code Requires} is read whole now: {@link #requires()} is the block. Removed in a
-     *     later release.
-     */
-    @Deprecated(since = "2.6.0")
-    @Nullable
-    public PresenceRequiresCodec.Block getRequires() {
-        return gate == null ? null : PresenceRequiresCodec.Block.of(gate.factorsOrEmpty());
     }
 
     /** The part of {@link #requires()} asked of the receiving player, lifted once; null when nothing is. */
