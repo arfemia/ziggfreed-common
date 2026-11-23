@@ -131,6 +131,7 @@ public final class ProgressionRuntime {
     private static final List<Contribution<MomentListener>> MOMENT_LISTENERS = new ArrayList<>();
     private static final List<Contribution<KillAttribution>> KILL_ATTRIBUTIONS = new ArrayList<>();
     private static final List<Contribution<KillQualifier>> KILL_QUALIFIERS = new ArrayList<>();
+    private static final List<Contribution<KillRewardScale>> KILL_REWARD_SCALES = new ArrayList<>();
     private static final List<Contribution<QuestCompletionQualifier>> QUEST_COMPLETION_QUALIFIERS =
             new ArrayList<>();
     private static final List<Contribution<ProgressionFeedbackHook>> FEEDBACK_HOOKS = new ArrayList<>();
@@ -350,6 +351,13 @@ public final class ProgressionRuntime {
     static synchronized void addKillQualifier(@Nonnull ProgressionRegistrar registrar,
                                               @Nonnull KillQualifier qualifier) {
         if (addContribution(KILL_QUALIFIERS, registrar.owner(), qualifier)) {
+            rederive();
+        }
+    }
+
+    static synchronized void addKillRewardScale(@Nonnull ProgressionRegistrar registrar,
+                                                @Nonnull KillRewardScale scale) {
+        if (addContribution(KILL_REWARD_SCALES, registrar.owner(), scale)) {
             rederive();
         }
     }
@@ -606,6 +614,22 @@ public final class ProgressionRuntime {
     @Nonnull
     public static synchronized List<String> killQualifierOwners() {
         return ownerNames(KILL_QUALIFIERS);
+    }
+
+    /**
+     * THE composed answer to "a kill of this entity by that player pays this many times its usual reward", read
+     * LIVE: every registered {@link KillRewardScale} asked in order and the answers multiplied, a negative or
+     * non-number answer counting as 1 and a throwing one skipped with a warn. Answers 1 for a kill nobody scales.
+     */
+    @Nonnull
+    public static KillRewardScale killRewardScale() {
+        return ProgressionParts.KILL_REWARD_SCALE;
+    }
+
+    /** Who registered a kill reward scale, in registration order. */
+    @Nonnull
+    public static synchronized List<String> killRewardScaleOwners() {
+        return ownerNames(KILL_REWARD_SCALES);
     }
 
     /**
@@ -912,6 +936,7 @@ public final class ProgressionRuntime {
         MOMENT_LISTENERS.clear();
         KILL_ATTRIBUTIONS.clear();
         KILL_QUALIFIERS.clear();
+        KILL_REWARD_SCALES.clear();
         QUEST_COMPLETION_QUALIFIERS.clear();
         FEEDBACK_HOOKS.clear();
         ProgressionParts.FEEDBACK_SILENCE_REPORTED.set(false);
@@ -957,6 +982,7 @@ public final class ProgressionRuntime {
                 ProgressionParts.composeMomentListeners(values(MOMENT_LISTENERS), warn),
                 ProgressionParts.composeKillAttributions(values(KILL_ATTRIBUTIONS), warn),
                 ProgressionParts.composeKillQualifiers(values(KILL_QUALIFIERS), warn),
+                ProgressionParts.composeKillRewardScales(values(KILL_REWARD_SCALES), warn),
                 ProgressionParts.composeQuestCompletionQualifiers(values(QUEST_COMPLETION_QUALIFIERS), warn),
                 ProgressionParts.composeFeedbackHooks(values(FEEDBACK_HOOKS), warn),
                 ProgressionParts.freezeTextSources(values(TEXT_SOURCES)),
@@ -1032,6 +1058,7 @@ public final class ProgressionRuntime {
                 + ", moment listeners=" + owners(MOMENT_LISTENERS)
                 + ", kill attributions=" + owners(KILL_ATTRIBUTIONS)
                 + ", kill qualifiers=" + owners(KILL_QUALIFIERS)
+                + ", kill reward scales=" + owners(KILL_REWARD_SCALES)
                 + ", quest-completion qualifiers=" + owners(QUEST_COMPLETION_QUALIFIERS));
         SafeLog.info("[progression]   content     quests=" + counts(QUEST_LAYERS)
                 + ", achievements=" + counts(ACHIEVEMENT_LAYERS)

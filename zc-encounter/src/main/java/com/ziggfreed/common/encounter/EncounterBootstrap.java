@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.encounter.command.ZigEncounterCommand;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.payout.ZigClaimReward;
+import com.ziggfreed.common.encounter.power.PlayerPowerConfig;
 import com.ziggfreed.common.encounter.run.ZigEncounterRest;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
 import com.ziggfreed.common.encounter.signal.EncounterSignalSystem;
@@ -24,13 +25,14 @@ import com.ziggfreed.common.encounter.types.EncounterTypes;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
 import com.ziggfreed.common.encounter.validate.EncounterSelfTest;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The encounter module's registration phase, called as one line from the wiring root's
  * {@code setup()}: the run and rest components, the six encounter Types, the ZigClaim reward type,
- * the systems, the builder reload listener, the content audit, the command family and the boot
- * self-test. Registration
+ * the systems, the builder reload listener, the content audit, the command family, the boot
+ * self-test and the player power owner file's binding. Registration
  * only; every decision lives in the module behind it.
  */
 public final class EncounterBootstrap {
@@ -48,6 +50,16 @@ public final class EncounterBootstrap {
         registerAudit(plugin);
         registerCommand(plugin);
         registerSelfTest(plugin);
+        registerOwnerFiles();
+    }
+
+    /**
+     * The player power owner file the owner menu's Player Power screen writes ({@code OwnerForms/Player_Power.json}):
+     * its Default read off the player power store under the owner's layer, its reload the store's own owner read. Not
+     * guarded: a failed registration throws here, at setup.
+     */
+    private static void registerOwnerFiles() {
+        OwnerFileBindings.register(PlayerPowerConfig.binding());
     }
 
     /**

@@ -4,14 +4,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
@@ -75,7 +79,17 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *   <tr><td>{@code hytale:item_stat}</td><td>a registered {@code EntityStatType} id</td>
  *       <td>the ADDITIVE amount the context item's own armor, weapon and utility
  *       {@code StatModifiers} author toward that channel</td></tr>
+ *   <tr><td>{@code hytale:worn_item_level}</td><td>ignored</td>
+ *       <td>the mean native item level across the subject's armor slots, an empty slot counting 0</td></tr>
+ *   <tr><td>{@code hytale:best_weapon_item_level}</td><td>ignored</td>
+ *       <td>the highest native item level among the weapons on the subject's hotbar, 0 with none</td></tr>
  * </table>
+ *
+ * <p><b>The two gear readings read what the subject CARRIES, not one item.</b> {@code worn_item_level} averages every
+ * armor slot the subject has, so a full set of one tier reads that tier's level and a missing piece pulls it down;
+ * {@code best_weapon_item_level} reads the best weapon anywhere on the hotbar (an item whose asset carries a
+ * {@code Weapon} block, its {@code Parent}'s included), so a reading taken while a tool is in hand is the same one.
+ * Both answer null only when the subject has no such container to read.
  *
  * <p><b>Two families read items, and they read DIFFERENT items.</b> The {@code tool_*} ids (and
  * {@code held_tag}, {@code held_item}) read what is in the SUBJECT'S HAND: the moment's own held leaf
@@ -164,6 +178,10 @@ public final class HytaleFactors {
      * author toward the {@code EntityStatType} named by Param.
      */
     public static final String ITEM_STAT = "hytale:item_stat";
+    /** {@code hytale:worn_item_level} - the mean native item level across the subject's armor slots, an empty slot 0. */
+    public static final String WORN_ITEM_LEVEL = "hytale:worn_item_level";
+    /** {@code hytale:best_weapon_item_level} - the highest native item level among the weapons on the subject's hotbar. */
+    public static final String BEST_WEAPON_ITEM_LEVEL = "hytale:best_weapon_item_level";
 
     private static final Double YES = 1.0;
     private static final Double NO = 0.0;
@@ -192,6 +210,8 @@ public final class HytaleFactors {
         registry.register(ITEM_LEVEL, owner, HytaleFactors::resolveItemLevel);
         registry.register(ITEM_DURABILITY_PERCENT, owner, HytaleFactors::resolveItemDurabilityPercent);
         registry.register(ITEM_STAT, owner, HytaleFactors::resolveItemStat);
+        registry.register(WORN_ITEM_LEVEL, owner, HytaleFactors::resolveWornItemLevel);
+        registry.register(BEST_WEAPON_ITEM_LEVEL, owner, HytaleFactors::resolveBestWeaponItemLevel);
     }
 
     // ==================== providers ====================
@@ -557,6 +577,93 @@ public final class HytaleFactors {
             return null;
         }
         return ItemReadings.statTotal(ctx.item(), statId);
+    }
+
+    /**
+     * The mean native item level across the subject's armor slots ({@code InventoryComponent.Armor}), every slot it
+     * has counted and an empty one reading 0, so a full set of one tier reads that tier's level. Null when there is
+     * no live subject or it has no armor container. {@code Param} is ignored.
+     */
+    @Nullable
+    static Double resolveWornItemLevel(@Nonnull FactorContext ctx) {
+        ItemContainer worn = containerOf(ctx, InventoryComponent.Armor::getComponentType);
+        if (worn == null) {
+            return null;
+        }
+        try {
+            int slots = Math.max(0, worn.getCapacity());
+            double[] levels = new double[slots];
+            for (short slot = 0; slot < slots; slot++) {
+                Double level = ItemReadings.itemLevel(worn.getItemStack(slot));
+                levels[slot] = level == null ? 0.0 : level;
+            }
+            return meanLevel(levels);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * The highest native item level among the weapons on the subject's hotbar ({@code InventoryComponent.Hotbar}): an
+     * item whose asset carries a {@code Weapon} block, its {@code Parent}'s included. 0 when the hotbar holds no weapon;
+     * null when there is no live subject or it has no hotbar. {@code Param} is ignored.
+     */
+    @Nullable
+    static Double resolveBestWeaponItemLevel(@Nonnull FactorContext ctx) {
+        ItemContainer hotbar = containerOf(ctx, InventoryComponent.Hotbar::getComponentType);
+        if (hotbar == null) {
+            return null;
+        }
+        try {
+            double best = 0.0;
+            int slots = Math.max(0, hotbar.getCapacity());
+            for (short slot = 0; slot < slots; slot++) {
+                ItemStack stack = hotbar.getItemStack(slot);
+                Item item = HeldItemUtil.itemOf(stack == null || stack.isEmpty() ? null : stack);
+                if (item == null || item.getWeapon() == null) {
+                    continue;
+                }
+                Double level = ItemReadings.itemLevel(item);
+                if (level != null && level > best) {
+                    best = level;
+                }
+            }
+            return best;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** The mean of {@code levels}, 0 for none. Pure. */
+    static double meanLevel(@Nonnull double[] levels) {
+        if (levels.length == 0) {
+            return 0.0;
+        }
+        double sum = 0.0;
+        for (double level : levels) {
+            sum += Double.isFinite(level) ? level : 0.0;
+        }
+        return sum / levels.length;
+    }
+
+    /**
+     * The live subject's container of one inventory section, or null when it has none (or no live subject). The
+     * section's type is resolved only once a subject is there to read, since it asks the engine's entity module.
+     */
+    @Nullable
+    private static <C extends InventoryComponent> ItemContainer containerOf(@Nonnull FactorContext ctx,
+            @Nonnull Supplier<ComponentType<EntityStore, C>> type) {
+        Store<EntityStore> store = ctx.store();
+        Ref<EntityStore> subject = ctx.subject();
+        if (!ctx.hasLiveSubject() || store == null || subject == null) {
+            return null;
+        }
+        try {
+            C section = store.getComponent(subject, type.get());
+            return section == null ? null : section.getInventory();
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     // ==================== helpers ====================

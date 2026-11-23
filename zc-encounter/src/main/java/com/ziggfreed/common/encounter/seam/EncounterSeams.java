@@ -15,6 +15,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.Encounters;
+import com.ziggfreed.common.encounter.power.LibraryPlayerPower;
 import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
@@ -40,11 +41,18 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>The report fires only when the seam is actually CONSULTED unfilled: a server that never scales
  * on power never hears about the power seam.
+ *
+ * <p><b>One more question has an answer of its own: a player's power</b> ({@link PlayerPowerSource}). The
+ * library answers it itself ({@link LibraryPlayerPower}, the {@code PlayerPower} record over worn gear), so a
+ * mod reading it works on any server; a mod that measures power its own way fills it, and that fill REPLACES the
+ * library's reading, never adds to it. It says once, at INFO, whose reading answers, the first time it is asked
+ * unfilled, and once when a fill arrives.
  */
 public final class EncounterSeams {
 
     private static final AtomicReference<EncounterAttribution> ATTRIBUTION = new AtomicReference<>();
     private static final AtomicReference<EncounterPowerSource> POWER = new AtomicReference<>();
+    private static final AtomicReference<PlayerPowerSource> PLAYER_POWER = new AtomicReference<>();
     private static final AtomicReference<EncounterSubjectSource> SUBJECTS = new AtomicReference<>();
     private static final AtomicReference<EncounterRunTag> RUN_TAG = new AtomicReference<>();
     private static final AtomicReference<EncounterWaveSource> WAVES = new AtomicReference<>();
@@ -58,6 +66,8 @@ public final class EncounterSeams {
     private static final AtomicBoolean WARNED_WAVES = new AtomicBoolean();
     private static final AtomicBoolean WARNED_RUN_SCALE = new AtomicBoolean();
     private static final AtomicBoolean WARNED_RUN_DIFFICULTY = new AtomicBoolean();
+    private static final AtomicBoolean REPORTED_PLAYER_POWER = new AtomicBoolean();
+    private static final AtomicBoolean WARNED_PLAYER_POWER_FAILED = new AtomicBoolean();
 
     private EncounterSeams() {
     }
@@ -92,10 +102,25 @@ public final class EncounterSeams {
         RUN_DIFFICULTY.set(difficulty);
     }
 
+    /**
+     * Answer every player's power with {@code source} in place of the library's own reading; null hands it back to
+     * the library. Says once, at INFO, whose reading now answers.
+     */
+    public static void fillPlayerPowerSource(@Nullable PlayerPowerSource source) {
+        PlayerPowerSource previous = PLAYER_POWER.getAndSet(source);
+        if (source != null && previous != source) {
+            SafeLog.info(Encounters.LOG_PREFIX + " a player's power is read from " + ownerOf(source)
+                    + ", which fills the player power seam in place of the library's own reading");
+        }
+    }
+
     /** Drop every fill and every once-only report; for a test starting from nothing. */
     public static void resetForTests() {
         ATTRIBUTION.set(null);
         POWER.set(null);
+        PLAYER_POWER.set(null);
+        REPORTED_PLAYER_POWER.set(false);
+        WARNED_PLAYER_POWER_FAILED.set(false);
         SUBJECTS.set(null);
         RUN_TAG.set(null);
         WAVES.set(null);
@@ -136,6 +161,11 @@ public final class EncounterSeams {
 
     public static boolean isRunDifficultyFilled() {
         return RUN_DIFFICULTY.get() != null;
+    }
+
+    /** Does a mod answer a player's power, in place of the library's own reading? */
+    public static boolean isPlayerPowerFilled() {
+        return PLAYER_POWER.get() != null;
     }
 
     // ==================== asking ====================
@@ -274,6 +304,108 @@ public final class EncounterSeams {
         }
     }
 
+    /**
+     * Whose reading answers a player's power right now: the fill when a mod filled the seam, else the library's own
+     * ({@link LibraryPlayerPower}), which consulting reports once. Never null.
+     */
+    @Nonnull
+    public static PlayerPowerSource playerPowerSource() {
+        PlayerPowerSource filled = PLAYER_POWER.get();
+        if (filled != null) {
+            return filled;
+        }
+        if (REPORTED_PLAYER_POWER.compareAndSet(false, true)) {
+            SafeLog.info(Encounters.LOG_PREFIX + " a player's power is the library's own reading "
+                    + "(Server/ZiggfreedCommon/PlayerPower, worn gear as shipped), since no mod fills the player power "
+                    + "seam");
+        }
+        return LibraryPlayerPower.INSTANCE;
+    }
+
+    /**
+     * One player's power on the answering reading's scale ({@link #playerPowerSource}): its answer held between
+     * {@link #playerPowerMin} and {@link #playerPowerMax}, its floor when it cannot say or throws (the throw reported
+     * once). A fill's answer replaces the library's reading, never adds to it. World thread.
+     */
+    public static double playerPower(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> playerRef) {
+        PlayerPowerSource source = playerPowerSource();
+        Double power;
+        try {
+            power = source.powerOf(store, playerRef);
+        } catch (Throwable t) {
+            if (WARNED_PLAYER_POWER_FAILED.compareAndSet(false, true)) {
+                SafeLog.warn(Encounters.LOG_PREFIX + " the player power reading of " + ownerOf(source)
+                        + " failed, so a player it cannot read reads the floor of its scale: " + t.getMessage());
+            }
+            power = null;
+        }
+        return heldOnScale(power, minOf(source), maxOf(source));
+    }
+
+    /** The floor of the answering reading's scale: what a player with nothing reads. */
+    public static double playerPowerMin() {
+        return minOf(playerPowerSource());
+    }
+
+    /** The ceiling of the answering reading's scale, never below its floor. */
+    public static double playerPowerMax() {
+        return maxOf(playerPowerSource());
+    }
+
+    /** Who answers a player's power right now, in plain words ({@link PlayerPowerSource#owner}). */
+    @Nonnull
+    public static String playerPowerOwner() {
+        return ownerOf(playerPowerSource());
+    }
+
+    /**
+     * {@code power} held between {@code min} and {@code max}; {@code min} when it is null or not a number. Pure: the
+     * rule every answer passes through, whoever gave it.
+     */
+    static double heldOnScale(@Nullable Double power, double min, double max) {
+        if (power == null || !Double.isFinite(power)) {
+            return min;
+        }
+        return Math.max(min, Math.min(max, power));
+    }
+
+    /** A reading's floor, the library reading's when the source's own throws or is not a number. */
+    private static double minOf(@Nonnull PlayerPowerSource source) {
+        try {
+            double min = source.minPower();
+            if (Double.isFinite(min)) {
+                return min;
+            }
+        } catch (Throwable ignored) {
+            // falls to the library reading's floor
+        }
+        return LibraryPlayerPower.INSTANCE.minPower();
+    }
+
+    /** A reading's ceiling, never below its floor; the library reading's when the source's own cannot be read. */
+    private static double maxOf(@Nonnull PlayerPowerSource source) {
+        double min = minOf(source);
+        try {
+            double max = source.maxPower();
+            if (Double.isFinite(max)) {
+                return Math.max(min, max);
+            }
+        } catch (Throwable ignored) {
+            // falls to the library reading's ceiling
+        }
+        return Math.max(min, LibraryPlayerPower.INSTANCE.maxPower());
+    }
+
+    @Nonnull
+    private static String ownerOf(@Nonnull PlayerPowerSource source) {
+        try {
+            String owner = source.owner();
+            return owner == null || owner.isBlank() ? source.getClass().getName() : owner.trim();
+        } catch (Throwable t) {
+            return source.getClass().getName();
+        }
+    }
+
     // ==================== the seam's own reports ====================
 
     /** The attribution fill, or null having REPORTED once that there is none. */
@@ -364,6 +496,7 @@ public final class EncounterSeams {
             case "waves" -> WARNED_WAVES;
             case "runscale" -> WARNED_RUN_SCALE;
             case "rundifficulty" -> WARNED_RUN_DIFFICULTY;
+            case "playerpower" -> REPORTED_PLAYER_POWER;
             default -> throw new IllegalArgumentException("no seam called " + seam);
         };
     }

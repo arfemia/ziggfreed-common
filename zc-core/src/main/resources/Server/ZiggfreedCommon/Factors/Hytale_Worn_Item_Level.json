@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:worn_item_level reading (the mean native item level across the player's armor slots, an empty slot counting 0) for requirement lines.",
+  "Factor": "hytale:worn_item_level",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.worn_item_level" }
+}

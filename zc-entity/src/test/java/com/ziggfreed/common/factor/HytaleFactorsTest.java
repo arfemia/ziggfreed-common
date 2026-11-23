@@ -47,6 +47,7 @@ class HytaleFactorsTest {
         HytaleFactors.registerInto(registry, "yourmod");
 
         assertEquals(List.of(
+                        HytaleFactors.BEST_WEAPON_ITEM_LEVEL,
                         HytaleFactors.HELD_ITEM,
                         HytaleFactors.HELD_TAG,
                         HytaleFactors.ITEM_DURABILITY_PERCENT,
@@ -61,7 +62,8 @@ class HytaleFactorsTest {
                         HytaleFactors.TOOL_ITEM_LEVEL,
                         HytaleFactors.TOOL_POWER,
                         HytaleFactors.TOOL_QUALITY,
-                        HytaleFactors.TOOL_TIER),
+                        HytaleFactors.TOOL_TIER,
+                        HytaleFactors.WORN_ITEM_LEVEL),
                 registry.ids(),
                 "the portable set is fixed - a new id here is a deliberate vocabulary addition");
         assertEquals("yourmod", registry.info().get(HytaleFactors.STAT).owner());

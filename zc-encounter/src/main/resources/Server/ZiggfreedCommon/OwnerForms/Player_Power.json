@@ -1,0 +1,71 @@
+{
+  "$Comment": "The in-game screen for mods/ziggfreedcommon/player-power.json, on the owner menu (/zigadmin): how the library reads a player's power where no mod measures it. Each setting shows the value in force and the value the server would use without your file, and saves straight into the file under its Default entry. An input a pack adds under its own name is edited in the file, not here. Every word is a key of ziggfreedcommon.encounter.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Player_Power.",
+  "Title": "ziggfreedcommon.encounter.power.form.title",
+  "Description": "ziggfreedcommon.encounter.power.form.desc",
+  "Icon": "Weapon_Sword_Iron",
+  "Section": "ziggfreedcommon",
+  "Order": 55,
+  "File": "ziggfreedcommon/player-power.json",
+  "Entry": "Default",
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.encounter.power.form.heading.inputs",
+      "Note": "ziggfreedcommon.encounter.power.form.inputs.note",
+      "Fields": [
+        {
+          "Path": "Inputs.Armor.Weight",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.encounter.power.form.armor",
+          "Hint": "ziggfreedcommon.encounter.power.form.armor.hint",
+          "Min": 0,
+          "Max": 10
+        },
+        {
+          "Path": "Inputs.Weapon.Weight",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.encounter.power.form.weapon",
+          "Hint": "ziggfreedcommon.encounter.power.form.weapon.hint",
+          "Min": 0,
+          "Max": 10
+        },
+        {
+          "Path": "Inputs.Health.Weight",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.encounter.power.form.health",
+          "Hint": "ziggfreedcommon.encounter.power.form.health.hint",
+          "Min": 0,
+          "Max": 10
+        },
+        {
+          "Path": "Base",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.encounter.power.form.base",
+          "Hint": "ziggfreedcommon.encounter.power.form.base.hint",
+          "Min": 0,
+          "Max": 1000
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.encounter.power.form.heading.scale",
+      "Fields": [
+        {
+          "Path": "Scale.Min",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.encounter.power.form.min",
+          "Hint": "ziggfreedcommon.encounter.power.form.min.hint",
+          "Min": 0,
+          "Max": 1000
+        },
+        {
+          "Path": "Scale.Max",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.encounter.power.form.max",
+          "Hint": "ziggfreedcommon.encounter.power.form.max.hint",
+          "Min": 1,
+          "Max": 1000
+        }
+      ]
+    }
+  ]
+}

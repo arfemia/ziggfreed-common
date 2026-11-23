@@ -1,6 +1,6 @@
 # progress/runtime/ - registering into the one shared runtime
 
-- A one-slot part (a store, the subject source, a call scope, the factor vocabulary) lets a consumer beat the library default, and a second consumer is refused with a SEVERE naming both: never resolve that silently. Contribution parts all apply: gates AND, hooks and listeners fan out, and text, icon, kill and quest-completion qualifier seams answer first non-null.
+- A one-slot part (a store, the subject source, a call scope, the factor vocabulary) lets a consumer beat the library default, and a second consumer is refused with a SEVERE naming both: never resolve that silently. Contribution parts all apply: gates AND, hooks and listeners fan out, text, icon, kill and quest-completion qualifier seams answer first non-null, and kill reward scales multiply.
 - A library module registering its own owner name uses `ProgressionRuntime.defaults(owner)`, never `registrar(owner)`: the first rank an owner registers at sticks, and a library layer at consumer rank clashes with real consumers instead of yielding to them.
 - An owner that publishes from two folds gives each its own slice (`publishQuests(owner, slice, layer)`), or one fold's reload wipes the other's entries.
 - React to a produced moment with a `MomentListener`, never a second ECS system on the same native event, and contribute a `KillAttribution` or `KillQualifier` rather than keeping a kill system of your own, or a `QuestCompletionQualifier` rather than dispatching `COMPLETE_QUEST` yourself.

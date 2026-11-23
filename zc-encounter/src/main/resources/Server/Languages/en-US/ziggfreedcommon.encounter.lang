@@ -78,3 +78,23 @@ admin.validate.counts = Encounter content: {0} errors, {1} warnings, {2} notes.
 admin.finding = {0} {1} [{2}] {3}
 
 admin.reload.done = Re-read the owner files: {0} bindings, {1} participation rules and {3} encounter rules in force, {2} scripts loaded.
+
+# The owner menu's Player Power screen (OwnerForms/Player_Power.json): how a player's power is read where no
+# mod measures it, saved in mods/ziggfreedcommon/player-power.json.
+power.form.title = Player Power
+power.form.desc = How strong each player counts as, for mods that scale the world to its players. Read from worn gear unless a mod measures it its own way.
+power.form.heading.inputs = What power is made of
+power.form.inputs.note = A player's power is the starting power plus each input times its weight. A mod that measures power its own way, from levels or a class, replaces this whole reading, so these settings then change nothing.
+power.form.armor = Armor weight
+power.form.armor.hint = Power for each item level of the armor worn, averaged over every armor slot. An empty slot counts as nothing, so a missing piece pulls power down.
+power.form.weapon = Weapon weight
+power.form.weapon.hint = Power for each item level of the best weapon on the hotbar, whatever is in hand.
+power.form.health = Health weight
+power.form.health.hint = Power for each point of maximum health. Zero leaves health out.
+power.form.base = Starting power
+power.form.base.hint = Power every player has before any input is added.
+power.form.heading.scale = Range
+power.form.min = Lowest power
+power.form.min.hint = What a player with nothing reads, and the least anyone reads. A mob scaler treats a player's power as the difficulty of an even fight.
+power.form.max = Highest power
+power.form.max.hint = No player reads more than this. A mob scaler compares its hardest difficulty with it.

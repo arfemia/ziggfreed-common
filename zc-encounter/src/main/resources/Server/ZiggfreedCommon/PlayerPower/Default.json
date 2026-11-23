@@ -1,0 +1,23 @@
+{
+  "$Comment": "How the library reads a player's power on a server where no mod measures it (a mod that does, from levels or a class, replaces this reading with its own). Power is Base plus each input's Weight times what its Factor reads for the player, held between Scale.Min and Scale.Max. As shipped it reads worn gear: Armor is the mean item level of the armor slots (an empty slot counts 0, so a full mithril set reads about 50), Weapon the best weapon item level on the hotbar, and Health the player's maximum health, off at weight 0. A mob scaler reads a player at power N as an even fight for a mob at difficulty N. Retune a weight or the scale on the owner menu (/zigadmin, Player Power) or in mods/ziggfreedcommon/player-power.json under Default; add an input by adding a name under Inputs with a Factor and a Weight.",
+  "Base": 0,
+  "Scale": {
+    "Min": 1,
+    "Max": 200
+  },
+  "Inputs": {
+    "Armor": {
+      "Factor": "hytale:worn_item_level",
+      "Weight": 0.8
+    },
+    "Weapon": {
+      "Factor": "hytale:best_weapon_item_level",
+      "Weight": 0.2
+    },
+    "Health": {
+      "Factor": "hytale:stat",
+      "Param": "Health",
+      "Weight": 0
+    }
+  }
+}

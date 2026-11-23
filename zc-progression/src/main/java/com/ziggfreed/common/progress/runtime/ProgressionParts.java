@@ -66,6 +66,7 @@ import com.ziggfreed.common.util.SafeLog;
  * @param momentListener            every registered moment listener, fanned out
  * @param killAttribution           every registered kill attribution, first real answer wins
  * @param killQualifier             every registered kill qualifier, first real answer wins
+ * @param killRewardScale           every registered kill reward scale, multiplied together
  * @param questCompletionQualifier  every registered quest-completion qualifier, first real answer wins
  * @param feedbackHook              every registered feedback hook, fanned out
  * @param textSources               every registered text source, in registration order
@@ -90,6 +91,7 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                         @Nonnull MomentListener momentListener,
                         @Nonnull KillAttribution killAttribution,
                         @Nonnull KillQualifier killQualifier,
+                        @Nonnull KillRewardScale killRewardScale,
                         @Nonnull QuestCompletionQualifier questCompletionQualifier,
                         @Nonnull ProgressionFeedbackHook feedbackHook,
                         @Nonnull List<ProgressionTextSource> textSources,
@@ -130,7 +132,7 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             ProgressionCallScope.DIRECT, ProgressionCallScope.DIRECT,
             null, DEFAULT_WARN, QuestGates.OPEN, AchievementGates.OPEN,
             ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, MomentListener.NONE,
-            KillAttribution.NONE, KillQualifier.NONE, QuestCompletionQualifier.NONE,
+            KillAttribution.NONE, KillQualifier.NONE, KillRewardScale.NONE, QuestCompletionQualifier.NONE,
             ProgressionFeedbackHook.NONE, List.of(), List.of());
 
     // ==================== the forwarders the engines are built over ====================
@@ -367,6 +369,10 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
     /** The composed kill qualifier, read LIVE. */
     static final KillQualifier KILL_QUALIFIER = (store, victimRef) ->
             ProgressionRuntime.parts().killQualifier().qualifierFor(store, victimRef);
+
+    /** The composed kill reward scale, read LIVE. */
+    static final KillRewardScale KILL_REWARD_SCALE = (store, victimRef, killerRef) ->
+            ProgressionRuntime.parts().killRewardScale().scaleFor(store, victimRef, killerRef);
 
     /** The composed quest-completion qualifier, read LIVE. */
     static final QuestCompletionQualifier QUEST_COMPLETION_QUALIFIER = questId ->
@@ -804,6 +810,34 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                 }
             }
             return null;
+        };
+    }
+
+    /**
+     * Every registered kill reward scale, asked in registration order, the answers MULTIPLIED. An answer that
+     * is negative or not a number counts as 1, and a THROWING scale is skipped with a warn, so one mod's broken
+     * scale costs only its own factor and the kill still pays.
+     */
+    @Nonnull
+    static KillRewardScale composeKillRewardScales(@Nonnull List<KillRewardScale> scales,
+                                                   @Nonnull Consumer<String> warn) {
+        if (scales.isEmpty()) {
+            return KillRewardScale.NONE;
+        }
+        List<KillRewardScale> frozen = List.copyOf(scales);
+        return (store, victimRef, killerRef) -> {
+            double product = 1.0;
+            for (KillRewardScale scale : frozen) {
+                try {
+                    double answer = scale.scaleFor(store, victimRef, killerRef);
+                    if (answer >= 0.0 && Double.isFinite(answer)) {
+                        product *= answer;
+                    }
+                } catch (Throwable t) {
+                    warn.accept("a kill reward scale failed: " + t.getMessage());
+                }
+            }
+            return product;
         };
     }
 

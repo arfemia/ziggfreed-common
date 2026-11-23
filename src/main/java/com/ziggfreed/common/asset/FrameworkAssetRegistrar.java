@@ -45,6 +45,8 @@ import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationConfig;
 import com.ziggfreed.common.encounter.asset.EncounterRuleAsset;
 import com.ziggfreed.common.encounter.asset.EncounterRuleConfig;
+import com.ziggfreed.common.encounter.power.PlayerPowerAsset;
+import com.ziggfreed.common.encounter.power.PlayerPowerConfig;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
@@ -1378,6 +1380,19 @@ public final class FrameworkAssetRegistrar {
                     BoostOwnerLayers.reloadSettings();
                 });
 
+        // --- Player power (Pattern A) - how the library reads a player's power while no mod fills the player power
+        //     seam: a base, the keyed inputs (factor readings with weights) and the scale it is held on. The library
+        //     ships Default.json (worn gear). Owner file mods/ziggfreedcommon/player-power.json, re-read on this same
+        //     event. ---
+        AssetStoreRegistrar.registerStore(PlayerPowerAsset.class,
+                new DefaultAssetMap<String, PlayerPowerAsset>(), PlayerPowerAsset.TYPE_ROOT,
+                PlayerPowerAsset::getId, PlayerPowerAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PlayerPowerAsset.class,
+                (LoadedAssetsEvent<String, PlayerPowerAsset, DefaultAssetMap<String, PlayerPowerAsset>> ev) -> {
+                    PlayerPowerConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    PlayerPowerConfig.reloadOwner();
+                });
+
         // --- Progression settings (Pattern A) - the server's one word on the shared quest engine: how many quests a
         //     player may carry at once (Quests.MaxActive, 0 for no limit), read live by the engine. The library ships
         //     Default.json. Owner file mods/ziggfreedcommon/progression.json, re-read on this same event. ---
@@ -1596,6 +1611,7 @@ public final class FrameworkAssetRegistrar {
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), "
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
+                        + "PlayerPower (owner file mods/ziggfreedcommon/player-power.json), "
                         + "ProgressionSettings (owner file mods/ziggfreedcommon/progression.json), "
                         + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
                         + "OwnerForms (owner file mods/ziggfreedcommon/owner-forms.json), "

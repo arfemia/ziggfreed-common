@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:best_weapon_item_level reading (the highest native item level among the weapons on the player's hotbar) for requirement lines.",
+  "Factor": "hytale:best_weapon_item_level",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.best_weapon_item_level" }
+}

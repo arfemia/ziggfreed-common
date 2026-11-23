@@ -37,8 +37,8 @@ import com.ziggfreed.common.subject.Subject;
  *   quest store is unresolvable, and quietly picking one is the same double-tracking failure one
  *   level up.
  *   <li><b>Contribution</b> - gates, system gates, taps, moment listeners, kill attributions, kill
- *   qualifiers, text sources. Every registration applies; gates AND, taps and listeners fan out,
- *   attributions, qualifiers and text sources answer in order.
+ *   qualifiers, kill reward scales, text sources. Every registration applies; gates AND, taps and listeners
+ *   fan out, attributions, qualifiers and text sources answer in order, reward scales multiply.
  * </ul>
  *
  * <p><b>CONTENT is not registered here at all, and needs no claim.</b> Every reader folds the whole
@@ -303,6 +303,19 @@ public final class ProgressionRegistrar {
     @Nonnull
     public ProgressionRegistrar killQualifier(@Nonnull KillQualifier qualifier) {
         ProgressionRuntime.addKillQualifier(this, qualifier);
+        return this;
+    }
+
+    /**
+     * Add this mod's answer to "a kill of this entity by that player pays this many times its usual reward", so a
+     * creature this mod made tougher or rarer pays more wherever a payer reads the composed scale.
+     *
+     * <p>Every registered scale is asked and the answers multiply; one that throws is skipped with a warn, and a
+     * negative or non-number answer counts as 1. See {@link KillRewardScale}.
+     */
+    @Nonnull
+    public ProgressionRegistrar killRewardScale(@Nonnull KillRewardScale scale) {
+        ProgressionRuntime.addKillRewardScale(this, scale);
         return this;
     }
 
