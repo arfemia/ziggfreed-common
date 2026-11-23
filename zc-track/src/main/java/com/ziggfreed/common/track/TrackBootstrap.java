@@ -21,11 +21,14 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.owner.OwnerFileBinding;
 import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.progress.ObjectiveTargetNames;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.asset.TrackCurveForm;
+import com.ziggfreed.common.track.asset.TrackOwnerLayers;
 import com.ziggfreed.common.track.boost.BoostBootstrap;
 import com.ziggfreed.common.track.command.ZigTrackCommand;
 import com.ziggfreed.common.track.gain.GainPlans;
@@ -85,13 +88,16 @@ public final class TrackBootstrap {
     /**
      * The owner menu's World Rules and Level Curves forms ({@code OwnerForms/Track_World_Rules.json},
      * {@code Track_Curves.json}): the two owner files' bindings, the world rules' audit the form counts and the curves'
-     * milestone preview. Not guarded: a failed registration throws here, at setup.
+     * milestone preview; and tracks.json as a keyed store, edited one track at a time (the Respec Prices form,
+     * {@code Track_Respec.json}). Not guarded: a failed registration throws here, at setup.
      */
     private static void registerOwnerForms() {
         OwnerFileBindings.register(TrackWorldRuleForm.binding());
         OwnerFormAudits.register(TrackWorldRuleForm.AUDIT, TrackValidator::auditWorldRules);
         OwnerFileBindings.register(TrackCurveForm.binding());
         OwnerFormPreviews.register(TrackCurveForm.PREVIEW, TrackCurveForm::preview);
+        OwnerFileBindings.register(OwnerFileBinding.keyedStore(TrackOwnerLayers.BINDING, TrackOwnerLayers::file,
+                TrackConfig.getInstance(), TrackAsset.CODEC, TrackOwnerLayers::reload));
     }
 
     /**

@@ -248,6 +248,12 @@ form.curves.base.hint = The steady part. Higher makes every level slower by the 
 form.curves.scale = Scale
 form.curves.scale.hint = The part that doubles about every seven levels. Higher makes the late levels much slower.
 form.curves.preview = To reach level {0, number}: {1, number}. Level {2, number}: {3, number}. Level {4, number}: {5, number}. Level {6, number}: {7, number}.
+# The Respec Prices screen on the owner menu (OwnerForms/Track_Respec.json), which edits tracks.json one track at a time.
+form.respec.title = Respec Prices
+form.respec.desc = What a player pays to reset a track's picks, at a trainer or on its tree. Pick a track to change it.
+form.respec.note = A reset costs the track's respec price once for every share of the player's best level written here. What the price is paid in stays in tracks.json.
+form.respec.per_level = Paid per level
+form.respec.per_level.hint = How many times the price is paid for each level of the player's best level, rounded up. Half is once every two levels. Zero pays it once, whatever the level.
 # The World Rules screen's switch for every rule at once, above its list (the file's own $Enabled).
 form.rules.heading.all = Every rule
 form.rules.all = World rules apply

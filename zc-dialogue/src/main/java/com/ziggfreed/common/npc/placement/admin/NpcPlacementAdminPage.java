@@ -203,7 +203,8 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
         cmd.set(rowSel + " #Hint.TextSpans", hintFor(verdict, standing));
         cmd.set(rowSel + " #Hint.Visible", true);
 
-        boolean enabled = NpcPlacementOverrides.getInstance().isEnabled(id);
+        // On means it may stand: its own Enabled (a placement shipped off reads off) and the owner's switch.
+        boolean enabled = placement.isEnabled() && NpcPlacementOverrides.getInstance().isEnabled(id);
         if (verdict != null && verdict.isDenied() && enabled) {
             // Denied for a reason the switch cannot change: paint it as blocked, not as off.
             ZigRichButton.text(cmd, rowSel + " #Toggle", msg("page.blocked"));
@@ -364,8 +365,10 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
     }
 
     /**
-     * Flip one placement's owner switch and sweep, so a stop DESPAWNS what is standing rather than
-     * merely declining to place it next time.
+     * Flip one placement on or off and sweep, so a stop DESPAWNS what is standing rather than
+     * merely declining to place it next time. Off is the owner's switch; on is the switch and, for a
+     * placement shipped off (a stand-in an owner turns on), its own {@code Enabled} too
+     * ({@link NpcPlacementOverrides#switchOn}), so every placement the row shows can be switched on here.
      */
     private void handleToggle(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull Player player, @Nullable String id, @Nonnull String filter) {
@@ -374,8 +377,9 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
             return;
         }
         NpcPlacementOverrides overrides = NpcPlacementOverrides.getInstance();
-        boolean target = !overrides.isEnabled(id);
-        if (!overrides.setEnabled(id, target)) {
+        NpcPlacementAsset placement = NpcPlacementConfig.getInstance().resolve(id.trim());
+        boolean target = !(overrides.isEnabled(id) && (placement == null || placement.isEnabled()));
+        if (!(target ? overrides.switchOn(id) : overrides.setEnabled(id, false))) {
             showToast(ToastKind.ERROR, msg("page.toggle.failed", id));
             reopen(player, ref, store, filter);
             return;

@@ -1,0 +1,18 @@
+{
+  "$Comment": "The in-game screen for the respec prices, on the owner menu (/zigadmin): one row per track whose respec has a price (its Respec.Cost, its own or its Parent's), each opening how many times that price is paid per level of the player's best level, saved straight into mods/ziggfreedcommon/tracks.json under that track's id as its Respec.PerLevel, beside the value it has without your file. A trainer's reset and the tree page's reset both charge it. What the price is paid in (Respec.Cost, an item or a wallet) stays in the file. Every word is a key of ziggfreedcommon.track.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Track_Respec.",
+  "Title": "ziggfreedcommon.track.form.respec.title",
+  "Description": "ziggfreedcommon.track.form.respec.desc",
+  "Icon": "Ingredient_Life_Essence",
+  "Section": "ziggfreedcommon",
+  "Order": 80,
+  "File": "ziggfreedcommon/tracks.json",
+  "Entries": { "Having": "Respec.Cost", "Name": "Text.TitleKey" },
+  "Sections": [
+    {
+      "Note": "ziggfreedcommon.track.form.respec.note",
+      "Fields": [
+        { "Path": "Respec.PerLevel", "Kind": "Number", "Label": "ziggfreedcommon.track.form.respec.per_level", "Hint": "ziggfreedcommon.track.form.respec.per_level.hint", "Min": 0, "Max": 1000 }
+      ]
+    }
+  ]
+}

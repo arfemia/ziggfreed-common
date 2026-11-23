@@ -48,9 +48,18 @@ public final class TrackPickOwnerLayers {
         directory = dir;
     }
 
+    /**
+     * The owner file over the picks ({@value #FILE}), for a consumer's owner form binding over it (its entries through
+     * the pick store) or a page that writes it, then {@link #reload}s.
+     */
+    @Nonnull
+    public static Path file() {
+        return directory.resolve(FILE);
+    }
+
     /** (Re)read {@code track-picks.json} into the picks' owner layer. */
     public static void reload() {
-        OwnerLayerReader.apply(LOG_TAG, directory.resolve(FILE), TrackPickAsset.class, TrackPickAsset.CODEC,
+        OwnerLayerReader.apply(LOG_TAG, file(), TrackPickAsset.class, TrackPickAsset.CODEC,
                 TrackPickConfig.getInstance(), "track pick", p -> GateSpec.missingMod(p.requires()));
     }
 

@@ -35,6 +35,9 @@ public final class TrackOwnerLayers {
     /** The owner file. */
     public static final String FILE = "tracks.json";
 
+    /** The id an owner form's {@code File} names to edit {@value #FILE} (the Respec Prices form). */
+    public static final String BINDING = "ziggfreedcommon/" + FILE;
+
     private static final String LOG_TAG = "track";
 
     @Nonnull
@@ -51,6 +54,12 @@ public final class TrackOwnerLayers {
     @Nonnull
     public static Path directory() {
         return directory;
+    }
+
+    /** The owner file over the tracks ({@value #FILE}); an editor writes it, then {@link #reload}s. */
+    @Nonnull
+    public static Path file() {
+        return directory.resolve(FILE);
     }
 
     /** (Re)read {@code tracks.json} into the fold's owner layer, then count the gated unlock rows. */

@@ -83,6 +83,9 @@ public final class NpcPlacementOverrides {
     /** The leaf every entry carries. */
     private static final String ENABLED = "enabled";
 
+    /** The placement's own switch, a leaf of its body, which {@link #switchOn} writes for one shipped off. */
+    private static final String BODY_ENABLED = "Enabled";
+
     private static final NpcPlacementOverrides INSTANCE = new NpcPlacementOverrides();
 
     @Nonnull
@@ -357,6 +360,34 @@ public final class NpcPlacementOverrides {
         boolean ok = JsonOverrideWriter.setLeaf(file, normalized + "." + ENABLED, enabled);
         if (ok) {
             load();
+        }
+        return ok;
+    }
+
+    /**
+     * Switch the one placement {@code id} on so it may stand: its owner switch on and, where the
+     * placement in force is itself switched off (its own {@code Enabled} false, a standing a pack
+     * keeps for an owner to turn on, such as a character's stand-in for a district the owner switched
+     * off), its own {@code Enabled} written true in its body; then the file is read again and its
+     * bodies decoded into the placement store. A pattern key is refused, since it names no single
+     * placement. Returns false on any IO failure. A live server only (the packs have folded), and the
+     * caller sweeps after, as every write to this file asks.
+     */
+    public boolean switchOn(@Nonnull String id) {
+        String normalized = id.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty() || isPattern(normalized)) {
+            return false;
+        }
+        Map<String, Object> leaves = new LinkedHashMap<>();
+        leaves.put(normalized + "." + ENABLED, true);
+        NpcPlacementAsset inForce = NpcPlacementConfig.getInstance().resolve(normalized);
+        if (inForce != null && !inForce.isEnabled()) {
+            leaves.put(normalized + "." + BODY_ENABLED, true);
+        }
+        boolean ok = JsonOverrideWriter.setLeaves(file, leaves);
+        if (ok) {
+            load();
+            applyOwnerLayer();
         }
         return ok;
     }
