@@ -11,3 +11,35 @@ find.kill = Something extra dropped from your kill
 settings.heading = Lucky finds
 settings.note = Lucky find notes
 settings.note.hint = Shows a note when a block you break, a harvest or a kill drops something extra. Only you see it.
+
+# The Kill Drops screen (objectives/admin/KillDropsAdminPage), opened from the owner menu: every kill bonus row on the
+# server. A row's commands are named here and changed in the owner file only.
+admin.title = Kill Drops
+admin.subtitle = What a killed mob drops or runs on top of its own loot, from every mod's rows and your own. A change applies at once.
+admin.empty = Nothing drops extra from a kill on this server.
+admin.back = Back
+admin.save = Save
+admin.prev = Previous
+admin.next = Next
+admin.page = Page {0, number} of {1, number}
+admin.row.join = {0}\n{1}
+admin.row.mobs = Mobs: {0}
+admin.row.mobs.every = Mobs: every mob
+admin.row.group = Group: {0}
+admin.row.group.shared = Group: the shared group
+admin.row.pays = Rolls {0, number} {0, plural, one {time} other {times}} on each kill
+admin.row.pays.nothing = Drops nothing, so it keeps a broader row off these mobs
+admin.row.tables = Rolls the tables {0}
+admin.row.droplists = Drop lists: {0}
+admin.row.commands = Runs {0, number} {0, plural, one {command} other {commands}}. Commands change only in mods/ziggfreedcommon/bonus-rows.json, never on this screen.
+admin.row.readonly = Its name has characters this screen cannot save under, so change it in mods/ziggfreedcommon/bonus-rows.json.
+admin.field.named = {0}: {1}
+admin.field.enabled = On
+admin.field.enabled.hint = Off takes this row out, so a broader row covers these mobs again.
+admin.field.match = Mobs
+admin.field.match.hint = Skeleton_Fighter for that mob alone, Skeleton_* for every name that starts with it, *Skeleton* for every name holding it, * for every mob, or a group such as NpcGroup:Goblin.
+admin.field.chance = Chance (percent)
+admin.field.chance.hint = How likely the row is to drop at all, before each roll's own odds. Blank, it always drops.
+admin.field.yield = Adds kill yield
+admin.field.yield.hint = On, the killer's kill yield adds to the chance above.
+admin.match.needed = {0} is a row of your own, so it always names its mobs: type the mobs it covers.

@@ -239,7 +239,7 @@ public final class BonusRowReactions implements MomentListener {
             BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atCorpse(store, buffer, victim),
                     BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
                     ThreadLocalRandom.current()::nextDouble, null, subject.withFacets(chests), CommandRunner.CONSOLE,
-                    placeholders(subject, "mob", moment.target()), sourceId, SafeLog::warn);
+                    killPlaceholders(subject, moment.target(), moment.qualifier()), sourceId, SafeLog::warn);
             LootCues.presentAll(pass.result().getCues(), subject, sourceId);
             if (corpse != null) {
                 standChest(chests, store, moment.ref(), corpse, NativeNames.entityNameMsg(moment.target()),
@@ -423,6 +423,22 @@ public final class BonusRowReactions implements MomentListener {
         Map<String, String> out = new LinkedHashMap<>();
         out.put("player", subject.name());
         out.put(key, value);
+        return out;
+    }
+
+    /** The kill row's placeholder for the kill's qualifier, the tier a mod attributes to the killed mob. */
+    static final String TIER = "tier";
+
+    /**
+     * A kill row's command placeholders: {@code {player}}, {@code {mob}} and {@code {tier}}, the qualifier the kill
+     * carries (the first registered {@code KillQualifier}'s answer for the victim, such as a difficulty tier a
+     * companion mod attributes to the mobs it scales), blank for an unqualified kill rather than left standing.
+     */
+    @Nonnull
+    static Map<String, String> killPlaceholders(@Nonnull Subject subject, @Nonnull String mob,
+            @Nullable String qualifier) {
+        Map<String, String> out = placeholders(subject, "mob", mob);
+        out.put(TIER, qualifier == null ? "" : qualifier);
         return out;
     }
 }

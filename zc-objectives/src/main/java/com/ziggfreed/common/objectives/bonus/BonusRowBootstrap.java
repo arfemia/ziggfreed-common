@@ -4,7 +4,12 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.ziggfreed.common.loot.trigger.BonusRowAsset;
+import com.ziggfreed.common.loot.trigger.BonusRowConfig;
+import com.ziggfreed.common.loot.trigger.BonusRowOwnerLayers;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.owner.OwnerFileBinding;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -23,6 +28,21 @@ public final class BonusRowBootstrap {
             ProgressionRuntime.defaults(ProgressionDefaults.OWNER).momentListener(BonusRowReactions.INSTANCE);
         } catch (Throwable t) {
             SafeLog.warn("[loot] the bonus rows could not be hung on the produced moments", t);
+        }
+    }
+
+    /**
+     * The rows' owner file as one an in-game editor may write ({@code BonusRowOwnerLayers.BINDING}): its Default read
+     * off the rows under the owner's layer, its reload the rows' own owner read. The kill drops screen writes through it.
+     */
+    public static void registerOwnerFile() {
+        try {
+            OwnerFileBindings.register(OwnerFileBinding.keyedStore(BonusRowOwnerLayers.BINDING,
+                    BonusRowOwnerLayers::file, BonusRowConfig.getInstance(), BonusRowAsset.CODEC,
+                    BonusRowOwnerLayers::reload));
+        } catch (Throwable t) {
+            SafeLog.warn("[loot] the bonus rows' owner file could not be bound, so the kill drops screen writes nothing",
+                    t);
         }
     }
 

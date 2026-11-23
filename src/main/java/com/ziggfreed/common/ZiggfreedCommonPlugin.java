@@ -97,6 +97,7 @@ import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
+import com.ziggfreed.common.objectives.admin.KillDropsAdminPages;
 import com.ziggfreed.common.objectives.admin.ProgressionAdminPages;
 import com.ziggfreed.common.objectives.admin.UseGateAdminPages;
 import com.ziggfreed.common.objectives.authoring.AchievementEditorBootstrap;
@@ -384,6 +385,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         BonusRowBootstrap.registerReactions();
         BonusRowBootstrap.registerDropCredit(this);
         BonusRowBootstrap.registerFindNotes(this);
+        BonusRowBootstrap.registerOwnerFile();
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
         DialogueBootstrap.registerDialogueAudit(this);
@@ -704,7 +706,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     /**
      * The owner menu, {@code /zigadmin}: zc-presentation's bootstrap registers the command, the library's section and
      * its own HUD layout tile; the tiles of the library's other owner screens are wired here, the one place that sees
-     * their modules (the progression switches and the use gates in zc-objectives, the NPC placements in zc-dialogue).
+     * their modules (the progression switches, the use gates and the kill drops in zc-objectives, the NPC placements in
+     * zc-dialogue).
      * Each opens through its page's own audience seam, which defaults to the owner audience.
      */
     private void registerOwnerMenu() {
@@ -722,6 +725,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                             OwnerText.line("tile.placements.title"),
                             viewer -> NpcPlacementAdminPages.open(viewer.store(), viewer.ref(), viewer.player()))
                     .order(30).line(OwnerText.line("tile.placements.line")).icon("Furniture_Crude_Sign"));
+            OwnerMenu.add(OwnerTile.screen(OwnerMenu.LIBRARY, "ziggfreedcommon:kill_drops",
+                            OwnerText.line("tile.killdrops.title"),
+                            viewer -> KillDropsAdminPages.open(viewer.store(), viewer.ref(), viewer.player()))
+                    .order(40).line(OwnerText.line("tile.killdrops.line")).icon("Deco_Bone_Pile"));
         } catch (Throwable t) {
             SafeLog.warn("[owner] the owner menu could not be registered", t);
         }

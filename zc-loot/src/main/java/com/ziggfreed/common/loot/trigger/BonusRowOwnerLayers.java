@@ -31,6 +31,12 @@ public final class BonusRowOwnerLayers {
     /** The owner file over the rows. */
     public static final String FILE = "bonus-rows.json";
 
+    /**
+     * The file's id among the owner files an in-game editor may write (zc-core's {@code OwnerFileBindings}): the kill
+     * drops screen writes the rows' own leaves through it.
+     */
+    public static final String BINDING = "ziggfreedcommon/" + FILE;
+
     private static final String LOG_TAG = "loot";
 
     @Nonnull

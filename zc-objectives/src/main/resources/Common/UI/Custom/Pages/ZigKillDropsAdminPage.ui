@@ -1,0 +1,124 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The Kill Drops admin page (com.ziggfreed.common.objectives.admin.KillDropsAdminPage): every kill bonus row on the
+// server, a page of rows at a time. Each row is a heading (its id) and a note (what it covers and pays, and whether
+// it runs commands, which only the owner file changes), then its settings, each the kit's owner leaf row
+// (Pages/ZigFormLeafRow.ui, ui/kit/FormLeafPainter) written into mods/ziggfreedcommon/bonus-rows.json on Save. The
+// heading and note are the settings form's own rows (Pages/ZigFormHeaderRow.ui, Pages/ZigFormNoteRow.ui).
+//
+// On the band, the page's title and subtitle are the frame's hero (ui/kit/HeroPainter), so this document declares
+// neither. #KillDropsPanel sits on the game's inset panel, the panel a consumer's theme retints by its Background.
+// Every colour is a Common/ZigTokens.ui token, every size a Common/ZigType.ui step, every button a kit state style.
+//
+// #Fields is the appendable list container and MUST stay childless here: rows are addressed by indexed parent
+// ("#Fields[3] #Field"), so a pre-authored child would shift every index. #Empty is the line an empty table shows
+// instead of rows, #Status the line a save or a reset answers on. All text is set from Java on .TextSpans, and every
+// labeled button is a Button + inner #Label.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 960, Height: 820);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Top;
+    Padding: (Full: 18);
+
+    Label #Status {
+      Visible: false;
+      Text: "";
+      Anchor: (Bottom: 8);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    Group #KillDropsPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Full: $ZK.@ZigSpace3);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+
+      Group #Fields {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 12);
+      }
+
+      Label #Empty {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 40, Top: $ZK.@ZigSpace2);
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
+      }
+    }
+
+    Group #Footer {
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace3);
+      LayoutMode: Left;
+
+      Button #BackButton {
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Anchor: (Width: 140, Height: $ZK.@ZigActionHeight);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+
+      Group { FlexWeight: 1; }
+
+      Group #Pager {
+        LayoutMode: Left;
+        Anchor: (Width: 440);
+
+        Button #PrevButton {
+          Style: $ZS.@ZigButtonSecondaryStyle;
+          Anchor: (Width: 130, Height: $ZK.@ZigActionHeight);
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Label #PageLabel {
+          Text: "";
+          Anchor: (Width: 180, Height: $ZK.@ZigActionHeight);
+          Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center);
+        }
+
+        Button #NextButton {
+          Style: $ZS.@ZigButtonSecondaryStyle;
+          Anchor: (Width: 130, Height: $ZK.@ZigActionHeight);
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+      }
+
+      Group { FlexWeight: 1; }
+
+      Button #SaveButton {
+        Style: $ZS.@ZigButtonPrimaryStyle;
+        Anchor: (Width: 180, Height: $ZK.@ZigActionHeight);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

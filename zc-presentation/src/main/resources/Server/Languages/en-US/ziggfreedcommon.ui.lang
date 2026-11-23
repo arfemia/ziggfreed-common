@@ -295,3 +295,7 @@ gallery.bullet.linelong = And a line under it that runs on past the width of its
 gallery.detail.line.long = A plain line that runs on and on, far past the width of the card it sits in
 gallery.tile.statplace = Your place
 gallery.tile.statbig = Damage dealt, with no picture beside it
+
+# OE1 O7: the Kill Drops tile in the library's section of the owner menu.
+owner.tile.killdrops.title = Kill Drops
+owner.tile.killdrops.line = What a killed mob drops or runs on top of its own loot, for every mod.

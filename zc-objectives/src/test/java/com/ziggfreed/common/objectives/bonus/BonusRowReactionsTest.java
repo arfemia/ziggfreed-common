@@ -108,6 +108,20 @@ class BonusRowReactionsTest {
                 BonusRowReactions.placeholders(ash, "block", "Rock_Stone"));
     }
 
+    /**
+     * A kill row's command reads the kill's qualifier as {@code {tier}}, blank for an unqualified kill, so a command
+     * carried from a consumer's own kill-command file keeps every placeholder it was written with.
+     */
+    @Test
+    void killPlaceholdersNameTheKillsQualifierAsTierAndBlankWithoutOne() {
+        Subject ash = Subject.of(UUID.randomUUID(), "Ash");
+
+        assertEquals(Map.of("player", "Ash", "mob", "Skeleton_Fighter", "tier", "Legendary"),
+                BonusRowReactions.killPlaceholders(ash, "Skeleton_Fighter", "Legendary"));
+        assertEquals(Map.of("player", "Ash", "mob", "Skeleton_Fighter", "tier", ""),
+                BonusRowReactions.killPlaceholders(ash, "Skeleton_Fighter", null));
+    }
+
     @Test
     void theRuntimesOwnSubjectPaysWhenItBuiltOne() {
         Moment moment = moment(ZigMobKillProducer.KIND, "Skeleton_Burnt_Archer", null);
