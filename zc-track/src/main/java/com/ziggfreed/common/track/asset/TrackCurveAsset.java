@@ -249,6 +249,18 @@ public final class TrackCurveAsset implements JsonAssetWithMap<String, DefaultAs
             return to;
         }
 
+        /** The Hybrid group's {@code Base} as written, or null (no Hybrid group, or no Base in it). */
+        @Nullable
+        public Double hybridBase() {
+            return hybrid == null ? null : hybrid.base;
+        }
+
+        /** The Hybrid group's {@code Scale} as written, or null (no Hybrid group, or no Scale in it). */
+        @Nullable
+        public Double hybridScale() {
+            return hybrid == null ? null : hybrid.scale;
+        }
+
         /** The floors as written, or an empty array. */
         @Nonnull
         public long[] floorsOrEmpty() {

@@ -88,6 +88,9 @@ public final class OwnerFormEntries {
         if (!OwnerFiles.schemaReadable(root, "owner", form.getId())) {
             malformed = true;
         }
+        if (binding != null && !malformed) {
+            root = binding.ownerView(root);
+        }
         List<Row> rows = new ArrayList<>();
         if (binding != null && binding.keyed() && spec != null) {
             List<String> paths = declaredPaths(form);

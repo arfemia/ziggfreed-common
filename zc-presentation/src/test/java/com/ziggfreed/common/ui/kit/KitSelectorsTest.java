@@ -404,7 +404,8 @@ class KitSelectorsTest {
     /**
      * The owner menu, walked against its own document and the band frame: two sections of tiles (with a line and an
      * item, and with neither), a status line, an empty menu and a refused one; then the owner form from a form file
-     * with a heading, a note and a setting of every kind, a status line and a refusal.
+     * with a heading, a note and a setting of every kind, a status line, its audit's count and its preview, and a
+     * refusal.
      */
     @Test
     void theOwnerMenuAndTheOwnerFormAddressOnlyIdsTheirDocumentsDeclare() throws IOException {
@@ -435,6 +436,11 @@ class KitSelectorsTest {
         assertTrue(rows.size() == 7, "every setting of every kind is a row: " + rows);
         FormLeafPainter.paint(form.cmd(), rows.get(0), OwnerFormPaint.leaf(plan.settings().get(0), "5", true), null);
         OwnerFormPaint.status(form.cmd(), Message.raw("Saved"), false);
+        OwnerFormPaint.audit(form.cmd(), 2);
+        OwnerFormPaint.audit(form.cmd(), 0);
+        OwnerFormPaint.audit(form.cmd(), null);
+        OwnerFormPaint.preview(form.cmd(), Message.raw("Level 10 at 14k"));
+        OwnerFormPaint.preview(form.cmd(), null);
         OwnerFormPaint.refused(form.cmd(), Message.raw("Gone"));
         form.record();
         form.assertDeclared("the owner form");

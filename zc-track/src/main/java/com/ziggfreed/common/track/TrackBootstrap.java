@@ -21,9 +21,11 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.progress.ObjectiveTargetNames;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.track.asset.TrackConfig;
+import com.ziggfreed.common.track.asset.TrackCurveForm;
 import com.ziggfreed.common.track.boost.BoostBootstrap;
 import com.ziggfreed.common.track.command.ZigTrackCommand;
 import com.ziggfreed.common.track.gain.GainPlans;
@@ -33,7 +35,10 @@ import com.ziggfreed.common.track.source.SourceBatch;
 import com.ziggfreed.common.track.source.TrackSourceReactions;
 import com.ziggfreed.common.track.tree.TreeDestinations;
 import com.ziggfreed.common.track.world.TrackRules;
+import com.ziggfreed.common.track.world.TrackWorldRuleForm;
 import com.ziggfreed.common.track.world.TrackWorldRules;
+import com.ziggfreed.common.ui.form.OwnerFormAudits;
+import com.ziggfreed.common.ui.form.OwnerFormPreviews;
 import com.ziggfreed.common.ui.kit.LedgerContributions;
 import com.ziggfreed.common.usegate.ItemLevelTags;
 
@@ -43,8 +48,8 @@ import com.ziggfreed.common.usegate.ItemLevelTags;
  * how the two track objective kinds name their targets, the editor's list of tracks, the settle at every ready,
  * the {@code /zigtrack} family and the once-at-boot log of broken track files; the native {@code ZigTrackRules}
  * gameplay config group, the track sources' reaction on the produced moments, the gain plans' epoch hooks, the
- * picks waiting on the Claims tab, the undo window's close at a departure and the boosts
- * ({@code boost.BoostBootstrap}). The ten stores (tracks, curves, categories, sources, world rules, picks, pick
+ * picks waiting on the Claims tab, the undo window's close at a departure, the World Rules and Level Curves owner forms'
+ * bindings, audit and preview, and the boosts ({@code boost.BoostBootstrap}). The ten stores (tracks, curves, categories, sources, world rules, picks, pick
  * generators, pick options, boosts, boost settings) are registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
  */
@@ -71,9 +76,22 @@ public final class TrackBootstrap {
         registerHooks(plugin);
         registerGrowth(plugin);
         registerPicks(plugin);
+        registerOwnerForms();
         // The boosts: the Boost gain factor, their tiles, the native ZigBoost Type, the server's boosts read back at
         // boot and /zigboost (their two stores are registered with the other framework stores).
         BoostBootstrap.install(plugin);
+    }
+
+    /**
+     * The owner menu's World Rules and Level Curves forms ({@code OwnerForms/Track_World_Rules.json},
+     * {@code Track_Curves.json}): the two owner files' bindings, the world rules' audit the form counts and the curves'
+     * milestone preview. Not guarded: a failed registration throws here, at setup.
+     */
+    private static void registerOwnerForms() {
+        OwnerFileBindings.register(TrackWorldRuleForm.binding());
+        OwnerFormAudits.register(TrackWorldRuleForm.AUDIT, TrackValidator::auditWorldRules);
+        OwnerFileBindings.register(TrackCurveForm.binding());
+        OwnerFormPreviews.register(TrackCurveForm.PREVIEW, TrackCurveForm::preview);
     }
 
     /**

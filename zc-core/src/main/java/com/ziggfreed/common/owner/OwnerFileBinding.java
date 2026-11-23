@@ -13,6 +13,7 @@ import javax.annotation.Nullable;
 import org.bson.BsonDocument;
 import org.bson.BsonValue;
 
+import com.google.gson.JsonObject;
 import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
@@ -41,6 +42,11 @@ import com.ziggfreed.common.util.SafeLog;
  * the ids in force, which of them a layer under the owner holds, each entry as it reads now, and the store's own entry
  * writer, which holds a typed id to the store's id pattern before it writes. An owner form of the Entries shape edits
  * the file one entry at a time through it.
+ *
+ * <p>A file whose shape a form cannot address leaf by leaf (a list a leaf sits in, a map that stands whole) names a
+ * {@link View}: the owner's file as an editor reads it, so the leaves the form names are found where the owner wrote
+ * them, and its {@link Entries} writer turns those leaves back into the file's own shape. Unnamed, an editor reads the
+ * file as written.
  */
 public final class OwnerFileBinding {
 
@@ -90,6 +96,18 @@ public final class OwnerFileBinding {
         boolean write(@Nonnull Path file, @Nonnull Map<String, Object> leaves);
     }
 
+    /**
+     * The owner's file as an editor reads it: the file's root object, read as written, answered in the shape the
+     * editor's paths address (a leaf the file keeps inside a list, lifted to a plain path), never written back.
+     */
+    @FunctionalInterface
+    public interface View {
+
+        /** {@code root}, as an editor reads it; may change and answer {@code root} itself, which is a fresh copy. */
+        @Nonnull
+        JsonObject view(@Nonnull JsonObject root);
+    }
+
     /** No Default to show. */
     public static final Below NO_BELOW = (entry, path) -> null;
 
@@ -99,6 +117,7 @@ public final class OwnerFileBinding {
     @Nonnull private final Writer writer;
     @Nonnull private final Runnable reload;
     @Nullable private final Entries entries;
+    @Nullable private final View view;
 
     private OwnerFileBinding(@Nonnull Builder builder) {
         this.id = builder.id;
@@ -107,6 +126,7 @@ public final class OwnerFileBinding {
         this.writer = builder.writer;
         this.reload = builder.reload;
         this.entries = builder.entries;
+        this.view = builder.view;
     }
 
     /**
@@ -241,6 +261,33 @@ public final class OwnerFileBinding {
         } catch (Throwable t) {
             SafeLog.warn("[owner] " + id + " was written but could not be read again: " + t.getMessage());
         }
+    }
+
+    /**
+     * The owner's file {@code root} (read as written) as an editor reads it, through the binding's {@link View}; the
+     * root itself when the binding names none, or when the view throws (one warning), so an editor still shows what
+     * the file plainly says.
+     */
+    @Nonnull
+    public JsonObject ownerView(@Nonnull JsonObject root) {
+        if (view == null) {
+            return root;
+        }
+        try {
+            JsonObject seen = view.view(root.deepCopy());
+            return seen != null ? seen : root;
+        } catch (Throwable t) {
+            SafeLog.warn("[owner] " + id + " could not be read the way its editor reads it: " + t.getMessage());
+            return root;
+        }
+    }
+
+    /**
+     * Does an editor read this file through a {@link View}? Then a write of one leaf may move others (a list or a map
+     * written whole), so an editor reads the file again after each write rather than repainting the one leaf.
+     */
+    public boolean reshapes() {
+        return view != null;
     }
 
     /** Is the file id-keyed, with {@link Entries} an editor may list and write one at a time? */
@@ -394,6 +441,7 @@ public final class OwnerFileBinding {
         @Nonnull private Writer writer = JsonOverrideWriter::setLeaves;
         @Nonnull private Runnable reload = () -> { };
         @Nullable private Entries entries;
+        @Nullable private View view;
 
         private Builder(@Nonnull String id, @Nonnull Supplier<Path> file) {
             this.id = Objects.requireNonNull(id, "id").trim();
@@ -428,6 +476,13 @@ public final class OwnerFileBinding {
         @Nonnull
         public Builder entries(@Nullable Entries value) {
             this.entries = value;
+            return this;
+        }
+
+        /** How an editor reads the owner's file, for a shape its paths cannot address as written; unset, as written. */
+        @Nonnull
+        public Builder view(@Nullable View value) {
+            this.view = value;
             return this;
         }
 

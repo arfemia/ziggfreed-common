@@ -19,8 +19,9 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * The audit of every owner form in force, once every pack has folded (the boot audit): a form naming a file no
  * installed mod registered, an entry or a path a form may not write, a field with no kind or a kind off the list, two
  * fields writing one path, a choice with no choices, bounds the wrong way round, a kind that does not match the value
- * the file's layer under the owner holds (a decimal field over a whole-number leaf writes the wrong number type), and
- * a word no lang file ships. Unknown ids and keys are WARNINGs, a shape that cannot work an ERROR.
+ * the file's layer under the owner holds (a decimal field over a whole-number leaf writes the wrong number type), an
+ * audit or a preview no installed mod registered, and a word no lang file ships. Unknown ids and keys are WARNINGs, a
+ * shape that cannot work an ERROR.
  */
 public final class OwnerFormValidator {
 
@@ -67,6 +68,14 @@ public final class OwnerFormValidator {
         OwnerFormAsset.Entries entries = form.entries();
         if (entries != null) {
             auditEntries(form, entries, binding, out);
+        }
+        if (form.audit() != null && !OwnerFormAudits.has(form.audit())) {
+            out.add(Finding.warning(DOMAIN, "UNKNOWN_AUDIT", where + " counts the problems of the audit '"
+                    + form.audit() + "', which no installed mod registered, so it shows no count", id));
+        }
+        if (form.preview() != null && !OwnerFormPreviews.has(form.preview())) {
+            out.add(Finding.warning(DOMAIN, "UNKNOWN_PREVIEW", where + " shows the preview '" + form.preview()
+                    + "', which no installed mod registered, so it shows none", id));
         }
         TextKeyAudit.check(out, DOMAIN, id, where + " Title", form.title(), shipped, "its tile reads the raw key");
         TextKeyAudit.check(out, DOMAIN, id, where + " Description", form.description(), shipped,

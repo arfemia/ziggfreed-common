@@ -110,6 +110,10 @@ public final class OwnerFormPlan {
         if (!OwnerFiles.schemaReadable(root, "owner", form.getId())) {
             malformed = true;
         }
+        if (binding != null && !malformed) {
+            // A file whose shape the form's paths cannot address as written is read the way its binding says.
+            root = binding.ownerView(root);
+        }
         boolean insideEntry = entryId != null;
         String entry = insideEntry ? entryId : form.entry();
         String entryKey = entry == null ? null : keyIn(root, entry);

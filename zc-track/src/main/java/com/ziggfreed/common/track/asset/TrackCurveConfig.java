@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.track.curve.TrackCurves;
@@ -90,6 +91,17 @@ public final class TrackCurveConfig extends AbstractKeyedAssetConfig<TrackCurveA
         fromFile = Map.copyOf(file);
         super.mergeOwnerLayer(union());
         TrackCurves.invalidate();
+    }
+
+    /**
+     * {@code id}'s curve as it reads without the owner file's entry: a consumer's owner word for it, else the packs'
+     * and the defaults' answer; null when none holds it. What an editor of {@code track-curves.json} shows as the value
+     * the server uses without the owner's word.
+     */
+    @Nullable
+    public synchronized TrackCurveAsset resolveBelowFile(@Nonnull String id) {
+        TrackCurveAsset word = fromConsumers.get(id.trim().toLowerCase(Locale.ROOT));
+        return word != null ? word : resolveBelowOwner(id.trim());
     }
 
     /** The owner layer: every consumer's owner word, the file's entries over them id by id. */

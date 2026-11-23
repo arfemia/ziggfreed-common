@@ -59,6 +59,10 @@ import com.ziggfreed.common.progress.gate.StoreGates;
  * mod gate (a plain mod-presence check keeps the form out where that mod is missing) and asks the rest of the owner
  * each time the menu lists it. Every leaf is nullable and inherited through {@code Parent}; the server owner can retune
  * a form in {@code mods/ziggfreedcommon/owner-forms.json}.
+ *
+ * <p>A form may also name what a mod registered in code for it: an {@code Audit} ({@link OwnerFormAudits}, the
+ * problems a content audit finds in the files the form edits, counted on the form) and a {@code Preview}
+ * ({@link OwnerFormPreviews}, a line saying what the values on the screen would do, kept up as the owner types).
  */
 public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, OwnerFormAsset>> {
 
@@ -84,6 +88,8 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
     @Nullable protected Entries entries;
     @Nullable protected GateSpec requires;
     @Nullable protected Section[] sections;
+    @Nullable protected String audit;
+    @Nullable protected String preview;
 
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
@@ -141,6 +147,16 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
                     (a, v) -> a.sections = v, a -> a.sections, (a, p) -> a.sections = p.sections)
             .documentation("The form's settings, in headed groups, in order. A child's list replaces its "
                     + "parent's whole.").add()
+            .appendInherited(new KeyedCodec<>("Audit", Codec.STRING, false),
+                    (a, v) -> a.audit = v, a -> a.audit, (a, p) -> a.audit = p.audit)
+            .documentation("The id of a content audit a mod registered over what this form edits: the form shows "
+                    + "how many problems it finds in those files right now. Leave it out for none; an id no "
+                    + "installed mod registered shows nothing.").add()
+            .appendInherited(new KeyedCodec<>("Preview", Codec.STRING, false),
+                    (a, v) -> a.preview = v, a -> a.preview, (a, p) -> a.preview = p.preview)
+            .documentation("The id of a preview a mod registered: a line under the settings saying what the values "
+                    + "on the screen would do, kept up as the owner types, before anything is saved. Leave it out for "
+                    + "none; an id no installed mod registered shows nothing.").add()
             .build();
 
     public OwnerFormAsset() {
@@ -228,6 +244,18 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
             }
         }
         return out;
+    }
+
+    /** The id of the content audit whose problem count the form shows ({@link OwnerFormAudits}), trimmed, or null. */
+    @Nullable
+    public String audit() {
+        return blankToNull(audit);
+    }
+
+    /** The id of the preview the form shows under its settings ({@link OwnerFormPreviews}), trimmed, or null. */
+    @Nullable
+    public String preview() {
+        return blankToNull(preview);
     }
 
     /**

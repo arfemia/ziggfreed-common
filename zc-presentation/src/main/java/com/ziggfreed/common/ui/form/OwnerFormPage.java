@@ -46,6 +46,10 @@ import com.ziggfreed.common.util.SafeLog;
  * store's id pattern accepts and no entry has yet, then opens it. An entry is acted on only while the form still lists
  * it, asked again before every write.
  *
+ * <p>A form naming an audit shows its problem count on every draw ({@link OwnerFormAudits}); one naming a preview
+ * shows its line under the settings ({@link OwnerFormPreviews}), sent again after every change to a control, so it
+ * follows what is typed before anything is saved.
+ *
  * <p>Every event but Close asks again before it acts ({@link OwnerPageGuard}, which closes the page on a refusal):
  * Back from the form the owner audience, every other event the owner audience and the form's {@code Requires}. Every
  * exit answers the client: Close closes, Back opens the menu or the list, everything else gets an update or a rebuild.
@@ -113,7 +117,9 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
                     leaves.add(OwnerFormPaint.leaf(setting, setting.shown(), setting.set()));
                 }
                 plan = read;
+                OwnerFormPaint.preview(cmd, previewLine(read));
             }
+            OwnerFormPaint.audit(cmd, OwnerFormAudits.problems(form.audit()));
             if (status != null) {
                 OwnerFormPaint.status(cmd, status, statusError);
             }
@@ -177,9 +183,9 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
             return rebuild(ref, store, player, OwnerText.line("form.entries.gone"), true);
         }
         return switch (action) {
-            case OwnerFormPaint.CHANGE -> keep(current, data.field, data.value);
-            case OwnerFormPaint.RESET -> reset(current, data.field);
-            case OwnerFormPaint.SAVE -> save(current);
+            case OwnerFormPaint.CHANGE -> keep(current, data.field, data.value) || pushPreview(current);
+            case OwnerFormPaint.RESET -> reset(ref, store, player, current, data.field);
+            case OwnerFormPaint.SAVE -> save(ref, store, player, current);
             default -> false;
         };
     }
@@ -270,8 +276,12 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
         return false;
     }
 
-    /** Take one setting's value out of the owner's file, then repaint its row. */
-    private boolean reset(@Nonnull OwnerFormPlan current, @Nullable String field) {
+    /**
+     * Take one setting's value out of the owner's file, then repaint its row (or, for a file its binding writes in a
+     * shape of its own, draw the form again from the file, since the write may have moved other rows too).
+     */
+    private boolean reset(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player,
+            @Nonnull OwnerFormPlan current, @Nullable String field) {
         OwnerFormPlan.Setting setting = current.setting(index(field));
         if (setting == null) {
             return false;
@@ -289,13 +299,21 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
             return push(new UICommandBuilder(), OwnerText.line("form.failed", binding.id()), true);
         }
         typed.remove(i);
+        if (binding.reshapes()) {
+            return rebuild(ref, store, player, OwnerText.line("form.reset.done"), false);
+        }
         UICommandBuilder cmd = new UICommandBuilder();
         repaint(cmd, i, OwnerFormPlan.raw(setting.field().kind(), setting.below()), false);
+        paintPreview(cmd, current);
         return push(cmd, OwnerText.line("form.reset.done"), false);
     }
 
-    /** Write every changed setting, or name the first one refused; then repaint the rows written. */
-    private boolean save(@Nonnull OwnerFormPlan current) {
+    /**
+     * Write every changed setting, or name the first one refused; then repaint the rows written (or, for a file its
+     * binding writes in a shape of its own, draw the form again from the file).
+     */
+    private boolean save(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player,
+            @Nonnull OwnerFormPlan current) {
         OwnerFileBinding binding = current.binding();
         if (!current.writable() || binding == null) {
             return push(new UICommandBuilder(), cannotWrite(current), true);
@@ -312,6 +330,10 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
         if (!write(current, binding, collected.leaves())) {
             return push(new UICommandBuilder(), OwnerText.line("form.failed", binding.id()), true);
         }
+        if (binding.reshapes()) {
+            typed.clear();
+            return rebuild(ref, store, player, OwnerText.line("form.saved"), false);
+        }
         UICommandBuilder cmd = new UICommandBuilder();
         for (OwnerFormField field : fields) {
             if (!typed.containsKey(field.index()) || !collected.leaves().containsKey(field.writePath())) {
@@ -327,7 +349,54 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
             }
         }
         typed.clear();
+        paintPreview(cmd, current);
         return push(cmd, OwnerText.line("form.saved"), false);
+    }
+
+    /**
+     * The form's preview for the values on the screen now (each setting's typed text, else what its row shows), or
+     * null when the form names none or it has nothing to say.
+     */
+    @Nullable
+    private Message previewLine(@Nonnull OwnerFormPlan current) {
+        String id = current.form().preview();
+        if (id == null) {
+            return null;
+        }
+        Map<String, String> values = new LinkedHashMap<>();
+        for (OwnerFormPlan.Setting setting : current.settings()) {
+            int i = setting.field().index();
+            String path = setting.authored().path();
+            if (path == null) {
+                continue;
+            }
+            String text = typed.containsKey(i) ? typed.get(i) : i < leaves.size() ? leaves.get(i).value()
+                    : setting.shown();
+            values.put(path, text == null ? "" : text);
+        }
+        String entry = current.entryId() != null ? current.entryId() : current.form().entry();
+        return OwnerFormPreviews.line(id, entry, values);
+    }
+
+    /** The preview line into {@code cmd}, for a form that names one. */
+    private void paintPreview(@Nonnull UICommandBuilder cmd, @Nonnull OwnerFormPlan current) {
+        if (current.form().preview() != null) {
+            OwnerFormPaint.preview(cmd, previewLine(current));
+        }
+    }
+
+    /**
+     * After a control changed, the preview kept up with what was typed (the row itself is left alone, so the field
+     * keeps its focus); false, nothing sent, for a form that names no preview.
+     */
+    private boolean pushPreview(@Nonnull OwnerFormPlan current) {
+        if (current.form().preview() == null) {
+            return false;
+        }
+        UICommandBuilder cmd = new UICommandBuilder();
+        OwnerFormPaint.preview(cmd, previewLine(current));
+        this.sendUpdate(cmd, new UIEventBuilder(), false);
+        return true;
     }
 
     /**

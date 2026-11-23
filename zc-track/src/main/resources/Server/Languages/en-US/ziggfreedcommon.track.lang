@@ -205,3 +205,41 @@ command.build.line.empty = Build {0, number}: nothing saved
 # /zigtrack respend: {0} the track, {1} the player, {2} how many picks were spent again.
 command.respend.done = {1} spent {2, number} remembered {2, plural, one {pick} other {picks}} again on {0}.
 command.respend.none = {1} has no remembered pick that can be spent again on {0} right now.
+# The World Rules screen on the owner menu (OwnerForms/Track_World_Rules.json), which edits track-world-rules.json one
+# rule at a time.
+form.rules.title = World Rules
+form.rules.desc = How each world's rules change what tracks gain there and what their picks grant. Pick a rule to change it.
+form.rules.note = Which worlds a rule covers, and every new rule, are written in the files: a pack's TrackWorldRules folder, mods/ziggfreedcommon/track-world-rules.json, or a world's own gameplay config. To switch every rule off at once, write "$Enabled": false at the top of track-world-rules.json.
+form.rules.on = This rule applies
+form.rules.on.hint = Off keeps the rule but applies it nowhere, so its worlds follow the next rule that names them.
+form.rules.heading.gain = Gains here
+form.rules.gain.on = Gains land here
+form.rules.gain.on.hint = Off stops every gain on every track in these worlds.
+form.rules.multiplier = Multiplier
+form.rules.multiplier.hint = What every gain is multiplied by here: 1 is unchanged, 2 doubles it, 0 stops it.
+form.rules.disabled = Tracks that gain nothing
+form.rules.disabled.hint = Track or category ids, split by commas. These gain nothing here, whatever the list below says.
+form.rules.allowed = Only these tracks gain
+form.rules.allowed.hint = Track or category ids, split by commas. When it names any, every track it leaves out gains nothing here. Left blank, the rule's own list applies.
+form.rules.hits = Hits on players pay
+form.rules.hits.hint = On lets a hit on another player pay here the way a hit on a creature does, for a PvP arena whose fights should train.
+form.rules.heading.grants = What picks grant here
+form.rules.grants.on = Grants stay on
+form.rules.grants.on.hint = Off takes away everything the picks grant while a player is here. Leaving the world gives it back.
+form.rules.ability = Abilities
+form.rules.ability.hint = Off takes away the grants in the Ability family here, and switches abilities off here for a mod that reads this switch.
+form.rules.combat = Combat Bonuses
+form.rules.combat.hint = Off takes away the grants in the Combat family here.
+form.rules.stat = Stat Bonuses
+form.rules.stat.hint = Off takes away the stats the picks grant here. A stat in a family switched on above stays.
+# The Level Curves screen on the owner menu (OwnerForms/Track_Curves.json), which edits track-curves.json one curve at
+# a time. In form.curves.preview {0}, {2}, {4} and {6} are levels and {1}, {3}, {5} and {7} the value each one takes.
+form.curves.title = Level Curves
+form.curves.desc = How much each level takes on the curves tracks climb. Pick a curve to change it.
+form.curves.heading = The formula
+form.curves.note = Each level costs the sum of floor(l + Scale x 2^(l / 7)) over the levels below it, quartered, plus Base x level x (level - 1) / 2. Saving writes the whole formula into track-curves.json, which then wins over any other setting for this curve.
+form.curves.base = Base
+form.curves.base.hint = The steady part. Higher makes every level slower by the same share.
+form.curves.scale = Scale
+form.curves.scale.hint = The part that doubles about every seven levels. Higher makes the late levels much slower.
+form.curves.preview = To reach level {0, number}: {1, number}. Level {2, number}: {3, number}. Level {4, number}: {5, number}. Level {6, number}: {7, number}.

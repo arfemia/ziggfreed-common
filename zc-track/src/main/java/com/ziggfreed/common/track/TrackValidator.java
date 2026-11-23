@@ -480,6 +480,23 @@ public final class TrackValidator {
     }
 
     /**
+     * The engine walk over the world rules in force alone ({@link #auditWorldRules(Collection, Predicate, Predicate)}
+     * with the switched-on tracks and the loaded categories): the part of this audit the world rules screen counts.
+     * Never throws; empty on failure.
+     */
+    @Nonnull
+    public static List<Finding> auditWorldRules() {
+        try {
+            return auditWorldRules(TrackWorldRuleConfig.getInstance().all().values(),
+                    id -> TrackConfig.getInstance().live(id) != null,
+                    id -> TrackCategoryConfig.getInstance().category(id) != null);
+        } catch (Throwable t) {
+            SafeLog.warn("[track] the world rules' audit failed: " + t.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
      * The world rules' part of growth's audit, over the enabled rule files: one naming no world
      * ({@link #RULE_WITHOUT_WHERE}), a list or entry naming neither a track nor a category
      * ({@link #UNKNOWN_RULE_TRACK}), two naming the very same worlds, of which only the first by id ever applies to

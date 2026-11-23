@@ -1,0 +1,90 @@
+{
+  "$Comment": "The in-game screen for the track world rules, on the owner menu (/zigadmin): one row per rule in force, each opening its switch, what gains there and what the picks grant there, every setting saved straight into mods/ziggfreedcommon/track-world-rules.json under that rule's id, beside the value it has without your file. The line at the top counts the problems the track audit finds in the rules. Which worlds a rule covers, every new rule and the switch for every rule at once ($Enabled) stay in the files. Every word is a key of ziggfreedcommon.track.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Track_World_Rules.",
+  "Title": "ziggfreedcommon.track.form.rules.title",
+  "Description": "ziggfreedcommon.track.form.rules.desc",
+  "Icon": "Portal_Device",
+  "Section": "ziggfreedcommon",
+  "Order": 70,
+  "File": "ziggfreedcommon/track-world-rules.json",
+  "Audit": "ziggfreedcommon:track_world_rules",
+  "Entries": {},
+  "Sections": [
+    {
+      "Note": "ziggfreedcommon.track.form.rules.note",
+      "Fields": [
+        {
+          "Path": "Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.rules.on",
+          "Hint": "ziggfreedcommon.track.form.rules.on.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.track.form.rules.heading.gain",
+      "Fields": [
+        {
+          "Path": "Rules.Gain.Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.rules.gain.on",
+          "Hint": "ziggfreedcommon.track.form.rules.gain.on.hint"
+        },
+        {
+          "Path": "Rules.Gain.Multiplier",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.track.form.rules.multiplier",
+          "Hint": "ziggfreedcommon.track.form.rules.multiplier.hint",
+          "Min": 0,
+          "Max": 100
+        },
+        {
+          "Path": "Rules.Gain.DisabledTracks",
+          "Kind": "List",
+          "Label": "ziggfreedcommon.track.form.rules.disabled",
+          "Hint": "ziggfreedcommon.track.form.rules.disabled.hint"
+        },
+        {
+          "Path": "Rules.Gain.EnabledTracks",
+          "Kind": "List",
+          "Label": "ziggfreedcommon.track.form.rules.allowed",
+          "Hint": "ziggfreedcommon.track.form.rules.allowed.hint"
+        },
+        {
+          "Path": "Rules.Gain.PlayerHits",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.rules.hits",
+          "Hint": "ziggfreedcommon.track.form.rules.hits.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.track.form.rules.heading.grants",
+      "Fields": [
+        {
+          "Path": "Rules.Grants.Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.rules.grants.on",
+          "Hint": "ziggfreedcommon.track.form.rules.grants.on.hint"
+        },
+        {
+          "Path": "Rules.Grants.Kinds.Ability",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.rules.ability",
+          "Hint": "ziggfreedcommon.track.form.rules.ability.hint"
+        },
+        {
+          "Path": "Rules.Grants.Kinds.Combat",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.rules.combat",
+          "Hint": "ziggfreedcommon.track.form.rules.combat.hint"
+        },
+        {
+          "Path": "Rules.Grants.Kinds.Stat",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.rules.stat",
+          "Hint": "ziggfreedcommon.track.form.rules.stat.hint"
+        }
+      ]
+    }
+  ]
+}

@@ -15,6 +15,10 @@ $ZM = "../Common/ZigForm.ui";
 // A form of the Entries shape first lists its entries in #OwnerFormFields, one Pages/ZigFormEntryRow.ui each (Edit
 // opens that entry's settings on this same page, whose Back returns to the list), with Save hidden; #OwnerFormAdd, the
 // line for adding an entry by a new id, shows only where the form allows it.
+//
+// #OwnerFormAudit shows how many problems the content audit a form names finds in what it edits, and #OwnerFormPreview,
+// under the settings, what the values on the screen would do (a preview the form names), kept up as the owner types.
+// Both stay hidden for a form that names neither.
 
 $C.@PageOverlay {}
 
@@ -23,6 +27,13 @@ $F.@ZigDecoratedFrame {
   Anchor: (Width: 960, Height: 820);
 
   #Content {
+    Label #OwnerFormAudit {
+      Visible: false;
+      Text: "";
+      Anchor: (Bottom: 8);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
     Label #OwnerFormStatus {
       Visible: false;
       Text: "";
@@ -66,6 +77,13 @@ $F.@ZigDecoratedFrame {
       LayoutMode: TopScrolling;
       ScrollbarStyle: $C.@DefaultScrollbarStyle;
       Padding: (Right: 12);
+    }
+
+    Label #OwnerFormPreview {
+      Visible: false;
+      Text: "";
+      Anchor: (Top: 10);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
     }
 
     Group #OwnerFormFooter {

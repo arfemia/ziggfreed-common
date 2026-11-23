@@ -31,7 +31,8 @@ import com.ziggfreed.common.ui.owner.OwnerText;
  * (the form's title and line), each section's heading and note on the settings form's own rows, and each setting on
  * the kit's owner leaf row ({@link FormLeafPainter}), with the words the row's state, Default line and Reset read; and
  * a form of the Entries shape's list ({@link OwnerFormEntries}), an entry row ({@code Pages/ZigFormEntryRow.ui}) each,
- * with the line for adding one. The one place the form's selectors are spelt; {@code KitSelectorsTest} walks every one.
+ * with the line for adding one; and the two lines a form may name: its audit's problem count and its preview. The one
+ * place the form's selectors are spelt; {@code KitSelectorsTest} walks every one.
  */
 public final class OwnerFormPaint {
 
@@ -62,6 +63,8 @@ public final class OwnerFormPaint {
 
     static final String FIELDS = "#OwnerFormFields";
     static final String STATUS = "#OwnerFormStatus";
+    static final String AUDIT = "#OwnerFormAudit";
+    static final String PREVIEW = "#OwnerFormPreview";
     static final String BACK_BUTTON = "#OwnerFormBack";
     static final String SAVE_BUTTON = "#OwnerFormSave";
     static final String ADD_ROW = "#OwnerFormAdd";
@@ -206,6 +209,29 @@ public final class OwnerFormPaint {
     /** Show {@code status} on the status line (red for an error), or hide it for null. */
     public static void status(@Nonnull UICommandBuilder cmd, @Nullable Message status, boolean error) {
         SettingsUiUtil.setStatus(cmd, STATUS, status, error);
+    }
+
+    /**
+     * Show how many problems the form's audit finds ({@code problems}, red above none), or hide the line for null (a
+     * form naming no audit, or one no installed mod registered).
+     */
+    public static void audit(@Nonnull UICommandBuilder cmd, @Nullable Integer problems) {
+        if (problems == null) {
+            SettingsUiUtil.setStatus(cmd, AUDIT, null, false);
+            return;
+        }
+        SettingsUiUtil.setStatus(cmd, AUDIT, problems > 0 ? OwnerText.line("form.audit.problems", problems)
+                : OwnerText.line("form.audit.none"), problems > 0);
+    }
+
+    /** Show the form's preview line under its settings, in the body ink, or hide it for null. */
+    public static void preview(@Nonnull UICommandBuilder cmd, @Nullable Message line) {
+        if (line == null) {
+            cmd.set(PREVIEW + ".Visible", false);
+            return;
+        }
+        cmd.set(PREVIEW + ".TextSpans", line);
+        cmd.set(PREVIEW + ".Visible", true);
     }
 
     /**

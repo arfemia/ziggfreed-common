@@ -1,0 +1,37 @@
+{
+  "$Comment": "The in-game screen for the level curves, on the owner menu (/zigadmin): one row per curve whose levels follow the Hybrid formula, each opening the formula's two numbers with what reaching level 10, 25, 50 and 100 would take as you type, saved straight into mods/ziggfreedcommon/track-curves.json under that curve's id as its whole Pieces list, beside the value it has without your file. A curve written as Floors, a curve's top level and the levels past it stay in the files. Every word is a key of ziggfreedcommon.track.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Track_Curves.",
+  "Title": "ziggfreedcommon.track.form.curves.title",
+  "Description": "ziggfreedcommon.track.form.curves.desc",
+  "Icon": "Deco_Book_Pile_Large",
+  "Section": "ziggfreedcommon",
+  "Order": 75,
+  "File": "ziggfreedcommon/track-curves.json",
+  "Preview": "ziggfreedcommon:curve_milestones",
+  "Entries": {
+    "Having": "Hybrid"
+  },
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.track.form.curves.heading",
+      "Note": "ziggfreedcommon.track.form.curves.note",
+      "Fields": [
+        {
+          "Path": "Hybrid.Base",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.track.form.curves.base",
+          "Hint": "ziggfreedcommon.track.form.curves.base.hint",
+          "Min": 0,
+          "Max": 1000000
+        },
+        {
+          "Path": "Hybrid.Scale",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.track.form.curves.scale",
+          "Hint": "ziggfreedcommon.track.form.curves.scale.hint",
+          "Min": 0,
+          "Max": 1000000
+        }
+      ]
+    }
+  ]
+}

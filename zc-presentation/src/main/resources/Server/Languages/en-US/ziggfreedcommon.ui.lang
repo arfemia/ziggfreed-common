@@ -318,3 +318,7 @@ owner.form.entries.bad_id = An id is letters, digits and underscores, with no sp
 owner.form.entries.taken = There is already one called {0}. Pick another id.
 owner.form.entries.added = Added {0}.
 owner.form.entries.unkeyed = {0} is not a file of entries by id, so this screen cannot list it.
+# The line an owner form shows when it counts the problems a content audit finds in what it edits. In
+# owner.form.audit.problems {0} is how many.
+owner.form.audit.none = No problems found in these files.
+owner.form.audit.problems = {0, number} {0, plural, one {problem} other {problems}} found in these files.
