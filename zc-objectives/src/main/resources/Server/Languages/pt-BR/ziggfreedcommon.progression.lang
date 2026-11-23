@@ -30,6 +30,7 @@ book.toast.turn_in_failed = Isso não pode ser entregue aqui.
 book.quests.giver_hint = Aceite esta missão com {0}.
 book.quests.giver_hint_plain = Aceite esta missão com quem a oferece.
 reward.received = Recompensas recebidas.
+reward.given_by = {0} deu um presente a você.
 
 npcquests.title.none = Missões
 npcquests.count = Missões: {0}
