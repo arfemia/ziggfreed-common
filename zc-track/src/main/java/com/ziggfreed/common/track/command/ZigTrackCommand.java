@@ -19,6 +19,9 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  *                                                         the picks in use are in no saved build, losing them)
  * /zigtrack builds [--player=&lt;name&gt;] --track=&lt;id&gt;              list the saved builds
  * /zigtrack respend [--player=&lt;name&gt;] --track=&lt;id&gt;             spend remembered takes again, in order
+ * /zigtrack starter [--player=&lt;name&gt;] --track=&lt;id&gt; [--points=&lt;n&gt;]
+ *                                                         spend what is left of the suggested build, in order
+ *                                                         (--points: only its first n points)
  * </pre>
  *
  * <p>No permission check is written here: the engine derives one node per verb
@@ -61,6 +64,9 @@ public final class ZigTrackCommand extends AbstractCommandCollection {
     /** Spend the remembered takes again. */
     static final String RESPEND = "respend";
 
+    /** Spend what is left of the suggested build. */
+    static final String STARTER = "starter";
+
     public ZigTrackCommand() {
         super(FAMILY, TrackCommandMessages.desc("family"));
         addSubCommand(new ZigTrackAddCommand());
@@ -73,5 +79,6 @@ public final class ZigTrackCommand extends AbstractCommandCollection {
         addSubCommand(new ZigTrackSwapBuildCommand());
         addSubCommand(new ZigTrackBuildsCommand());
         addSubCommand(new ZigTrackRespendCommand());
+        addSubCommand(new ZigTrackStarterCommand());
     }
 }

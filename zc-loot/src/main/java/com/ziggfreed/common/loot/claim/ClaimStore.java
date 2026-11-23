@@ -218,6 +218,24 @@ public final class ClaimStore {
         return held != null && !held.isEmpty();
     }
 
+    /**
+     * Whether {@code player} still holds the Claim {@code id} (any case): what a one-time payout asks before it writes,
+     * so one asked again after a write it never recorded as done writes nothing twice. False for a blank id.
+     */
+    public synchronized boolean holds(@Nonnull UUID player, @Nullable String id) {
+        List<StoredClaim> held = claims.get(player);
+        if (held == null || id == null || id.isBlank()) {
+            return false;
+        }
+        String wanted = id.trim();
+        for (StoredClaim stored : held) {
+            if (stored.id != null && stored.id.equalsIgnoreCase(wanted)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** How many Claims {@code player} has waiting. */
     public synchronized int count(@Nonnull UUID player) {
         List<StoredClaim> held = claims.get(player);

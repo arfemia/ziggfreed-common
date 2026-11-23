@@ -119,6 +119,8 @@ command.desc.savebuild = Save the picks a player has in use on a track as one of
 command.desc.swapbuild = Swap a player's picks on a track for one of their saved builds, paying the swap's price.
 command.desc.builds = List a player's saved builds on a track.
 command.desc.respend = Spend again, in order, the picks a prestige set aside on a track, as far as the points allow.
+command.desc.starter = Spend what is left of a track's suggested build for a player, in order, as far as their points allow.
+command.desc.arg.points = Spend only the suggested build's first this many points. Leave it out for the whole build.
 command.desc.arg.slot = Which saved build, by its number.
 command.desc.arg.force = Swap even when no saved build holds the picks in use. Those picks are lost.
 command.desc.arg.option = The option to choose, by its id.
@@ -205,6 +207,9 @@ command.build.line.empty = Build {0, number}: nothing saved
 # /zigtrack respend: {0} the track, {1} the player, {2} how many picks were spent again.
 command.respend.done = {1} spent {2, number} remembered {2, plural, one {pick} other {picks}} again on {0}.
 command.respend.none = {1} has no remembered pick that can be spent again on {0} right now.
+# /zigtrack starter: {0} the track, {1} the player, {2} how many picks of the suggested build were spent.
+command.starter.done = {1} spent {2, number} {2, plural, one {pick} other {picks}} of the suggested build on {0}.
+command.starter.none = {1} has nothing of the suggested build left to spend on {0} right now.
 # The World Rules screen on the owner menu (OwnerForms/Track_World_Rules.json), which edits track-world-rules.json one
 # rule at a time.
 form.rules.title = World Rules

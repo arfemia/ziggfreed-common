@@ -1,7 +1,6 @@
 package com.ziggfreed.common.objectives.trainer;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -241,26 +240,13 @@ final class ClimbServices {
     }
 
     /**
-     * The takes of {@code trackId}'s suggested build ({@code PickService.starter}) the player has not made yet, in
-     * its order: each pick's first takes stand for the ones the player already holds, so a build half made is
-     * finished from where it stands, never taken again on top. Empty for a track with no suggested build.
+     * The takes of {@code trackId}'s whole suggested build the player has not made yet, in its order
+     * ({@code PickService.starterLeft}, no cap on its points): a build half made is finished from where it stands.
+     * Empty for a track with no suggested build.
      */
     @Nonnull
     private static List<String> starterLeft(@Nonnull UUID player, @Nonnull String trackId) {
-        List<String> starter = PickService.starter(trackId);
-        if (starter.isEmpty()) {
-            return List.of();
-        }
-        Map<String, Integer> held = new HashMap<>();
-        Map<String, Integer> named = new HashMap<>();
-        List<String> left = new ArrayList<>();
-        for (String pickId : starter) {
-            int has = held.computeIfAbsent(pickId, id -> PickService.count(player, trackId, id));
-            if (named.merge(pickId, 1, Integer::sum) > has) {
-                left.add(pickId);
-            }
-        }
-        return left;
+        return PickService.starterLeft(player, trackId, Integer.MAX_VALUE);
     }
 
     // ==================== shared ====================

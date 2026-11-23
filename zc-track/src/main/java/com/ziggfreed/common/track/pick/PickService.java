@@ -10,6 +10,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -386,6 +387,61 @@ public final class PickService {
         return def == null ? List.of() : def.asset().starter();
     }
 
+    /**
+     * The takes of {@code trackId}'s suggested build ({@link #starter}) {@code player} has not made yet, in its order,
+     * read off the build's first {@code maxPoints} points: each pick's first takes stand for the ranks the player
+     * already holds, so a build half made is finished from where it stands, never taken again on top, and the read
+     * stops at the first take that would carry the build past {@code maxPoints} points, every take's points counted
+     * whether it is held or not ({@code Cost.Points}; a pick not loaded counts none). So spending what this answers
+     * ({@link #spendInOrder}) never spends past the build's first {@code maxPoints} points, and spending it twice
+     * spends nothing the second time: what a one-time claim of points earned before the tree existed spends (R727),
+     * {@link Integer#MAX_VALUE} for the whole build (a trainer's suggested build). Empty for a track with no suggested
+     * build, or {@code maxPoints} below 1. Their world thread.
+     */
+    @Nonnull
+    public static List<String> starterLeft(@Nonnull UUID player, @Nullable String trackId, int maxPoints) {
+        List<String> starter = starter(trackId);
+        if (starter.isEmpty()) {
+            return List.of();
+        }
+        return starterLeft(starter, id -> count(player, trackId, id), PickService::pointsOf, maxPoints);
+    }
+
+    /**
+     * {@link #starterLeft(UUID, String, int)} over the build {@code starter}, the ranks held of each pick
+     * ({@code held}) and the points one take of each costs ({@code cost}), each asked once a pick. Pure.
+     */
+    @Nonnull
+    static List<String> starterLeft(@Nonnull List<String> starter, @Nonnull ToIntFunction<String> held,
+            @Nonnull ToIntFunction<String> cost, int maxPoints) {
+        if (starter.isEmpty() || maxPoints < 1) {
+            return List.of();
+        }
+        Map<String, Integer> ranks = new HashMap<>();
+        Map<String, Integer> named = new HashMap<>();
+        Map<String, Integer> prices = new HashMap<>();
+        List<String> left = new ArrayList<>();
+        long points = 0L;
+        for (String pickId : starter) {
+            String id = TrackKey.normalize(pickId);
+            points += Math.max(0, prices.computeIfAbsent(id, cost::applyAsInt));
+            if (points > maxPoints) {
+                break;
+            }
+            int has = ranks.computeIfAbsent(id, held::applyAsInt);
+            if (named.merge(id, 1, Integer::sum) > has) {
+                left.add(pickId);
+            }
+        }
+        return List.copyOf(left);
+    }
+
+    /** The points one take of the pick {@code pickId} costs ({@code Cost.Points}); 0 for one not loaded. */
+    private static int pointsOf(@Nullable String pickId) {
+        TrackPicks.PickDef pick = TrackPicks.pick(pickId);
+        return pick == null ? 0 : pick.asset().costPoints();
+    }
+
     /** The takes a Remember prestige put aside on {@code trackId}, in the order they are re-spent; empty when none. */
     @Nonnull
     public static List<String> rememberedTakes(@Nonnull UUID player, @Nullable String trackId) {
@@ -635,7 +691,9 @@ public final class PickService {
      * has not reached, wherever they stand (a trainer's pick included); its {@code Cost.Price} is never charged.
      * Kept, the epoch moved, the grants rebuilt and
      * {@code ZigTrackPicksChangedEvent} fired ({@code TAKEN}) as a take is; it leaves no undo, since the player made no
-     * pick to take back. Only an admin's path calls it, never a player's page. World thread.
+     * pick to take back. Only an admin's path calls it, or a consumer's one-time update restoring what a player had
+     * already learned in its older system as the picks that stand for it now (never a reward); never a player's page.
+     * World thread.
      */
     @Nonnull
     public static Result teach(@Nonnull UUID player, @Nullable String trackId, @Nullable String pickId) {
