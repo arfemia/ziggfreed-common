@@ -1,5 +1,5 @@
 {
-  "$Comment": "Makes Damage_ChargedHit conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's charged attacks (an attack whose interaction is tagged Charged: a held swing, a full draw).",
+  "$Comment": "Makes Damage_ChargedHit conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's charged attacks (an attack whose damage names the Charged class: a held swing, a crossbow's heavy combo bolt). The game classes every shortbow arrow Charged however far the bow was drawn, and a bow's head branch names no class, so this stat cannot tell a full draw from a quick shot: tell those apart by a hit tag on the arrow's damage file, read with the ZigHitTag condition.",
   "Hit": {
     "Classes": [
       "Charged"

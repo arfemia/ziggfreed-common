@@ -61,6 +61,7 @@ public final class ConditionBootstrap {
                     ZigWorkingAtCondition.codec());
             conditions.register(ZigDirectHitCondition.TYPE_NAME, ZigDirectHitCondition.class,
                     ZigDirectHitCondition.codec());
+            conditions.register(ZigHitTagCondition.TYPE_NAME, ZigHitTagCondition.class, ZigHitTagCondition.codec());
             conditions.register(ZigControlCondition.TYPE_NAME, ZigControlCondition.class, ZigControlCondition.codec());
             conditions.register(ZigBossOrEliteCondition.TYPE_NAME, ZigBossOrEliteCondition.class,
                     ZigBossOrEliteCondition.codec());

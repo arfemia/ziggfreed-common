@@ -1,5 +1,7 @@
 package com.ziggfreed.common.stats.condition;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +26,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageSourceType;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.server.combat.DamageCalculator;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.server.combat.DamageClass;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.damage.HitTags;
 import com.ziggfreed.common.damage.weakspot.WeakSpots;
 
 /**
@@ -174,6 +177,27 @@ public final class HitReads {
             }
         }
         return true;
+    }
+
+    /**
+     * Does the hit carry one of {@code tags} in the native {@code Tags} {@code Hit} list of the interaction that dealt
+     * it ({@link HitTags}: the damage node's tags, merged with its {@code Parent}'s and every asset containing it)? Never
+     * for none asked, nor for a hit with no interaction behind it (no calculator: a fall, an explosion). Never throws.
+     */
+    public static boolean carriesTag(@Nonnull Damage damage, @Nonnull Collection<String> tags) {
+        return !tags.isEmpty() && anyTag(HitTags.of(damage), tags);
+    }
+
+    /** Is one of {@code wanted} among {@code hitTags}, without regard to case? Pure. */
+    static boolean anyTag(@Nonnull List<String> hitTags, @Nonnull Collection<String> wanted) {
+        for (String tag : hitTags) {
+            for (String asked : wanted) {
+                if (tag != null && asked != null && tag.trim().equalsIgnoreCase(asked.trim())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Is the hit a damage-over-time tick? */
