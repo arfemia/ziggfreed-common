@@ -1,0 +1,6 @@
+{
+  "$Comment": "How the shared quest engine runs on this server. Quests.MaxActive is how many quests a player may carry at once; 0 is no limit, and a board contract never counts. A player at the limit is told their log is full when they try to take another. Change it in mods/ziggfreedcommon/progression.json, under the id Default, or on the Quest Settings screen in /zigadmin.",
+  "Quests": {
+    "MaxActive": 0
+  }
+}

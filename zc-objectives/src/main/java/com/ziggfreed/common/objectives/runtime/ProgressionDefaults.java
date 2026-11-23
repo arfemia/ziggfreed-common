@@ -65,6 +65,7 @@ import com.ziggfreed.common.objectives.producer.ZigReputationProducer;
 import com.ziggfreed.common.objectives.producer.ZigTrackProducer;
 import com.ziggfreed.common.objectives.producer.ZigTalkProducer;
 import com.ziggfreed.common.objectives.producer.ZigTravelDistanceProducer;
+import com.ziggfreed.common.objectives.settings.ProgressionSettingsConfig;
 import com.ziggfreed.common.objectives.store.ProgressHandle;
 import com.ziggfreed.common.objectives.store.ProgressSubjects;
 import com.ziggfreed.common.objectives.store.ZigAchievementStore;
@@ -185,10 +186,11 @@ public final class ProgressionDefaults {
                     .momentListener(ProgressionGates.EPOCHS)
                     .textSource(RuntimeText.INSTANCE)
                     .maxTrackedQuests(MAX_TRACKED)
-                    // No cap on how many quests may be carried at once. Capping it would make the
-                    // engine's log_full refusal reachable, and a surface would then need a line for
-                    // it - there is deliberately none, because there is deliberately no cap.
-                    .maxActiveQuests(0)
+                    // How many quests may be carried at once is the server owner's word, read LIVE off
+                    // progression.json (Quests.MaxActive, 0 for no limit, which is what ships), so a
+                    // change on the Quest Settings screen counts at the next accept. The log_full
+                    // refusal built on it stays the engine's, and every surface words it.
+                    .maxActiveQuests(ProgressionSettingsConfig.getInstance()::maxActiveQuests)
                     .maxPinnedAchievements(MAX_PINNED)
                     .warn(SafeLog::warn);
 

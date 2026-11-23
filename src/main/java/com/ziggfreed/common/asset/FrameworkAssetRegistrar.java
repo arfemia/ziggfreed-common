@@ -139,6 +139,9 @@ import com.ziggfreed.common.objectives.indicator.QuestIndicatorAsset;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorConfig;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorOwnerLayers;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.objectives.settings.ProgressionSettingsAsset;
+import com.ziggfreed.common.objectives.settings.ProgressionSettingsConfig;
+import com.ziggfreed.common.objectives.settings.ProgressionSettingsOwnerLayers;
 import com.ziggfreed.common.objectives.title.TitleAsset;
 import com.ziggfreed.common.objectives.title.TitleConfig;
 import com.ziggfreed.common.objectives.title.TitleOwnerLayers;
@@ -1308,6 +1311,18 @@ public final class FrameworkAssetRegistrar {
                     BoostOwnerLayers.reloadSettings();
                 });
 
+        // --- Progression settings (Pattern A) - the server's one word on the shared quest engine: how many quests a
+        //     player may carry at once (Quests.MaxActive, 0 for no limit), read live by the engine. The library ships
+        //     Default.json. Owner file mods/ziggfreedcommon/progression.json, re-read on this same event. ---
+        AssetStoreRegistrar.registerStore(ProgressionSettingsAsset.class,
+                new DefaultAssetMap<String, ProgressionSettingsAsset>(), ProgressionSettingsAsset.TYPE_ROOT,
+                ProgressionSettingsAsset::getId, ProgressionSettingsAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ProgressionSettingsAsset.class,
+                (LoadedAssetsEvent<String, ProgressionSettingsAsset, DefaultAssetMap<String, ProgressionSettingsAsset>> ev) -> {
+                    ProgressionSettingsConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ProgressionSettingsOwnerLayers.reload();
+                });
+
         // --- Weak spot settings (Pattern A) - the server's one word on where a hit is a weak spot: the head box
         //     and its margin, the backstab arc, the vanilla effects that open a window (an effect of a mod's own
         //     carries the ZigWeakSpot tag in its own file instead) and the combat text. The library ships
@@ -1485,6 +1500,7 @@ public final class FrameworkAssetRegistrar {
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), "
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
+                        + "ProgressionSettings (owner file mods/ziggfreedcommon/progression.json), "
                         + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
                         + "OwnerForms (owner file mods/ziggfreedcommon/owner-forms.json), "
                         + "GatherRules (owner file mods/ziggfreedcommon/gather-rules.json), "

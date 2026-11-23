@@ -12,9 +12,9 @@ import com.hypixel.hytale.codec.KeyedCodec;
 
 /**
  * The server owner's defaults and locks over every player's own choices that are not a HUD panel's (a
- * panel carries its own {@code Player} group in its file): the quest tracker's show and spot, and the
- * quest and achievement notification level. The FILE NAME is the record's id, and the record every read
- * uses is {@value #SHARED_ID}.
+ * panel carries its own {@code Player} group in its file): the quest tracker's show and spot, with the
+ * owner's switch and place for it ({@link TrackerRules}), and the quest and achievement notification level.
+ * The FILE NAME is the record's id, and the record every read uses is {@value #SHARED_ID}.
  *
  * <p>Authored at {@code Server/ZiggfreedCommon/PlayerSettings/Default.json}, which this library ships with
  * every leaf at its unauthored answer; a consumer's same-id file wins by pack order, and the owner layer
@@ -36,7 +36,7 @@ public final class PlayerSettingsAsset
     private String id;
     private AssetExtraInfo.Data data;
 
-    @Nullable private SurfaceRules questTracker;
+    @Nullable private TrackerRules questTracker;
     @Nullable private NotificationRules notifications;
 
     public static final AssetBuilderCodec<String, PlayerSettingsAsset> CODEC = AssetBuilderCodec.builder(
@@ -47,11 +47,12 @@ public final class PlayerSettingsAsset
                     a -> a.id,
                     (a, extra) -> a.data = extra,
                     a -> a.data)
-            .appendInherited(new KeyedCodec<>("QuestTracker", SurfaceRules.CODEC, false),
+            .appendInherited(new KeyedCodec<>("QuestTracker", TrackerRules.CODEC, false),
                     (a, v) -> a.questTracker = v, a -> a.questTracker, (a, p) -> a.questTracker = p.questTracker)
-            .documentation("The quest tracker, the panel of a player's pinned quests: whether it shows for a "
-                    + "player who has not chosen, and whether players may change that or where it sits. The "
-                    + "spots a player may pick for it are the HUD spot files whose Panels list Quest_Tracker.")
+            .documentation("The quest tracker, the panel of a player's pinned quests: whether it is on at all and "
+                    + "where it sits for everyone, whether it shows for a player who has not chosen, and whether "
+                    + "players may change that or where it sits. The spots a player may pick for it are the HUD "
+                    + "spot files whose Panels list Quest_Tracker.")
             .add()
             .appendInherited(new KeyedCodec<>("Notifications", NotificationRules.CODEC, false),
                     (a, v) -> a.notifications = v, a -> a.notifications,
@@ -73,6 +74,12 @@ public final class PlayerSettingsAsset
     @Nonnull
     public SurfaceRules questTracker() {
         return questTracker != null ? questTracker : SurfaceRules.NONE;
+    }
+
+    /** The quest tracker's whole group, the owner's switch and place for it included; never null. */
+    @Nonnull
+    public TrackerRules tracker() {
+        return questTracker != null ? questTracker : TrackerRules.NONE;
     }
 
     /** The notification rules, never null. */

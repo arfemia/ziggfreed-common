@@ -12,6 +12,9 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.settings.TrackerRules;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Row;
 
@@ -79,5 +82,37 @@ class HudSettingsRowsTest {
         assertEquals("", rows.get(grid + 3 + HudServerLeaf.MIN_HEIGHT.ordinal()).value());
         assertEquals("#ffffffb8", rows.get(grid + 3 + HudServerLeaf.COLOR.ordinal()).value());
         assertNull(rows.get(rows.size() - 1).id(), "the note is no control");
+    }
+
+    /**
+     * The quest tracker's section: its heading, its switch, its corner and two offsets showing what the record states,
+     * then its note; and what Save writes from it, a blank removing its leaf and an offset that will not read
+     * refusing the lot.
+     */
+    @Test
+    void theTrackerSectionIsItsSwitchItsCornerAndTwoOffsetsAndSaveWritesThem() throws Exception {
+        TrackerRules rules = TrackerRules.CODEC.decodeJson(RawJsonReader.fromJsonString(
+                "{ \"Enabled\": false, \"Position\": { \"Preset\": \"BOTTOM_LEFT\", \"OffsetY\": 40 } }"),
+                new ExtraInfo());
+
+        List<Row> rows = HudSettingsRows.tracker(rules);
+
+        assertEquals(List.of("HEADER tracker", "TOGGLE " + HudSettingsRows.TRACKER_ENABLED,
+                "CORNER " + HudSettingsRows.TRACKER_CORNER, "FIELD " + HudSettingsRows.TRACKER_OFFSET_X,
+                "FIELD " + HudSettingsRows.TRACKER_OFFSET_Y, "NOTE tracker_note"), shape(rows));
+        assertFalse(rows.get(1).on(), "the record switched it off");
+        assertEquals("BottomLeft", rows.get(2).value(), "the corner in the spelling the picker lists");
+        assertEquals("", rows.get(3).value(), "an offset the record leaves out shows blank");
+        assertEquals("40", rows.get(4).value());
+        assertTrue(HudSettingsRows.tracker(TrackerRules.NONE).get(1).on(), "a record saying nothing: on");
+
+        Map<String, Object> leaves = HudSettingsRows.trackerLeaves(Map.of(HudSettingsRows.TRACKER_CORNER, "TopLeft",
+                HudSettingsRows.TRACKER_OFFSET_X, " 16 ", HudSettingsRows.TRACKER_OFFSET_Y, ""));
+        assertEquals("TopLeft", leaves.get("Position.Preset"));
+        assertEquals(Integer.valueOf(16), leaves.get("Position.OffsetX"));
+        assertTrue(leaves.containsKey("Position.OffsetY") && leaves.get("Position.OffsetY") == null,
+                "a blank offset takes the owner's leaf out");
+        assertNull(HudSettingsRows.trackerLeaves(Map.of(HudSettingsRows.TRACKER_OFFSET_Y, "down a bit")));
+        assertEquals("offset_y", HudSettingsRows.unreadableOffset(Map.of(HudSettingsRows.TRACKER_OFFSET_Y, "x")));
     }
 }

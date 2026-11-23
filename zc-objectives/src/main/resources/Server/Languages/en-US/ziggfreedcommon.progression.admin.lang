@@ -150,3 +150,10 @@ status.quest.on_cooldown = on cooldown
 status.achievement.locked = locked
 status.achievement.unlocked = earned, waiting to be collected
 status.achievement.claimed = earned
+
+# The Quest Settings screen on the owner menu (OwnerForms/Quest_Settings.json, over progression.json).
+form.quests.title = Quest Settings
+form.quests.desc = How many quests a player may carry at once.
+form.quests.heading = Quest log
+form.quests.max_active = Max Active Quests
+form.quests.max_active.hint = 0 is no limit. A board contract never counts, and a player at the limit is told their log is full.

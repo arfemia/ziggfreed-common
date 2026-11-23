@@ -3,6 +3,7 @@ package com.ziggfreed.common.ui.hud.settings;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -16,11 +17,15 @@ import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
+import com.hypixel.hytale.server.core.ui.LocalizableString;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.owner.OwnerAudience;
+import com.ziggfreed.common.settings.PlayerSettingsConfig;
+import com.ziggfreed.common.settings.PlayerSettingsOwnerLayers;
 import com.ziggfreed.common.settings.page.SettingsOption;
 import com.ziggfreed.common.settings.page.SpotOptions;
 import com.ziggfreed.common.ui.SettingsUiUtil;
@@ -32,6 +37,7 @@ import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Row;
 import com.ziggfreed.common.ui.kit.Hero;
 import com.ziggfreed.common.ui.kit.HeroPainter;
+import com.ziggfreed.common.ui.owner.OwnerPageGuard;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -95,6 +101,8 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
 
         // The title and subtitle are the band frame's hero: the gold title, the line under the game's rule.
         HeroPainter.paint(cmd, new Hero(null, msg("title"), null, msg("subtitle")));
+        // The quest tracker first (its owner leaves are the player-settings record's), then the bar panels.
+        render(cmd, events, HudSettingsRows.tracker(PlayerSettingsConfig.getInstance().tracker()));
         render(cmd, events, HudSettingsRows.server(panelIds(), HudPanelConfig.getInstance()));
 
         ZigRichButton.text(cmd, "#BackButton", msg("back"));
@@ -126,10 +134,13 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         for (Row row : plan) {
             Message hint = row.hintKey() == null ? null : msg(row.hintKey());
             switch (row.kind()) {
-                case HEADER -> appendHeader(cmd, panelLabel(row.panelId()));
+                case HEADER -> appendHeader(cmd, row.panelId() != null ? panelLabel(row.panelId())
+                        : msg(row.labelKey()));
                 case TOGGLE -> appendToggle(cmd, events, row.id(), msg(row.labelKey()), hint, row.on());
                 case DROPDOWN -> appendDropdown(cmd, events, row.id(), msg(row.labelKey()), hint,
                         spotEntries(row.panelId(), row.noneKey()), row.value());
+                case CORNER -> appendDropdown(cmd, events, row.id(), msg(row.labelKey()), hint,
+                        cornerEntries(row.noneKey()), row.value());
                 case FIELD -> appendField(cmd, events, row.id(), msg(row.labelKey()), hint, row.value());
                 case NOTE -> appendNote(cmd, msg(row.labelKey()));
             }
@@ -142,6 +153,19 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         List<DropdownEntryInfo> entries = new ArrayList<>();
         for (SettingsOption option : SpotOptions.of(panelId, noneKey)) {
             entries.add(new DropdownEntryInfo(option.label(), option.value()));
+        }
+        return entries;
+    }
+
+    /** The corners the tracker may hang from ({@link HudSettingsRows#CORNERS}), behind a first entry worded by {@code noneKey}. */
+    @Nonnull
+    private static List<DropdownEntryInfo> cornerEntries(@Nonnull String noneKey) {
+        List<DropdownEntryInfo> entries = new ArrayList<>();
+        entries.add(new DropdownEntryInfo(LocalizableString.fromMessageId(HudMessages.key("settings." + noneKey)),
+                HudSettingsRows.NONE));
+        for (String corner : HudSettingsRows.CORNERS) {
+            entries.add(new DropdownEntryInfo(LocalizableString.fromMessageId(
+                    HudMessages.key("settings.corner." + corner.toLowerCase(Locale.ROOT))), corner));
         }
         return entries;
     }
@@ -226,6 +250,13 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
             return;
         }
         String action = data.action == null ? "" : data.action;
+        // Every event but Back and Close asks the page's audience again (a client can send any event); a refusal is
+        // said and closes the page, which answers it.
+        boolean acts = "field".equals(action) || "press".equals(action) || "save".equals(action);
+        if (acts && !OwnerPageGuard.stillAllowed(store, ref, player, playerRef,
+                (s, r, p) -> HudSettingsPages.mayAdminister(s, r, p))) {
+            return;
+        }
         switch (action) {
             case "field" -> handleField(data.field, data.value);
             case "press" -> handlePress(store, ref, player, data.field);
@@ -248,11 +279,35 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
     }
 
-    /** The on-for-everyone switch was clicked: flip it, keep it, and repaint that one control. */
+    /**
+     * The owner-level tracker settings sit behind the owner audience as well as the page's own: a consumer's audience
+     * for this page decides who sees the layout, and the tracker's switch and place are the server owner's word.
+     */
+    private static boolean mayChangeTracker(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Player player) {
+        return HudSettingsPages.mayAdminister(store, ref, player) && OwnerAudience.mayAdminister(store, ref, player);
+    }
+
+    /** An on-for-everyone switch was clicked: flip it, keep it, and repaint that one control. */
     private void handlePress(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Player player, @Nullable String field) {
         UICommandBuilder cmd = new UICommandBuilder();
         String sel = field == null ? null : rowOf.get(field);
+        if (sel != null && HudSettingsRows.TRACKER_ENABLED.equals(field)) {
+            if (mayChangeTracker(store, ref, player)) {
+                boolean on = !PlayerSettingsConfig.getInstance().tracker().enabled();
+                Map<String, Object> leaves = new LinkedHashMap<>();
+                leaves.put("Enabled", on);
+                if (PlayerSettingsOwnerLayers.setTrackerLeaves(leaves)) {
+                    paintToggle(cmd, sel, on);
+                    showToast(ToastKind.SUCCESS, msg(on ? "tracker_on" : "tracker_off"));
+                } else {
+                    showToast(ToastKind.ERROR, msg("save_failed"));
+                }
+            }
+            this.sendUpdate(cmd, new UIEventBuilder(), false);
+            return;
+        }
         if (sel != null && field.startsWith(HudSettingsRows.ENABLED)
                 && HudSettingsPages.mayAdminister(store, ref, player)) {
             String panelId = field.substring(HudSettingsRows.ENABLED.length());
@@ -278,6 +333,15 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
             this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
             return;
         }
+        // The tracker's corner and offsets are read first too, so one that will not read writes nothing anywhere.
+        boolean tracker = mayChangeTracker(store, ref, player);
+        Map<String, Object> trackerLeaves = tracker ? HudSettingsRows.trackerLeaves(draft) : null;
+        if (tracker && trackerLeaves == null) {
+            String unreadable = HudSettingsRows.unreadableOffset(draft);
+            showToast(ToastKind.ERROR, msg("invalid_number", msg(unreadable == null ? "offset_x" : unreadable)));
+            this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
+            return;
+        }
         Map<String, Map<String, Object>> perPanel = new LinkedHashMap<>();
         for (String id : panelIds()) {
             HudServerLeaf.Draft drafted = HudServerLeaf.draft(id, draft);
@@ -292,6 +356,11 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
             leaves.put("Placement", spot.isEmpty() ? null : spot);
             leaves.putAll(drafted.leaves());
             perPanel.put(id, leaves);
+        }
+        if (trackerLeaves != null && !PlayerSettingsOwnerLayers.setTrackerLeaves(trackerLeaves)) {
+            showToast(ToastKind.ERROR, msg("save_failed"));
+            this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
+            return;
         }
         for (Map.Entry<String, Map<String, Object>> panel : perPanel.entrySet()) {
             if (!HudPanelOwnerWriter.setLeaves(panel.getKey(), panel.getValue())) {

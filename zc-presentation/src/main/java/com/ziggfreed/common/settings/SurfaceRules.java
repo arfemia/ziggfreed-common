@@ -17,8 +17,11 @@ import com.ziggfreed.common.asset.EditorSchema;
  * the shipped file, keeps whatever it does not restate. Unauthored, the surface shows and nothing is
  * fixed. A lock never deletes a player's own choice: reads answer the owner's value while it holds, and
  * the stored choice is back the moment it lifts.
+ *
+ * <p>Open for one extension: the quest tracker's group ({@link TrackerRules}) adds the owner's switch and the
+ * server's place for it over these leaves, on the same codec.
  */
-public final class SurfaceRules {
+public class SurfaceRules {
 
     /** A surface nothing was said about: shown, nothing fixed. */
     public static final SurfaceRules NONE = new SurfaceRules();

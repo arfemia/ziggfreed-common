@@ -392,6 +392,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         ProgressionBootstrap.registerQuestListHost();
         ObjectiveBookBootstrap.registerMenu();
         ObjectivesSettingsBootstrap.registerSections();
+        ObjectivesSettingsBootstrap.registerOwnerFiles();
         EncounterBootstrap.install(this);
         registerEncounterSeams();
         InstanceBootstrap.installEncounterLeaderboard(this);

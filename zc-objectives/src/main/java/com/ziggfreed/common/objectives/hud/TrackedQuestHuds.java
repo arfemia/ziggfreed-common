@@ -28,6 +28,7 @@ import com.ziggfreed.common.quest.event.QuestCompletedEvent;
 import com.ziggfreed.common.quest.event.QuestObjectiveProgressedEvent;
 import com.ziggfreed.common.quest.event.QuestTrackedEvent;
 import com.ziggfreed.common.settings.PlayerSettings;
+import com.ziggfreed.common.settings.PlayerSettingsOwnerLayers;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -51,7 +52,8 @@ import com.ziggfreed.common.util.SafeLog;
  * whose watcher re-anchors and repaints that player's tracker ({@code onSettingsChanged}). A world rule
  * hiding every HUD is something no event here announces; the consumer that owns it calls
  * {@link #repaint(PlayerRef)} from that site. Owner-wide changes (a moved panel, a spot or a lock
- * changed, the tracker switched off) go through {@link #repositionAllOnline} and {@link #repaintAllOnline}.
+ * changed, the tracker switched off) go through {@link #repositionAllOnline} and {@link #repaintAllOnline};
+ * every read of the owner's {@code player-settings.json} (where the switch and the place are) runs the first.
  *
  * <p><b>Deps resolve lazily.</b> A consumer's layout, audience and theme exist long after this
  * module's setup, so a supplier is registered once and asked on every paint; a consumer that
@@ -142,9 +144,13 @@ public final class TrackedQuestHuds {
             events.registerGlobal(QuestClaimedEvent.class, TrackedQuestHuds::onClaimed);
             events.registerGlobal(QuestAbandonedEvent.class, TrackedQuestHuds::onAbandoned);
             PlayerSettings.watch(playerRef -> onSettingsChanged(playerRef.getUuid()));
+            // The owner's switch and place for the tracker are player-settings.json's: every read of it re-anchors
+            // and repaints every online tracker (the HUD layout page writes it, an owner edits it by hand).
+            PlayerSettingsOwnerLayers.onReload(TrackedQuestHuds::repositionAllOnline);
             SafeLog.info("[progression] tracked-quest HUD installed: attaches at player ready, repaints on"
                     + " QuestTracked, QuestAccepted, QuestObjectiveProgressed, QuestCompleted,"
-                    + " QuestClaimed and QuestAbandoned (no tick), and on a player's own settings changing");
+                    + " QuestClaimed and QuestAbandoned (no tick), on a player's own settings changing, and on"
+                    + " the owner's player-settings.json being read");
         } catch (Throwable t) {
             SafeLog.warn("[progression] the tracked-quest HUD could not be installed; the tracker will"
                     + " not appear or will not update this boot", t);

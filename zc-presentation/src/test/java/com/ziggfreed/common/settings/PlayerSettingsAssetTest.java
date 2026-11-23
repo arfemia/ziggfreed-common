@@ -116,6 +116,36 @@ class PlayerSettingsAssetTest {
         assertTrue(PlayerSettingsConfig.getInstance().level().locked());
     }
 
+    /**
+     * The tracker's group is the shared Show and Spot rules plus the owner's switch and place for it, on one codec: the
+     * shipped file says on, in the native corner; an owner entry restates one offset and the switch, and keeps the
+     * pack's corner, the other offset and every Show and Spot leaf.
+     */
+    @Test
+    void theTrackersSwitchAndPlaceFoldLeafByLeafBesideItsShowAndSpot() throws Exception {
+        String json;
+        try (InputStream in = PlayerSettingsAssetTest.class
+                .getResourceAsStream("/Server/ZiggfreedCommon/PlayerSettings/Default.json")) {
+            assertNotNull(in);
+            json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        PlayerSettingsAsset shipped = record(json, "Default", null);
+        assertTrue(shipped.tracker().enabled());
+        assertNotNull(shipped.tracker().position());
+        assertEquals("TopRight", shipped.tracker().position().preset());
+
+        PlayerSettingsAsset owner = record("{ \"QuestTracker\": { \"Enabled\": false,"
+                + " \"Position\": { \"OffsetY\": 300 }, \"Spot\": { \"Locked\": true } } }", "Default", shipped);
+
+        assertFalse(owner.tracker().enabled());
+        assertEquals("TopRight", owner.tracker().position().preset(), "the pack's corner stands");
+        assertEquals(Integer.valueOf(24), owner.tracker().position().offsetX());
+        assertEquals(Integer.valueOf(300), owner.tracker().position().offsetY());
+        assertTrue(owner.questTracker().showDefault(), "the Show leaves still fold under the tracker's own codec");
+        assertTrue(owner.questTracker().spotLocked());
+        assertTrue(TrackerRules.NONE.enabled(), "unauthored, the tracker is on");
+    }
+
     @Test
     void aLevelNobodyKnowsReadsAsTheDefault() throws Exception {
         PlayerSettingsAsset typo = record("{ \"Notifications\": { \"Level\": { \"Default\": \"Loud\" } } }",

@@ -9,7 +9,8 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  * The {@code defaults < pack < owner} fold of {@link PlayerSettingsAsset}, keyed by record id. The library
  * ships {@code Default.json} in its own jar's pack, so it rides the PACK layer; the owner layer, from
  * {@code mods/ziggfreedcommon/player-settings.json}, wins over both. Before anything loads every read
- * answers the unauthored rules: the tracker shows, the level is every update, nothing is fixed.
+ * answers the unauthored rules: the tracker is on, sits in the native corner and shows, the level is every
+ * update, nothing is fixed.
  */
 public final class PlayerSettingsConfig extends AbstractKeyedAssetConfig<PlayerSettingsAsset> {
 
@@ -34,6 +35,17 @@ public final class PlayerSettingsConfig extends AbstractKeyedAssetConfig<PlayerS
     public SurfaceRules questTracker() {
         PlayerSettingsAsset record = shared();
         return record == null ? SurfaceRules.NONE : record.questTracker();
+    }
+
+    /**
+     * The quest tracker's whole group, never null: its {@link SurfaceRules} and the owner's switch and place for it
+     * ({@link TrackerRules#enabled}, {@link TrackerRules#position}), which the tracker reads unless a consumer
+     * answers for its own older layout.
+     */
+    @Nonnull
+    public TrackerRules tracker() {
+        PlayerSettingsAsset record = shared();
+        return record == null ? TrackerRules.NONE : record.tracker();
     }
 
     /** The notification level's rules, never null. */

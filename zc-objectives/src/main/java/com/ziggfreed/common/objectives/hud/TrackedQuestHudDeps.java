@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 
+import com.ziggfreed.common.settings.PlayerSettingsConfig;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.ui.hud.card.HudCardLook;
@@ -17,10 +18,12 @@ import com.ziggfreed.common.util.SafeLog;
  * What a consumer may say about {@link TrackedQuestHud} without owning it.
  *
  * <p>Every seam here has a DEFAULT that leaves the tracker fully working on a bare server: it sits
- * in the native objective HUD's own corner, in the native objective HUD's own colours, for every
- * player, always on. A consumer fills a seam to say something the library genuinely cannot know -
- * where its owner moved the panel, whether its owner switched the panel off, which of its players
- * hid the panel for themselves, what its theme paints over the native chrome - and nothing else.
+ * where the server owner put it and is on unless they switched it off, both read from the
+ * player-settings record's {@code QuestTracker} group ({@code mods/ziggfreedcommon/player-settings.json}:
+ * {@code Enabled}, {@code Position}; the native objective HUD's own corner when unwritten), in the native
+ * objective HUD's own colours, for every player. A consumer fills a seam to say something the library
+ * genuinely cannot know - which of its players hid the panel for themselves, what its theme paints over
+ * the native chrome - and nothing else; the owner's switch and place are the library's own file.
  *
  * <ul>
  *   <li>{@link HudTheme} - a paint over the already-appended tracker document. The default paints
@@ -31,9 +34,10 @@ import com.ziggfreed.common.util.SafeLog;
  *       every repaint. True when in doubt: the default shows it to everyone. A consumer with a
  *       per-player "hide this HUD" preference, or a per-world rule that hides every HUD, answers
  *       here off the subject it is handed.</li>
- *   <li>the position and the enabled flag - SUPPLIERS, asked at build and on every repaint, so a
- *       consumer with an owner layout file of its own answers straight off it and its existing
- *       admin surfaces keep working. Nothing is stored here.</li>
+ *   <li>the position and the enabled flag - SUPPLIERS, asked at build and on every repaint. By default
+ *       they read the owner's {@code QuestTracker.Position} and {@code QuestTracker.Enabled}
+ *       ({@link #ownerPosition}, {@link #ownerEnabled}); a consumer replaces them only for a layout of its
+ *       own. Nothing is stored here.</li>
  *   <li>the card colour - a SUPPLIER too, this card's own leaf over the look every HUD card
  *       shares ({@code Server/ZiggfreedCommon/HudCards/Default.json}): the one hex
  *       {@link HudCardLook} explains, multiplied over the panel's frame, with a transparency in
@@ -199,13 +203,27 @@ public final class TrackedQuestHudDeps {
         SafeLog.warn("[progression] the tracked-quest HUD's " + seam + " seam failed: " + t.getMessage());
     }
 
+    /**
+     * Where the server owner put the tracker: {@code QuestTracker.Position} in the player-settings record folded
+     * over the native corner, which it is when nothing is written. The default position seam.
+     */
+    @Nonnull
+    public static HudPosition ownerPosition() {
+        return PlayerSettingsConfig.getInstance().tracker().positionOver(DEFAULT_POSITION);
+    }
+
+    /** Whether the server owner has the tracker on: {@code QuestTracker.Enabled}, on when unwritten. The default seam. */
+    public static boolean ownerEnabled() {
+        return PlayerSettingsConfig.getInstance().tracker().enabled();
+    }
+
     /** Immutable-by-copy assembly; every knob defaults to the library's own answer. */
     public static final class Builder {
 
         @Nonnull private HudTheme theme = NATIVE_LOOK;
         @Nonnull private HudAudience audience = EVERYONE;
-        @Nonnull private Supplier<HudPosition> position = () -> DEFAULT_POSITION;
-        @Nonnull private BooleanSupplier enabled = () -> true;
+        @Nonnull private Supplier<HudPosition> position = TrackedQuestHudDeps::ownerPosition;
+        @Nonnull private BooleanSupplier enabled = TrackedQuestHudDeps::ownerEnabled;
         @Nonnull private Supplier<String> color = () -> null;
         @Nonnull private String taskColorInProgress = NATIVE_TASK_IN_PROGRESS;
         @Nonnull private String taskColorComplete = NATIVE_TASK_COMPLETE;
@@ -227,17 +245,23 @@ public final class TrackedQuestHudDeps {
             return this;
         }
 
-        /** Where the panel sits, asked at build and on every reposition; null restores the native corner. */
+        /**
+         * Where the panel sits, asked at build and on every reposition; null restores the owner's place in the
+         * player-settings record ({@link #ownerPosition}, the native corner when unwritten).
+         */
         @Nonnull
         public Builder position(@Nullable Supplier<HudPosition> value) {
-            this.position = value != null ? value : () -> DEFAULT_POSITION;
+            this.position = value != null ? value : TrackedQuestHudDeps::ownerPosition;
             return this;
         }
 
-        /** Whether the owner has the tracker on, asked on every repaint; null restores always-on. */
+        /**
+         * Whether the owner has the tracker on, asked on every repaint; null restores the owner's switch in the
+         * player-settings record ({@link #ownerEnabled}, on when unwritten).
+         */
         @Nonnull
         public Builder enabled(@Nullable BooleanSupplier value) {
-            this.enabled = value != null ? value : () -> true;
+            this.enabled = value != null ? value : TrackedQuestHudDeps::ownerEnabled;
             return this;
         }
 

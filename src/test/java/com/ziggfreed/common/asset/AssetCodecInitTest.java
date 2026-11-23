@@ -78,6 +78,7 @@ import com.ziggfreed.common.npc.NpcIdentityAsset;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
+import com.ziggfreed.common.objectives.settings.ProgressionSettingsAsset;
 import com.ziggfreed.common.objectives.title.TitleAsset;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.party.board.PartyBoardAsset;
@@ -99,6 +100,7 @@ import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.settings.NotificationRules;
 import com.ziggfreed.common.settings.PlayerSettingsAsset;
 import com.ziggfreed.common.settings.SurfaceRules;
+import com.ziggfreed.common.settings.TrackerRules;
 import com.ziggfreed.common.shop.asset.PoolSlotAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryGeneratorAsset;
@@ -216,8 +218,15 @@ class AssetCodecInitTest {
         assertNotNull(SurfaceRules.CODEC, "the shared Show and Spot group codec must static-init");
         assertNotNull(SurfaceRules.ShowRule.CODEC, "the Show group codec must static-init");
         assertNotNull(SurfaceRules.SpotRule.CODEC, "the Spot group codec must static-init");
+        assertNotNull(TrackerRules.CODEC, "the QuestTracker group codec must static-init (PascalCase keys)");
         assertNotNull(NotificationRules.CODEC, "the Notifications group codec must static-init");
         assertNotNull(NotificationRules.LevelRule.CODEC, "the Level group codec must static-init");
+    }
+
+    @Test
+    void progressionSettingsCodecsInitialize() {
+        assertNotNull(ProgressionSettingsAsset.CODEC, "ProgressionSettingsAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(ProgressionSettingsAsset.QuestRules.CODEC, "the Quests group codec must static-init");
     }
 
     @Test

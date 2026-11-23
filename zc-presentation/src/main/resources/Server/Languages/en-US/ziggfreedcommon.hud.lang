@@ -14,7 +14,7 @@ panel.world_bars = XP and reputation gains
 
 # The HUD settings page.
 settings.title = HUD bars
-settings.subtitle = Where the bar panels sit, and which ones show.
+settings.subtitle = Where the quest tracker and the bar panels sit, and which ones show.
 settings.back = Back
 settings.save = Save
 settings.on = On
@@ -86,3 +86,22 @@ settings.layout_tile_line = Where the HUD sits for everyone
 # /zighud on a choice the server has fixed for everyone (player-settings.json or a panel's Player group).
 place.locked = The server has fixed where {0} sits.
 hide.locked = The server has fixed whether {0} shows.
+
+# The HUD settings page's quest tracker section: on for everyone, and where it sits (player-settings.json).
+settings.tracker = Quest tracker
+settings.tracker_enabled_hint = Off takes the tracker off every player's screen.
+settings.tracker_corner = Corner
+settings.tracker_corner_hint = Where the tracker sits for a player who has not picked a spot of their own.
+settings.shipped_corner = As shipped
+settings.corner.topleft = Top left
+settings.corner.topcenter = Top center
+settings.corner.topright = Top right
+settings.corner.centerleft = Center left
+settings.corner.center = Center
+settings.corner.centerright = Center right
+settings.corner.bottomleft = Bottom left
+settings.corner.bottomcenter = Bottom center
+settings.corner.bottomright = Bottom right
+settings.tracker_note = A blank field keeps the shipped value. Save applies to everyone at once, and writes mods/ziggfreedcommon/player-settings.json.
+settings.tracker_on = The quest tracker is on for everyone.
+settings.tracker_off = The quest tracker is off for everyone.

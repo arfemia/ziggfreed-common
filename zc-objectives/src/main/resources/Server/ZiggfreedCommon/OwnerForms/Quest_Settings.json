@@ -1,0 +1,25 @@
+{
+  "$Comment": "The in-game screen for mods/ziggfreedcommon/progression.json, on the owner menu (/zigadmin): each setting below shows the value in force, the value the server would use without your file, and saves straight into the file under its Default entry. Every word is a key of ziggfreedcommon.progression.admin.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Quest_Settings.",
+  "Title": "ziggfreedcommon.progression.admin.form.quests.title",
+  "Description": "ziggfreedcommon.progression.admin.form.quests.desc",
+  "Icon": "Ziggfreed_Objective_Book",
+  "Section": "ziggfreedcommon",
+  "Order": 15,
+  "File": "ziggfreedcommon/progression.json",
+  "Entry": "Default",
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.progression.admin.form.quests.heading",
+      "Fields": [
+        {
+          "Path": "Quests.MaxActive",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.progression.admin.form.quests.max_active",
+          "Hint": "ziggfreedcommon.progression.admin.form.quests.max_active.hint",
+          "Min": 0,
+          "Max": 100
+        }
+      ]
+    }
+  ]
+}
