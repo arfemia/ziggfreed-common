@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.util.OwnerFiles;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The SERVER OWNER's word on the shared quest engine, at {@code mods/ziggfreedcommon/progression.json}: a bare map from
@@ -59,9 +60,16 @@ public final class ProgressionSettingsOwnerLayers {
         return directory.resolve(FILE);
     }
 
-    /** (Re)read {@code progression.json} into the record fold's owner layer. */
+    /**
+     * (Re)read {@code progression.json} into the record fold's owner layer, then say in one line the quest limit now in
+     * force (the owner's word over the packs' record), so an owner reading the log sees which limit the server runs.
+     */
     public static void reload() {
         OwnerLayerReader.apply(LOG_TAG, file(), ProgressionSettingsAsset.class,
                 ProgressionSettingsAsset.CODEC, ProgressionSettingsConfig.getInstance(), "progression settings");
+        int limit = ProgressionSettingsConfig.getInstance().maxActiveQuests();
+        SafeLog.info("[" + LOG_TAG + "] quest log limit in force: "
+                + (limit > 0 ? limit + " quest(s) at once" : "none") + " (Quests.MaxActive, " + FILE
+                + " over the packs' Default record)");
     }
 }
