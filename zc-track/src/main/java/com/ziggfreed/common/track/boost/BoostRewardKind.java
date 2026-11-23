@@ -1,6 +1,8 @@
 package com.ziggfreed.common.track.boost;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -60,6 +62,9 @@ final class BoostRewardKind implements RewardHandler {
 
     /** What a waiting Claim's id and source start with. */
     private static final String WAITING_SOURCE = "boost:";
+
+    /** What a Claim an owner gave from the Award Boost screen starts with. */
+    private static final String GIVEN_SOURCE = "boost-given:";
 
     /** The name a deferred command keeps for whoever presses Claim. */
     private static final String CLAIMER = "{player}";
@@ -206,8 +211,36 @@ final class BoostRewardKind implements RewardHandler {
     /** Park {@code spec} back on {@code player}'s Claims, one waiting Claim titled by the boost. */
     private static boolean waitAsClaim(@Nonnull UUID player, @Nonnull RewardSpec spec, @Nonnull String sourceId,
             @Nonnull BoostAsset boost) {
+        String source = sourceId.startsWith(WAITING_SOURCE) ? sourceId : WAITING_SOURCE + boost.getId();
+        return park(player, spec, source, "claim.waiting", boost);
+    }
+
+    /**
+     * Give {@code player} a start of {@code boost} as a Claim on their Claims tab, which starts it when they collect it
+     * (M428), every limit, wait, season and {@code Requires} applying then, and a start that cannot happen yet waiting
+     * again: the owner menu's Award Boost screen. {@code percent}, {@code seconds} and {@code track} stand in for the
+     * boost's own (null for its own). Any thread. False when no Claim could be written.
+     */
+    static boolean give(@Nonnull UUID player, @Nonnull BoostAsset boost, @Nullable Double percent,
+            @Nullable Long seconds, @Nullable String track) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put(PARAM_BOOST, boost.getId());
+        if (percent != null) {
+            params.put(PARAM_PERCENT, Double.toString(percent));
+        }
+        if (seconds != null) {
+            params.put(PARAM_SECONDS, Long.toString(seconds));
+        }
+        if (track != null && !track.isBlank()) {
+            params.put(PARAM_TRACK, track.trim());
+        }
+        return park(player, RewardSpec.of(KIND, params), GIVEN_SOURCE + boost.getId(), "claim.reward", boost);
+    }
+
+    /** Park {@code spec} on {@code player}'s Claims as one Claim from {@code source}, titled by the boost. */
+    private static boolean park(@Nonnull UUID player, @Nonnull RewardSpec spec, @Nonnull String source,
+            @Nonnull String titleKey, @Nonnull BoostAsset boost) {
         try {
-            String source = sourceId.startsWith(WAITING_SOURCE) ? sourceId : WAITING_SOURCE + boost.getId();
             List<InstanceReward> rewards = DeferredRewards.fromSpecs(List.of(spec), RewardKinds.shared(),
                     Subject.of(player, CLAIMER), source, message -> SafeLog.warn("[boost] " + message));
             if (rewards.isEmpty()) {
@@ -215,10 +248,10 @@ final class BoostRewardKind implements RewardHandler {
             }
             long now = System.currentTimeMillis();
             Claim claim = new Claim(source + ":" + player + ":" + now + ":" + WAITING.incrementAndGet(), source,
-                    BoostText.PREFIX + "claim.waiting", List.of(BoostText.claimNameArg(boost)), null, rewards, now);
+                    BoostText.PREFIX + titleKey, List.of(BoostText.claimNameArg(boost)), null, rewards, now);
             return ClaimStore.shared().award(player, claim, null, source, now);
         } catch (Throwable t) {
-            SafeLog.warn("[boost] a boost that could not start could not wait as a Claim: " + t.getMessage());
+            SafeLog.warn("[boost] a boost could not wait as a Claim: " + t.getMessage());
             return false;
         }
     }

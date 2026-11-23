@@ -1,0 +1,193 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZM = "../Common/ZigForm.ui";
+
+// The owner menu's Award Boost screen (com.ziggfreed.common.track.boost.BoostGivePage), on the band with the frame's
+// hero filled: pick a boost (#BoostGiveBoost) and one track it lifts or all of them (#BoostGiveTrack), its percent and
+// length or the boost's own when left blank (#BoostGivePercent, #BoostGiveMinutes, and #BoostGiveOwn saying what the
+// boost gives on its own), then give it to a player online as a Claim (#BoostGivePlayer, #BoostGiveGive) or start it
+// for everyone now (#BoostGiveServer). #BoostGiveStatus is the line each press answers on; Back returns to the owner
+// menu. The settings form's look by name (Common/ZigForm.ui). Every fixed word is an inline key of
+// ziggfreedcommon.boost.lang; every other word is pushed from Java on .TextSpans.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 960, Height: 760);
+
+  #Content {
+    Label #BoostGiveStatus {
+      Visible: false;
+      Text: "";
+      Anchor: (Bottom: 8);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    Group #BoostGiveForm {
+      FlexWeight: 1;
+      LayoutMode: Top;
+
+      Label {
+        Text: %ziggfreedcommon.boost.give.heading.boost;
+        Anchor: (Height: 24, Top: 6, Bottom: 4);
+        Style: $ZM.@ZigFormHeaderStyle;
+      }
+
+      $ZM.@ZigFormRow {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.boost.give.boost;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@DropdownBox #BoostGiveBoost {
+          Anchor: (Width: 360, Height: 30);
+          Style: $ZM.@ZigFormDropdownStyle;
+        }
+      }
+
+      $ZM.@ZigFormRow {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.boost.give.track;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@DropdownBox #BoostGiveTrack {
+          Anchor: (Width: 360, Height: 30);
+          Style: $ZM.@ZigFormDropdownStyle;
+        }
+      }
+
+      $ZM.@ZigFormRow {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.boost.give.percent;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@TextField #BoostGivePercent {
+          Anchor: (Width: 360, Height: 30);
+          Padding: (Horizontal: 8);
+          PlaceholderText: %ziggfreedcommon.boost.give.own.blank;
+        }
+      }
+
+      $ZM.@ZigFormRow {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.boost.give.minutes;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@TextField #BoostGiveMinutes {
+          Anchor: (Width: 360, Height: 30);
+          Padding: (Horizontal: 8);
+          PlaceholderText: %ziggfreedcommon.boost.give.own.blank;
+        }
+      }
+
+      Label #BoostGiveOwn {
+        Text: "";
+        Anchor: (Bottom: 14);
+        Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
+      }
+
+      Label {
+        Text: %ziggfreedcommon.boost.give.heading.player;
+        Anchor: (Height: 24, Top: 6, Bottom: 4);
+        Style: $ZM.@ZigFormHeaderStyle;
+      }
+
+      Label {
+        Text: %ziggfreedcommon.boost.give.player.note;
+        Anchor: (Bottom: 6);
+        Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
+      }
+
+      $ZM.@ZigFormRow {
+        @Anchor = (Bottom: 14);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.boost.give.player;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@TextField #BoostGivePlayer {
+          Anchor: (Width: 220, Height: 30);
+          Padding: (Horizontal: 8);
+        }
+
+        Group {
+          Anchor: (Width: 8);
+        }
+
+        Button #BoostGiveGive {
+          Anchor: (Width: 132, Height: 30);
+          Style: $ZS.@ZigButtonPrimaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.boost.give.give;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+      }
+
+      Label {
+        Text: %ziggfreedcommon.boost.give.heading.server;
+        Anchor: (Height: 24, Top: 6, Bottom: 4);
+        Style: $ZM.@ZigFormHeaderStyle;
+      }
+
+      $ZM.@ZigFormRow {
+        @Anchor = (Bottom: 6);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.boost.give.server.note;
+          Style: $ZM.@ZigFormNoteStyle;
+        }
+
+        Button #BoostGiveServer {
+          Anchor: (Width: 220, Height: 30);
+          Style: $ZS.@ZigButtonPrimaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.boost.give.server;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+      }
+    }
+
+    Group #BoostGiveFooter {
+      LayoutMode: Left;
+      Anchor: (Height: 40, Top: 12);
+
+      Button #BoostGiveBack {
+        Anchor: (Width: 180, Height: 40);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.boost.give.back;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

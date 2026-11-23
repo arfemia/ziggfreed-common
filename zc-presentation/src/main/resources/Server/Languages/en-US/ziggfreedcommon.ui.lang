@@ -299,3 +299,22 @@ gallery.tile.statbig = Damage dealt, with no picture beside it
 # OE1 O7: the Kill Drops tile in the library's section of the owner menu.
 owner.tile.killdrops.title = Kill Drops
 owner.tile.killdrops.line = What a killed mob drops or runs on top of its own loot, for every mod.
+# An owner form that edits a file of entries by id one entry at a time. In owner.form.entries.name and
+# owner.form.entries.id {0} is the entry's id; in owner.form.entries.editing {0} is the entry; in
+# owner.form.entries.taken and owner.form.entries.added {0} is the id typed; in owner.form.entries.unkeyed {0} is the
+# file.
+owner.form.state.added = Added here
+owner.form.entries.edit = Edit
+owner.form.entries.remove = Remove
+owner.form.entries.name = {0}
+owner.form.entries.id = Id: {0}
+owner.form.entries.editing = Editing {0}
+owner.form.entries.empty = There is nothing to set here on this server.
+owner.form.entries.gone = That one is not on this screen any more.
+owner.form.entries.removed = Removed. Your file no longer has it.
+owner.form.entries.add.label = Add a new one by its id
+owner.form.entries.add = Add
+owner.form.entries.bad_id = An id is letters, digits and underscores, with no spaces.
+owner.form.entries.taken = There is already one called {0}. Pick another id.
+owner.form.entries.added = Added {0}.
+owner.form.entries.unkeyed = {0} is not a file of entries by id, so this screen cannot list it.

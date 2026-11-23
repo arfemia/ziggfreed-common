@@ -310,6 +310,7 @@ class AssetCodecInitTest {
         assertNotNull(OwnerFormAsset.Section.CODEC, "the Sections entry codec must static-init");
         assertNotNull(OwnerFormAsset.Field.CODEC, "the Fields entry codec must static-init");
         assertNotNull(OwnerFormAsset.Choice.CODEC, "the Choices entry codec must static-init");
+        assertNotNull(OwnerFormAsset.Entries.CODEC, "the Entries group's codec must static-init");
     }
 
     @Test

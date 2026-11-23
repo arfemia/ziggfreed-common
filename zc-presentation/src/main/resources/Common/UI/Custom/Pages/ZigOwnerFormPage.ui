@@ -2,6 +2,7 @@ $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $ZX = "../Common/ZigText.ui";
 $ZS = "../Common/ZigStyles.ui";
+$ZM = "../Common/ZigForm.ui";
 
 // The owner form (com.ziggfreed.common.ui.form.OwnerFormPage): one owner file's settings, drawn from an owner form
 // file (Server/ZiggfreedCommon/OwnerForms/), on the band with the frame's hero filled by the form's title. Each setting
@@ -10,6 +11,10 @@ $ZS = "../Common/ZigStyles.ui";
 // MUST stay childless here. #OwnerFormStatus is the line a save or a reset answers on. Back returns to the owner menu,
 // Save writes what changed. Every pushed word is on .TextSpans; OwnerFormPaint paints it all, which KitSelectorsTest
 // walks.
+//
+// A form of the Entries shape first lists its entries in #OwnerFormFields, one Pages/ZigFormEntryRow.ui each (Edit
+// opens that entry's settings on this same page, whose Back returns to the list), with Save hidden; #OwnerFormAdd, the
+// line for adding an entry by a new id, shows only where the form allows it.
 
 $C.@PageOverlay {}
 
@@ -23,6 +28,37 @@ $F.@ZigDecoratedFrame {
       Text: "";
       Anchor: (Bottom: 8);
       Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    $ZM.@ZigFormRow #OwnerFormAdd {
+      @Anchor = (Bottom: 12);
+      Visible: false;
+
+      Label #OwnerFormAddLabel {
+        FlexWeight: 1;
+        Text: %ziggfreedcommon.ui.owner.form.entries.add.label;
+        Style: $ZM.@ZigFormLabelStyle;
+      }
+
+      $C.@TextField #OwnerFormAddId {
+        Anchor: (Width: 300, Height: 30);
+        Padding: (Horizontal: 8);
+      }
+
+      Group {
+        Anchor: (Width: 8);
+      }
+
+      Button #OwnerFormAddButton {
+        Anchor: (Width: 140, Height: 30);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.owner.form.entries.add;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
     }
 
     Group #OwnerFormFields {

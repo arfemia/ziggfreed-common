@@ -3,9 +3,13 @@ package com.ziggfreed.common.ui.kit;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,6 +19,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.bson.BsonDocument;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +35,11 @@ import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
+import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.owner.OwnerFileBinding;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.ui.form.OwnerFormAsset;
+import com.ziggfreed.common.ui.form.OwnerFormEntries;
 import com.ziggfreed.common.ui.form.OwnerFormPaint;
 import com.ziggfreed.common.ui.form.OwnerFormPlan;
 import com.ziggfreed.common.ui.icon.ItemQualityLook;
@@ -429,6 +438,105 @@ class KitSelectorsTest {
         OwnerFormPaint.refused(form.cmd(), Message.raw("Gone"));
         form.record();
         form.assertDeclared("the owner form");
+    }
+
+    /**
+     * A form of the Entries shape, walked against the form's document and the band: its list (a named entry the owner's
+     * file sets, one only the owner's file holds, one at its default; an entry without the Having path left off), the
+     * add line, the empty list, then one entry's settings under their hero line.
+     */
+    @Test
+    void theOwnerFormsEntriesListAddressesOnlyIdsItsDocumentsDeclare() throws IOException {
+        String frames = KitDocs.document("Common/ZigFrames.ui");
+        String band = KitDocs.template(frames, "@ZigDecoratedFrame") + "\n" + KitDocs.template(frames, "@ZigBand");
+        Path file = Files.createTempFile("owner-entries", ".json");
+        Files.writeString(file, "{ \"Named_One\": { \"Percent\": 75.0 }, \"Owners_Own\": { \"Reusable\": {} } }",
+                StandardCharsets.UTF_8);
+        Map<String, BsonDocument> docs = new LinkedHashMap<>();
+        docs.put("Named_One", BsonDocument.parse("{ \"Reusable\": {}, \"Text\": { \"TitleKey\": \"yourmod.named\" } }"));
+        docs.put("Owners_Own", BsonDocument.parse("{ \"Reusable\": {} }"));
+        docs.put("Plain_One", BsonDocument.parse("{ \"Reusable\": {}, \"Percent\": 50.0 }"));
+        docs.put("Not_Listed", BsonDocument.parse("{ \"Percent\": 1.0 }"));
+        OwnerFileBindings.register(OwnerFileBinding.builder("yourmod/entries.json", () -> file)
+                .entries(new OwnerFileBinding.Entries() {
+                    @Override
+                    @Nonnull
+                    public List<String> ids() {
+                        return List.copyOf(docs.keySet());
+                    }
+
+                    @Override
+                    public boolean hasBelow(@Nonnull String id) {
+                        return !"Owners_Own".equals(id);
+                    }
+
+                    @Override
+                    @Nullable
+                    public BsonDocument resolved(@Nonnull String id) {
+                        return docs.get(id);
+                    }
+
+                    @Override
+                    public boolean accepts(@Nullable String id) {
+                        return AbstractKeyedAssetConfig.isOwnerEntryId(id);
+                    }
+
+                    @Override
+                    public boolean put(@Nonnull Path at, @Nonnull String id, @Nonnull Map<String, Object> leaves) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean remove(@Nonnull Path at, @Nonnull String id) {
+                        return false;
+                    }
+                }).build());
+        try {
+            Recorder list = new Recorder(Map.of(), KitDocs.document(OwnerFormPaint.PAGE_TEMPLATE) + "\n" + band);
+            OwnerFormPaint.bind(list.events());
+            OwnerFormAsset form = entriesForm("Reusable");
+            OwnerFormEntries read = OwnerFormEntries.read(form);
+            assertTrue(read.rows().size() == 3, "every entry holding the Having path is a row: " + read.rows());
+            OwnerFormPaint.paintEntries(list.cmd(), list.events(), read, null);
+            list.record();
+            OwnerFormPaint.status(list.cmd(), Message.raw("Added"), false);
+            list.record();
+            list.assertDeclared("the owner form's entries list");
+
+            Recorder empty = new Recorder(Map.of(), KitDocs.document(OwnerFormPaint.PAGE_TEMPLATE) + "\n" + band);
+            OwnerFormEntries none = OwnerFormEntries.read(entriesForm("Nothing"));
+            assertTrue(none.rows().isEmpty(), "no entry holds the path");
+            OwnerFormPaint.paintEntries(empty.cmd(), empty.events(), none, null);
+            empty.record();
+            empty.assertDeclared("the owner form's empty entries list");
+
+            Recorder entry = new Recorder(Map.of(), KitDocs.document(OwnerFormPaint.PAGE_TEMPLATE) + "\n" + band);
+            OwnerFormPaint.bind(entry.events());
+            OwnerFormPlan plan = OwnerFormPlan.read(form, "Named_One");
+            List<String> rows = OwnerFormPaint.paint(entry.cmd(), entry.events(), plan, null, Message.raw("Editing"));
+            entry.record();
+            assertTrue(rows.size() == 1 && "Named_One".equals(plan.entryId())
+                    && "Percent".equals(plan.settings().get(0).field().writePath()),
+                    "one entry's settings write inside the entry: " + plan.settings());
+            entry.assertDeclared("one entry's settings");
+        } finally {
+            OwnerFileBindings.clearForTests();
+            Files.deleteIfExists(file);
+        }
+    }
+
+    @Nonnull
+    private static OwnerFormAsset entriesForm(@Nonnull String having) throws IOException {
+        String json = """
+                { "Title": "yourmod.form", "File": "yourmod/entries.json",
+                  "Entries": { "Having": "HAVING", "Gate": "Reusable.Requires", "Name": "Text.TitleKey", "Remove": true,
+                               "Add": true },
+                  "Sections": [ { "Fields": [ { "Path": "Percent", "Kind": "Number", "Label": "yourmod.percent" } ] } ]
+                }
+                """.replace("HAVING", having);
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(OwnerFormAsset.class, "Your_Entries", null);
+        return OwnerFormAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(json), null,
+                new AssetExtraInfo<>(data));
     }
 
     @Nonnull

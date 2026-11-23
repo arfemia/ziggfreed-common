@@ -42,6 +42,12 @@ public final class BoostOwnerLayers {
      */
     public static final String SETTINGS_BINDING = "ziggfreedcommon/" + SETTINGS_FILE;
 
+    /**
+     * The boosts file's id as an owner form names it: its path under {@code mods/}. The boost templates form
+     * ({@code OwnerForms/Boost_Templates.json}) edits it one boost at a time through that binding.
+     */
+    public static final String BOOSTS_BINDING = "ziggfreedcommon/" + FILE;
+
     private static final String LOG_TAG = "boost";
 
     @Nonnull

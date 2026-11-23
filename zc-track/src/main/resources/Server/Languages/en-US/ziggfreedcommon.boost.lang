@@ -104,3 +104,54 @@ form.settings.start.server = On server boosts
 form.settings.start.server.hint = Run it when a server boost starts.
 form.settings.start.replaces = Replaces the announcement
 form.settings.start.replaces.hint = On keeps the usual line to everyone off when a server boost starts, for a command that announces it instead.
+# The boost templates screen on the owner menu (OwnerForms/Boost_Templates.json), which edits boosts.json one boost
+# at a time, and the owner menu's Award Boost screen. In give.done {0} is the boost and {1} the player; in
+# give.received and give.server_done {0} is the boost; in give.player_offline and give.failed {0} is the player; in
+# give.own.personal and give.own.server {0} is what the boost gives on its own, as a reward reads; in
+# give.bad_percent and give.bad_minutes {0} is the most it can be.
+form.templates.title = Boost Templates
+form.templates.desc = The boosts players can switch on themselves
+form.templates.enabled = Switched on
+form.templates.enabled.hint = On unless you switch it off. Off takes the boost away: nobody can start it, and one already running stops.
+form.templates.heading.gives = What it gives
+form.templates.percent = Percent more
+form.templates.percent.hint = How much more every gain on what it lifts earns while it runs. 50 is half as much again, 100 doubles it.
+form.templates.seconds = Length, in seconds
+form.templates.seconds.hint = How long it runs once started. 1800 is half an hour.
+form.templates.heading.stack = Starting it again
+form.templates.cooldown = Wait, in seconds
+form.templates.cooldown.hint = How long a player waits after starting it before they can start it again. Zero is no wait.
+form.templates.max = Running at once
+form.templates.max.hint = How many of it can run at once for one player, or for the server when it is a server boost. Zero sets no limit of its own.
+give.title = Award Boost
+give.tile.line = Give a player a boost, or start one for the whole server.
+give.line = Pick a boost, then give it to a player or start it for everyone.
+give.none = There is no boost to give on this server.
+give.heading.boost = The boost
+give.boost = Boost
+give.track = What it lifts
+give.track.all = Everything it lifts
+give.percent = Percent more
+give.minutes = Length, in minutes
+give.own.blank = The boost's own
+give.own.personal = Left blank, it gives {0}, to one player.
+give.own.server = Left blank, it gives {0}, to everyone on the server.
+give.heading.player = Give it to a player
+give.player.note = It waits in their Claims and starts when they collect it.
+give.player = Player name
+give.give = Give
+give.heading.server = Start it for everyone
+give.server.note = Starts it now for every player on the server.
+give.server = Start for everyone
+give.back = Back
+give.unknown = That boost is not on this server any more.
+give.bad_percent = The percent has to be a number above 0 and at most {0, number}.
+give.bad_minutes = The length has to be a whole number of minutes, from 1 to {0, number}.
+give.bad_track = That boost does not lift what you picked.
+give.player_needed = Type the name of the player to give it to.
+give.player_offline = No player named {0} is online.
+give.failed = Could not give {0} the boost. Try again in a moment.
+give.received = You were given {0}. Collect it from your Claims when you want it to start.
+give.done = {0} is waiting in {1}'s Claims.
+give.server_done = {0} has started for everyone.
+give.server_refused = That boost could not start for everyone.

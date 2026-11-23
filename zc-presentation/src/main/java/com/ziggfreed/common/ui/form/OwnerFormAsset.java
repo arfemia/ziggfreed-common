@@ -2,7 +2,6 @@ package com.ziggfreed.common.ui.form;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -17,6 +16,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 
+import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
@@ -40,11 +40,25 @@ import com.ziggfreed.common.progress.gate.StoreGates;
  *                   "Choices": [ { "Value": "Fast", "Label": "yourmod.form.mode.fast" } ] } ] } ] }
  * }</pre>
  *
- * <p>A form writes only the file its binding names, and only the paths it declares; a path is dotted letters and
- * digits, so no form reaches a reserved {@code $} key. A top-level {@code Requires} follows the mod gate (a plain
- * mod-presence check keeps the form out where that mod is missing) and asks the rest of the owner each time the menu
- * lists it. Every leaf is nullable and inherited through {@code Parent}; the server owner can retune a form in
- * {@code mods/ziggfreedcommon/owner-forms.json}.
+ * <p><b>Two shapes, told apart by the fields written.</b> A form of settings edits one file's leaves (under
+ * {@code Entry} in an id-keyed file). A form with an {@code Entries} group edits an id-keyed file one entry at a time:
+ * a row per entry it lists (every entry, or those holding the {@code Having} path, less any its {@code Gate} hides),
+ * each opening the form's settings for that one entry, the value under the owner's word read from the layer under the
+ * owner, a Reset taking the owner's leaf out, and, when the group allows, an owner adding an entry by a new id or
+ * removing one only their own file holds. Its writes go through the store's own entry writer.
+ *
+ * <pre>{@code
+ * { "Title": "yourmod.form.boosts", "File": "yourmod/boosts.json",
+ *   "Entries": { "Having": "Reusable", "Gate": "Reusable.Requires", "Name": "Text.TitleKey" },
+ *   "Sections": [ { "Fields": [ { "Path": "Percent", "Kind": "Number", "Label": "yourmod.form.percent" } ] } ] }
+ * }</pre>
+ *
+ * <p>A form writes only the file its binding names, and only the paths it declares, under its one entry or the
+ * entries it lists; a path is dotted letters and digits, so no form reaches a reserved {@code $} key, and an id an
+ * owner types is held to the store's id pattern before anything is written. A top-level {@code Requires} follows the
+ * mod gate (a plain mod-presence check keeps the form out where that mod is missing) and asks the rest of the owner
+ * each time the menu lists it. Every leaf is nullable and inherited through {@code Parent}; the server owner can retune
+ * a form in {@code mods/ziggfreedcommon/owner-forms.json}.
  */
 public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, OwnerFormAsset>> {
 
@@ -57,12 +71,6 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
     /** A form's place in its section when it writes none. */
     public static final int DEFAULT_ORDER = 100;
 
-    /** A path inside an entry: dotted PascalCase segments, letters and digits only. */
-    private static final Pattern PATH = Pattern.compile("[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)*");
-
-    /** An entry id: letters, digits and underscores, never a reserved {@code $} key. */
-    private static final Pattern ENTRY = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_]*");
-
     private String id;
     private AssetExtraInfo.Data data;
 
@@ -73,6 +81,7 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
     @Nullable protected Integer order;
     @Nullable protected String file;
     @Nullable protected String entry;
+    @Nullable protected Entries entries;
     @Nullable protected GateSpec requires;
     @Nullable protected Section[] sections;
 
@@ -117,7 +126,13 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
             .appendInherited(new KeyedCodec<>("Entry", Codec.STRING, false),
                     (a, v) -> a.entry = v, a -> a.entry, (a, p) -> a.entry = p.entry)
             .documentation("For a file keyed by id, the entry every setting sits under (Default); leave it out for "
-                    + "a file of plain settings. Letters, digits and underscores.").add()
+                    + "a file of plain settings, or for a form with Entries. Letters, digits and underscores.").add()
+            .appendInherited(new KeyedCodec<>("Entries", Entries.CODEC, false),
+                    (a, v) -> a.entries = v, a -> a.entries, (a, p) -> a.entries = p.entries)
+            .documentation("Makes this form edit a file keyed by id one entry at a time: a row for each entry it "
+                    + "lists, each opening the settings below for that one entry, where each shows the value the "
+                    + "server would use without the owner's word and a Reset that takes the owner's value out. Leave "
+                    + "it out for a form of settings.").add()
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation(StoreGates.DOCUMENTATION + " Asked of the owner each time the menu lists the form and "
@@ -178,6 +193,12 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
         return blankToNull(entry);
     }
 
+    /** The {@code Entries} group, or null for a form of settings. */
+    @Nullable
+    public Entries entries() {
+        return entries;
+    }
+
     /** The top-level {@code Requires}, or null. */
     @Nullable
     public GateSpec requires() {
@@ -209,19 +230,97 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
         return out;
     }
 
-    /** Is {@code path} a path a form may write: dotted segments of letters and digits, each starting with a letter? */
+    /**
+     * Is {@code path} a path a form may write: dotted segments of letters and digits, each starting with a letter (the
+     * keyed stores' one rule, {@link AbstractKeyedAssetConfig#isOwnerLeafPath})?
+     */
     public static boolean isPath(@Nullable String path) {
-        return path != null && PATH.matcher(path).matches();
+        return AbstractKeyedAssetConfig.isOwnerLeafPath(path);
     }
 
-    /** Is {@code entry} an entry id a form may write under: letters, digits and underscores? */
+    /**
+     * Is {@code entry} an entry id a form may write under: letters, digits and underscores (the keyed stores' one
+     * rule, {@link AbstractKeyedAssetConfig#isOwnerEntryId})?
+     */
     public static boolean isEntry(@Nullable String entry) {
-        return entry != null && ENTRY.matcher(entry).matches();
+        return AbstractKeyedAssetConfig.isOwnerEntryId(entry);
     }
 
     @Nullable
     private static String blankToNull(@Nullable String s) {
         return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    /**
+     * The Entries group: the form edits an id-keyed file one entry at a time. Which entries it lists ({@code Having},
+     * {@code Gate}), what names each row ({@code Name}), and whether an owner may add or remove one.
+     */
+    public static final class Entries {
+
+        @Nullable protected String having;
+        @Nullable protected String gate;
+        @Nullable protected String name;
+        @Nullable protected Boolean add;
+        @Nullable protected Boolean remove;
+
+        public static final BuilderCodec<Entries> CODEC = BuilderCodec.builder(Entries.class, Entries::new)
+                .append(new KeyedCodec<>("Having", Codec.STRING, false),
+                        (o, v) -> o.having = v, o -> o.having)
+                .documentation("List only the entries that hold this dotted path as they read now (Reusable lists the "
+                        + "boosts players start themselves). Leave it out to list every entry.").add()
+                .append(new KeyedCodec<>("Gate", Codec.STRING, false),
+                        (o, v) -> o.gate = v, o -> o.gate)
+                .documentation("A Requires block inside each entry, by its dotted path (Reusable.Requires). An entry "
+                        + "whose block asks for a feature switched off on this server, or a mod that is not installed, "
+                        + "is left off the form, as the game hides that content from players. The rest of the block (a "
+                        + "permission, a level) is about whoever uses the entry and is not asked here.").add()
+                .append(new KeyedCodec<>("Name", Codec.STRING, false),
+                        (o, v) -> o.name = v, o -> o.name)
+                .documentation("A dotted path inside each entry to the localization key that names it (Text.TitleKey). "
+                        + "Without one, or for an entry that writes none, the row reads the entry's id.").add()
+                .append(new KeyedCodec<>("Add", Codec.BOOLEAN, false),
+                        (o, v) -> o.add = v, o -> o.add)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True lets an owner add an entry by typing a new id (letters, digits and underscores, "
+                        + "one no entry has yet): it is written into the owner file, holding the Having path as an "
+                        + "empty group, and opened to set. Unwritten means false.").add()
+                .append(new KeyedCodec<>("Remove", Codec.BOOLEAN, false),
+                        (o, v) -> o.remove = v, o -> o.remove)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True lets an owner remove an entry only their own file holds (one no pack ships). An "
+                        + "entry a pack ships is never removed, only reset. Unwritten means false.").add()
+                .build();
+
+        public Entries() {
+        }
+
+        /** The path an entry must hold to be listed, trimmed, or null to list every entry. */
+        @Nullable
+        public String having() {
+            return blankToNull(having);
+        }
+
+        /** The path of the Requires block that may hide an entry, trimmed, or null for none. */
+        @Nullable
+        public String gate() {
+            return blankToNull(gate);
+        }
+
+        /** The path of the key naming an entry, trimmed, or null to name each by its id. */
+        @Nullable
+        public String name() {
+            return blankToNull(name);
+        }
+
+        /** May an owner add an entry? */
+        public boolean add() {
+            return Boolean.TRUE.equals(add);
+        }
+
+        /** May an owner remove an entry only their own file holds? */
+        public boolean remove() {
+            return Boolean.TRUE.equals(remove);
+        }
     }
 
     /** One headed group of settings. */

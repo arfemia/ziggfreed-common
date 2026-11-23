@@ -121,6 +121,34 @@ public final class OwnerFormWrite {
         return written;
     }
 
+    /**
+     * Write {@code leaves} (dotted paths inside one entry, a null value removing its leaf) into the entry
+     * {@code entryId} of an id-keyed file, through the store's own entry writer ({@link OwnerFileBinding#putEntry}: the
+     * id held to the store's id pattern first, the file's own spelling of it kept), and have its mod read the file
+     * again. True when written; false, nothing written, otherwise. An empty {@code leaves} makes the entry, empty, where
+     * the file has none.
+     */
+    public static boolean writeEntry(@Nonnull OwnerFileBinding binding, @Nonnull String entryId,
+            @Nonnull Map<String, Object> leaves) {
+        boolean written = binding.putEntry(entryId, leaves);
+        if (written) {
+            binding.reload();
+        }
+        return written;
+    }
+
+    /**
+     * Take the whole entry {@code entryId} out of an id-keyed file through the store's own entry writer, and have its
+     * mod read the file again. True when nothing is left under the id.
+     */
+    public static boolean removeEntry(@Nonnull OwnerFileBinding binding, @Nonnull String entryId) {
+        boolean written = binding.removeEntry(entryId);
+        if (written) {
+            binding.reload();
+        }
+        return written;
+    }
+
     @Nonnull
     private static FieldSpec spec(@Nonnull OwnerFormField field) {
         String id = id(field);

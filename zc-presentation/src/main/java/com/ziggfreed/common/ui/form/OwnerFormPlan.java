@@ -32,6 +32,9 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link #malformed()}, which the page shows and never writes (the file's writer refuses it too). An id-keyed file's
  * entry is found without regard to case and written under the key the file already spells, so a write never adds a
  * second entry that differs only in case.
+ *
+ * <p>One entry of a form of the Entries shape ({@link #read(OwnerFormAsset, String)}) reads the same way, its
+ * settings' write paths inside the entry ({@link #entryId()} names it), for the store's own entry writer.
  */
 public final class OwnerFormPlan {
 
@@ -66,19 +69,31 @@ public final class OwnerFormPlan {
     private final boolean malformed;
     @Nonnull private final List<Line> lines;
     @Nonnull private final List<Setting> settings;
+    @Nullable private final String entryId;
 
     private OwnerFormPlan(@Nonnull OwnerFormAsset form, @Nullable OwnerFileBinding binding, boolean malformed,
-            @Nonnull List<Line> lines, @Nonnull List<Setting> settings) {
+            @Nonnull List<Line> lines, @Nonnull List<Setting> settings, @Nullable String entryId) {
         this.form = form;
         this.binding = binding;
         this.malformed = malformed;
         this.lines = List.copyOf(lines);
         this.settings = List.copyOf(settings);
+        this.entryId = entryId;
     }
 
     /** Read {@code form} against its file's binding and the file as it stands. */
     @Nonnull
     public static OwnerFormPlan read(@Nonnull OwnerFormAsset form) {
+        return read(form, null);
+    }
+
+    /**
+     * Read one entry of {@code form}, a form of the Entries shape: {@code entryId} (an id the form lists, or one an
+     * owner just added) in place of the form's own {@code Entry}, each setting's write path inside the entry, so the
+     * page writes it through the store's entry writer. Null reads {@code form} as {@link #read(OwnerFormAsset)} does.
+     */
+    @Nonnull
+    public static OwnerFormPlan read(@Nonnull OwnerFormAsset form, @Nullable String entryId) {
         OwnerFileBinding binding = OwnerFileBindings.find(form.file());
         JsonObject root = new JsonObject();
         boolean malformed = false;
@@ -95,7 +110,8 @@ public final class OwnerFormPlan {
         if (!OwnerFiles.schemaReadable(root, "owner", form.getId())) {
             malformed = true;
         }
-        String entry = form.entry();
+        boolean insideEntry = entryId != null;
+        String entry = insideEntry ? entryId : form.entry();
         String entryKey = entry == null ? null : keyIn(root, entry);
         JsonObject scope = entryKey == null ? root : objectAt(root, entryKey);
         List<Line> lines = new ArrayList<>();
@@ -113,7 +129,7 @@ public final class OwnerFormPlan {
                 if (kind == null || !OwnerFormAsset.isPath(path) || (entry != null && !OwnerFormAsset.isEntry(entry))) {
                     continue;
                 }
-                String writePath = entryKey == null ? path : entryKey + "." + path;
+                String writePath = insideEntry || entryKey == null ? path : entryKey + "." + path;
                 List<String> choices = new ArrayList<>();
                 for (OwnerFormAsset.Choice choice : field.choices()) {
                     choices.add(choice.value());
@@ -127,12 +143,21 @@ public final class OwnerFormPlan {
                 lines.add(new Line(null, null, setting));
             }
         }
-        return new OwnerFormPlan(form, binding, malformed, lines, settings);
+        return new OwnerFormPlan(form, binding, malformed, lines, settings, entryId);
     }
 
     @Nonnull
     public OwnerFormAsset form() {
         return form;
+    }
+
+    /**
+     * The entry this plan edits through the store's entry writer (its settings' write paths inside it), or null for a
+     * form of settings, whose write paths start at the file's root.
+     */
+    @Nullable
+    public String entryId() {
+        return entryId;
     }
 
     /** The file's binding, or null when no installed mod registered the file the form names. */
@@ -146,9 +171,9 @@ public final class OwnerFormPlan {
         return malformed;
     }
 
-    /** May the form write: a bound file that reads. */
+    /** May the form write: a bound file that reads (and, for one entry, a file keyed by id). */
     public boolean writable() {
-        return binding != null && !malformed;
+        return binding != null && !malformed && (entryId == null || binding.keyed());
     }
 
     /** Every line, in order. */
@@ -233,7 +258,7 @@ public final class OwnerFormPlan {
 
     /** The file's root object: empty when absent or blank; throws when it is not a JSON object. */
     @Nonnull
-    private static JsonObject readObject(@Nonnull Path file) throws Exception {
+    static JsonObject readObject(@Nonnull Path file) throws Exception {
         if (!Files.exists(file)) {
             return new JsonObject();
         }
@@ -253,7 +278,7 @@ public final class OwnerFormPlan {
      * {@code entry} as written.
      */
     @Nonnull
-    private static String keyIn(@Nonnull JsonObject root, @Nonnull String entry) {
+    static String keyIn(@Nonnull JsonObject root, @Nonnull String entry) {
         for (Map.Entry<String, JsonElement> e : root.entrySet()) {
             String key = e.getKey();
             if (!OwnerFiles.isReservedKey(key) && OwnerFormAsset.isEntry(key) && key.equalsIgnoreCase(entry)) {
@@ -264,13 +289,13 @@ public final class OwnerFormPlan {
     }
 
     @Nullable
-    private static JsonObject objectAt(@Nonnull JsonObject root, @Nonnull String key) {
+    static JsonObject objectAt(@Nonnull JsonObject root, @Nonnull String key) {
         JsonElement value = root.get(key);
         return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
     }
 
     @Nullable
-    private static JsonElement leaf(@Nonnull JsonObject scope, @Nonnull String path) {
+    static JsonElement leaf(@Nonnull JsonObject scope, @Nonnull String path) {
         JsonElement cursor = scope;
         for (String part : path.split("\\.")) {
             if (cursor == null || !cursor.isJsonObject()) {

@@ -1,0 +1,64 @@
+$ZM = "../Common/ZigForm.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZX = "../Common/ZigText.ui";
+
+// ── ziggfreed-common appendable OWNER ENTRY row: one entry of an id-keyed owner file ─────────
+// Appended and painted by ui/form/OwnerFormPaint into the owner form's list (#OwnerFormFields) when a form of the
+// Entries shape lists its entries, then addressed by the INDEXED PARENT ("#OwnerFormFields[3] #Open"), so the bare ids
+// below are safe across many rows. The owner leaf row's look by name (Common/ZigForm.ui, Common/ZigStyles.ui): the
+// entry's name (#Title), whether the owner's file sets it (#State, a kit state style the painter swaps), Edit (#Open,
+// which opens the entry's settings) and a Reset or Remove (#Reset, hidden until the painter shows it), with the entry's
+// id under the name (#Line, hidden when the name is the id). Every word is the painter's, pushed on .TextSpans.
+
+Group #ZigFormEntryRow {
+  LayoutMode: Top;
+  Anchor: (Bottom: 10);
+
+  $ZM.@ZigFormRow #Row {
+    Label #Title {
+      FlexWeight: 1;
+      Text: "";
+      Style: $ZM.@ZigFormLabelStyle;
+    }
+
+    Label #State {
+      Anchor: (Width: 110, Right: 12);
+      Text: "";
+      Style: $ZS.@ZigStateStyle;
+    }
+
+    Button #Open {
+      Anchor: (Width: 110, Height: 30);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
+      }
+    }
+
+    Group {
+      Anchor: (Width: 8);
+    }
+
+    Button #Reset {
+      Anchor: (Width: 110, Height: 30);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
+      }
+    }
+  }
+
+  Label #Line {
+    Visible: false;
+    Text: "";
+    Padding: (Right: 360);
+    Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
+  }
+}

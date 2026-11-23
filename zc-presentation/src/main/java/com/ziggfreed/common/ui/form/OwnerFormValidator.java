@@ -64,6 +64,10 @@ public final class OwnerFormValidator {
             out.add(Finding.error(DOMAIN, "BAD_ENTRY", where + " writes under the entry '" + entry + "', which is not "
                     + "letters, digits and underscores, so it writes nothing", id));
         }
+        OwnerFormAsset.Entries entries = form.entries();
+        if (entries != null) {
+            auditEntries(form, entries, binding, out);
+        }
         TextKeyAudit.check(out, DOMAIN, id, where + " Title", form.title(), shipped, "its tile reads the raw key");
         TextKeyAudit.check(out, DOMAIN, id, where + " Description", form.description(), shipped,
                 "its tile reads the raw key");
@@ -80,6 +84,31 @@ public final class OwnerFormValidator {
         }
         if (fields == 0) {
             out.add(Finding.warning(DOMAIN, "NO_FIELDS", where + " has no settings, so its screen is empty", id));
+        }
+    }
+
+    /**
+     * A form of the Entries shape: its file must be keyed by id, its {@code Having}, {@code Gate} and {@code Name} must
+     * be paths, and an {@code Entry} beside it is never read.
+     */
+    private static void auditEntries(@Nonnull OwnerFormAsset form, @Nonnull OwnerFormAsset.Entries entries,
+            @Nullable OwnerFileBinding binding, @Nonnull List<Finding> out) {
+        String id = form.getId();
+        String where = "the owner form '" + id + "'";
+        if (binding != null && !binding.keyed()) {
+            out.add(Finding.error(DOMAIN, "UNKEYED_FILE", where + " lists the entries of " + form.file() + ", which "
+                    + "its mod does not read as a file keyed by id, so it lists nothing", id));
+        }
+        if (form.entry() != null) {
+            out.add(Finding.warning(DOMAIN, "ENTRY_WITH_ENTRIES", where + " writes both Entry and Entries; it edits "
+                    + "the entries it lists, so its Entry is never read", id));
+        }
+        String[][] paths = {{"Having", entries.having()}, {"Gate", entries.gate()}, {"Name", entries.name()}};
+        for (String[] path : paths) {
+            if (path[1] != null && !OwnerFormAsset.isPath(path[1])) {
+                out.add(Finding.error(DOMAIN, "BAD_ENTRIES_PATH", where + " has an Entries " + path[0] + " '"
+                        + path[1] + "' that is not dotted letters and digits, so it matches nothing", id));
+            }
         }
     }
 

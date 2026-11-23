@@ -1,0 +1,69 @@
+{
+  "$Comment": "The in-game screen for the boosts players start themselves (those with a Reusable group), on the owner menu (/zigadmin): one row per boost, each opening its switch, percent, length and stacking, every setting saved straight into mods/ziggfreedcommon/boosts.json under that boost's id, beside the value it has without your file. A boost whose Reusable.Requires asks for a feature switched off on this server is left off the list, and with nothing to list the screen does not show. What a boost lifts and who may start it stay in the files. Every word is a key of ziggfreedcommon.boost.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Boost_Templates.",
+  "Title": "ziggfreedcommon.boost.form.templates.title",
+  "Description": "ziggfreedcommon.boost.form.templates.desc",
+  "Icon": "Potion_Empty",
+  "Section": "ziggfreedcommon",
+  "Order": 55,
+  "File": "ziggfreedcommon/boosts.json",
+  "Entries": {
+    "Having": "Reusable",
+    "Gate": "Reusable.Requires",
+    "Name": "Text.TitleKey",
+    "Remove": true
+  },
+  "Sections": [
+    {
+      "Fields": [
+        {
+          "Path": "Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.boost.form.templates.enabled",
+          "Hint": "ziggfreedcommon.boost.form.templates.enabled.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.boost.form.templates.heading.gives",
+      "Fields": [
+        {
+          "Path": "Percent",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.boost.form.templates.percent",
+          "Hint": "ziggfreedcommon.boost.form.templates.percent.hint",
+          "Min": 0,
+          "Max": 10000
+        },
+        {
+          "Path": "Seconds",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.boost.form.templates.seconds",
+          "Hint": "ziggfreedcommon.boost.form.templates.seconds.hint",
+          "Min": 1,
+          "Max": 31536000
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.boost.form.templates.heading.stack",
+      "Fields": [
+        {
+          "Path": "Stack.Cooldown",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.boost.form.templates.cooldown",
+          "Hint": "ziggfreedcommon.boost.form.templates.cooldown.hint",
+          "Min": 0,
+          "Max": 31536000
+        },
+        {
+          "Path": "Stack.Max",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.boost.form.templates.max",
+          "Hint": "ziggfreedcommon.boost.form.templates.max.hint",
+          "Min": 0,
+          "Max": 100
+        }
+      ]
+    }
+  ]
+}

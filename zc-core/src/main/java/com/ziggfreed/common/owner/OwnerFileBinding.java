@@ -13,6 +13,7 @@ import javax.annotation.Nullable;
 import org.bson.BsonDocument;
 import org.bson.BsonValue;
 
+import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
 
@@ -35,8 +36,40 @@ import com.ziggfreed.common.util.SafeLog;
  * read and keeps every sibling key; the caller owns number types ({@code Integer} for an integer leaf, {@code Double}
  * for a double one). Every call here is guarded: a throwing reader answers no Default, a throwing writer writes
  * nothing, a throwing reload is one warning.
+ *
+ * <p>An id-keyed file a keyed store reads also carries its {@link Entries} (every {@link #keyedStore} binding does):
+ * the ids in force, which of them a layer under the owner holds, each entry as it reads now, and the store's own entry
+ * writer, which holds a typed id to the store's id pattern before it writes. An owner form of the Entries shape edits
+ * the file one entry at a time through it.
  */
 public final class OwnerFileBinding {
+
+    /**
+     * One id-keyed owner file's entries, as the keyed store that reads it answers them
+     * ({@link #entriesOf(AbstractKeyedAssetConfig, Codec)}).
+     */
+    public interface Entries {
+
+        /** Every id in force, as each entry spells it, in no particular order. */
+        @Nonnull
+        List<String> ids();
+
+        /** Does a layer under the owner's file (a pack's file, a default) hold {@code id}? */
+        boolean hasBelow(@Nonnull String id);
+
+        /** The entry {@code id} names as it reads now, through the store's own codec; null when there is none. */
+        @Nullable
+        BsonDocument resolved(@Nonnull String id);
+
+        /** May an owner name {@code id} for an entry (the store's id pattern)? */
+        boolean accepts(@Nullable String id);
+
+        /** Write {@code leaves} (dotted paths inside the entry) into {@code file}'s entry for {@code id}. */
+        boolean put(@Nonnull Path file, @Nonnull String id, @Nonnull Map<String, Object> leaves);
+
+        /** Take {@code file}'s whole entry for {@code id} out. */
+        boolean remove(@Nonnull Path file, @Nonnull String id);
+    }
 
     /** The value under the owner's word for one leaf of the file: a Boolean, a Number, a String or a List, else null. */
     @FunctionalInterface
@@ -65,6 +98,7 @@ public final class OwnerFileBinding {
     @Nonnull private final Below below;
     @Nonnull private final Writer writer;
     @Nonnull private final Runnable reload;
+    @Nullable private final Entries entries;
 
     private OwnerFileBinding(@Nonnull Builder builder) {
         this.id = builder.id;
@@ -72,6 +106,7 @@ public final class OwnerFileBinding {
         this.below = builder.below;
         this.writer = builder.writer;
         this.reload = builder.reload;
+        this.entries = builder.entries;
     }
 
     /**
@@ -92,7 +127,62 @@ public final class OwnerFileBinding {
     @Nonnull
     public static <T> OwnerFileBinding keyedStore(@Nonnull String id, @Nonnull Supplier<Path> file,
             @Nonnull AbstractKeyedAssetConfig<T> config, @Nonnull Codec<T> codec, @Nonnull Runnable reload) {
-        return builder(id, file).below(belowFrom(config, codec)).reload(reload).build();
+        return builder(id, file).below(belowFrom(config, codec)).entries(entriesOf(config, codec)).reload(reload)
+                .build();
+    }
+
+    /**
+     * A keyed store's {@link Entries}: its ids in force ({@link AbstractKeyedAssetConfig#all}, each spelled as its
+     * asset's own id where it has one), the layer under the owner ({@code resolveBelowOwner}), each entry encoded through
+     * {@code codec}, and the store's own entry writer ({@code acceptsOwnerEntryId}, {@code putOwnerLeaves},
+     * {@code removeOwnerEntry}).
+     */
+    @Nonnull
+    public static <T> Entries entriesOf(@Nonnull AbstractKeyedAssetConfig<T> config, @Nonnull Codec<T> codec) {
+        return new Entries() {
+            @Override
+            @Nonnull
+            public List<String> ids() {
+                List<String> out = new ArrayList<>();
+                for (Map.Entry<String, T> entry : config.all().entrySet()) {
+                    T value = entry.getValue();
+                    Object own = value instanceof JsonAsset<?> asset ? asset.getId() : null;
+                    out.add(own instanceof String spelled && !spelled.isBlank() ? spelled : entry.getKey());
+                }
+                return out;
+            }
+
+            @Override
+            public boolean hasBelow(@Nonnull String id) {
+                return config.resolveBelowOwner(id.trim()) != null;
+            }
+
+            @Override
+            @Nullable
+            public BsonDocument resolved(@Nonnull String id) {
+                T value = config.resolve(id.trim());
+                if (value == null) {
+                    return null;
+                }
+                BsonValue encoded = codec.encode(value, new ExtraInfo());
+                return encoded != null && encoded.isDocument() ? encoded.asDocument() : null;
+            }
+
+            @Override
+            public boolean accepts(@Nullable String id) {
+                return config.acceptsOwnerEntryId(id);
+            }
+
+            @Override
+            public boolean put(@Nonnull Path file, @Nonnull String id, @Nonnull Map<String, Object> leaves) {
+                return config.putOwnerLeaves(file, id, leaves);
+            }
+
+            @Override
+            public boolean remove(@Nonnull Path file, @Nonnull String id) {
+                return config.removeOwnerEntry(file, id);
+            }
+        };
     }
 
     /** A keyed store's Default reader ({@link #keyedStore}), for a builder that also names its own writer. */
@@ -150,6 +240,98 @@ public final class OwnerFileBinding {
             reload.run();
         } catch (Throwable t) {
             SafeLog.warn("[owner] " + id + " was written but could not be read again: " + t.getMessage());
+        }
+    }
+
+    /** Is the file id-keyed, with {@link Entries} an editor may list and write one at a time? */
+    public boolean keyed() {
+        return entries != null;
+    }
+
+    /** Every id in force, as each entry spells it; empty for a file that is not id-keyed (or a reader that threw). */
+    @Nonnull
+    public List<String> entryIds() {
+        if (entries == null) {
+            return List.of();
+        }
+        try {
+            return List.copyOf(entries.ids());
+        } catch (Throwable t) {
+            SafeLog.warn("[owner] the entries of " + id + " could not be listed: " + t.getMessage());
+            return List.of();
+        }
+    }
+
+    /** Does a layer under the owner's file hold {@code entryId}? True when it cannot tell, so nothing is removed. */
+    public boolean entryHasBelow(@Nonnull String entryId) {
+        if (entries == null) {
+            return true;
+        }
+        try {
+            return entries.hasBelow(entryId);
+        } catch (Throwable t) {
+            SafeLog.warn("[owner] whether " + entryId + " in " + id + " ships in a pack could not be read: "
+                    + t.getMessage());
+            return true;
+        }
+    }
+
+    /** The entry {@code entryId} names as it reads now, or null (none, not id-keyed, or the reader threw). */
+    @Nullable
+    public BsonDocument entry(@Nonnull String entryId) {
+        if (entries == null) {
+            return null;
+        }
+        try {
+            return entries.resolved(entryId);
+        } catch (Throwable t) {
+            SafeLog.warn("[owner] " + entryId + " in " + id + " could not be read: " + t.getMessage());
+            return null;
+        }
+    }
+
+    /** May an owner name {@code entryId} for an entry of the file (the store's id pattern)? False when not id-keyed. */
+    public boolean acceptsEntryId(@Nullable String entryId) {
+        if (entries == null) {
+            return false;
+        }
+        try {
+            return entries.accepts(entryId);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * Write {@code leaves} (dotted paths inside one entry) into the file's entry for {@code entryId} through the
+     * store's entry writer; false, nothing written, when the file is not id-keyed, the store refuses the id, or the
+     * write failed. The caller reads the file back ({@link #reload}).
+     */
+    public boolean putEntry(@Nonnull String entryId, @Nonnull Map<String, Object> leaves) {
+        if (entries == null || !acceptsEntryId(entryId)) {
+            return false;
+        }
+        try {
+            return entries.put(file(), entryId, leaves);
+        } catch (Throwable t) {
+            SafeLog.warn("[owner] " + entryId + " in " + id + " could not be written: " + t.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Take the file's whole entry for {@code entryId} out through the store's entry writer; false when the file is not
+     * id-keyed, the store refuses the id, or the write failed. The caller reads the file back.
+     */
+    public boolean removeEntry(@Nonnull String entryId) {
+        if (entries == null || !acceptsEntryId(entryId)) {
+            return false;
+        }
+        try {
+            return entries.remove(file(), entryId);
+        } catch (Throwable t) {
+            SafeLog.warn("[owner] " + entryId + " in " + id + " could not be taken out: " + t.getMessage());
+            return false;
         }
     }
 
@@ -211,6 +393,7 @@ public final class OwnerFileBinding {
         @Nonnull private Below below = NO_BELOW;
         @Nonnull private Writer writer = JsonOverrideWriter::setLeaves;
         @Nonnull private Runnable reload = () -> { };
+        @Nullable private Entries entries;
 
         private Builder(@Nonnull String id, @Nonnull Supplier<Path> file) {
             this.id = Objects.requireNonNull(id, "id").trim();
@@ -238,6 +421,13 @@ public final class OwnerFileBinding {
         @Nonnull
         public Builder reload(@Nullable Runnable value) {
             this.reload = value != null ? value : () -> { };
+            return this;
+        }
+
+        /** The file's entries, for an id-keyed file an editor may write one entry at a time; unset, none. */
+        @Nonnull
+        public Builder entries(@Nullable Entries value) {
+            this.entries = value;
             return this;
         }
 

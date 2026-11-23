@@ -1,14 +1,24 @@
 package com.ziggfreed.common.asset;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+
+import com.ziggfreed.common.util.JsonOverrideWriter;
+import com.ziggfreed.common.util.OwnerFiles;
 
 /**
  * The generic, mod-agnostic {@code defaults < pack < owner} fold for a keyed framework
@@ -38,9 +48,21 @@ import javax.annotation.Nullable;
  * process-wide (one framework per server); a shared store across two minigames disambiguates
  * by id, so ids should be owner-prefixed when two consumers may run together.
  *
+ * <p>The store's one entry writer ({@link #putOwnerLeaves(Path, String, Map)},
+ * {@link #removeOwnerEntry(Path, String)}) writes one entry of its id-keyed owner file for an
+ * in-game editor: the id held to the store's id pattern ({@link #acceptsOwnerEntryId}) before
+ * anything is written, the leaves to plain dotted paths, under the spelling the file already gives
+ * the id. The caller reads the file back.
+ *
  * @param <T> the resolved runtime model type (e.g. {@code InstancePreset})
  */
 public abstract class AbstractKeyedAssetConfig<T> {
+
+    /** An entry id an owner may name: letters, digits and underscores, never a reserved {@code $} key. */
+    private static final Pattern OWNER_ENTRY_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_]*");
+
+    /** A leaf inside one entry: dotted segments of letters and digits, each starting with a letter. */
+    private static final Pattern OWNER_LEAF_PATH = Pattern.compile("[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)*");
 
     private final Map<String, T> defaults = new ConcurrentHashMap<>();
     private final Map<String, T> pack = new ConcurrentHashMap<>();
@@ -295,6 +317,116 @@ public abstract class AbstractKeyedAssetConfig<T> {
     @Nonnull
     public List<String> ids() {
         return all().keySet().stream().sorted().toList();
+    }
+
+    /** Is {@code id} an entry id an owner may name: letters, digits and underscores, starting with one of the first two? */
+    public static boolean isOwnerEntryId(@Nullable String id) {
+        return id != null && OWNER_ENTRY_ID.matcher(id).matches();
+    }
+
+    /** Is {@code path} a leaf an editor may write inside an entry: dotted letters and digits, each part a letter first? */
+    public static boolean isOwnerLeafPath(@Nullable String path) {
+        return path != null && OWNER_LEAF_PATH.matcher(path).matches();
+    }
+
+    /**
+     * May an owner name {@code id} for an entry of this store's owner file: the store's id pattern, by default
+     * {@link #isOwnerEntryId}. A store whose ids are narrower overrides this; nothing is written under an id it
+     * refuses.
+     */
+    public boolean acceptsOwnerEntryId(@Nullable String id) {
+        return isOwnerEntryId(id);
+    }
+
+    /**
+     * Write {@code leaves} (dotted paths inside one entry, {@code Stack.Cooldown}; a null value removes that leaf)
+     * into {@code ownerFile}'s entry for {@code id}, under the spelling the file already gives the id (so a write never
+     * adds a second entry that differs only in case), through {@link JsonOverrideWriter}: it keeps every other key and
+     * never writes over a file it cannot read, and each value's boxed type is the number type written ({@code Integer}
+     * {@code 16}, {@code Double} {@code 1.5}). An empty {@code leaves} makes the entry, empty, where the file has none.
+     * The caller reads the file back.
+     *
+     * @return false, the file left as it was, when the store refuses the id, a path is not a plain dotted path, or
+     *         the write failed
+     */
+    public boolean putOwnerLeaves(@Nonnull Path ownerFile, @Nonnull String id, @Nonnull Map<String, Object> leaves) {
+        if (!acceptsOwnerEntryId(id)) {
+            return false;
+        }
+        for (String path : leaves.keySet()) {
+            if (!isOwnerLeafPath(path)) {
+                return false;
+            }
+        }
+        String entry = ownerKeyIn(ownerFile, id);
+        if (leaves.isEmpty()) {
+            Boolean written = entryWritten(ownerFile, entry);
+            return written != null
+                    && (written || JsonOverrideWriter.setLeaf(ownerFile, entry, new LinkedHashMap<String, Object>()));
+        }
+        Map<String, Object> dotted = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> leaf : leaves.entrySet()) {
+            dotted.put(entry + "." + leaf.getKey(), leaf.getValue());
+        }
+        return JsonOverrideWriter.setLeaves(ownerFile, dotted);
+    }
+
+    /**
+     * Take {@code ownerFile}'s whole entry for {@code id} (any casing) out, so the id reads as the layers under the
+     * owner say, or is gone when only the owner's file held it. True when nothing is left under the id; false when the
+     * store refuses the id or the write failed. The caller reads the file back.
+     */
+    public boolean removeOwnerEntry(@Nonnull Path ownerFile, @Nonnull String id) {
+        if (!acceptsOwnerEntryId(id)) {
+            return false;
+        }
+        String entry = ownerKeyIn(ownerFile, id);
+        Boolean written = entryWritten(ownerFile, entry);
+        return written != null && (!written || JsonOverrideWriter.setLeaf(ownerFile, entry, null));
+    }
+
+    /**
+     * The key of {@code ownerFile} that names {@code id} without regard to case (never a reserved {@code $} key), else
+     * {@code id} as given. A file that is missing or cannot be read answers {@code id}; its writer refuses it anyway.
+     */
+    @Nonnull
+    private static String ownerKeyIn(@Nonnull Path ownerFile, @Nonnull String id) {
+        try {
+            if (Files.isRegularFile(ownerFile)) {
+                JsonElement root = JsonParser.parseString(Files.readString(ownerFile, StandardCharsets.UTF_8));
+                if (root.isJsonObject()) {
+                    for (String key : root.getAsJsonObject().keySet()) {
+                        if (!OwnerFiles.isReservedKey(key) && isOwnerEntryId(key) && key.equalsIgnoreCase(id)) {
+                            return key;
+                        }
+                    }
+                }
+            }
+        } catch (Exception unreadable) {
+            // The writer refuses a file it cannot read; the id as given stands.
+        }
+        return id;
+    }
+
+    /**
+     * Does {@code ownerFile} write an entry under exactly {@code key}? False for a missing or blank file; null for one
+     * that cannot be read as a JSON object, which nothing may write over.
+     */
+    @Nullable
+    private static Boolean entryWritten(@Nonnull Path ownerFile, @Nonnull String key) {
+        try {
+            if (!Files.isRegularFile(ownerFile)) {
+                return false;
+            }
+            String body = Files.readString(ownerFile, StandardCharsets.UTF_8);
+            if (body.isBlank()) {
+                return false;
+            }
+            JsonElement root = JsonParser.parseString(body);
+            return root.isJsonObject() ? root.getAsJsonObject().has(key) : null;
+        } catch (Exception unreadable) {
+            return null;
+        }
     }
 
     @Nonnull

@@ -13,17 +13,22 @@ import com.ziggfreed.common.owner.OwnerFileBinding;
 import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.track.command.ZigBoostCommand;
 import com.ziggfreed.common.track.gain.GainFactors;
+import com.ziggfreed.common.ui.owner.OwnerMenu;
+import com.ziggfreed.common.ui.owner.OwnerTile;
 
 /**
  * Registers the boosts at library setup, from the track module's bootstrap: the {@code Boost} gain factor over the
  * neutral one, the tiles on the buff bar, the native {@code ZigBoost} interaction Type and reward Type, the server
- * boosts' read from their file on {@code BootEvent} ({@link ServerBoosts#onBoot}), the {@code /zigboost} family and
- * the settings file's owner-form binding;
- * the plugin-free half ({@link #registerVocabulary}) is the
+ * boosts' read from their file on {@code BootEvent} ({@link ServerBoosts#onBoot}), the {@code /zigboost} family,
+ * the two owner files' owner-form bindings (the settings, and the boosts edited one at a time) and the owner menu's
+ * Award Boost tile ({@link BoostGivePage}); the plugin-free half ({@link #registerVocabulary}) is the
  * {@code Boost} reward kind and its chip. The two stores (boosts, settings) are registered with the other
  * framework stores. Registration only ({@code RootRegistrationOnlyTest}).
  */
 public final class BoostBootstrap {
+
+    /** The Award Boost tile's place in the library's section of the owner menu, after the two boost forms. */
+    public static final int GIVE_TILE_ORDER = 60;
 
     private BoostBootstrap() {
     }
@@ -44,6 +49,15 @@ public final class BoostBootstrap {
         OwnerFileBindings.register(OwnerFileBinding.keyedStore(BoostOwnerLayers.SETTINGS_BINDING,
                 BoostOwnerLayers::settingsFile, BoostSettingsConfig.getInstance(), BoostSettingsAsset.CODEC,
                 BoostOwnerLayers::reloadSettings));
+        // The boosts file, edited one boost at a time (the boost templates form): each Default read off the boosts
+        // store under the owner's layer, each write through the store's own entry writer, its reload the owner read.
+        OwnerFileBindings.register(OwnerFileBinding.keyedStore(BoostOwnerLayers.BOOSTS_BINDING,
+                BoostOwnerLayers::file, BoostConfig.getInstance(), BoostAsset.CODEC, BoostOwnerLayers::reload));
+        OwnerMenu.add(OwnerTile.screen(OwnerMenu.LIBRARY, "ziggfreedcommon:award_boost",
+                        BoostText.line("give.title"), BoostGivePage::open)
+                .order(GIVE_TILE_ORDER)
+                .line(BoostText.line("give.tile.line"))
+                .icon("Potion_Empty"));
     }
 
     /** The plugin-free half: the Boost reward kind and how it reads. Not guarded, as {@link #install} is not. */
