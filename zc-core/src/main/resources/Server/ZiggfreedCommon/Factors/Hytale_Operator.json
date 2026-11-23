@@ -1,0 +1,7 @@
+{
+  "$Comment": "Names the hytale:operator reading for requirement lines: 1 when the player is one of the server's operators (the group /op puts them in), else 0. It reads the game's own operator status, never a permission node, so granting a node (even *) never makes a player an operator here. A condition on it needs Min 1. It is asked fresh every time (Volatility Moment), so an operator removed with /op remove loses it at once.",
+  "Factor": "hytale:operator",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.operator" },
+  "AbsentReads": 0,
+  "Volatility": "Moment"
+}

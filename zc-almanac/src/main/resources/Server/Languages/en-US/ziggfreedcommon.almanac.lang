@@ -166,3 +166,11 @@ collection.mystery = ?
 collection.hidden = Not found yet
 collection.source = {0} - {1}
 collection.locked = {0} - {1}
+# The Almanac tab's screen on the owner menu (OwnerForms/Almanac_Tab.json), over almanac.json's $MenuTab.
+form.tab.title = Almanac Tab
+form.tab.desc = When the menu shows players the Almanac tab.
+form.tab.heading = The Almanac tab
+form.tab.show = Show the tab
+form.tab.show.hint = Off hides the Almanac tab from every player. On shows it whenever the Almanac lists a season.
+form.tab.live = Only while a season runs
+form.tab.live.hint = On shows the tab only while a season is running, and hides it between seasons.

@@ -209,7 +209,7 @@ command.respend.none = {1} has no remembered pick that can be spent again on {0}
 # rule at a time.
 form.rules.title = World Rules
 form.rules.desc = How each world's rules change what tracks gain there and what their picks grant. Pick a rule to change it.
-form.rules.note = Which worlds a rule covers, and every new rule, are written in the files: a pack's TrackWorldRules folder, mods/ziggfreedcommon/track-world-rules.json, or a world's own gameplay config. To switch every rule off at once, write "$Enabled": false at the top of track-world-rules.json.
+form.rules.note = Which worlds a rule covers, and every new rule, are written in the files: a pack's TrackWorldRules folder, mods/ziggfreedcommon/track-world-rules.json, or a world's own gameplay config. To switch every rule off at once, use the switch above the list of rules.
 form.rules.on = This rule applies
 form.rules.on.hint = Off keeps the rule but applies it nowhere, so its worlds follow the next rule that names them.
 form.rules.heading.gain = Gains here
@@ -243,3 +243,7 @@ form.curves.base.hint = The steady part. Higher makes every level slower by the 
 form.curves.scale = Scale
 form.curves.scale.hint = The part that doubles about every seven levels. Higher makes the late levels much slower.
 form.curves.preview = To reach level {0, number}: {1, number}. Level {2, number}: {3, number}. Level {4, number}: {5, number}. Level {6, number}: {7, number}.
+# The World Rules screen's switch for every rule at once, above its list (the file's own $Enabled).
+form.rules.heading.all = Every rule
+form.rules.all = World rules apply
+form.rules.all.hint = Off switches every world rule off at once, in every world: tracks gain and picks grant there as anywhere else. Each rule keeps its own settings for when you switch this back on.

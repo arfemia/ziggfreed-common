@@ -127,7 +127,14 @@ public final class OwnerFormValidator {
         String id = form.getId();
         String path = field.path();
         String where = "the owner form '" + id + "' setting " + (path == null ? "(no Path)" : path);
-        if (!OwnerFormAsset.isPath(path)) {
+        boolean reserved = binding != null && binding.reservesPath(path);
+        if (!reserved && OwnerFileBinding.isReservedPath(path)) {
+            out.add(Finding.error(DOMAIN, "UNDECLARED_RESERVED", where + " names a reserved $ key its file's binding "
+                    + "does not let a form write" + (binding == null || binding.reserved() == null ? ""
+                    : " (it declares " + binding.reserved() + " alone)") + ", so it is left off the form", id));
+            return;
+        }
+        if (!reserved && !OwnerFormAsset.isPath(path)) {
             out.add(Finding.error(DOMAIN, "BAD_PATH", where + " has a Path that is not dotted letters and digits, so "
                     + "it is left off the form", id));
             return;
@@ -161,7 +168,7 @@ public final class OwnerFormValidator {
                     "the dropdown reads the raw key");
         }
         if (binding != null) {
-            String mismatch = mismatch(kind, binding.below(form.entry(), path));
+            String mismatch = mismatch(kind, binding.below(reserved ? null : form.entry(), path));
             if (mismatch != null) {
                 out.add(Finding.warning(DOMAIN, "KIND_MISMATCH", where + " is a " + kind.word() + ", but the file's "
                         + "value under the owner's is " + mismatch + ", so a save would write the wrong type", id));

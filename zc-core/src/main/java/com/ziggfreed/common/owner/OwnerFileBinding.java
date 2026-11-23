@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,6 +48,12 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link View}: the owner's file as an editor reads it, so the leaves the form names are found where the owner wrote
  * them, and its {@link Entries} writer turns those leaves back into the file's own shape. Unnamed, an editor reads the
  * file as written.
+ *
+ * <p><b>One reserved setting.</b> A file's {@code $} keys are its own (a file-wide switch, a schema mark) and an
+ * editor never writes one, with a single exception the binding declares: {@link Builder#reserved} names ONE top-level
+ * {@code $} key of the file (almanac.json's {@code $MenuTab}, track-world-rules.json's {@code $Enabled}) that an editor
+ * may write, at that key or a dotted path inside it ({@link #reservesPath}). {@link #write} refuses, writing nothing,
+ * any leaf under a {@code $} key the binding did not declare, so a form can never reach a second one.
  */
 public final class OwnerFileBinding {
 
@@ -111,6 +118,9 @@ public final class OwnerFileBinding {
     /** No Default to show. */
     public static final Below NO_BELOW = (entry, path) -> null;
 
+    /** A reserved setting's key: {@code $}, then a letter, then letters and digits ({@code $MenuTab}). */
+    private static final Pattern RESERVED_KEY = Pattern.compile("\\$[A-Za-z][A-Za-z0-9]*");
+
     @Nonnull private final String id;
     @Nonnull private final Supplier<Path> file;
     @Nonnull private final Below below;
@@ -118,6 +128,7 @@ public final class OwnerFileBinding {
     @Nonnull private final Runnable reload;
     @Nullable private final Entries entries;
     @Nullable private final View view;
+    @Nullable private final String reserved;
 
     private OwnerFileBinding(@Nonnull Builder builder) {
         this.id = builder.id;
@@ -127,6 +138,26 @@ public final class OwnerFileBinding {
         this.reload = builder.reload;
         this.entries = builder.entries;
         this.view = builder.view;
+        this.reserved = builder.reserved;
+    }
+
+    /** Is {@code key} the shape of a reserved setting's key: {@code $}, a letter, then letters and digits? */
+    public static boolean isReservedKey(@Nullable String key) {
+        return key != null && RESERVED_KEY.matcher(key).matches();
+    }
+
+    /**
+     * Is {@code path} the shape of a path into a reserved setting: a reserved key ({@link #isReservedKey}) alone, or
+     * followed by dotted letters and digits ({@code $MenuTab.Show})? Whether an editor may write it is
+     * {@link #reservesPath}'s to say.
+     */
+    public static boolean isReservedPath(@Nullable String path) {
+        if (path == null) {
+            return false;
+        }
+        int dot = path.indexOf('.');
+        String key = dot < 0 ? path : path.substring(0, dot);
+        return isReservedKey(key) && (dot < 0 || AbstractKeyedAssetConfig.isOwnerLeafPath(path.substring(dot + 1)));
     }
 
     /**
@@ -244,8 +275,19 @@ public final class OwnerFileBinding {
         }
     }
 
-    /** Write {@code leaves} into the file; false when nothing was written (the file left as it was). */
+    /**
+     * Write {@code leaves} into the file; false when nothing was written (the file left as it was). A leaf naming a
+     * {@code $} key anywhere on its path, other than the binding's declared reserved setting ({@link #reservesPath}),
+     * refuses the whole write, with one warning, so an editor never writes a file's other {@code $} keys.
+     */
     public boolean write(@Nonnull Map<String, Object> leaves) {
+        for (String path : leaves.keySet()) {
+            if (namesReservedKey(path) && !reservesPath(path)) {
+                SafeLog.warn("[owner] " + id + " was not written: " + path + " is a reserved key its binding does not "
+                        + "let an editor write");
+                return false;
+            }
+        }
         try {
             return writer.write(file(), leaves);
         } catch (Throwable t) {
@@ -288,6 +330,37 @@ public final class OwnerFileBinding {
      */
     public boolean reshapes() {
         return view != null;
+    }
+
+    /** Does {@code path} name a {@code $} key at any step (a null path counts, so it is refused too)? */
+    static boolean namesReservedKey(@Nullable String path) {
+        if (path == null) {
+            return true;
+        }
+        for (String part : path.split("\\.", -1)) {
+            if (part.trim().startsWith("$")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The one reserved setting an editor may write in this file ({@code $MenuTab}), or null for none. */
+    @Nullable
+    public String reserved() {
+        return reserved;
+    }
+
+    /**
+     * May an editor write {@code path} as this file's reserved setting: the declared key itself, or a dotted path of
+     * letters and digits inside it ({@code $MenuTab.Show})? False for any other {@code $} key, and for a binding that
+     * declares none. The key matches exactly as the binding spells it.
+     */
+    public boolean reservesPath(@Nullable String path) {
+        if (reserved == null || path == null || !isReservedPath(path)) {
+            return false;
+        }
+        return path.equals(reserved) || path.startsWith(reserved + ".");
     }
 
     /** Is the file id-keyed, with {@link Entries} an editor may list and write one at a time? */
@@ -442,6 +515,7 @@ public final class OwnerFileBinding {
         @Nonnull private Runnable reload = () -> { };
         @Nullable private Entries entries;
         @Nullable private View view;
+        @Nullable private String reserved;
 
         private Builder(@Nonnull String id, @Nonnull Supplier<Path> file) {
             this.id = Objects.requireNonNull(id, "id").trim();
@@ -483,6 +557,20 @@ public final class OwnerFileBinding {
         @Nonnull
         public Builder view(@Nullable View value) {
             this.view = value;
+            return this;
+        }
+
+        /**
+         * The ONE top-level {@code $} key of the file an editor may write ({@code $MenuTab}, {@code $Enabled}), at the
+         * key or a dotted path inside it; null for none (unset). A binding declares at most one: a second call
+         * replaces the first. Throws for a key that is not {@code $} and letters and digits.
+         */
+        @Nonnull
+        public Builder reserved(@Nullable String key) {
+            if (key != null && !isReservedKey(key.trim())) {
+                throw new IllegalArgumentException("a reserved setting is a $ key of letters and digits: " + key);
+            }
+            this.reserved = key == null ? null : key.trim();
             return this;
         }
 

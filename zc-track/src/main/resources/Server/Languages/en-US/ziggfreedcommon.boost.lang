@@ -95,7 +95,7 @@ form.settings.personal.hint = How many boosts one player can have running at onc
 form.settings.server = Server boosts
 form.settings.server.hint = How many server boosts can run at once. Zero lets nobody start one.
 form.settings.heading.start = When a boost starts
-form.settings.start.note = A server command of your own that runs as the console whenever any mod's boost starts: an announcement, a webhook, a reward. Write the command itself in boost-settings.json, under Default, OnStart, Command; this screen only switches it and says when it runs.
+form.settings.start.note = A server command of your own that runs as the console whenever any mod's boost starts: an announcement, a webhook, a reward. Only a server operator sees and changes the command itself on this screen; it lives in boost-settings.json, under Default, OnStart, Command.
 form.settings.start.on = Run your command
 form.settings.start.on.hint = On runs the command from boost-settings.json each time a boost starts.
 form.settings.start.personal = On personal boosts
@@ -155,3 +155,20 @@ give.received = You were given {0}. Collect it from your Claims when you want it
 give.done = {0} is waiting in {1}'s Claims.
 give.server_done = {0} has started for everyone.
 give.server_refused = That boost could not start for everyone.
+# The boost settings screen's start command (OwnerForms/Boost_Settings.json), which only a server operator sees, and
+# the Award Boost screen's permission grant for a boost players start themselves. In give.granted {0} is the
+# permission node, {1} the player and {2} the boost; in give.node.held {0} is the player and {1} the node; in
+# give.node.received {0} is the boost; in give.node.failed {0} is the player.
+form.settings.start.command = The command (runs as the console)
+form.settings.start.command.hint = Runs as the server console, with everything the console can do, each time a boost starts while Run your command is on. Only a server operator sees this setting.
+give.heading.node = Let a player start it themselves
+give.node.note = A boost players start themselves asks for a permission. Pick it here and Grant gives the player named above, online, exactly that permission, so they can start the boost whenever its wait is over.
+give.node = Permission to grant
+give.grant = Grant
+give.node.none = No boost players start themselves asks for a permission on this server.
+give.node.unknown = That boost does not ask for a permission any more.
+give.node.bad = That boost's permission cannot be granted from here. Grant it with your permission tools.
+give.node.held = {0} already holds {1}.
+give.node.failed = Could not grant the permission to {0}. Try again in a moment.
+give.node.received = You were given the permission {0} asks for. /zigboost own lists every boost you can start.
+give.granted = Granted {0} to {1}: the permission {2} asks for.

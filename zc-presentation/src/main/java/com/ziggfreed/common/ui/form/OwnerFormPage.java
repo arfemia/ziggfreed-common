@@ -45,7 +45,9 @@ import com.ziggfreed.common.util.SafeLog;
  * Back returning to the list; a row's Reset takes the form's settings for that entry out of the owner's file, Remove
  * takes out an entry only the owner's file holds, and Add (where the form allows it) writes a new entry under an id the
  * store's id pattern accepts and no entry has yet, then opens it. An entry is acted on only while the form still lists
- * it, asked again before every write.
+ * it, asked again before every write. A setting of the form naming the file's reserved setting (its binding's one
+ * {@code $} key, such as a switch for every entry at once) is drawn above the list, with Save shown for it, and changed,
+ * saved and reset there like any setting.
  *
  * <p>A form naming an audit shows its problem count on every draw ({@link OwnerFormAudits}); one naming a preview
  * shows its line under the settings ({@link OwnerFormPreviews}), sent again after every change to a control, so it
@@ -107,8 +109,17 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
             if (form.entries() != null && (entryId == null || !OwnerFormEntries.lists(form, entryId))) {
                 entryId = null;
                 OwnerFormEntries read = OwnerFormEntries.read(form);
-                OwnerFormPaint.paintEntries(cmd, events, read, this.playerRef);
+                // The file's own reserved setting, when its binding declares one the form names, above the list.
+                OwnerFormPlan file = OwnerFormPlan.read(form, null,
+                        setting -> OwnerForms.fieldShownTo(setting, this.playerRef, player));
+                rows = OwnerFormPaint.paintEntries(cmd, events, read, file, this.playerRef);
                 entries = read;
+                if (!file.settings().isEmpty()) {
+                    for (OwnerFormPlan.Setting setting : file.settings()) {
+                        leaves.add(OwnerFormPaint.leaf(setting, setting.shown(), setting.set()));
+                    }
+                    plan = file;
+                }
             } else {
                 OwnerFormPlan read = OwnerFormPlan.read(form, form.entries() == null ? null : entryId,
                         setting -> OwnerForms.fieldShownTo(setting, this.playerRef, player));
@@ -169,12 +180,17 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
         }
         OwnerFormEntries list = entries;
         if (list != null) {
-            return switch (action) {
-                case OwnerFormPaint.OPEN -> open(ref, store, player, list, data.field);
-                case OwnerFormPaint.DROP -> drop(ref, store, player, list, data.field);
-                case OwnerFormPaint.ADD -> add(ref, store, player, list, data.value);
-                default -> false;
-            };
+            switch (action) {
+                case OwnerFormPaint.OPEN:
+                    return open(ref, store, player, list, data.field);
+                case OwnerFormPaint.DROP:
+                    return drop(ref, store, player, list, data.field);
+                case OwnerFormPaint.ADD:
+                    return add(ref, store, player, list, data.value);
+                default:
+                    // A change, Reset or Save on the list is the file's own setting above it (plan), when it has one.
+                    break;
+            }
         }
         OwnerFormPlan current = plan;
         if (current == null) {

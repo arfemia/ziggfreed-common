@@ -3,6 +3,10 @@ package com.ziggfreed.common.track.boost;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -19,6 +23,8 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.NameMatching;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.hypixel.hytale.server.core.permissions.PermissionValidation;
+import com.hypixel.hytale.server.core.permissions.PermissionsModule;
 import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
 import com.hypixel.hytale.server.core.ui.LocalizableString;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
@@ -31,6 +37,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.owner.OwnerAudience;
+import com.ziggfreed.common.progress.gate.FeatureLift;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.ui.SettingsUiUtil;
@@ -47,13 +55,20 @@ import com.ziggfreed.common.util.SafeLog;
  * The owner menu's Award Boost screen ({@code Pages/ZigBoostGivePage.ui}): pick any mod's boost and, inside what it
  * lifts, one track or all of them, with its own percent and length or the ones typed here; then give it to a player
  * online, as a Claim on their Claims tab that starts it when they collect it, or start it now for everyone on the
- * server ({@link Boosts#startServer}). It runs no command and grants no permission of its own: a start it makes is
- * any boost's start, the owner's own start command from {@code boost-settings.json} included, as on every start.
+ * server ({@link Boosts#startServer}). It runs no command: a start it makes is any boost's start, the owner's own start
+ * command from {@code boost-settings.json} included, as on every start.
  *
  * <p>It offers every switched-on timed boost but a reusable one (a reusable boost is each player's own to start). Every
  * value the client sends is read again here: the boost must be one this screen offers, the track one that boost
  * lifts, the numbers in range, the player online. Every event but Close asks the owner audience again
  * ({@link OwnerPageGuard}, which closes the page on a refusal), and every exit answers the client.
+ *
+ * <p><b>The permission a reusable boost asks for.</b> A reusable boost whose {@code Reusable.Requires} names a
+ * permission node (its top-level {@code Permission} leaf) is one a player starts once they hold that node. The screen
+ * lists each such node ({@link #grantable}: a switched-on reusable boost the game shows on this server, its node one
+ * exact node, never a wildcard or a denial) and grants exactly the picked one to the player named, online, through the
+ * engine's own permission module ({@code PermissionsModule.addUserPermission}), never a command; the node is read again
+ * from the boosts at the press, and the line says what it granted.
  */
 public final class BoostGivePage extends InteractiveCustomUIPage<BoostGivePage.Event> {
 
@@ -77,10 +92,12 @@ public final class BoostGivePage extends InteractiveCustomUIPage<BoostGivePage.E
     static final String GIVE = "#BoostGiveGive";
     static final String SERVER = "#BoostGiveServer";
     static final String BACK = "#BoostGiveBack";
+    static final String NODE = "#BoostGiveNode";
+    static final String GRANT = "#BoostGiveGrant";
 
     /** Every selector this page sets or binds, which its document test walks. */
     static final List<String> SELECTORS = List.of(STATUS, BOOST, TRACK, PERCENT, MINUTES, OWN, PLAYER, GIVE, SERVER,
-            BACK);
+            BACK, NODE, GRANT);
 
     static final String ACTION = "Action";
     static final String A_CLOSE = "close";
@@ -88,11 +105,13 @@ public final class BoostGivePage extends InteractiveCustomUIPage<BoostGivePage.E
     static final String A_BOOST = "boost";
     static final String A_GIVE = "give";
     static final String A_SERVER = "server";
+    static final String A_GRANT = "grant";
     static final String K_BOOST = "@Boost";
     static final String K_TRACK = "@Track";
     static final String K_PERCENT = "@Percent";
     static final String K_MINUTES = "@Minutes";
     static final String K_PLAYER = "@Player";
+    static final String K_NODE = "@Node";
 
     /** What the page's events round-trip: which button, and each control's live value. */
     public static final class Event {
@@ -103,6 +122,7 @@ public final class BoostGivePage extends InteractiveCustomUIPage<BoostGivePage.E
         String percent;
         String minutes;
         String player;
+        String node;
 
         public static final BuilderCodec<Event> CODEC = BuilderCodec.builder(Event.class, Event::new)
                 .append(new KeyedCodec<>(ACTION, Codec.STRING),
@@ -117,6 +137,8 @@ public final class BoostGivePage extends InteractiveCustomUIPage<BoostGivePage.E
                         (e, v, info) -> e.minutes = v, (e, info) -> e.minutes).add()
                 .append(new KeyedCodec<>(K_PLAYER, Codec.STRING),
                         (e, v, info) -> e.player = v, (e, info) -> e.player).add()
+                .append(new KeyedCodec<>(K_NODE, Codec.STRING),
+                        (e, v, info) -> e.node = v, (e, info) -> e.node).add()
                 .build();
     }
 
@@ -164,9 +186,11 @@ public final class BoostGivePage extends InteractiveCustomUIPage<BoostGivePage.E
                         OwnerText.line("menu.refused"), null));
                 cmd.set(GIVE + ".Disabled", true);
                 cmd.set(SERVER + ".Disabled", true);
+                cmd.set(GRANT + ".Disabled", true);
                 return;
             }
             HeroPainter.paint(cmd, new Hero(null, BoostText.line("give.title"), BoostText.line("give.line"), null));
+            paintNodes(cmd);
             List<BoostAsset> offered = offered();
             BoostAsset boost = pick(offered, selected);
             if (boost == null) {
@@ -227,8 +251,50 @@ public final class BoostGivePage extends InteractiveCustomUIPage<BoostGivePage.E
             }
             case A_GIVE -> give(boost, data);
             case A_SERVER -> startServer(boost, data);
+            case A_GRANT -> grant(data);
             default -> false;
         };
+    }
+
+    /**
+     * Grant the permission node picked in {@code data} to the player named there, online: only a node some switched-on
+     * reusable boost names right now ({@link #grantable}), read again here, through the engine's own permission module.
+     * A player who already holds it is told so and nothing is written.
+     */
+    private boolean grant(@Nonnull Event data) {
+        String node = data.node == null ? "" : data.node.trim();
+        BoostAsset boost = node.isEmpty() ? null : grantable().get(node);
+        if (boost == null) {
+            return say(BoostText.line(node.isEmpty() || !grantableNode(node) ? "give.node.bad" : "give.node.unknown"),
+                    true);
+        }
+        String name = data.player == null ? "" : data.player.trim();
+        if (name.isEmpty()) {
+            return say(BoostText.line("give.player_needed"), true);
+        }
+        PlayerRef target = Universe.get().getPlayerByUsername(name, NameMatching.EXACT_IGNORE_CASE);
+        if (target == null) {
+            return say(BoostText.line("give.player_offline", name), true);
+        }
+        PermissionsModule permissions = PermissionsModule.get();
+        UUID uuid = target.getUuid();
+        try {
+            if (permissions == null) {
+                return say(BoostText.line("give.node.failed", target.getUsername()), true);
+            }
+            if (permissions.hasPermission(uuid, node)) {
+                return say(BoostText.line("give.node.held", target.getUsername(), node), false);
+            }
+            permissions.addUserPermission(uuid, Set.of(node));
+        } catch (Throwable t) {
+            SafeLog.warn("[boost] the permission " + node + " could not be granted to " + target.getUsername()
+                    + " from the Award Boost screen: " + t.getMessage());
+            return say(BoostText.line("give.node.failed", target.getUsername()), true);
+        }
+        target.sendMessage(BoostText.line("give.node.received", BoostText.name(boost)));
+        SafeLog.info("[boost] " + this.playerRef.getUsername() + " granted " + target.getUsername() + " the permission "
+                + node + " (the reusable boost " + boost.getId() + ") from the Award Boost screen");
+        return say(BoostText.line("give.granted", node, target.getUsername(), BoostText.name(boost)), false);
     }
 
     /** Give {@code boost} to the player named in {@code data}, as a Claim they collect. */
@@ -353,6 +419,70 @@ public final class BoostGivePage extends InteractiveCustomUIPage<BoostGivePage.E
         events.addEventBinding(CustomUIEventBindingType.Activating, GIVE, values(A_GIVE).append(K_PLAYER,
                 PLAYER + ".Value"), false);
         events.addEventBinding(CustomUIEventBindingType.Activating, SERVER, values(A_SERVER), false);
+        events.addEventBinding(CustomUIEventBindingType.Activating, GRANT, EventData.of(ACTION, A_GRANT)
+                .append(K_NODE, NODE + ".Value").append(K_PLAYER, PLAYER + ".Value"), false);
+    }
+
+    /**
+     * The node dropdown: every node {@link #grantable} lists, by node; with none, one empty entry saying so and Grant
+     * switched off.
+     */
+    private static void paintNodes(@Nonnull UICommandBuilder cmd) {
+        Map<String, BoostAsset> nodes = grantable();
+        List<DropdownEntryInfo> entries = new ArrayList<>();
+        for (String node : nodes.keySet()) {
+            // TEXT-OK: a permission node is an id the owner grants by its exact spelling, in no language.
+            entries.add(new DropdownEntryInfo(LocalizableString.fromString(node), node));
+        }
+        if (entries.isEmpty()) {
+            entries.add(new DropdownEntryInfo(LocalizableString.fromMessageId(BoostText.PREFIX + "give.node.none"), ""));
+        }
+        cmd.set(NODE + ".Entries", entries);
+        cmd.set(NODE + ".Value", nodes.isEmpty() ? "" : nodes.keySet().iterator().next());
+        cmd.set(GRANT + ".Disabled", nodes.isEmpty());
+    }
+
+    /**
+     * Every permission node a player may be granted here, to the first boost (by id) that asks for it: each switched-on
+     * reusable boost whose {@code Reusable.Requires} names a node in its top-level {@code Permission} leaf, that the
+     * game shows on this server (the plain feature and mod conditions of that block on, as the Boost Templates form
+     * reads them), and whose node is one exact node ({@link #grantableNode}). Keyed by the node exactly as the boost
+     * spells it, so a lookup matches that spelling alone; listed in node order without regard to case.
+     */
+    @Nonnull
+    static Map<String, BoostAsset> grantable() {
+        List<BoostAsset> boosts = new ArrayList<>(BoostConfig.getInstance().all().values());
+        boosts.removeIf(boost -> boost == null);
+        boosts.sort(Comparator.comparing(BoostAsset::getId, String.CASE_INSENSITIVE_ORDER));
+        // Keyed by the node exactly as the boost spells it (the engine matches a node exactly), listed without regard to
+        // case: a node typed in another case is no node a boost names, and two nodes differing in case stay two.
+        Comparator<String> order = String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder());
+        Map<String, BoostAsset> out = new TreeMap<>(order);
+        for (BoostAsset boost : boosts) {
+            GateSpec requires = boost.reusableRequires();
+            String node = requires == null || requires.getPermission() == null ? null : requires.getPermission().trim();
+            if (!boost.isEnabled() || !boost.isReusable() || node == null || !grantableNode(node)) {
+                continue;
+            }
+            try {
+                if (!FeatureLift.allOn(FeatureLift.liftKnown(requires).lifted())) {
+                    continue;
+                }
+            } catch (Throwable t) {
+                continue;
+            }
+            out.putIfAbsent(node, boost);
+        }
+        return out;
+    }
+
+    /**
+     * May {@code node} be granted from this screen: one valid, exact node, never a wildcard ({@code *}, which would
+     * grant more than the boost asks for) or a denial ({@code -node})?
+     */
+    static boolean grantableNode(@Nullable String node) {
+        return node != null && !node.isBlank() && !node.contains("*") && !node.startsWith("-")
+                && PermissionValidation.isValidPermissionNode(node);
     }
 
     /** {@code action} with the boost, track, percent and length controls' live values. */

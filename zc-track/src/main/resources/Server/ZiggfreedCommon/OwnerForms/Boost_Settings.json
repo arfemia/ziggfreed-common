@@ -1,5 +1,5 @@
 {
-  "$Comment": "The in-game screen for mods/ziggfreedcommon/boost-settings.json, on the owner menu (/zigadmin): each setting below shows the value in force, the value the server would use without your file, and saves straight into the file under its Default entry. The command a boost start runs is written in the file by hand only (OnStart.Command): the screen switches it and says when it runs, but never edits it, so a permission to change settings is never a way to run console commands. Every word is a key of ziggfreedcommon.boost.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Boost_Settings.",
+  "$Comment": "The in-game screen for mods/ziggfreedcommon/boost-settings.json, on the owner menu (/zigadmin): each setting below shows the value in force, the value the server would use without your file, and saves straight into the file under its Default entry. The command a boost start runs (OnStart.Command) runs as the console, so only a server operator (the game's own operator status, never a permission node) sees and changes it here; anyone else with the settings permission sees the screen without it, so a permission to change settings is never a way to run console commands. Every word is a key of ziggfreedcommon.boost.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Boost_Settings.",
   "Title": "ziggfreedcommon.boost.form.settings.title",
   "Description": "ziggfreedcommon.boost.form.settings.desc",
   "Icon": "Potion_Mana_Large",
@@ -57,6 +57,20 @@
           "Kind": "Switch",
           "Label": "ziggfreedcommon.boost.form.settings.start.on",
           "Hint": "ziggfreedcommon.boost.form.settings.start.on.hint"
+        },
+        {
+          "Path": "OnStart.Command",
+          "Kind": "Text",
+          "Label": "ziggfreedcommon.boost.form.settings.start.command",
+          "Hint": "ziggfreedcommon.boost.form.settings.start.command.hint",
+          "Requires": {
+            "Factors": [
+              {
+                "Factor": "hytale:operator",
+                "Min": 1
+              }
+            ]
+          }
         },
         {
           "Path": "OnStart.Personal",

@@ -1,5 +1,5 @@
 {
-  "$Comment": "The in-game screen for the track world rules, on the owner menu (/zigadmin): one row per rule in force, each opening its switch, what gains there and what the picks grant there, every setting saved straight into mods/ziggfreedcommon/track-world-rules.json under that rule's id, beside the value it has without your file. The line at the top counts the problems the track audit finds in the rules. Which worlds a rule covers, every new rule and the switch for every rule at once ($Enabled) stay in the files. Every word is a key of ziggfreedcommon.track.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Track_World_Rules.",
+  "$Comment": "The in-game screen for the track world rules, on the owner menu (/zigadmin): one row per rule in force, each opening its switch, what gains there and what the picks grant there, every setting saved straight into mods/ziggfreedcommon/track-world-rules.json under that rule's id, beside the value it has without your file. Above the rows, one switch turns every rule off at once: it writes the file's own $Enabled at the top of the file, the one $ key this screen may write. The line at the top counts the problems the track audit finds in the rules. Which worlds a rule covers and every new rule stay in the files. Every word is a key of ziggfreedcommon.track.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Track_World_Rules.",
   "Title": "ziggfreedcommon.track.form.rules.title",
   "Description": "ziggfreedcommon.track.form.rules.desc",
   "Icon": "Portal_Device",
@@ -9,6 +9,17 @@
   "Audit": "ziggfreedcommon:track_world_rules",
   "Entries": {},
   "Sections": [
+    {
+      "Heading": "ziggfreedcommon.track.form.rules.heading.all",
+      "Fields": [
+        {
+          "Path": "$Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.track.form.rules.all",
+          "Hint": "ziggfreedcommon.track.form.rules.all.hint"
+        }
+      ]
+    },
     {
       "Note": "ziggfreedcommon.track.form.rules.note",
       "Fields": [

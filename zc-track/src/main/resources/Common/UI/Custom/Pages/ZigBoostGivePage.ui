@@ -8,15 +8,16 @@ $ZM = "../Common/ZigForm.ui";
 // hero filled: pick a boost (#BoostGiveBoost) and one track it lifts or all of them (#BoostGiveTrack), its percent and
 // length or the boost's own when left blank (#BoostGivePercent, #BoostGiveMinutes, and #BoostGiveOwn saying what the
 // boost gives on its own), then give it to a player online as a Claim (#BoostGivePlayer, #BoostGiveGive) or start it
-// for everyone now (#BoostGiveServer). #BoostGiveStatus is the line each press answers on; Back returns to the owner
-// menu. The settings form's look by name (Common/ZigForm.ui). Every fixed word is an inline key of
-// ziggfreedcommon.boost.lang; every other word is pushed from Java on .TextSpans.
+// for everyone now (#BoostGiveServer). Below the player's row, #BoostGiveNode lists the permissions the boosts players
+// start themselves ask for, and #BoostGiveGrant grants the picked one to that same player. #BoostGiveStatus is the line
+// each press answers on; Back returns to the owner menu. The settings form's look by name (Common/ZigForm.ui). Every
+// fixed word is an inline key of ziggfreedcommon.boost.lang; every other word is pushed from Java on .TextSpans.
 
 $C.@PageOverlay {}
 
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 960, Height: 760);
+  Anchor: (Width: 960, Height: 880);
 
   #Content {
     Label #BoostGiveStatus {
@@ -141,6 +142,48 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: %ziggfreedcommon.boost.give.give;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+      }
+
+      Label {
+        Text: %ziggfreedcommon.boost.give.heading.node;
+        Anchor: (Height: 24, Top: 6, Bottom: 4);
+        Style: $ZM.@ZigFormHeaderStyle;
+      }
+
+      Label {
+        Text: %ziggfreedcommon.boost.give.node.note;
+        Anchor: (Bottom: 6);
+        Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
+      }
+
+      $ZM.@ZigFormRow {
+        @Anchor = (Bottom: 14);
+
+        Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.boost.give.node;
+          Style: $ZM.@ZigFormLabelStyle;
+        }
+
+        $C.@DropdownBox #BoostGiveNode {
+          Anchor: (Width: 420, Height: 30);
+          Style: $ZM.@ZigFormDropdownStyle;
+        }
+
+        Group {
+          Anchor: (Width: 8);
+        }
+
+        Button #BoostGiveGrant {
+          Anchor: (Width: 132, Height: 30);
+          Style: $ZS.@ZigButtonPrimaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.boost.give.grant;
             Style: $ZX.@ZigButtonLabelStyle;
           }
         }

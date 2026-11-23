@@ -22,6 +22,7 @@ import com.ziggfreed.common.entity.HeldItemUtil;
 import com.ziggfreed.common.entity.ItemReadings;
 import com.ziggfreed.common.inventory.ItemLineage;
 import com.ziggfreed.common.match.NamePattern;
+import com.ziggfreed.common.owner.ServerOperators;
 import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
 
@@ -63,6 +64,9 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *       {@code Parent} lineage</td><td>1 on a match, else 0</td></tr>
  *   <tr><td>{@code hytale:permission}</td><td>a permission node</td>
  *       <td>1 when the subject's connection holds it, else 0</td></tr>
+ *   <tr><td>{@code hytale:operator}</td><td>ignored</td>
+ *       <td>1 when the subject is one of the server's operators (the game's own operator group, never a node),
+ *       else 0</td></tr>
  *   <tr><td>{@code hytale:item_quality}</td><td>ignored</td>
  *       <td>the context STACK's quality tier value (a quality stamped on it, else its item's)</td></tr>
  *   <tr><td>{@code hytale:item_level}</td><td>ignored</td><td>the context item's native item level</td></tr>
@@ -144,6 +148,11 @@ public final class HytaleFactors {
     public static final String HELD_ITEM = "hytale:held_item";
     /** {@code hytale:permission} - 1 when the subject holds the permission node named by Param, else 0. */
     public static final String PERMISSION = "hytale:permission";
+    /**
+     * {@code hytale:operator} - 1 when the subject is one of the server's operators, the game's own operator status
+     * (zc-core's {@code ServerOperators}), else 0; never a permission node, so no node grant reads as an operator.
+     */
+    public static final String OPERATOR = "hytale:operator";
     /** {@code hytale:item_quality} - the context STACK's quality-tier ordering value (its stamped quality, else its item's). */
     public static final String ITEM_QUALITY = "hytale:item_quality";
     /** {@code hytale:item_level} - the context item's native item level. */
@@ -178,6 +187,7 @@ public final class HytaleFactors {
         registry.register(HELD_TAG, owner, HytaleFactors::resolveHeldTag);
         registry.register(HELD_ITEM, owner, HytaleFactors::resolveHeldItem);
         registry.register(PERMISSION, owner, HytaleFactors::resolvePermission);
+        registry.register(OPERATOR, owner, HytaleFactors::resolveOperator);
         registry.register(ITEM_QUALITY, owner, HytaleFactors::resolveItemQuality);
         registry.register(ITEM_LEVEL, owner, HytaleFactors::resolveItemLevel);
         registry.register(ITEM_DURABILITY_PERCENT, owner, HytaleFactors::resolveItemDurabilityPercent);
@@ -481,6 +491,25 @@ public final class HytaleFactors {
         }
         PlayerRef playerRef = store.getComponent(subject, PlayerRef.getComponentType());
         return playerRef == null ? null : (playerRef.hasPermission(node) ? YES : NO);
+    }
+
+    /**
+     * {@code 1} when the subject is one of the server's operators, else {@code 0}: the game's own operator status, read
+     * through zc-core's {@link ServerOperators} (the group {@code /op} puts a player in), never a permission node, so a
+     * player granted a node, even {@code *}, reads 0. {@code Param} is ignored.
+     *
+     * <p>Null when there is no live subject or the subject is not a player, as for {@link #resolvePermission}: nobody to
+     * ask is not a definite "no", so a gate on either side stays shut.
+     */
+    @Nullable
+    static Double resolveOperator(@Nonnull FactorContext ctx) {
+        Store<EntityStore> store = ctx.store();
+        Ref<EntityStore> subject = ctx.subject();
+        if (!ctx.hasLiveSubject() || store == null || subject == null) {
+            return null;
+        }
+        PlayerRef playerRef = store.getComponent(subject, PlayerRef.getComponentType());
+        return playerRef == null ? null : (ServerOperators.isOperator(playerRef) ? YES : NO);
     }
 
     /**

@@ -12,6 +12,7 @@ import com.ziggfreed.common.almanac.page.AlmanacDestinations;
 import com.ziggfreed.common.almanac.page.AlmanacMenuTab;
 import com.ziggfreed.common.almanac.page.AlmanacParts;
 import com.ziggfreed.common.almanac.stats.AlmanacStatistics;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.ui.kit.LedgerContributions;
 import com.ziggfreed.common.ui.menu.MenuSlot;
@@ -58,6 +59,7 @@ public final class AlmanacBootstrap {
         // data folder, and the first load that finds them only there moves them across.
         ServerTallies.shared().init(AlmanacOwnerLayers.directory(), plugin.getDataDirectory());
         AlmanacOwnerLayers.readSwitch();
+        registerOwnerFiles();
         registerVocabulary();
         try {
             plugin.getCommandRegistry().registerCommand(new ZigAlmanacCommand());
@@ -95,6 +97,19 @@ public final class AlmanacBootstrap {
                 OccurrenceAlmanacCalendar.INSTANCE, ServerTallies.shared()));
         LedgerContributions.contribute(LedgerContributions.STATISTICS, AlmanacStatistics.production());
         ProgressionRuntime.onBuilt(AlmanacKeepsakeCheck::logFindings);
+    }
+
+    /**
+     * {@code mods/ziggfreedcommon/almanac.json} as one an owner form may write, its one reserved setting the menu tab's
+     * {@code $MenuTab} ({@link AlmanacOwnerLayers#binding}): the Almanac Tab form ({@code OwnerForms/Almanac_Tab.json})
+     * writes through it, on a server running the library alone.
+     */
+    public static void registerOwnerFiles() {
+        try {
+            OwnerFileBindings.register(AlmanacOwnerLayers.binding());
+        } catch (Throwable t) {
+            SafeLog.warn("[almanac] almanac.json could not be bound, so the Almanac tab form writes nothing", t);
+        }
     }
 
     /**

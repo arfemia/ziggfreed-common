@@ -101,7 +101,15 @@ public final class OwnerFormPlan {
     /**
      * {@link #read(OwnerFormAsset, String)} with only the settings {@code shown} lets through: a setting whose own
      * {@code Requires} the viewing owner does not meet ({@link OwnerForms#fieldShownTo}) is left off, so it is neither
-     * drawn nor written, and every setting kept is numbered in order as if it were the form's only ones.
+     * drawn nor written, and every setting kept is numbered in order as if it were the form's only ones. A section's
+     * heading and note come only with a setting of it that is kept (or with a section that has none at all), so a
+     * section an owner sees nothing of is not drawn.
+     *
+     * <p><b>The file's one reserved setting.</b> A setting whose {@code Path} is the reserved setting its file's binding
+     * declares ({@link OwnerFileBinding#reservesPath}, {@code $MenuTab.Show}) is the file's own, never an entry's: it
+     * is read and written from the file's root, beside a form of settings' other settings, and on a form of the Entries
+     * shape it is the list's (read with a null {@code entryId}, alone), never one entry's. A {@code $} path the binding
+     * does not declare is left off.
      */
     @Nonnull
     public static OwnerFormPlan read(@Nonnull OwnerFormAsset form, @Nullable String entryId,
@@ -127,36 +135,47 @@ public final class OwnerFormPlan {
             root = binding.ownerView(root);
         }
         boolean insideEntry = entryId != null;
+        // The list of a form of the Entries shape carries the file's own reserved setting alone.
+        boolean list = form.entries() != null && !insideEntry;
         String entry = insideEntry ? entryId : form.entry();
         String entryKey = entry == null ? null : keyIn(root, entry);
         JsonObject scope = entryKey == null ? root : objectAt(root, entryKey);
         List<Line> lines = new ArrayList<>();
         List<Setting> settings = new ArrayList<>();
         for (OwnerFormAsset.Section section : form.sections()) {
+            List<Line> heads = new ArrayList<>();
             if (section.heading() != null) {
-                lines.add(new Line(section.heading(), null, null));
+                heads.add(new Line(section.heading(), null, null));
             }
             if (section.note() != null) {
-                lines.add(new Line(null, section.note(), null));
+                heads.add(new Line(null, section.note(), null));
             }
-            for (OwnerFormAsset.Field field : section.fields()) {
+            List<OwnerFormAsset.Field> fields = section.fields();
+            if (fields.isEmpty() && !list) {
+                lines.addAll(heads);
+            }
+            for (OwnerFormAsset.Field field : fields) {
                 OwnerFormKind kind = field.kind();
                 String path = field.path();
-                if (kind == null || !OwnerFormAsset.isPath(path) || (entry != null && !OwnerFormAsset.isEntry(entry))
-                        || !shown.test(field)) {
+                boolean reserved = binding != null && binding.reservesPath(path);
+                boolean plain = OwnerFormAsset.isPath(path) && (entry == null || OwnerFormAsset.isEntry(entry));
+                if (kind == null || !shown.test(field) || (reserved ? insideEntry : list || !plain)) {
                     continue;
                 }
-                String writePath = insideEntry || entryKey == null ? path : entryKey + "." + path;
+                String writePath = reserved || insideEntry || entryKey == null ? path : entryKey + "." + path;
                 List<String> choices = new ArrayList<>();
                 for (OwnerFormAsset.Choice choice : field.choices()) {
                     choices.add(choice.value());
                 }
                 OwnerFormField writer = new OwnerFormField(settings.size(), kind, writePath, field.min(), field.max(),
                         choices);
-                Object below = binding == null ? null : binding.below(entry, path);
-                String owner = scope == null ? null : ownerRaw(kind, leaf(scope, path));
+                Object below = binding == null ? null : binding.below(reserved ? null : entry, path);
+                JsonObject from = reserved ? root : scope;
+                String owner = from == null ? null : ownerRaw(kind, leaf(from, path));
                 Setting setting = new Setting(writer, field, below, owner);
                 settings.add(setting);
+                lines.addAll(heads);
+                heads.clear();
                 lines.add(new Line(null, null, setting));
             }
         }

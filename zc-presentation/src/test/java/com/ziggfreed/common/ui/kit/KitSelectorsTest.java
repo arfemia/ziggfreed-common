@@ -540,7 +540,7 @@ class KitSelectorsTest {
                     public boolean remove(@Nonnull Path at, @Nonnull String id) {
                         return false;
                     }
-                }).build());
+                }).reserved("$Enabled").build());
         try {
             Recorder list = new Recorder(Map.of(), KitDocs.document(OwnerFormPaint.PAGE_TEMPLATE) + "\n" + band);
             OwnerFormPaint.bind(list.events());
@@ -569,6 +569,27 @@ class KitSelectorsTest {
                     && "Percent".equals(plan.settings().get(0).field().writePath()),
                     "one entry's settings write inside the entry: " + plan.settings());
             entry.assertDeclared("one entry's settings");
+
+            // The file's own reserved setting (a switch for every entry at once) above the list, with Save.
+            OwnerFormAsset switched = entriesForm("Reusable", true);
+            OwnerFormPlan fileOwn = OwnerFormPlan.read(switched, null, setting -> true);
+            assertTrue(fileOwn.settings().size() == 1
+                    && "$Enabled".equals(fileOwn.settings().get(0).field().writePath()),
+                    "the list carries the file's own reserved setting alone: " + fileOwn.settings());
+            assertTrue(OwnerFormPlan.read(switched, "Named_One").settings().stream()
+                    .noneMatch(setting -> setting.field().writePath().startsWith("$")),
+                    "one entry's settings never carry the file's own");
+            Recorder above = new Recorder(Map.of(), KitDocs.document(OwnerFormPaint.PAGE_TEMPLATE) + "\n" + band);
+            OwnerFormPaint.bind(above.events());
+            List<String> own = OwnerFormPaint.paintEntries(above.cmd(), above.events(), OwnerFormEntries.read(switched),
+                    fileOwn, null);
+            above.record();
+            assertTrue(own.size() == 1, "the switch is one row above the entries: " + own);
+            FormLeafPainter.paint(above.cmd(), own.get(0), OwnerFormPaint.leaf(fileOwn.settings().get(0), "off", true),
+                    null);
+            OwnerFormPaint.status(above.cmd(), Message.raw("Saved"), false);
+            above.record();
+            above.assertDeclared("the owner form's entries list with the file's own setting above it");
         } finally {
             OwnerFileBindings.clearForTests();
             Files.deleteIfExists(file);
@@ -577,13 +598,20 @@ class KitSelectorsTest {
 
     @Nonnull
     private static OwnerFormAsset entriesForm(@Nonnull String having) throws IOException {
+        return entriesForm(having, false);
+    }
+
+    /** {@link #entriesForm(String)}, with a section holding the file's own reserved switch first when {@code own}. */
+    @Nonnull
+    private static OwnerFormAsset entriesForm(@Nonnull String having, boolean own) throws IOException {
         String json = """
                 { "Title": "yourmod.form", "File": "yourmod/entries.json",
                   "Entries": { "Having": "HAVING", "Gate": "Reusable.Requires", "Name": "Text.TitleKey", "Remove": true,
                                "Add": true },
-                  "Sections": [ { "Fields": [ { "Path": "Percent", "Kind": "Number", "Label": "yourmod.percent" } ] } ]
+                  "Sections": [ OWN{ "Fields": [ { "Path": "Percent", "Kind": "Number", "Label": "yourmod.percent" } ] } ]
                 }
-                """.replace("HAVING", having);
+                """.replace("HAVING", having).replace("OWN", own ? "{ \"Heading\": \"yourmod.all\", \"Fields\": [ "
+                + "{ \"Path\": \"$Enabled\", \"Kind\": \"Switch\", \"Label\": \"yourmod.all\" } ] }, " : "");
         AssetExtraInfo.Data data = new AssetExtraInfo.Data(OwnerFormAsset.class, "Your_Entries", null);
         return OwnerFormAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(json), null,
                 new AssetExtraInfo<>(data));

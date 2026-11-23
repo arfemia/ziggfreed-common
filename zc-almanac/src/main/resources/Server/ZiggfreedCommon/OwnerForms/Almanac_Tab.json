@@ -1,0 +1,28 @@
+{
+  "$Comment": "The in-game screen for when the menu shows the Almanac tab, on the owner menu (/zigadmin): its two switches save straight into mods/ziggfreedcommon/almanac.json under $MenuTab (Show and OnlyWhileLive), the one $ key this screen may write, beside the value each has without your file. Shown always, only while a season runs, or hidden: Show on with OnlyWhileLive off, Show on with OnlyWhileLive on, or Show off. Every word is a key of ziggfreedcommon.almanac.lang. Retune this screen (its place on the menu) in mods/ziggfreedcommon/owner-forms.json under the id Almanac_Tab.",
+  "Title": "ziggfreedcommon.almanac.form.tab.title",
+  "Description": "ziggfreedcommon.almanac.form.tab.desc",
+  "Icon": "Deco_Scroll",
+  "Section": "ziggfreedcommon",
+  "Order": 20,
+  "File": "ziggfreedcommon/almanac.json",
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.almanac.form.tab.heading",
+      "Fields": [
+        {
+          "Path": "$MenuTab.Show",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.almanac.form.tab.show",
+          "Hint": "ziggfreedcommon.almanac.form.tab.show.hint"
+        },
+        {
+          "Path": "$MenuTab.OnlyWhileLive",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.almanac.form.tab.live",
+          "Hint": "ziggfreedcommon.almanac.form.tab.live.hint"
+        }
+      ]
+    }
+  ]
+}

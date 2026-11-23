@@ -150,3 +150,5 @@ factor.stat.Mana = Mana
 factor.stat.Stamina = Stamina
 factor.stat.Oxygen = Oxygen
 factor.stat.SignatureEnergy = Signature Energy
+# The hytale:operator reading (Factors/Hytale_Operator.json): whether the player is one of the server's operators.
+factor.operator = Server operator

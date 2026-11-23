@@ -12,6 +12,7 @@ import com.google.gson.JsonObject;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
 import com.ziggfreed.common.almanac.page.AlmanacMenuTab;
 import com.ziggfreed.common.asset.OwnerLayerReader;
+import com.ziggfreed.common.owner.OwnerFileBinding;
 import com.ziggfreed.common.util.JsonOverrideWriter;
 import com.ziggfreed.common.util.OwnerFiles;
 import com.ziggfreed.common.util.SafeLog;
@@ -35,7 +36,7 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>{@code $MenuTab} says when the shared menu shows the Almanac tab: {@code Show} false hides it,
  * {@code OnlyWhileLive} true shows it only while a season runs; by default it shows whenever a season is
- * listed.
+ * listed. The owner menu's Almanac Tab form edits it in place, through {@link #binding()}.
  */
 public final class AlmanacOwnerLayers {
 
@@ -56,6 +57,12 @@ public final class AlmanacOwnerLayers {
 
     /** Whether it shows only while a season is running. */
     public static final String ONLY_WHILE_LIVE_KEY = "OnlyWhileLive";
+
+    /**
+     * The owner file's id as an owner form names it (zc-core's {@code OwnerFileBindings}): its path under
+     * {@code mods/}. The Almanac tab's form ({@code OwnerForms/Almanac_Tab.json}) writes through it.
+     */
+    public static final String BINDING = "ziggfreedcommon/" + FILE;
 
     private static final String LOG_TAG = "almanac";
 
@@ -130,6 +137,34 @@ public final class AlmanacOwnerLayers {
             return fallback;
         }
         return value.getAsBoolean();
+    }
+
+    /**
+     * {@code almanac.json} as one an owner form may write: its one reserved setting is {@value #MENU_TAB_KEY} (so a
+     * form writes {@code $MenuTab.Show} and {@code $MenuTab.OnlyWhileLive} and nothing else of the file: never
+     * {@value #ENABLED_KEY}, never a season's page), each knob's Default its own default, written through the library's
+     * owner writer (every other key kept) and read again with {@link #readSwitch}, which puts the knobs in force.
+     */
+    @Nonnull
+    public static OwnerFileBinding binding() {
+        return OwnerFileBinding.builder(BINDING, () -> directory.resolve(FILE))
+                .reserved(MENU_TAB_KEY)
+                .below((entry, path) -> entry != null ? null : menuTabDefault(path))
+                .reload(AlmanacOwnerLayers::readSwitch)
+                .build();
+    }
+
+    /** The menu tab knob {@code path} names ({@code $MenuTab.Show}) as it reads unwritten, or null for any other path. */
+    @Nullable
+    static Boolean menuTabDefault(@Nonnull String path) {
+        AlmanacMenuTab.Knobs defaults = AlmanacMenuTab.Knobs.DEFAULTS;
+        if ((MENU_TAB_KEY + "." + SHOW_KEY).equals(path)) {
+            return defaults.show();
+        }
+        if ((MENU_TAB_KEY + "." + ONLY_WHILE_LIVE_KEY).equals(path)) {
+            return defaults.onlyWhileLive();
+        }
+        return null;
     }
 
     /** Has anybody written the menu tab's group into the owner file? */

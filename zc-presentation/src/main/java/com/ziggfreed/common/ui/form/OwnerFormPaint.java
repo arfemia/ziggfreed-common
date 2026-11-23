@@ -117,6 +117,20 @@ public final class OwnerFormPaint {
             status(cmd, OwnerText.line("form.malformed", plan.binding().id()), true);
         }
         cmd.set(SAVE_BUTTON + ".Disabled", !plan.writable());
+        return appendLines(cmd, events, plan, viewer).rows();
+    }
+
+    /** What {@link #appendLines} put in the field list: each setting's row selector, and how many children in all. */
+    private record Appended(@Nonnull List<String> rows, int children) {
+    }
+
+    /**
+     * Append every line of {@code plan} into the field list from its first child on: a heading, a note, or a setting on
+     * the owner leaf row.
+     */
+    @Nonnull
+    private static Appended appendLines(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull OwnerFormPlan plan, @Nullable PlayerRef viewer) {
         List<String> rows = new ArrayList<>();
         int at = 0;
         for (OwnerFormPlan.Line line : plan.lines()) {
@@ -138,7 +152,7 @@ public final class OwnerFormPaint {
             }
             at++;
         }
-        return rows;
+        return new Appended(rows, at);
     }
 
     /** The form for a player who may not see it, or a form gone from the server: the hero saying so, Save off. */
@@ -155,6 +169,20 @@ public final class OwnerFormPaint {
      */
     public static void paintEntries(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull OwnerFormEntries entries, @Nullable PlayerRef viewer) {
+        paintEntries(cmd, events, entries, null, viewer);
+    }
+
+    /**
+     * {@link #paintEntries(UICommandBuilder, UIEventBuilder, OwnerFormEntries, PlayerRef)} with the file's own settings
+     * above the list ({@code file}, the list's plan: the reserved setting its binding declares, such as a switch for
+     * every entry at once), each on the owner leaf row with its Reset, and Save shown for them (switched off when the
+     * file cannot be written). With no such setting (null, or none kept), Save stays hidden as before.
+     *
+     * @return each of the file's own settings' row selectors, by the setting's index; empty for none
+     */
+    @Nonnull
+    public static List<String> paintEntries(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull OwnerFormEntries entries, @Nullable OwnerFormPlan file, @Nullable PlayerRef viewer) {
         OwnerFormAsset form = entries.form();
         HeroPainter.paint(cmd, new Hero(null, title(form), words(form.description()), null));
         if (entries.binding() == null) {
@@ -164,17 +192,23 @@ public final class OwnerFormPaint {
         } else if (entries.malformed()) {
             status(cmd, OwnerText.line("form.malformed", entries.binding().id()), true);
         }
-        cmd.set(SAVE_BUTTON + ".Visible", false);
+        boolean own = file != null && !file.settings().isEmpty();
+        cmd.set(SAVE_BUTTON + ".Visible", own);
+        if (own) {
+            cmd.set(SAVE_BUTTON + ".Disabled", !file.writable());
+        }
         cmd.set(ADD_ROW + ".Visible", entries.addable());
+        Appended above = own ? appendLines(cmd, events, file, viewer) : new Appended(List.of(), 0);
+        int first = above.children();
         List<OwnerFormEntries.Row> rows = entries.rows();
         if (rows.isEmpty()) {
             cmd.append(FIELDS, NOTE_TEMPLATE);
-            cmd.set(FIELDS + "[0] #Note.TextSpans", OwnerText.line("form.entries.empty"));
-            return;
+            cmd.set(FIELDS + "[" + first + "] #Note.TextSpans", OwnerText.line("form.entries.empty"));
+            return above.rows();
         }
         for (int i = 0; i < rows.size(); i++) {
             OwnerFormEntries.Row row = rows.get(i);
-            String at = FIELDS + "[" + i + "]";
+            String at = FIELDS + "[" + (first + i) + "]";
             cmd.append(FIELDS, ENTRY_TEMPLATE);
             cmd.set(at + " #Title.TextSpans", entryName(row.id(), row.nameKey()));
             if (row.nameKey() != null) {
@@ -198,6 +232,7 @@ public final class OwnerFormPaint {
             events.addEventBinding(CustomUIEventBindingType.Activating, at + " #Reset",
                     EventData.of(ACTION, DROP).append(FIELD, index), false);
         }
+        return above.rows();
     }
 
     /** An entry's name: the key its form's {@code Name} path reads, else its id. */

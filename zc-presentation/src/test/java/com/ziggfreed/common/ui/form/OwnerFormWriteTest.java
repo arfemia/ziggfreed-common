@@ -15,7 +15,12 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.owner.OwnerFileBinding;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 
 /**
  * An owner form writes each setting in the number type its file's reader expects (R23's one guard on the writer): a
@@ -107,5 +112,59 @@ class OwnerFormWriteTest {
         word.put(1, "lots");
         assertEquals(OwnerFormWrite.Problem.SIGNED, OwnerFormWrite.collect(fields, word).refusal().problem());
         assertEquals(written, Files.readString(file, StandardCharsets.UTF_8), "a refused value writes nothing");
+    }
+
+    /**
+     * A form writes the ONE reserved setting its file's binding declares ({@code $MenuTab}, R1186), at the file's root,
+     * and nothing else of the file moves; a form setting naming any other {@code $} key is left off the plan, and the
+     * binding itself refuses, writing nothing, every leaf naming a {@code $} key it did not declare, a write mixing one
+     * in included.
+     */
+    @Test
+    void aFormWritesTheOneReservedSettingItsBindingDeclaresAndNoOtherDollarKey(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("almanac.json");
+        Files.writeString(file, "{ \"$Enabled\": true, \"$MenuTab\": { \"Show\": true },"
+                + " \"Spring_Fair\": { \"Order\": 5 } }", StandardCharsets.UTF_8);
+        OwnerFileBinding binding = OwnerFileBinding.builder("yourmod/almanac.json", () -> file).reserved("$MenuTab")
+                .build();
+        OwnerFileBindings.register(binding);
+        try {
+            String json = """
+                    { "File": "yourmod/almanac.json", "Sections": [ { "Fields": [
+                        { "Path": "$MenuTab.Show", "Kind": "Switch" },
+                        { "Path": "$MenuTab.OnlyWhileLive", "Kind": "Switch" },
+                        { "Path": "$Enabled", "Kind": "Switch" } ] } ] }
+                    """;
+            OwnerFormAsset form = OwnerFormAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(json),
+                    null, new AssetExtraInfo<>(new AssetExtraInfo.Data(OwnerFormAsset.class, "Your_Tab", null)));
+            OwnerFormPlan plan = OwnerFormPlan.read(form);
+            assertEquals(List.of("$MenuTab.Show", "$MenuTab.OnlyWhileLive"),
+                    plan.fields().stream().map(OwnerFormField::writePath).toList(),
+                    "the declared setting's paths, and no other $ key");
+            assertEquals("on", plan.settings().get(0).shown(), "read where the file writes it");
+
+            Map<Integer, String> typed = new LinkedHashMap<>();
+            typed.put(0, "off");
+            OwnerFormWrite.Collected collected = OwnerFormWrite.collect(plan.fields(), typed);
+            assertTrue(collected.ok() && OwnerFormWrite.write(binding, collected.leaves()));
+            JsonObject after = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+            assertFalse(after.getAsJsonObject("$MenuTab").get("Show").getAsBoolean(), "the setting is written");
+            assertTrue(after.get("$Enabled").getAsBoolean(), "the file's other $ key is left as written");
+            assertEquals(5, after.getAsJsonObject("Spring_Fair").get("Order").getAsInt(), "and so is every entry");
+
+            String written = Files.readString(file, StandardCharsets.UTF_8);
+            assertFalse(binding.write(Map.of("$Enabled", false)), "the binding refuses an undeclared $ key");
+            assertFalse(binding.write(Map.of("$MenuTabs.Show", false)), "and one that only starts like the declared one");
+            assertFalse(binding.write(Map.of("Spring_Fair.$Comment", "x")), "and a $ key inside an entry");
+            Map<String, Object> mixed = new LinkedHashMap<>();
+            mixed.put("$MenuTab.OnlyWhileLive", true);
+            mixed.put("$Enabled", false);
+            assertFalse(binding.write(mixed), "a write mixing one in is refused whole");
+            assertEquals(written, Files.readString(file, StandardCharsets.UTF_8), "a refused write writes nothing");
+            assertFalse(OwnerFileBinding.builder("yourmod/other.json", () -> file).build().reservesPath("$MenuTab.Show"),
+                    "a binding that declares no reserved setting reserves nothing");
+        } finally {
+            OwnerFileBindings.clearForTests();
+        }
     }
 }

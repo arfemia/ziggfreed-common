@@ -54,7 +54,10 @@ import com.ziggfreed.common.progress.gate.StoreGates;
  * }</pre>
  *
  * <p>A form writes only the file its binding names, and only the paths it declares, under its one entry or the
- * entries it lists; a path is dotted letters and digits, so no form reaches a reserved {@code $} key, and an id an
+ * entries it lists; a path is dotted letters and digits, so no form reaches a reserved {@code $} key but the ONE its
+ * file's binding declares (zc-core's {@code OwnerFileBinding.reservesPath}: almanac.json's {@code $MenuTab}, written as
+ * the path {@code $MenuTab.Show}), which is the file's own setting, read and written from the file's root and, on a form
+ * of the Entries shape, drawn above the list; and an id an
  * owner types is held to the store's id pattern before anything is written. A top-level {@code Requires} follows the
  * mod gate (a plain mod-presence check keeps the form out where that mod is missing) and asks the rest of the owner
  * each time the menu lists it. A field's own {@code Requires} narrows who of the owners sees and writes that one setting
@@ -416,7 +419,9 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
                 .append(new KeyedCodec<>("Path", Codec.STRING, false),
                         (o, v) -> o.path = v, o -> o.path)
                 .documentation("Where the setting sits inside the entry (or the file), as dotted keys exactly as the "
-                        + "file spells them: Cap, Limits.Personal. Letters and digits only.").add()
+                        + "file spells them: Cap, Limits.Personal. Letters and digits only, but for the one reserved "
+                        + "$ key the file's mod lets a form write ($MenuTab.Show), which is the file's own setting, "
+                        + "never an entry's.").add()
                 .append(new KeyedCodec<>("Kind", Codec.STRING, false),
                         (o, v) -> o.kind = v, o -> o.kind)
                 .metadata(EditorSchema.oneOfDocumented(
@@ -449,7 +454,8 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
                         (o, v) -> o.requires = v, o -> o.requires)
                 .documentation("Who of the owners may see and change this one setting, in the Requires shape quests "
                         + "use, every condition asked of the owner each time the form is drawn and at every save "
-                        + "(a Permission the server's operators alone hold keeps a setting to them). An owner who "
+                        + "(a Factors condition on hytale:operator with Min 1 keeps a setting to the server's "
+                        + "operators, the game's own operator status, which no permission grants). An owner who "
                         + "does not meet it sees the form without the setting. Leave it out for every owner.").add()
                 .build();
 

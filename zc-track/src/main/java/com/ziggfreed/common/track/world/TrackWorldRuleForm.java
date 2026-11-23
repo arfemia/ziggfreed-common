@@ -36,7 +36,9 @@ import com.ziggfreed.common.util.OwnerFiles;
  *       its groups on, a multiplier of 1, hits on players paying nothing, every grant switch on), which the form shows
  *       as its Default, rather than no value; a rule only the owner's file holds has no Default at all.</li>
  * </ul>
- * Which worlds a rule covers, and every new rule, stay in the files; the whole file's {@code $Enabled} switch too.
+ * Which worlds a rule covers, and every new rule, stay in the files. The whole file's {@code $Enabled} switch is the
+ * binding's one reserved setting ({@code OwnerFileBinding.Builder.reserved}): the form's switch above its list writes it
+ * at the file's root, on unless the file writes false, and no other {@code $} key is ever written.
  */
 public final class TrackWorldRuleForm {
 
@@ -69,7 +71,12 @@ public final class TrackWorldRuleForm {
         OwnerFileBinding.Below files = OwnerFileBinding.belowFrom(config, TrackWorldRuleAsset.CODEC);
         OwnerFileBinding.Entries store = OwnerFileBinding.entriesOf(config, TrackWorldRuleAsset.CODEC);
         return OwnerFileBinding.builder(BINDING, TrackWorldRuleConfig::ownerFile)
+                .reserved(TrackWorldRuleConfig.ENABLED_KEY)
                 .below((entry, path) -> {
+                    if (entry == null && TrackWorldRuleConfig.ENABLED_KEY.equals(path)) {
+                        // The file-wide switch: every rule applies unless the owner's file writes it false.
+                        return Boolean.TRUE;
+                    }
                     Object written = files.read(entry, path);
                     if (written == null && entry != null && path.startsWith(KINDS_DOT)) {
                         // The engine reads a switch word without regard to case, so the rule file's "ability" is the
