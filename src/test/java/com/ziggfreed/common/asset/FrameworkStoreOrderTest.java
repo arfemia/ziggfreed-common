@@ -43,6 +43,15 @@ class FrameworkStoreOrderTest {
             new String[]{"TrackPickGeneratorAsset", "TrackPickAsset",
                     "a generated pick is decoded against its Base out of the pick store, so a generator "
                             + "that folds first writes no tree node at all until the picks load again"},
+            new String[]{"QuestGeneratorAsset", "GeneratorRowAsset",
+                    "an axis may walk a set of generator rows, so a generator that folds first writes that "
+                            + "family empty and has to be expanded again when the rows land"},
+            new String[]{"ShopEntryGeneratorAsset", "GeneratorRowAsset",
+                    "an axis may walk a set of generator rows, so a generator that folds first writes that "
+                            + "family empty and has to be expanded again when the rows land"},
+            new String[]{"TrackPickGeneratorAsset", "GeneratorRowAsset",
+                    "an axis may walk a set of generator rows, so a generator that folds first writes that "
+                            + "family empty and has to be expanded again when the rows land"},
             new String[]{"AchievementAsset", "CalendarEventAsset",
                     "a yearly achievement's Occurrence names a calendar event, so an achievement fold "
                             + "that runs first finds no event and makes no yearly copy until the next fold"});

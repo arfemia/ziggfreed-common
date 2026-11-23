@@ -88,6 +88,7 @@ import com.ziggfreed.common.playerstats.asset.StatAsset;
 import com.ziggfreed.common.playerstats.asset.StatSourceAsset;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
+import com.ziggfreed.common.progress.asset.GeneratorRowAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateClause;
@@ -609,6 +610,7 @@ class AssetCodecInitTest {
         assertNotNull(GateSpec.CODEC, "GateSpec.CODEC must static-init (PascalCase keys)");
         assertNotNull(GeneratorAxisAsset.CODEC,
                 "GeneratorAxisAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(GeneratorRowAsset.CODEC, "GeneratorRowAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(ObjectiveLeafAsset.CODEC,
                 "ObjectiveLeafAsset.CODEC must static-init (PascalCase keys)");
     }

@@ -33,6 +33,7 @@ import com.ziggfreed.common.asset.KindSelectorCodec;
 import com.ziggfreed.common.codec.JsonTreeCodec;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
+import com.ziggfreed.common.progress.asset.GeneratorRowAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateClause;
@@ -125,6 +126,7 @@ public final class SchemaDocWriter {
             .register("AchievementMilestoneAsset", AchievementMilestoneAsset.CODEC)
             .register("QuestGeneratorAsset", QuestGeneratorAsset.CODEC)
             .register("GeneratorAxis", GeneratorAxisAsset.CODEC)
+            .register("GeneratorRowAsset", GeneratorRowAsset.CODEC)
             .register("ContentText", ContentTextAsset.CODEC)
             .register("ObjectiveLeaf", ObjectiveLeafAsset.CODEC)
             .register("RewardEntry", RewardEntryAsset.CODEC)

@@ -57,7 +57,8 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * the MMO show MMO content.
  *
  * <p>Not listed, because their files carry no top-level {@code Requires} and so cannot be gated:
- * QuestGenerators, ShopEntryGenerators and TrackPickGenerators (a family follows its {@code Base}); DialogueFragments,
+ * QuestGenerators, ShopEntryGenerators and TrackPickGenerators (a family follows its {@code Base}), and the
+ * GeneratorRows they walk (each generated entry still follows its {@code Base} and its own gate); DialogueFragments,
  * DialogueExtensions and Dialogues (a line gates on its own {@code Conditions}); Instances, RollPools, DropRarities,
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
  * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, DungeonRooms, DungeonLayouts, DungeonOmens, RewardChests,

@@ -16,6 +16,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 - [AchievementMilestoneAsset](#type-achievementmilestoneasset)
 - [QuestGeneratorAsset](#type-questgeneratorasset)
 - [GeneratorAxis](#type-generatoraxis)
+- [GeneratorRowAsset](#type-generatorrowasset)
 - [ContentText](#type-contenttext)
 - [ObjectiveLeaf](#type-objectiveleaf)
 - [RewardEntry](#type-rewardentry)
@@ -591,6 +592,19 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Values` | `json` | `null` | The values, written out. A plain entry fills this axis's Token; an object entry binds several tokens at once, which is how values that belong together stay together. |
 | `Source` | `string` | `null` | The id of a list some mod enumerates, used when Values is not authored. A source nothing registered produces no rows, so the whole generator falls silent. |
 | `Filter` | map of `string` | `null` | Arguments handed to the Source, meaning whatever that source documents. Nothing here reads them. |
+
+<a id="type-generatorrowasset"></a>
+## GeneratorRowAsset
+
+One member of a roster generators walk: a row of named values in a set. A generator's axis reads every switched-on row of a set with "Source": "ziggfreedcommon:rows" and "Filter": { "Set": "<set>" }, so a member is added with one file and reaches every generator over the set. The file name is the row's id, unique across every set; an owner retunes or switches one row off by that id in mods/ziggfreedcommon/generator-rows.json.
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Set` | `string` | `null` | The set this row belongs to, matched without regard to case: the name a generator's axis writes in Filter.Set. A row with no Set is in no set and nothing reads it. |
+| `Enabled` | `boolean` | `null` | Whether the row is in its set; unauthored means true. Set false to take the member out of every generator over the set without deleting the file. |
+| `Order` | `integer` | `null` | Where the row sits in its set, lowest first, the row id breaking a tie; unauthored means 0. A generator writes its members in this order. Leave gaps (10, 20, 30). |
+| `Values` | map of `json` | `null` | The tokens this row fills, by name, each to one value: text, a number or true/false, a number staying a number where a generator's body writes it as exactly "{Name}". A value may hold {token} placeholders of its own, filled from the same combination when a generator expands. Merged per name under Parent and in an owner entry, so one value is retuned alone. |
 
 <a id="type-contenttext"></a>
 ## ContentText

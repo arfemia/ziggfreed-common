@@ -39,6 +39,7 @@ import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.objectives.title.TitleAsset;
+import com.ziggfreed.common.progress.asset.GeneratorRowAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveKindConfig;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
@@ -273,6 +274,7 @@ class EditorSchemaSetTest {
         out.put(PickOptionAsset.class, PickOptionAsset.CODEC);
         out.put(TrackPickGeneratorAsset.class, TrackPickGeneratorAsset.CODEC);
         out.put(TrackStanceAsset.class, TrackStanceAsset.CODEC);
+        out.put(GeneratorRowAsset.class, GeneratorRowAsset.CODEC);
         out.put(TrackSourceAsset.class, TrackSourceAsset.CODEC);
         out.put(DiminishKeyAsset.class, DiminishKeyAsset.CODEC);
         out.put(TrackPriceAsset.class, TrackPriceAsset.CODEC);

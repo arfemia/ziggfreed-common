@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.exception.CodecException;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.ArraySchema;
 import com.hypixel.hytale.codec.schema.config.BooleanSchema;
@@ -42,25 +43,34 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
  * be an integer. Object key ORDER is preserved for the same reason a diff is easier to read when it
  * matches the file.
  *
- * <p>Two shapes, so the in-game editor is told what to expect: {@link #object()} for a nested object
- * and {@link #array()} for a list. Both decode any JSON value; the difference is documentation, not
- * enforcement.
+ * <p>Three shapes, so the in-game editor is told what to expect: {@link #object()} for a nested object,
+ * {@link #array()} for a list and {@link #scalar()} for one text, number or true/false. The first two
+ * decode any JSON value, the difference being documentation, not enforcement; the scalar shape refuses
+ * a nested object or array, since a scalar slot holding a structure is an authoring mistake.
  *
  * <p>Reach for this ONLY where a subtree genuinely has no schema at this level. A field with a
  * known shape is a nested codec, which is what gets validation, inheritance, and editor support.
  *
  * <p>Any asset type may use it; a quest generator's {@code Child} body and its axis {@code Values}
- * are the shipped callers today.
+ * are the shipped callers today, and a generator row's {@code Values} map holds scalars.
  */
 public final class JsonTreeCodec implements Codec<JsonElement> {
 
-    private static final JsonTreeCodec OBJECT = new JsonTreeCodec(false);
-    private static final JsonTreeCodec ARRAY = new JsonTreeCodec(true);
+    /** What the editor is told an authored value looks like. */
+    private enum Shape { OBJECT, ARRAY, SCALAR }
 
-    private final boolean arrayShaped;
+    private static final JsonTreeCodec OBJECT = new JsonTreeCodec(Shape.OBJECT);
+    private static final JsonTreeCodec ARRAY = new JsonTreeCodec(Shape.ARRAY);
+    private static final JsonTreeCodec SCALAR = new JsonTreeCodec(Shape.SCALAR);
 
-    private JsonTreeCodec(boolean arrayShaped) {
-        this.arrayShaped = arrayShaped;
+    /** Why a scalar slot refused what was written there. */
+    private static final String SCALAR_EXPECTED =
+            "A scalar was expected here (quoted text, a bare number, or true/false), not a nested object or array";
+
+    private final Shape shape;
+
+    private JsonTreeCodec(Shape shape) {
+        this.shape = shape;
     }
 
     /** The instance for a field whose authored value is a nested OBJECT. */
@@ -75,15 +85,34 @@ public final class JsonTreeCodec implements Codec<JsonElement> {
         return ARRAY;
     }
 
+    /**
+     * The instance for a field whose authored value is ONE scalar: quoted text, a bare number (its authored
+     * spelling kept) or true/false, each keeping its own JSON type. A nested object or array is refused.
+     */
+    @Nonnull
+    public static JsonTreeCodec scalar() {
+        return SCALAR;
+    }
+
     // ==================== decode ====================
 
     @Override
     public JsonElement decode(@Nonnull BsonValue bsonValue, @Nonnull ExtraInfo extraInfo) {
+        if (shape == Shape.SCALAR && (bsonValue.isDocument() || bsonValue.isArray())) {
+            throw new CodecException(SCALAR_EXPECTED);
+        }
         return fromBson(bsonValue);
     }
 
     @Override
     public JsonElement decodeJson(@Nonnull RawJsonReader reader, @Nonnull ExtraInfo extraInfo) throws IOException {
+        if (shape == Shape.SCALAR) {
+            reader.consumeWhiteSpace();
+            int next = reader.peek();
+            if (next == '{' || next == '[') {
+                throw new IOException(SCALAR_EXPECTED);
+            }
+        }
         return readValue(reader);
     }
 
@@ -250,7 +279,12 @@ public final class JsonTreeCodec implements Codec<JsonElement> {
     @Nonnull
     @Override
     public Schema toSchema(@Nonnull SchemaContext context) {
-        if (arrayShaped) {
+        if (shape == Shape.SCALAR) {
+            Schema schema = Schema.anyOf(new StringSchema(), new NumberSchema(), new BooleanSchema());
+            schema.setTitle("Text, a number, or true/false");
+            return schema;
+        }
+        if (shape == Shape.ARRAY) {
             // The client asset editor's schema parser dereferences every array schema's items
             // unconditionally (the engine's own ArrayCodec always sets one), so an items-less
             // ArraySchema aborts the editor's whole asset-list init. An entry here may be any

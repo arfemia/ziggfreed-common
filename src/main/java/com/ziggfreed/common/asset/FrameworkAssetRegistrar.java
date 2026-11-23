@@ -151,6 +151,9 @@ import com.ziggfreed.common.objectives.settings.ProgressionSettingsOwnerLayers;
 import com.ziggfreed.common.objectives.title.TitleAsset;
 import com.ziggfreed.common.objectives.title.TitleConfig;
 import com.ziggfreed.common.objectives.title.TitleOwnerLayers;
+import com.ziggfreed.common.progress.asset.GeneratorRowAsset;
+import com.ziggfreed.common.progress.asset.GeneratorRowConfig;
+import com.ziggfreed.common.progress.asset.GeneratorRows;
 import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveKindConfig;
 import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
@@ -884,14 +887,36 @@ public final class FrameworkAssetRegistrar {
                     ProgressionDefaults.republishAssetContent();
                 });
 
+        // --- Generator rows (Pattern A) - the members of a roster any generator walks, one file a row in
+        //     a Set (an axis naming "ziggfreedcommon:rows" with Filter.Set), owner file
+        //     mods/ziggfreedcommon/generator-rows.json keyed by row id. Loaded BEFORE every generator
+        //     store, so a family reads its rows at its first expansion; a later fold of the rows (a pack
+        //     re-imported, the owner file read again) settles them, re-expanding each store below whose
+        //     generators walked a set that moved. ---
+        AssetStoreRegistrar.registerStore(GeneratorRowAsset.class,
+                new DefaultAssetMap<String, GeneratorRowAsset>(), GeneratorRowAsset.TYPE_ROOT,
+                GeneratorRowAsset::getId, GeneratorRowAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, GeneratorRowAsset.class,
+                (LoadedAssetsEvent<String, GeneratorRowAsset, DefaultAssetMap<String, GeneratorRowAsset>> ev) -> {
+                    GeneratorRowConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    GeneratorRowConfig.reloadOwner();
+                });
+        GeneratorRows.onRefold(QuestGeneratorAsset.class, ProgressionDefaults::republishAssetContent);
+        GeneratorRows.onRefold(ShopEntryGeneratorAsset.class, CommerceCatalogs::refreshShops);
+        GeneratorRows.onRefold(TrackPickGeneratorAsset.class, () -> {
+            TrackPickConfig.getInstance().mergeGenerators(TrackPickConfig.getInstance().generators());
+            TrackPickOwnerLayers.reload();
+        });
+
         // --- Quest generators (Pattern A) - "the same quest, once per ore" as one file. They are
         //     loaded AFTER the quests they inherit from, because expansion resolves each generated
-        //     child against its Base out of the quest store. The republish after them is the one
-        //     that sees everything on a re-import; the one after the quests costs an idempotent
-        //     fold. ---
+        //     child against its Base out of the quest store, and after the generator rows an axis may
+        //     walk. The republish after them is the one that sees everything on a re-import; the one
+        //     after the quests costs an idempotent fold. ---
         AssetStoreRegistrar.registerStore(QuestGeneratorAsset.class,
                 new DefaultAssetMap<String, QuestGeneratorAsset>(), "ZiggfreedCommon/QuestGenerators",
-                QuestGeneratorAsset::getId, QuestGeneratorAsset.CODEC, new Class<?>[]{QuestAsset.class});
+                QuestGeneratorAsset::getId, QuestGeneratorAsset.CODEC,
+                new Class<?>[]{QuestAsset.class, GeneratorRowAsset.class});
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestGeneratorAsset.class,
                 (LoadedAssetsEvent<String, QuestGeneratorAsset, DefaultAssetMap<String, QuestGeneratorAsset>> ev) -> {
                     QuestAssetStore.getInstance().mergeGenerators(AssetMergeAdapter.layer(ev.getAssetMap()));
@@ -1024,11 +1049,12 @@ public final class FrameworkAssetRegistrar {
 
         // --- ShopEntryGenerators (Pattern A) - "the same packet, once per skill" as one file. They
         //     are loaded AFTER the offers they inherit from, because expansion resolves each
-        //     generated child against its Base out of the offer store. ---
+        //     generated child against its Base out of the offer store, and after the generator
+        //     rows an axis may walk. ---
         AssetStoreRegistrar.registerStore(ShopEntryGeneratorAsset.class,
                 new DefaultAssetMap<String, ShopEntryGeneratorAsset>(), ShopEntryGeneratorAsset.TYPE_ROOT,
                 ShopEntryGeneratorAsset::getId, ShopEntryGeneratorAsset.CODEC,
-                new Class<?>[]{ShopEntryAsset.class});
+                new Class<?>[]{ShopEntryAsset.class, GeneratorRowAsset.class});
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, ShopEntryGeneratorAsset.class,
                 (LoadedAssetsEvent<String, ShopEntryGeneratorAsset, DefaultAssetMap<String, ShopEntryGeneratorAsset>> ev) -> {
                     ShopAssetStore.getInstance().mergeGenerators(AssetMergeAdapter.layer(ev.getAssetMap()));
@@ -1329,12 +1355,13 @@ public final class FrameworkAssetRegistrar {
 
         // --- Track pick generators (Pattern A) - a family of picks from one file (the node every tree repeats, a
         //     branch's single-stat rows), through zc-progression's GeneratorCore. Loaded AFTER the picks, because
-        //     each generated pick is decoded against its Base out of the pick store; the generated picks fold under
-        //     the hand-written ones (a file of a generated id wins), then the owner file is re-read over both. ---
+        //     each generated pick is decoded against its Base out of the pick store (and after the generator rows an
+        //     axis may walk); the generated picks fold under the hand-written ones (a file of a generated id wins),
+        //     then the owner file is re-read over both. ---
         AssetStoreRegistrar.registerStore(TrackPickGeneratorAsset.class,
                 new DefaultAssetMap<String, TrackPickGeneratorAsset>(), TrackPickGeneratorAsset.TYPE_ROOT,
                 TrackPickGeneratorAsset::getId, TrackPickGeneratorAsset.CODEC,
-                new Class<?>[]{TrackPickAsset.class});
+                new Class<?>[]{TrackPickAsset.class, GeneratorRowAsset.class});
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackPickGeneratorAsset.class,
                 (LoadedAssetsEvent<String, TrackPickGeneratorAsset, DefaultAssetMap<String, TrackPickGeneratorAsset>> ev) -> {
                     TrackPickConfig.getInstance().mergeGenerators(AssetMergeAdapter.layer(ev.getAssetMap()));
@@ -1606,6 +1633,7 @@ public final class FrameworkAssetRegistrar {
                         + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                         + "StatBars (owner file mods/ziggfreedcommon/stat-bars.json), "
                         + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
+                        + "GeneratorRows (owner file mods/ziggfreedcommon/generator-rows.json), "
                         + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, QuestCategories, "
                         + "Achievements, AchievementCategories, "
                         + "AchievementMilestones, Almanac (owner file mods/ziggfreedcommon/almanac.json), "

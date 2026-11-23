@@ -1,6 +1,9 @@
 package com.ziggfreed.common.progress.asset;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -33,6 +36,18 @@ import com.ziggfreed.common.validation.Finding;
  * value that is EXACTLY one token keeps that token's own type (so {@code "Amount": "{amount}"} lands
  * as a number); a token nothing binds is an ERROR finding and that one entry is skipped rather than
  * shipped half-written.
+ *
+ * <p><b>The second pass.</b> A bound value that itself holds tokens is filled from the same combination
+ * before it lands, to any depth, under the same rules: a step row binding {@code "Amount": "{First}"}
+ * walked against a member row binding {@code "First": 5} writes {@code 5}, a number, wherever the body
+ * says {@code "{Amount}"}. A value naming a token nothing binds lands with that token unfilled (the
+ * unbound-token error above), and tokens filling each other in a loop are an ERROR finding of their own
+ * ({@code TOKEN_CYCLE}) that skips the entry. A bound value holding no token lands as it always did.
+ *
+ * <p><b>The rows source.</b> An axis naming {@link GeneratorRows#SOURCE} with {@code "Filter": { "Set": ... }}
+ * walks that set's {@link GeneratorRowAsset}s, answered here before any source a store hands in, so every
+ * store has it with nothing registered. Their tokens are shared by every generator walking the set, so one
+ * a generator leaves unused is never reported as unused.
  *
  * <p>It MERGES NOTHING. Each body comes out as ordinary content JSON carrying {@code Parent}, and
  * the inheritance that follows is the same one a hand-written child gets, which is what makes a
@@ -132,8 +147,9 @@ public final class GeneratorCore {
             return new Expansion(List.of(), issues);
         }
 
+        Set<String> sharedTokens = new LinkedHashSet<>();
         List<Map<String, JsonPrimitive>> combinations =
-                combinations(generator, values, domain, noun, sourceId, issues);
+                combinations(generator, values, domain, noun, sourceId, issues, sharedTokens);
         if (combinations.isEmpty()) {
             return new Expansion(List.of(), issues);
         }
@@ -146,8 +162,9 @@ public final class GeneratorCore {
         collectTokens(child, usedTokens);
         collectTokens(idPattern, usedTokens);
         collectTokens(baseId, usedTokens);
+        addNestedUses(combinations, usedTokens);
         for (String token : boundTokens) {
-            if (!usedTokens.contains(token)) {
+            if (!usedTokens.contains(token) && !sharedTokens.contains(token)) {
                 issues.add(Finding.warning(domain, "UNUSED_TOKEN",
                         "the axes bind '{" + token + "}' but neither Child nor IdPattern ever uses it, so it "
                                 + "changes nothing and may only be multiplying the count", sourceId));
@@ -157,10 +174,17 @@ public final class GeneratorCore {
         List<GeneratedBody> bodies = new ArrayList<>(combinations.size());
         Set<String> seen = new LinkedHashSet<>();
         for (Map<String, JsonPrimitive> bindings : combinations) {
-            String id = substituteString(idPattern, bindings).trim().toLowerCase(Locale.ROOT);
-            String base = substituteString(baseId, bindings).trim().toLowerCase(Locale.ROOT);
-            JsonObject body = (JsonObject) substitute(child, bindings);
+            Fill fill = new Fill(bindings);
+            String id = fill.string(idPattern).trim().toLowerCase(Locale.ROOT);
+            String base = fill.string(baseId).trim().toLowerCase(Locale.ROOT);
+            JsonObject body = (JsonObject) fill.node(child);
 
+            if (!fill.cycle().isEmpty()) {
+                issues.add(Finding.error(domain, "TOKEN_CYCLE",
+                        "'" + id + "' fills " + braced(fill.cycle()) + " from each other in a loop, so none of "
+                                + "them ever has a value; the " + noun + " is written wrong and is skipped", sourceId));
+                continue;
+            }
             Set<String> unresolved = new LinkedHashSet<>();
             collectTokens(id, unresolved);
             collectTokens(base, unresolved);
@@ -192,11 +216,14 @@ public final class GeneratorCore {
 
     // ==================== the walk ====================
 
-    /** Every combination of every axis, in authored order (the first axis varies slowest). */
+    /**
+     * Every combination of every axis, in authored order (the first axis varies slowest); each token a rows-source
+     * axis binds is added to {@code sharedTokens}.
+     */
     @Nonnull
     private static List<Map<String, JsonPrimitive>> combinations(@Nonnull GeneratorSpec generator,
             @Nullable AxisValueSource values, @Nonnull String domain, @Nonnull String noun,
-            @Nonnull String sourceId, @Nonnull List<Finding> issues) {
+            @Nonnull String sourceId, @Nonnull List<Finding> issues, @Nonnull Set<String> sharedTokens) {
 
         GeneratorAxisAsset[] axes = generator.axesOrEmpty();
         if (axes.length == 0) {
@@ -209,7 +236,8 @@ public final class GeneratorCore {
         List<Map<String, JsonPrimitive>> combinations = new ArrayList<>();
         combinations.add(Map.of());
         for (GeneratorAxisAsset axis : axes) {
-            List<Map<String, JsonPrimitive>> rows = rowsOf(axis, values, domain, sourceId, issues);
+            List<Map<String, JsonPrimitive>> rows =
+                    rowsOf(axis, generator, values, domain, sourceId, issues, sharedTokens);
             if (rows.isEmpty()) {
                 return List.of();
             }
@@ -226,11 +254,14 @@ public final class GeneratorCore {
         return combinations;
     }
 
-    /** The bindings one axis contributes, from its authored values or from a registered source. */
+    /**
+     * The bindings one axis contributes: from its authored values, from the library's rows source (each token added
+     * to {@code sharedTokens}), or from a registered source.
+     */
     @Nonnull
     private static List<Map<String, JsonPrimitive>> rowsOf(@Nullable GeneratorAxisAsset axis,
-            @Nullable AxisValueSource values, @Nonnull String domain, @Nonnull String sourceId,
-            @Nonnull List<Finding> issues) {
+            @Nonnull GeneratorSpec generator, @Nullable AxisValueSource values, @Nonnull String domain,
+            @Nonnull String sourceId, @Nonnull List<Finding> issues, @Nonnull Set<String> sharedTokens) {
 
         if (axis == null) {
             return List.of();
@@ -246,6 +277,26 @@ public final class GeneratorCore {
                     rows.add(binding);
                 }
             }
+        } else if (GeneratorRows.isSource(axis.getSource())) {
+            String set = GeneratorRows.setOf(axis.filterOrEmpty());
+            if (set == null) {
+                issues.add(Finding.warning(domain, "ROWS_WITHOUT_SET",
+                        "axis '" + axis.describe() + "' reads the rows source but its Filter names no Set, so it "
+                                + "walks no rows and this generator writes nothing; write \"Filter\": { \"Set\": "
+                                + "\"<set>\" }", sourceId));
+                return List.of();
+            }
+            GeneratorRows.walked(generator.getClass(), set);
+            for (Map<String, JsonPrimitive> row : GeneratorRows.rows(set)) {
+                rows.add(row);
+                sharedTokens.addAll(row.keySet());
+            }
+            if (rows.isEmpty()) {
+                issues.add(Finding.warning(domain, "EMPTY_AXIS",
+                        "axis '" + axis.describe() + "' walks the set '" + set + "', which has no switched-on rows, "
+                                + "so no combination exists and this generator writes nothing", sourceId));
+            }
+            return rows;
         } else if (axis.getSource() != null) {
             String source = axis.getSource();
             if (values == null || !values.isRegistered(source)) {
@@ -306,60 +357,152 @@ public final class GeneratorCore {
     /**
      * A copy of {@code node} with every token filled in: inside every string, inside every object
      * key, and - where a value is EXACTLY one token - as that token's own type, so a number stays a
-     * number.
+     * number. A bound value holding tokens of its own is filled from {@code bindings} first (the second
+     * pass); one caught in a loop, like an unbound token, is left written as it was, for the caller's
+     * {@link #tokensIn} to find.
      */
     @Nonnull
     public static JsonElement substitute(@Nonnull JsonElement node,
             @Nonnull Map<String, JsonPrimitive> bindings) {
-        if (node.isJsonObject()) {
-            JsonObject out = new JsonObject();
-            for (Map.Entry<String, JsonElement> entry : node.getAsJsonObject().entrySet()) {
-                out.add(substituteString(entry.getKey(), bindings), substitute(entry.getValue(), bindings));
-            }
-            return out;
-        }
-        if (node.isJsonArray()) {
-            JsonArray out = new JsonArray();
-            for (JsonElement entry : node.getAsJsonArray()) {
-                out.add(substitute(entry, bindings));
-            }
-            return out;
-        }
-        if (node.isJsonPrimitive() && node.getAsJsonPrimitive().isString()) {
-            String text = node.getAsString();
-            JsonPrimitive whole = wholeTokenValue(text, bindings);
-            return whole != null ? whole : new JsonPrimitive(substituteString(text, bindings));
-        }
-        return node;
+        return new Fill(bindings).node(node);
     }
 
-    /** The bound value when {@code text} is exactly one token, else null. */
-    @Nullable
-    private static JsonPrimitive wholeTokenValue(@Nonnull String text,
-            @Nonnull Map<String, JsonPrimitive> bindings) {
-        Matcher matcher = TOKEN.matcher(text);
-        if (!matcher.matches()) {
-            return null;
-        }
-        return bindings.get(matcher.group(1));
-    }
-
-    /** {@code text} with every bound token spliced in as text; unbound tokens are left alone. */
+    /**
+     * {@code text} with every bound token spliced in as text, a bound value holding tokens filled from
+     * {@code bindings} first; unbound tokens, and tokens caught in a loop, are left alone.
+     */
     @Nonnull
     public static String substituteString(@Nonnull String text,
             @Nonnull Map<String, JsonPrimitive> bindings) {
-        if (text.indexOf('{') < 0) {
-            return text;
+        return new Fill(bindings).string(text);
+    }
+
+    /**
+     * One combination's bindings as the substitution reads them: a bound value holding no token is returned as
+     * bound; one holding tokens is filled from the same bindings on its first use (to any depth, a value that is
+     * exactly one token taking that token's own type) and kept. Tokens that fill each other in a loop are noted in
+     * {@link #cycle()} and left written as they were.
+     */
+    private static final class Fill {
+
+        @Nonnull private final Map<String, JsonPrimitive> bound;
+        @Nonnull private final Map<String, JsonPrimitive> filled = new HashMap<>();
+        @Nonnull private final Set<String> filling = new LinkedHashSet<>();
+        @Nonnull private final Set<String> cycle = new LinkedHashSet<>();
+
+        Fill(@Nonnull Map<String, JsonPrimitive> bound) {
+            this.bound = bound;
         }
-        Matcher matcher = TOKEN.matcher(text);
-        StringBuilder out = new StringBuilder();
-        while (matcher.find()) {
-            JsonPrimitive bound = bindings.get(matcher.group(1));
-            matcher.appendReplacement(out,
-                    Matcher.quoteReplacement(bound == null ? matcher.group() : bound.getAsString()));
+
+        /** The tokens found filling each other in a loop, in the order the loop was walked; empty when none. */
+        @Nonnull
+        Set<String> cycle() {
+            return cycle;
         }
-        matcher.appendTail(out);
-        return out.toString();
+
+        /** {@code name}'s value, its own tokens filled; null when nothing binds it or it is caught in a loop. */
+        @Nullable
+        JsonPrimitive value(@Nonnull String name) {
+            JsonPrimitive raw = bound.get(name);
+            if (raw == null || !raw.isString() || raw.getAsString().indexOf('{') < 0) {
+                return raw;
+            }
+            JsonPrimitive done = filled.get(name);
+            if (done != null) {
+                return done;
+            }
+            if (!filling.add(name)) {
+                boolean inLoop = false;
+                for (String token : filling) {
+                    inLoop |= token.equals(name);
+                    if (inLoop) {
+                        cycle.add(token);
+                    }
+                }
+                return null;
+            }
+            String text = raw.getAsString();
+            Matcher whole = TOKEN.matcher(text);
+            JsonPrimitive out;
+            if (whole.matches()) {
+                JsonPrimitive inner = value(whole.group(1));
+                out = inner != null ? inner : raw;
+            } else {
+                out = new JsonPrimitive(string(text));
+            }
+            filling.remove(name);
+            filled.put(name, out);
+            return out;
+        }
+
+        /** A copy of {@code node} with every token filled in, as {@link GeneratorCore#substitute} describes. */
+        @Nonnull
+        JsonElement node(@Nonnull JsonElement node) {
+            if (node.isJsonObject()) {
+                JsonObject out = new JsonObject();
+                for (Map.Entry<String, JsonElement> entry : node.getAsJsonObject().entrySet()) {
+                    out.add(string(entry.getKey()), node(entry.getValue()));
+                }
+                return out;
+            }
+            if (node.isJsonArray()) {
+                JsonArray out = new JsonArray();
+                for (JsonElement entry : node.getAsJsonArray()) {
+                    out.add(node(entry));
+                }
+                return out;
+            }
+            if (node.isJsonPrimitive() && node.getAsJsonPrimitive().isString()) {
+                String text = node.getAsString();
+                Matcher matcher = TOKEN.matcher(text);
+                JsonPrimitive whole = matcher.matches() ? value(matcher.group(1)) : null;
+                return whole != null ? whole : new JsonPrimitive(string(text));
+            }
+            return node;
+        }
+
+        /** {@code text} with every token that has a value spliced in as text; the rest left alone. */
+        @Nonnull
+        String string(@Nonnull String text) {
+            if (text.indexOf('{') < 0) {
+                return text;
+            }
+            Matcher matcher = TOKEN.matcher(text);
+            StringBuilder out = new StringBuilder();
+            while (matcher.find()) {
+                JsonPrimitive value = value(matcher.group(1));
+                matcher.appendReplacement(out,
+                        Matcher.quoteReplacement(value == null ? matcher.group() : value.getAsString()));
+            }
+            matcher.appendTail(out);
+            return out.toString();
+        }
+    }
+
+    /**
+     * Add to {@code used} every token a used token's bound value names, in any combination, until nothing new is
+     * found: a token only another bound value reads (a member's {@code {First}} read by a step's
+     * {@code "Amount": "{First}"}) is used.
+     */
+    private static void addNestedUses(@Nonnull List<Map<String, JsonPrimitive>> combinations,
+            @Nonnull Set<String> used) {
+        Deque<String> pending = new ArrayDeque<>(used);
+        while (!pending.isEmpty()) {
+            String token = pending.poll();
+            for (Map<String, JsonPrimitive> combination : combinations) {
+                JsonPrimitive value = combination.get(token);
+                if (value == null || !value.isString()) {
+                    continue;
+                }
+                Set<String> named = new LinkedHashSet<>();
+                collectTokens(value.getAsString(), named);
+                for (String name : named) {
+                    if (used.add(name)) {
+                        pending.add(name);
+                    }
+                }
+            }
+        }
     }
 
     // ==================== token scanning ====================
