@@ -1,0 +1,10 @@
+{
+  "$Comment": "The server's party boards. A player putting up a notice may tick its Announce box (it starts unticked), announced at most once per player every Notices.Minutes; then Announce.Message, when true, sends every player online the board's own line about it, each in their own language, and Announce.Commands runs each line as the server console, in order, with the notice's placeholders filled and made safe: {player} (the poster's login name; a name that is not a plain login name runs no line), {uuid}, {wants}, {dungeon} and {tier} (ids), and {dungeon_name}, {for}, {place} and {notice} (words in the server's language, for a line that takes the rest of its words, such as a message). The two are separate switches, so an owner who wants only their own lines sets Message to false. Notices.Minutes is how long a notice stays up on its own. Change any of these in mods/ziggfreedcommon/party-board.json, under the id Default.",
+  "Announce": {
+    "Message": true,
+    "Commands": []
+  },
+  "Notices": {
+    "Minutes": 30
+  }
+}

@@ -3,6 +3,7 @@ package com.ziggfreed.common.party.page;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.party.ZcPartyText;
 
 /**
  * The locale-free chrome text for the {@link PartyInvitePage}: title, tab labels, button
@@ -56,4 +57,13 @@ public interface PartyScreenMessages {
 
     /** In-page toast when an invite could not be sent (target offline / already in a party / full). */
     @Nonnull Message toastInviteFailed();
+
+    /**
+     * The row of a player asking to join from the viewer's notice on a party board: "{name} asks to join, from your
+     * notice". {@code name} is the library's display name. The library's own words unless a consumer words it.
+     */
+    @Nonnull
+    default Message joinRequestRow(@Nonnull Message name) {
+        return ZcPartyText.line("board.request.row", name);
+    }
 }

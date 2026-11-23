@@ -30,11 +30,13 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.party.AcceptResult;
 import com.ziggfreed.common.party.InviteResult;
 import com.ziggfreed.common.party.Party;
 import com.ziggfreed.common.party.PartyInvite;
 import com.ziggfreed.common.party.PartyService;
 import com.ziggfreed.common.party.PartySnapshot;
+import com.ziggfreed.common.party.board.PartyBoard;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
@@ -47,7 +49,9 @@ import com.ziggfreed.common.util.SafeLog;
  * The generic party + invite screen (the {@code KweebecLeaderboardPage}/{@code DialoguePage}
  * twin). Two tabs over the one shared {@code $F.@ZigDecoratedFrame}:
  * <ul>
- *   <li><b>Party</b> - the viewer's incoming invites (Accept / Decline), then their
+ *   <li><b>Party</b> - the viewer's incoming invites (Accept / Decline), then the players
+ *       asking to join from the viewer's notice on a party board ({@code party/board}, the
+ *       same row with Accept / Decline; a yes puts them in the viewer's party), then their
  *       party roster (owner badge; Kick on others when the viewer owns it), and a footer
  *       (Queue + Disband for the owner, Leave for a member).</li>
  *   <li><b>Invite</b> - a searchable list of currently-online players not already in a
@@ -83,6 +87,9 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
 
     private static final String TAB_PARTY = "party";
     private static final String TAB_INVITE = "invite";
+    /** A notice's ask, answered yes or no (its Target the asker). */
+    private static final String ADMIT = "admit";
+    private static final String REFUSE = "refuse";
     /** Active-tab tint (matches the leaderboard page's painted active tab). */
     private static final String TAB_ACTIVE = "#5a7ba8";
 
@@ -211,6 +218,19 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                     EventData.of("Action", "accept").append("PartyId", inv.partyId()));
             bindRowButton(cmd, events, sel, "#RowBtnSecondary", t.declineButton(),
                     EventData.of("Action", "decline").append("PartyId", inv.partyId()));
+            row++;
+        }
+
+        // Players asking to join from the viewer's notice on a party board, in the row an invite uses.
+        for (UUID asker : PartyBoard.asksFor(svc, viewer)) {
+            if (row >= MAX_ROWS) {
+                break;
+            }
+            String sel = appendRow(cmd, row, t.joinRequestRow(PlayerDisplayNames.displayName(asker, null)), null);
+            bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.acceptButton(),
+                    EventData.of("Action", ADMIT).append("Target", asker.toString()));
+            bindRowButton(cmd, events, sel, "#RowBtnSecondary", t.declineButton(),
+                    EventData.of("Action", REFUSE).append("Target", asker.toString()));
             row++;
         }
 
@@ -350,6 +370,18 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     }
 
     // ==================== live repaint (party listener -> reopen on the viewer's world thread) ====================
+
+    /**
+     * Repaint {@code viewer}'s open party page when it shows the Party tab: for a change the party listener does not
+     * hear, such as a player asking to join from the viewer's notice on a party board. Queued on the viewer's world
+     * thread as a party change's repaint is; nothing when they have no party page open.
+     */
+    public static void repaintOpen(@Nonnull UUID viewer) {
+        PartyInvitePage page = OPEN.get(viewer);
+        if (page != null && TAB_PARTY.equals(page.activeTab)) {
+            page.queueRepaint();
+        }
+    }
 
     /** Register the page's one listener on {@code svc}, the first time any page builds over it. */
     private static void wire(@Nonnull PartyService svc) {
@@ -510,6 +542,21 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             case "decline" -> {
                 if (data.partyId != null) {
                     svc.decline(viewer, data.partyId);
+                }
+            }
+            case ADMIT -> {
+                UUID asker = parseUuid(data.target);
+                if (asker != null) {
+                    AcceptResult result = PartyBoard.admitFor(svc, viewer, asker);
+                    if (result != null && !result.ok()) {
+                        showToast(ToastKind.WARNING, deps.text().toastInviteFailed());
+                    }
+                }
+            }
+            case REFUSE -> {
+                UUID asker = parseUuid(data.target);
+                if (asker != null) {
+                    PartyBoard.refuseFor(svc, viewer, asker);
                 }
             }
             case "kick" -> {

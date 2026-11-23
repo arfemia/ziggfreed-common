@@ -99,6 +99,10 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.party.PartySettingsConfig;
+import com.ziggfreed.common.party.board.PartyBoardAsset;
+import com.ziggfreed.common.party.board.PartyBoardConfig;
+import com.ziggfreed.common.party.board.PartyNoteAsset;
+import com.ziggfreed.common.party.board.PartyNoteConfig;
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BoardConfig;
@@ -560,6 +564,28 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, PartySettingsAsset, DefaultAssetMap<String, PartySettingsAsset>> ev) ->
                         PartySettingsConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toConfig())));
+
+        // --- Party board settings (Pattern A) - the server's one word on its party boards: a notice's announcement
+        //     (the board's own line to everyone online, the owner's command lines) and how long a notice stays up.
+        //     The library ships Default.json. Owner file mods/ziggfreedcommon/party-board.json, re-read on this same
+        //     event. No top-level Requires. ---
+        AssetStoreRegistrar.registerStore(PartyBoardAsset.class,
+                new DefaultAssetMap<String, PartyBoardAsset>(), PartyBoardAsset.TYPE_ROOT,
+                PartyBoardAsset::getId, PartyBoardAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PartyBoardAsset.class,
+                (LoadedAssetsEvent<String, PartyBoardAsset, DefaultAssetMap<String, PartyBoardAsset>> ev) -> {
+                    PartyBoardConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    PartyBoardConfig.reloadOwner();
+                });
+
+        // --- Party notes (Pattern A) - one set note a poster may add to a party board's notice per file. The library
+        //     ships three; a mod adds its own in its own jar. No owner file and no top-level Requires. ---
+        AssetStoreRegistrar.registerStore(PartyNoteAsset.class,
+                new DefaultAssetMap<String, PartyNoteAsset>(), PartyNoteAsset.TYPE_ROOT,
+                PartyNoteAsset::getId, PartyNoteAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PartyNoteAsset.class,
+                (LoadedAssetsEvent<String, PartyNoteAsset, DefaultAssetMap<String, PartyNoteAsset>> ev) ->
+                        PartyNoteConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Dungeons (Pattern A) - one dungeon per file: the native template its copies start from, the
         //     prefab pasted into each party's area, how many parties share a copy, and how a run ends. The
@@ -1416,7 +1442,8 @@ public final class FrameworkAssetRegistrar {
                         + "Lootables, RollPools, DropRarities (owner file mods/ziggfreedcommon/drop-rarities.json), "
                         + "BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                         + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
-                        + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), DungeonRooms, "
+                        + "Arenas, Party, PartyBoard (owner file mods/ziggfreedcommon/party-board.json), PartyNotes, "
+                        + "Dungeons (owner file mods/ziggfreedcommon/dungeons.json), DungeonRooms, "
                         + "DungeonLayouts, DungeonOmens, "
                         + "RewardChests (owner file mods/ziggfreedcommon/reward-chests.json), "
                         + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "

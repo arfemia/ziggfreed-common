@@ -70,6 +70,8 @@ import com.ziggfreed.common.loot.diminish.DiminishLedger;
 import com.ziggfreed.common.loot.pity.PityLedger;
 import com.ziggfreed.common.party.PartyAllies;
 import com.ziggfreed.common.party.ZcParty;
+import com.ziggfreed.common.party.board.PartyBoard;
+import com.ziggfreed.common.party.board.PartyBoardDestinations;
 import com.ziggfreed.common.party.command.ZigPartyCommand;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
@@ -227,6 +229,26 @@ public final class InstanceBootstrap {
             SafeLog.warn("[party] /zigparty could not be registered", t);
         }
         Allies.installGroups(PartyAllies::sameGroup);
+        registerPartyBoard(plugin);
+    }
+
+    /**
+     * The party board: its {@code PartyBoard} destination (before any asset decodes, so a block, a placement or a
+     * conversation naming it loads), the notice taken down as its poster logs off, and the sweep that takes down a
+     * notice whose time is up. Its two stores register with the other framework stores. Registration only.
+     */
+    private static void registerPartyBoard(@Nonnull JavaPlugin plugin) {
+        try {
+            PartyBoardDestinations.register();
+        } catch (Throwable t) {
+            SafeLog.warn("[party] the PartyBoard destination could not be registered", t);
+        }
+        try {
+            plugin.getEventRegistry().register(PlayerDisconnectEvent.class, PartyBoard::onPlayerDisconnect);
+        } catch (Throwable t) {
+            SafeLog.warn("[party] a party board notice will not come down as its poster logs off", t);
+        }
+        PartyBoard.startSweep();
     }
 
     /**

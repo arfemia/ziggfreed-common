@@ -1,0 +1,206 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The party board (com.ziggfreed.common.party.board.PartyBoardPage) on the band (@ZigDecoratedFrame), its hero
+// filled by the kit's HeroPainter. Two views of one document, one shown at a time:
+//   #ListView  the board's notices on the kit's ledger (#BoardList, rows appended by LedgerPainter, which owns their
+//              ids: a notice's one button is the row's #Action), the empty line, and one button under them
+//              (#PostButton, or #TakeDownButton while the viewer has a notice up).
+//   #PostView  putting up a notice: three rows of choice tiles (appended by SegmentPainter into #AimTiles,
+//              #WantTiles and #NoteTiles), the game's own check box (#AnnounceBox, unticked to start), how the notice
+//              will read (#PreviewText), when it comes down (#PostEnds), then Put it up and Back.
+// Static words are written inline (keys of ziggfreedcommon.party.lang, board.*); the rest are pushed on .TextSpans.
+// Every colour is a Common/ZigTokens.ui token and every size a Common/ZigType.ui step through the kit's styles.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 1000, Height: 760);
+
+  #Content {
+    // ── the list ──
+    Group #ListView {
+      FlexWeight: 1;
+      LayoutMode: Top;
+
+      Group #BoardList {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 12);
+      }
+
+      Label #BoardEmpty {
+        Visible: false;
+        Anchor: (Top: 8, Bottom: 8);
+        Text: "";
+        Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 44, Top: 16);
+
+        Group {
+          FlexWeight: 1;
+        }
+
+        Button #PostButton {
+          Anchor: (Width: 300, Height: 44);
+          Style: $ZS.@ZigButtonPrimaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.party.board.btn.post;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Button #TakeDownButton {
+          Visible: false;
+          Anchor: (Width: 340, Height: 44);
+          Style: $ZS.@ZigButtonSecondaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.party.board.btn.takedown;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Group {
+          FlexWeight: 1;
+        }
+      }
+    }
+
+    // ── putting up a notice ──
+    Group #PostView {
+      Visible: false;
+      FlexWeight: 1;
+      LayoutMode: Top;
+
+      Label {
+        Anchor: (Height: 28, Bottom: 8);
+        Text: %ziggfreedcommon.party.board.post.aim;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group #AimTiles {
+        LayoutMode: LeftWrap;
+        Anchor: (Bottom: 16);
+      }
+
+      Label {
+        Anchor: (Height: 28, Bottom: 8);
+        Text: %ziggfreedcommon.party.board.post.wants;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group #WantTiles {
+        LayoutMode: Left;
+        Anchor: (Height: 32, Bottom: 16);
+      }
+
+      Label #NoteHead {
+        Anchor: (Height: 28, Bottom: 8);
+        Text: %ziggfreedcommon.party.board.post.notes;
+        Style: $ZX.@ZigHeadStyle;
+      }
+
+      Group #NoteTiles {
+        LayoutMode: LeftWrap;
+        Anchor: (Bottom: 16);
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 44, Bottom: 12);
+
+        $C.@CheckBox #AnnounceBox {
+          Anchor: (Width: 26, Height: 26, Top: 2, Right: 12);
+        }
+
+        Group {
+          FlexWeight: 1;
+          LayoutMode: Top;
+
+          Label {
+            Anchor: (Height: 22);
+            Text: %ziggfreedcommon.party.board.post.announce;
+            Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, RenderBold: true);
+          }
+
+          Label {
+            Anchor: (Height: 20);
+            Text: %ziggfreedcommon.party.board.post.announce.line;
+            Style: $ZX.@ZigCaptionStyle;
+          }
+        }
+      }
+
+      Group {
+        LayoutMode: Top;
+        Anchor: (Bottom: 12);
+        Padding: (Full: 12);
+        Background: (Color: $ZK.@ZigSurfacePane);
+
+        Label {
+          Anchor: (Height: 20);
+          Text: %ziggfreedcommon.party.board.post.preview;
+          Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center);
+        }
+
+        Label #PreviewText {
+          Text: "";
+          Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Center, Wrap: true);
+        }
+      }
+
+      Label #PostEnds {
+        Anchor: (Bottom: 12);
+        Text: "";
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
+      }
+
+      Group {
+        LayoutMode: Left;
+        Anchor: (Height: 44);
+
+        Group {
+          FlexWeight: 1;
+        }
+
+        Button #PutUpButton {
+          Anchor: (Width: 260, Height: 44, Right: 16);
+          Style: $ZS.@ZigButtonPrimaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.party.board.btn.putup;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Button #BackButton {
+          Anchor: (Width: 260, Height: 44);
+          Style: $ZS.@ZigButtonSecondaryStyle;
+
+          Label #Label {
+            FlexWeight: 1;
+            Text: %ziggfreedcommon.party.board.btn.back;
+            Style: $ZX.@ZigButtonLabelStyle;
+          }
+        }
+
+        Group {
+          FlexWeight: 1;
+        }
+      }
+    }
+  }
+}

@@ -80,6 +80,8 @@ import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.objectives.title.TitleAsset;
 import com.ziggfreed.common.party.PartySettingsAsset;
+import com.ziggfreed.common.party.board.PartyBoardAsset;
+import com.ziggfreed.common.party.board.PartyNoteAsset;
 import com.ziggfreed.common.playerstats.PlayerStatsComponent;
 import com.ziggfreed.common.playerstats.asset.StatAsset;
 import com.ziggfreed.common.playerstats.asset.StatSourceAsset;
@@ -437,6 +439,14 @@ class AssetCodecInitTest {
     @Test
     void partySettingsAssetCodecInitializes() {
         assertNotNull(PartySettingsAsset.CODEC, "PartySettingsAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void partyBoardCodecsInitialize() {
+        assertNotNull(PartyBoardAsset.CODEC, "PartyBoardAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(PartyBoardAsset.Announce.CODEC, "the Announce group codec must static-init");
+        assertNotNull(PartyBoardAsset.Notices.CODEC, "the Notices group codec must static-init");
+        assertNotNull(PartyNoteAsset.CODEC, "PartyNoteAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

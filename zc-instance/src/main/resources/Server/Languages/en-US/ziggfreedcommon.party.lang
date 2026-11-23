@@ -55,3 +55,81 @@ command.accept.full = That party is full now.
 command.accept.in_party = You're already in a party. Type /zigparty leave first.
 command.leave.done = You left the party.
 command.leave.none = You're not in a party.
+
+# ---- The party board (com.ziggfreed.common.party.board): a player puts up a notice to find a party, and others read
+# it and ask to join. Its page, how a notice reads, the lines a poster and an asker get, and the announcement everyone
+# online reads when a poster ticks the box. A name is {0} unless a line says otherwise. ----
+board.title = Party Board
+board.lead = Put up a notice to find a party, or ask to join one. Nobody is moved for you: walk to the gate, and it shows where your party is.
+board.section.dungeon = Notices for {0}
+board.section.all = Notices
+board.section.yours = Your notice
+board.empty = No notices up right now. Put one up and others can find you.
+# A notice: who, what for ({1}), and how many more ({2}).
+board.notice.title = {0}: {1}, wants {2, number} more
+board.aim.daily = today's daily
+board.aim.any = anything
+board.notes.one = {0}.
+board.notes.two = {0}. {1}.
+board.notice.meta = {0}\n{1}
+board.where.hub = {0} is in the Temple Hub.
+board.where.dungeon = {0}'s party is in {1}.
+board.where.world = {0} is out in the world.
+board.locked = Clear {0} first.
+board.ago = {0, number} min ago
+board.ago.now = Just now
+board.state.notopen = Not open
+board.state.yours = Yours
+board.btn.ask = Ask to join
+board.btn.asked = Asked
+board.tip.asked = You asked already. You will get a message when they answer.
+board.tip.inparty = You are already in a party. Leave it first to ask to join another.
+board.btn.post = Put up a notice
+board.btn.takedown = Take my notice down
+# Putting up a notice.
+board.post.title = Put up a notice
+board.post.lead = Pick what you want to do and how many more people you want. Others read it on this board and ask to join.
+board.post.aim = What for
+board.post.aim.daily = Today's daily
+board.post.aim.any = Anything
+board.post.wants = How many more
+board.post.notes = Notes, up to two
+board.post.announce = Announce my notice
+board.post.announce.line = Lets other players know your notice is up.
+board.post.preview = Your notice will read:
+board.post.preview.line = <b>{0}.</b> {1}
+board.post.preview.bare = <b>{0}.</b>
+board.post.ends = It comes down when your party is full, when you take it down, leave your party or log off, or after {0, number} {0, plural, one {minute} other {minutes}}.
+board.btn.putup = Put it up
+board.btn.back = Back
+# The library's set notes (Server/ZiggfreedCommon/PartyNotes/), without a full stop: a notice adds one.
+board.note.newplayers = New players welcome
+board.note.learning = Learning the puzzles
+board.note.quick = Quick run
+# The announcement: {0} the poster, {1} how many more, {2} the dungeon, {3} its depth; then where to answer.
+board.announce.tier = {0} wants {1, number} more for {2}, {3}.
+board.announce.daily = {0} wants {1, number} more for today's daily in {2}.
+board.announce.dungeon = {0} wants {1, number} more for {2}.
+board.announce.any = {0} wants {1, number} more.
+board.announce.at = Answer at the Party Board in the {0}.
+board.announce.board = Answer at the Party Board.
+board.announce.line = {0} {1}
+# What a poster and an asker are told.
+board.msg.up = Your notice is up.
+board.msg.up.quiet = Your notice is up, but it was not announced: you can announce one every {0, number} {0, plural, one {minute} other {minutes}}.
+board.msg.asks = {0} asks to join your party. Answer on your party page: type /zigparty.
+board.msg.asked = You asked to join {0}'s party. You will get a message when they answer.
+board.msg.accepted = {0} let you into their party. Walk to the gate, and it shows where your party is.
+board.msg.declined = {0} said no this time. Try another notice on the board.
+board.msg.down.full = Your notice came down: your party is full.
+board.msg.down.expired = Your notice came down after {0, number} {0, plural, one {minute} other {minutes}}.
+board.msg.down.taken = You took your notice down.
+board.refuse.already = You already have a notice up. Take it down first.
+board.refuse.otherparty = You are in someone else's party. Leave it to put up your own notice.
+board.refuse.ownfull = Your party is full.
+board.refuse.gone = That notice just came down.
+board.refuse.locked = Clear {0} first to join that one.
+board.refuse.inparty = You are already in a party. Leave it first to ask to join another.
+board.refuse.full = That party is full now.
+# On the poster's party page, in the row an invite uses.
+board.request.row = {0} asks to join, from your notice

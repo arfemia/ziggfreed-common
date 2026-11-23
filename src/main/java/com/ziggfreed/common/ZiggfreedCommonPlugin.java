@@ -113,6 +113,7 @@ import com.ziggfreed.common.objectives.title.TitleBootstrap;
 import com.ziggfreed.common.objectives.title.TitleValidator;
 import com.ziggfreed.common.objectives.trainer.TrainerAudit;
 import com.ziggfreed.common.objectives.trainer.TrainerBootstrap;
+import com.ziggfreed.common.party.board.PartyBoardValidator;
 import com.ziggfreed.common.playerstats.StatsBootstrap;
 import com.ziggfreed.common.playerstats.asset.StatValidator;
 import com.ziggfreed.common.proc.ProcBootstrap;
@@ -823,7 +824,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * runtime first, so no Title reward goes unchecked), Almanac pages, stats and the board sections that
      * name them, derived factors, NPC identities,
      * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons, reward chests, the hub's
-     * districts, the
+     * districts, the party board's settings and notes, the
      * conversations (claiming the first join's run too, as placements do), reputations and tracks (whose own
      * boot hooks then stand down, so an error prints once); and, always,
      * the once-per-boot warning for a loaded pack whose ziggfreed-common range this version fails
@@ -850,6 +851,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(DungeonValidator.LOG_LABEL, DungeonValidator::audit),
                     new BootAudit.Pass(RewardChestValidator.LOG_LABEL, RewardChestValidator::audit),
                     new BootAudit.Pass(HubValidator.LOG_LABEL, HubValidator::audit),
+                    new BootAudit.Pass(PartyBoardValidator.LOG_LABEL, PartyBoardValidator::audit),
                     new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings),
                     new BootAudit.Pass(ReputationValidator.LOG_LABEL, ReputationValidator::audit),
                     new BootAudit.Pass(TrackValidator.LOG_LABEL, TrackValidator::audit),

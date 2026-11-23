@@ -100,6 +100,12 @@ public final class PartyService {
         return partyOf.containsKey(uuid);
     }
 
+    /** The settings a party this service makes starts with (its size, its invites' life, who may invite). */
+    @Nonnull
+    public PartyConfig defaultConfig() {
+        return defaultConfig;
+    }
+
     @Nullable
     public Party byId(@Nonnull String partyId) {
         return parties.get(partyId);
@@ -211,6 +217,43 @@ public final class PartyService {
         party.addMember(invitee);
         hideBanner(invitee);
         broadcast(party, messages.memberJoined(name(invitee), party.size(), party.config().maxSize()), Tone.SUCCESS);
+        fireChange(party);
+        return AcceptResult.JOINED;
+    }
+
+    /**
+     * The owner lets {@code joiner} in: the other way round from an invite, for a player who asked to join (a party
+     * board's notice). The owner's party is made when they have none yet, so a poster still alone can say yes. The
+     * party hears the same joined line as an accepted invite, and the listeners the same change. Answers
+     * {@link AcceptResult#NO_INVITE} when {@code owner} is in a party they do not lead, is {@code joiner}, or
+     * {@code joiner} is offline; {@link AcceptResult#ALREADY_IN_PARTY} when {@code joiner} is in a party already; and
+     * {@link AcceptResult#PARTY_FULL} when the party has no room.
+     */
+    @Nonnull
+    public synchronized AcceptResult admit(@Nonnull UUID owner, @Nonnull UUID joiner) {
+        if (owner.equals(joiner) || !online.test(joiner)) {
+            return AcceptResult.NO_INVITE;
+        }
+        Party existing = partyOf(owner);
+        if (existing != null && !existing.isOwner(owner)) {
+            return AcceptResult.NO_INVITE;
+        }
+        if (isInParty(joiner)) {
+            return AcceptResult.ALREADY_IN_PARTY;
+        }
+        if (existing != null && existing.isFull()) {
+            return AcceptResult.PARTY_FULL;
+        }
+        Party party = getOrCreate(owner);
+        if (party.isFull()) {
+            return AcceptResult.PARTY_FULL;
+        }
+        if (partyOf.putIfAbsent(joiner, party.id()) != null) {
+            return AcceptResult.ALREADY_IN_PARTY;
+        }
+        party.removeInvite(joiner);
+        party.addMember(joiner);
+        broadcast(party, messages.memberJoined(name(joiner), party.size(), party.config().maxSize()), Tone.SUCCESS);
         fireChange(party);
         return AcceptResult.JOINED;
     }
