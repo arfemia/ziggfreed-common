@@ -35,6 +35,7 @@ import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.kit.Hero;
 import com.ziggfreed.common.ui.kit.HeroPainter;
+import com.ziggfreed.common.ui.owner.OwnerPageGuard;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.usegate.ItemLevelTags;
@@ -296,6 +297,14 @@ public final class UseGateAdminPage extends ToastablePage<UseGateAdminEventData>
             return;
         }
         String action = data.action == null ? "" : data.action;
+        if ("close".equals(action) || action.isEmpty()) {
+            player.getPageManager().setPage(ref, store, Page.None);
+            return;
+        }
+        // Who may act is asked again on every event (a refusal is said and closes the page, answering the client).
+        if (!OwnerPageGuard.stillAllowed(store, ref, player, playerRef, deps::mayOpenGuarded)) {
+            return;
+        }
         int shown = pageOf(data.page);
         switch (action) {
             case "back" -> {
@@ -312,7 +321,6 @@ public final class UseGateAdminPage extends ToastablePage<UseGateAdminEventData>
                 switchFeature(data.id);
                 reopen(player, ref, store, shown);
             }
-            case "close", "" -> player.getPageManager().setPage(ref, store, Page.None);
             default -> this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
         }
     }

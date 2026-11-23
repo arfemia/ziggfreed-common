@@ -25,6 +25,7 @@ import com.ziggfreed.common.owner.OwnerFileBinding;
 import com.ziggfreed.common.ui.kit.FormLeaf;
 import com.ziggfreed.common.ui.kit.FormLeafPainter;
 import com.ziggfreed.common.ui.owner.OwnerMenu;
+import com.ziggfreed.common.ui.owner.OwnerPageGuard;
 import com.ziggfreed.common.ui.owner.OwnerText;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -38,8 +39,9 @@ import com.ziggfreed.common.util.SafeLog;
  * through the file's binding, which reads the file again; a refusal names the setting and changes nothing. A Reset
  * takes that one setting's value out of the owner's file at once. Both repaint the rows in place.
  *
- * <p>Every event but Close asks the owner audience and the form's {@code Requires} again before it acts, and every
- * exit answers the client: Close closes, Back opens the owner menu, everything else gets an update.
+ * <p>Every event but Close asks again before it acts ({@link OwnerPageGuard}, which closes the page on a refusal):
+ * Back the owner audience, every other event the owner audience and the form's {@code Requires}. Every exit answers
+ * the client: Close closes, Back opens the menu, everything else gets an update.
  */
 public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventData> {
 
@@ -105,14 +107,15 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
             return true;
         }
         if (OwnerFormPaint.BACK.equals(action)) {
-            return OwnerMenu.open(store, ref, player, menuFirst);
+            // The menu's own audience alone: Back leaves the form, so its Requires is not asked.
+            return !OwnerPageGuard.stillAllowed(store, ref, player, this.playerRef, OwnerAudience::mayAdminister)
+                    || OwnerMenu.open(store, ref, player, menuFirst);
         }
         OwnerFormPlan current = plan;
         OwnerFormAsset form = OwnerFormConfig.getInstance().form(formId);
-        if (!OwnerAudience.mayAdminister(store, ref, player) || form == null
-                || !OwnerForms.requiresPass(form, this.playerRef, player)) {
-            this.playerRef.sendMessage(OwnerText.line("menu.refused"));
-            return false;
+        if (!OwnerPageGuard.stillAllowed(store, ref, player, this.playerRef, (s, r, p) -> OwnerAudience.mayAdminister(
+                s, r, p) && form != null && OwnerForms.requiresPass(form, this.playerRef, p))) {
+            return true;
         }
         if (current == null) {
             return false;

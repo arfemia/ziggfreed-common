@@ -28,9 +28,10 @@ import com.ziggfreed.common.util.SafeLog;
  * owner audience only. Open it through {@link OwnerMenu#open}; a consumer keeping an admin page class of its own (one
  * its screens' Back buttons already open) extends this one, naming its section first, and so opens the same menu.
  *
- * <p>Every event but Close asks the owner audience again before it acts, and every exit answers the client: Close
- * closes, a tile that opened a screen has answered, a tile that acted rebuilds the menu with its status line, and
- * anything else (no player, a refusal, a stale index, a screen that would not open) gets an update.
+ * <p>Every event but Close asks the owner audience again before it acts ({@link OwnerPageGuard}, which closes the page
+ * on a refusal), and every exit answers the client: Close closes, a tile that opened a screen has answered, a tile that
+ * acted rebuilds the menu with its status line, and anything else (no player, a stale index, a screen that would not
+ * open) gets an update.
  */
 public class OwnerMenuPage extends InteractiveCustomUIPage<OwnerMenuPage.Press> {
 
@@ -98,9 +99,8 @@ public class OwnerMenuPage extends InteractiveCustomUIPage<OwnerMenuPage.Press> 
             player.getPageManager().setPage(ref, store, Page.None);
             return true;
         }
-        if (!OwnerAudience.mayAdminister(store, ref, player)) {
-            this.playerRef.sendMessage(OwnerText.line("menu.refused"));
-            return false;
+        if (!OwnerPageGuard.stillAllowed(store, ref, player, this.playerRef, OwnerAudience::mayAdminister)) {
+            return true;
         }
         if (!OwnerMenuPaint.PRESS.equals(press.action)) {
             return false;

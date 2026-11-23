@@ -41,6 +41,7 @@ import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.kit.Hero;
 import com.ziggfreed.common.ui.kit.HeroPainter;
 import com.ziggfreed.common.ui.kit.ZigTokens;
+import com.ziggfreed.common.ui.owner.OwnerPageGuard;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -50,7 +51,8 @@ import com.ziggfreed.common.util.SafeLog;
  * two things an admin does about it - switch one off, or stand a new one where they are.
  *
  * <p>Opened only through {@link NpcPlacementAdminPages#open}, whose audience seam defaults to the
- * library's owner audience; this page never checks permissions itself, on the family's usual terms.
+ * library's owner audience; every event but Close asks that same audience again (zc-presentation's
+ * {@code OwnerPageGuard}, which closes the page on a refusal), since a client can send any event.
  *
  * <p><b>The rows answer the question the command answers</b>, off the same reads: every placement
  * whose {@code Where} matches this world, its gate verdict, and how many of it the ledger says are
@@ -334,9 +336,18 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
             @Nonnull NpcPlacementAdminEventData data) {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) {
+            this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
             return;
         }
         String action = data.action == null ? "" : data.action;
+        if ("close".equals(action) || action.isEmpty()) {
+            player.getPageManager().setPage(ref, store, Page.None);
+            return;
+        }
+        // Who may act is asked again on every event (a refusal is said and closes the page, answering the client).
+        if (!OwnerPageGuard.stillAllowed(store, ref, player, playerRef, deps::mayOpenGuarded)) {
+            return;
+        }
         String filter = data.search == null ? search : data.search;
         switch (action) {
             case "back" -> {
@@ -348,7 +359,6 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
             case "place" -> handlePlace(ref, store, player, data.role, filter);
             case "search" -> reopen(player, ref, store, filter);
             case "clear" -> reopen(player, ref, store, "");
-            case "close", "" -> player.getPageManager().setPage(ref, store, Page.None);
             default -> this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
         }
     }
