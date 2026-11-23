@@ -10,7 +10,10 @@ $ZK = "ZigTokens.ui";
 // title on the selected row) lives in Common/ZigStyles.ui, the theme document, instead.
 //
 // A one-line label says Wrap with WrapMaxLines 1, and the client ends it with "..."; a label that must fit a fixed
-// width shrinks, never under the floor. Default font throughout; the two headline styles take Secondary.
+// width shrinks, never under the floor. The look is the game's Chapter screen: what is read takes the Default face
+// (Nunito Sans); titles, heads, marks and buttons take the headline face (FontName "Secondary", Lexend Bold) in
+// capitals. The gold gradient over a title is its Label's own MaskTexturePath ("../Common/TextGradient.png" from
+// Pages/), which no style carries, so a style here writes the title white for the mask to colour.
 
 // Meta and sub lines, subtitles, hints, captions.
 @ZigCaptionStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, VerticalAlignment: Center);
@@ -18,12 +21,16 @@ $ZK = "ZigTokens.ui";
 @ZigFaintStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkFaint, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
 // Counts and points at a row's end.
 @ZigCountStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkBody, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
-// OBJECTIVES, REWARDS, a list section's head: vanilla's section label in the family's steel.
-@ZigSectionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, TextColor: $ZK.@ZigInkSection, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, VerticalAlignment: Center);
+// A head: OBJECTIVES, REWARDS, a list section's head, a column of the page. The game's own title style
+// (Common.ui @TitleStyle): the headline face at 15 in capitals, in the head ink.
+@ZigHeadStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkSection, RenderBold: true, FontName: "Secondary", RenderUppercase: true, LetterSpacing: 0.5, VerticalAlignment: Center);
+// A list section's head is the head (a whole LabelStyle, so a page may spread it with a leaf changed).
+@ZigSectionLabelStyle = LabelStyle(...@ZigHeadStyle, VerticalAlignment: Center);
 // Body text, form labels, an empty state's line.
 @ZigBodyStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBody, VerticalAlignment: Center);
-// The label inside every kit Button (#Label): bold, and shrinking to fit a fixed width, never under 13.
-@ZigButtonLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBright, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+// The label inside every kit Button (#Label): the headline face in capitals, shrinking to fit a fixed width, never
+// under 13.
+@ZigButtonLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBright, RenderBold: true, FontName: "Secondary", RenderUppercase: true, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
 // A tile's or a card's name: one line.
 @ZigRowTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
 // A kit list row's name (Pages/ZigLedgerRow*.ui): the row title's look, wrapping onto a second line rather than
@@ -37,9 +44,26 @@ $ZK = "ZigTokens.ui";
 @ZigLeadStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkBody, Wrap: true);
 // An empty state's title.
 @ZigSubtitleStyle = LabelStyle(FontSize: $ZT.@ZigFontSubtitle, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center);
-// A page's title, the detail page's title: two lines at most.
-@ZigTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontTitle, TextColor: $ZK.@ZigInkStrong, RenderBold: true, Wrap: true, WrapMaxLines: 2);
+// A page's title, the detail page's title: the headline face in capitals, flat gold; two lines at most.
+@ZigTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontTitle, TextColor: $ZK.@ZigMarkLit, RenderBold: true, FontName: "Secondary", RenderUppercase: true, Wrap: true, WrapMaxLines: 2);
 // A big number: a header stat, a stat tile's figure, the hero's numbers. Numbers sit at the end of their space.
 @ZigFigureStyle = LabelStyle(FontSize: $ZT.@ZigFontDisplay, TextColor: $ZK.@ZigInkStrong, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontSubtitle);
-// The hero's season name over its art: the headline face, uppercase, white.
-@ZigHeroTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontHero, TextColor: $ZK.@ZigInkBright, RenderBold: true, FontName: "Secondary", RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontTitle);
+
+// ── The Chapter's own words ──
+// The display title: a page's headline, the headline face at 32 in capitals, white for its Label's gold mask; one
+// line, shrinking to fit, never under the title step.
+@ZigDisplayTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontHeadline, TextColor: $ZK.@ZigInkBright, RenderBold: true, FontName: "Secondary", RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontTitle);
+// The hero's season name over its art is the display title.
+@ZigHeroTitleStyle = LabelStyle(...@ZigDisplayTitleStyle, VerticalAlignment: Center);
+// A card's title (a depth on its card): the headline face at 28 in capitals, white for its Label's gold mask,
+// centred; one line, shrinking to fit.
+@ZigCardTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontHero, TextColor: $ZK.@ZigInkBright, RenderBold: true, FontName: "Secondary", RenderUppercase: true, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontSubtitle);
+// The tagline under a title: copper, 18, bold.
+@ZigTaglineStyle = LabelStyle(FontSize: $ZT.@ZigFontSubtitle, TextColor: $ZK.@ZigInkCopper, RenderBold: true, VerticalAlignment: Center, Wrap: true);
+// Small capitals over a card's lines (TODAY'S DAILY, PAYS, NEXT CLEAR): the headline face at 13, the caption ink.
+@ZigSmallCapsStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, RenderBold: true, FontName: "Secondary", RenderUppercase: true, LetterSpacing: 0.5, VerticalAlignment: Center);
+// A mark's word (FULL PAY over its diamonds): the headline face at 20 in capitals, lit gold.
+@ZigMarkStyle = LabelStyle(FontSize: $ZT.@ZigFontTitle, TextColor: $ZK.@ZigMarkLit, RenderBold: true, FontName: "Secondary", RenderUppercase: true, VerticalAlignment: Center);
+// A bullet's name beside its diamond, and the line under it.
+@ZigBulletNameStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center);
+@ZigBulletLineStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkBody, Wrap: true);

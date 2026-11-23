@@ -33,6 +33,20 @@ class ZigTokensDocumentTest {
 
     private static final String TOKENS = "Common/ZigTokens.ui";
 
+    /**
+     * The kit's shared button, card, form, search, toast and row documents, which read their colours from the tokens
+     * as the kit documents of {@link KitDocs#DOCUMENTS} do.
+     */
+    private static final List<String> ON_TOKENS = List.of("Common/ZigButtons.ui", "Common/ZigCards.ui",
+            "Common/ZigForm.ui", "Common/ZigSearchRow.ui", "Pages/ZigToast.ui", "Pages/ZigListRow.ui",
+            "Pages/ZigSelectRow.ui");
+
+    /**
+     * An item grid's durability bar colours, the one colour an {@code ItemGridStyle} spells: the kit's grid styles
+     * draw no bar, and the HUDs read the ladder's as they stand.
+     */
+    private static final Pattern DURABILITY = Pattern.compile("DurabilityBarColor(?:Start|End)\\s*:\\s*#[0-9a-fA-F]{6}");
+
     /** A colour literal as a document spells it: {@code #rrggbb}, optionally with vanilla's alpha {@code (a)}. */
     private static final Pattern COLOUR = Pattern.compile("(?<![0-9A-Za-z])#[0-9a-fA-F]{6}(?:\\([0-9.]+\\))?(?![0-9A-Za-z])");
 
@@ -100,6 +114,9 @@ class ZigTokensDocumentTest {
                 "ZigInkFaint", "ZigInkSection", "ZigInkHeading", "ZigSurfacePane", "ZigSurfaceRow", "ZigSurfaceRowHover",
                 "ZigSurfaceRowPressed", "ZigSurfaceRowSelected", "ZigSurfaceScrim", "ZigDivider", "ZigAccent")),
                 "the inks, surfaces, divider and accent of section 2.3");
+        assertTrue(colours().keySet().containsAll(List.of("ZigInkCopper", "ZigInkDim", "ZigMarkLit", "ZigMarkUnlit",
+                "ZigBandBody", "ZigSurfaceClear")),
+                "the Chapter's copper, dim ink, lit and unlit marks, the band body and no fill");
         for (String tone : List.of("Active", "Collect", "Done", "Live", "Available", "Waiting", "Blocked", "Danger")) {
             assertTrue(colours().containsKey("ZigTone" + tone + "Fill"), "a fill for " + tone);
             assertTrue(colours().containsKey("ZigTone" + tone + "Text"), "a text colour for " + tone);
@@ -118,13 +135,21 @@ class ZigTokensDocumentTest {
                 bad.add(path + ": " + colour.group());
             }
         }
+        for (String path : ON_TOKENS) {
+            Matcher colour = COLOUR.matcher(DURABILITY.matcher(document(path)).replaceAll(""));
+            while (colour.find()) {
+                bad.add(path + ": " + colour.group());
+            }
+        }
         assertTrue(bad.isEmpty(), "a kit document reads every colour from Common/ZigTokens.ui ($ZK.@Name), so the "
                 + "contrast test measures it and a theme can change it in one place: " + bad);
     }
 
     @Test
     void everyKitDocumentThatReadsATokenImportsTheTokens() throws IOException {
-        for (String path : DOCUMENTS) {
+        List<String> paths = new ArrayList<>(DOCUMENTS);
+        paths.addAll(ON_TOKENS);
+        for (String path : paths) {
             String ui = document(path);
             if (ui.contains("$ZK.@")) {
                 String expected = path.startsWith("Common/") ? "\"ZigTokens.ui\"" : "\"../Common/ZigTokens.ui\"";

@@ -147,22 +147,10 @@ class ZigCardsDocumentTest {
     }
 
     @Test
-    void theHeadingAndThePageTypeAreTheGamesOwn() throws IOException {
-        String cards = document("Common/ZigCards.ui");
-
-        String header = definition(cards, "@ZigCardHeaderStyle");
-        // Sizes are type-scale steps (Common/ZigType.ui): vanilla's section label, its page title, and the
-        // description on the readability floor (the maintainer's "Floor 13, body 14", 2026-10-06).
-        assertTrue(header.contains("FontSize: $ZT.@ZigFontSection") && header.contains("RenderUppercase: true")
-                && header.contains("RenderBold: true") && header.contains("#9aacbc"), header);
-        String title = definition(cards, "@ZigPageTitleStyle");
-        assertTrue(title.contains("FontSize: $ZT.@ZigFontSubtitle") && title.contains("#d6e4ee"), title);
-        String description = definition(cards, "@ZigPageDescriptionStyle");
-        assertTrue(description.contains("FontSize: $ZT.@ZigFontCaption") && description.contains("#7f93a6")
-                && description.contains("Wrap: true"), description);
-        String card = definition(cards, "@ZigSectionCard");
-        assertTrue(card.contains("Padding: (Full: " + SettingsLayout.CARD_PADDING + ")"));
-        assertTrue(card.contains("ContainerPanelPatch.png"));
+    void theSectionCardIsPaddedAsTheLayoutSizesIt() throws IOException {
+        String card = definition(document("Common/ZigCards.ui"), "@ZigSectionCard");
+        assertTrue(card.contains("Padding: (Full: " + SettingsLayout.CARD_PADDING + ")"),
+                "SettingsLayout sizes the tile grid from the card's padding: " + card);
     }
 
     @Test

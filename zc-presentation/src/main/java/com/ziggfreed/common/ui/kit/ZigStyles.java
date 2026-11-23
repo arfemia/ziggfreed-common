@@ -14,8 +14,8 @@ import com.ziggfreed.common.ui.UiRetint;
 
 /**
  * The kit's named state styles, swapped onto an element by reference: a row's normal and selected look, a segment
- * on and off, a tile and a complete tile, the four action buttons, the state word per tone, the gold figure and the
- * selected row's title. Each is a style {@code Common/ZigStyles.ui} defines under {@link Name#styleName()}, and
+ * on and off, a tile, a complete tile, a selected tile and a card that is one button, the four action buttons, a
+ * view tab and its name, the state word per tone, the gold figure and the selected row's words. Each is a style {@code Common/ZigStyles.ui} defines under {@link Name#styleName()}, and
  * {@link #apply} sends it the way vanilla swaps a selected row
  * ({@code cmd.set(sel + ".Style", Value.ref("Pages/WorldEvent/WorldEventListRow.ui", "SelectedRowStyle"))},
  * {@code WorldEventPanelPage.java:88-92, 790}): no page Java pushes a colour for a row, segment, button or state word.
@@ -71,9 +71,17 @@ public final class ZigStyles {
         TILE("ZigTileStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT),
         TILE_COMPLETE("ZigTileCompleteStyle", Kind.BUTTON, ZigTokens.TONE_DONE_TEXT, ZigTokens.TONE_DONE_TEXT,
                 ZigTokens.TONE_DONE_TEXT),
-        /** The tile being read (a ware the page's detail shows): vanilla's selected Memories tile. */
+        /**
+         * The tile being read (a ware the page's detail shows), and a chosen choice tile: vanilla's selected Memories
+         * tile.
+         */
         TILE_SELECTED("ZigTileSelectedStyle", Kind.BUTTON, ZigTokens.SURFACE_ROW_SELECTED,
                 ZigTokens.SURFACE_ROW_SELECTED, ZigTokens.SURFACE_ROW_SELECTED),
+        /**
+         * A card that is one button (a depth to go into): the Memories tile at rest, the gold selected tile under the
+         * cursor; the fallback tints the tile gold under the cursor.
+         */
+        TIER_CARD("ZigTierCardStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.ACCENT, ZigTokens.ACCENT),
         BUTTON_PRIMARY("ZigButtonPrimaryStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT,
                 ZigTokens.INK_BRIGHT),
         BUTTON_SECONDARY("ZigButtonSecondaryStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT,
@@ -92,26 +100,29 @@ public final class ZigStyles {
         STATE_DANGER("ZigStateDangerStyle", Kind.LABEL, ZigTokens.TONE_DANGER_TEXT),
         FIGURE_ACCENT("ZigFigureAccentStyle", Kind.LABEL, ZigTokens.ACCENT),
         /**
-         * A selected list row's title, white on the steel blue; the two-line list title, so a theme's must wrap to two
-         * lines too, or selecting a row cuts its name back to one (M515).
+         * A selected list row's title, white on the warm selection; the two-line list title, so a theme's must wrap
+         * to two lines too, or selecting a row cuts its name back to one (M515).
          */
         ROW_TITLE_ON_SELECTED("ZigRowTitleOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
-        /** A selected row's meta line, white on the steel blue (the muted ink does not read there). */
+        /** A selected row's meta line, white on the warm selection. */
         ROW_META_ON_SELECTED("ZigRowMetaOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
-        /** A selected row's trail value, white on the steel blue. */
+        /** A selected row's trail value, white on the warm selection. */
         ROW_VALUE_ON_SELECTED("ZigRowValueOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
-        /** A selected row's state word, white on the steel blue (no tone colour reads there). */
+        /** A selected row's state word, white on the warm selection (the one ink that reads there in every theme). */
         STATE_ON_SELECTED("ZigStateOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
-        /** A view tab at rest ({@link ViewTabPainter}): the faint pane, the row's hover under the cursor. */
-        VIEW_TAB("ZigViewTabStyle", Kind.BUTTON, ZigTokens.SURFACE_PANE, ZigTokens.SURFACE_ROW_HOVER,
+        /**
+         * A view tab at rest ({@link ViewTabPainter}): the game's outlined header tab, the row's hover under the
+         * cursor; the fallback leaves the outline as drawn.
+         */
+        VIEW_TAB("ZigViewTabStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.SURFACE_ROW_HOVER,
                 ZigTokens.SURFACE_ROW_PRESSED),
-        /** The chosen view tab, on the row fill. */
-        VIEW_TAB_ON("ZigViewTabOnStyle", Kind.BUTTON, ZigTokens.SURFACE_ROW, ZigTokens.SURFACE_ROW_HOVER,
-                ZigTokens.SURFACE_ROW_PRESSED),
-        /** A view tab's name at rest, muted. */
-        VIEW_TAB_LABEL("ZigViewTabLabelStyle", Kind.LABEL, ZigTokens.INK_MUTED),
-        /** The chosen view tab's name, the rail's gold. */
-        VIEW_TAB_LABEL_ON("ZigViewTabLabelOnStyle", Kind.LABEL, ZigTokens.ACCENT);
+        /** The chosen view tab, the game's gold-framed selected header tab; the fallback leaves it as drawn. */
+        VIEW_TAB_ON("ZigViewTabOnStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT,
+                ZigTokens.INK_BRIGHT),
+        /** A view tab's name at rest, in the head ink. */
+        VIEW_TAB_LABEL("ZigViewTabLabelStyle", Kind.LABEL, ZigTokens.INK_SECTION),
+        /** The chosen view tab's name, white in its gold frame. */
+        VIEW_TAB_LABEL_ON("ZigViewTabLabelOnStyle", Kind.LABEL, ZigTokens.INK_BRIGHT);
 
         private final String styleName;
         private final Kind kind;

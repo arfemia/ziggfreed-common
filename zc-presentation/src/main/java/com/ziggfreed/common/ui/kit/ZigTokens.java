@@ -22,10 +22,12 @@ import com.ziggfreed.common.ui.menu.MenuPalette;
  * {@code #rrggbbaa} ({@link MenuPalette#fromMarkup}, the one conversion), and {@link #colours()} keeps the markup
  * spelling so the two compare as written.
  *
- * <p>The tones (accent fills and state-word colours) are semantic and never themed; {@code ZigTokensContrastTest}
- * holds every ink and tone text at 4.5:1 and every tone fill at 3:1 over the row, judged over {@link #FRAME_BODY}.
- * Two fills were lifted inside their hue to pass (Waiting {@code #6f5a8e} to {@code #7a64a0}, Blocked
- * {@code #4a5a6a} to {@code #5c6e80}).
+ * <p>The palette is the game's Chapter screen over its modal band ({@code Common/BackgroundModal.png}). The tones
+ * (accent fills and state-word colours) are semantic and never themed; {@code ZigTokensContrastTest} holds every
+ * ink and tone text at 4.5:1 on every surface, the dim ink at 3:1 (large text only), and every tone fill and the
+ * lit mark at 3:1 over the row, judged over {@link #BAND_BODY}. Two fills were lifted inside their hue to pass
+ * (Waiting {@code #6f5a8e} to {@code #7a64a0}, Blocked {@code #4a5a6a} to {@code #5c6e80}), and the Chapter's
+ * caption {@code #77879d} was lifted to {@link #INK_MUTED} to clear 4.5:1 on the row and its hover.
  */
 public final class ZigTokens {
 
@@ -33,38 +35,59 @@ public final class ZigTokens {
     private static final Map<String, Integer> INTEGERS = new LinkedHashMap<>();
 
     // Inks: text colours, brightest first.
-    /** {@code @ColorDefault}: text on the selected row and on the hero. */
+    /** {@code @ColorDefault}: text on the selected row and on the hero, and a title under the gold mask. */
     public static final String INK_BRIGHT = colour("ZigInkBright", "#ffffff");
-    /** Vanilla row and page titles. */
-    public static final String INK_STRONG = colour("ZigInkStrong", "#d6e4ee");
-    /** Body text. */
-    public static final String INK_BODY = colour("ZigInkBody", "#b6c9de");
-    /** {@code @ColorDefaultLabel}: meta and sub lines, captions, hints. */
-    public static final String INK_MUTED = colour("ZigInkMuted", "#96a9be");
-    /** Vanilla's sub line: a finished row's meta; the darkest player text allowed. */
-    public static final String INK_FAINT = colour("ZigInkFaint", "#7f93a6");
-    /** The uppercase section label's steel. */
-    public static final String INK_SECTION = colour("ZigInkSection", "#8fb4dc");
-    /** Vanilla's section label grey ({@code @ZigCardHeaderStyle}). */
-    public static final String INK_HEADING = colour("ZigInkHeading", "#9aacbc");
+    /** Row and page titles: the Chapter's text ink. */
+    public static final String INK_STRONG = colour("ZigInkStrong", "#d1dae6");
+    /** Body text: the Chapter's body ink. */
+    public static final String INK_BODY = colour("ZigInkBody", "#98a2b1");
+    /** Meta and sub lines, captions, hints: the Chapter's caption, lifted to clear 4.5:1 on a hovered row. */
+    public static final String INK_MUTED = colour("ZigInkMuted", "#7a8aa0");
+    /** A finished row's meta: the darkest player text allowed at the 13 floor (the contrast test sets it). */
+    public static final String INK_FAINT = colour("ZigInkFaint", "#79899f");
+    /** Words of 20 and up only, which take the large-text floor (3:1). */
+    public static final String INK_DIM = colour("ZigInkDim", "#6e7a8c");
+    /** A head and a section label: the game's own title ink ({@code Common.ui} {@code @TitleStyle}). */
+    public static final String INK_SECTION = colour("ZigInkSection", "#b4c8c9");
+    /** A card's header ({@code @ZigCardHeaderStyle}): the head ink. */
+    public static final String INK_HEADING = colour("ZigInkHeading", "#b4c8c9");
+    /** The tagline's copper, under a title. */
+    public static final String INK_COPPER = colour("ZigInkCopper", "#c58643");
 
     // Surfaces.
     /** Vanilla's pane, {@code #000000(0.15)}. */
     public static final String SURFACE_PANE = colour("ZigSurfacePane", "#000000(0.15)");
-    /** A row, card or tile at rest ({@code WorldEventListRow.ui}). */
-    public static final String SURFACE_ROW = colour("ZigSurfaceRow", "#101925(0.55)");
-    /** A hovered row. */
-    public static final String SURFACE_ROW_HOVER = colour("ZigSurfaceRowHover", "#132033(0.8)");
-    /** A pressed row. */
-    public static final String SURFACE_ROW_PRESSED = colour("ZigSurfaceRowPressed", "#182a40(0.9)");
-    /** The selected row, vanilla's {@code @SelectedRowStyle} steel blue, with {@link #INK_BRIGHT} on it. */
-    public static final String SURFACE_ROW_SELECTED = colour("ZigSurfaceRowSelected", "#4274a5");
+    /** A row, card or tile at rest: the Chapter's panel over the band. */
+    public static final String SURFACE_ROW = colour("ZigSurfaceRow", "#172230(0.85)");
+    /**
+     * A hovered row: bluer at the row's own lightness, since every tone fill must keep 3:1 on it as on the row at
+     * rest.
+     */
+    public static final String SURFACE_ROW_HOVER = colour("ZigSurfaceRowHover", "#12203f(0.92)");
+    /** A pressed row, a shade darker than the row. */
+    public static final String SURFACE_ROW_PRESSED = colour("ZigSurfaceRowPressed", "#101a28(0.92)");
+    /** The selected row, the Chapter's warm selection, with {@link #INK_BRIGHT} on it. */
+    public static final String SURFACE_ROW_SELECTED = colour("ZigSurfaceRowSelected", "#3b2e21(0.92)");
     /** A pill, the hero's text block. */
     public static final String SURFACE_SCRIM = colour("ZigSurfaceScrim", "#0a1119(0.8)");
-    /** {@code Common.ui}'s {@code @ContentSeparator}. */
-    public static final String DIVIDER = colour("ZigDivider", "#2b3542");
-    /** {@code @ColorGoldHighlight}: points and Collect only. */
+    /** No fill at all: a state that shows what lies under it. */
+    public static final String SURFACE_CLEAR = colour("ZigSurfaceClear", "#000000(0)");
+    /** The rule: the Chapter's separator slate. */
+    public static final String DIVIDER = colour("ZigDivider", "#48455c(0.6)");
+    /**
+     * The band body every surface is laid over: the colour of every pixel inside {@code Common/BackgroundModal.png}'s
+     * runic head and foot, opaque (the band draws it at 0.72 over the scrimmed world, which only darkens it further).
+     */
+    public static final String BAND_BODY = colour("ZigBandBody", "#161e32");
+    /** {@code @ColorGoldHighlight}: points and Collect. */
     public static final String ACCENT = colour("ZigAccent", "#e8a93b");
+    /**
+     * A lit mark, and a title in flat gold: {@code Common/TextGradient.png}'s darkest stop, so a flat title matches a
+     * masked one.
+     */
+    public static final String MARK_LIT = colour("ZigMarkLit", "#e8b962");
+    /** An unlit mark: the place of a mark not earned, read beside the lit ones and the word above them. */
+    public static final String MARK_UNLIT = colour("ZigMarkUnlit", "#4a566b");
 
     // Tones: an accent fill (bar, dot, pill) and a text colour (the state word) per meaning.
     public static final String TONE_ACTIVE_FILL = colour("ZigToneActiveFill", "#4274a5");
@@ -122,8 +145,9 @@ public final class ZigTokens {
     public static final int PIC_LARGE = integer("ZigPicLarge", 64);
 
     /**
-     * The frame body every surface is laid over (every pixel inside {@code Common/ContainerFullPatch@2x.png}'s
-     * border, the same colour {@code MenuPaletteTest} judges the rail over). Not a document token.
+     * The boxed frame's body (every pixel inside {@code Common/ContainerFullPatch@2x.png}'s border, the same colour
+     * {@code MenuPaletteTest} judges the rail over): a panel's surface. Not a document token; the kit's surfaces are
+     * judged over {@link #BAND_BODY}.
      */
     public static final String FRAME_BODY = "#16212f";
 
@@ -170,10 +194,10 @@ public final class ZigTokens {
                 blend(fg >> 8, bg >> 8, alpha), blend(fg, bg, alpha));
     }
 
-    /** The row's resting colour as it reads over the frame body: the surface every accent is judged on. */
+    /** The row's resting colour as it reads over the band body: the surface every accent is judged on. */
     @Nonnull
     public static String rowSeen() {
-        return seenOver(SURFACE_ROW, FRAME_BODY);
+        return seenOver(SURFACE_ROW, BAND_BODY);
     }
 
     /**

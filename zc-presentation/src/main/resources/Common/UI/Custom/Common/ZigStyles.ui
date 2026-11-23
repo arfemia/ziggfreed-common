@@ -13,9 +13,12 @@ $ZX = "ZigText.ui";
 //
 // Structure is themed (rows, segments, tiles, buttons); tones are not: a state word's colour is its tone's text
 // token in every theme. Every button style carries Sounds, or the button clicks silently. Every colour is a token
-// of Common/ZigTokens.ui and every size a step of Common/ZigType.ui.
+// of Common/ZigTokens.ui and every size a step of Common/ZigType.ui. The look is the game's Chapter screen: rows
+// on the Chapter's panel with its warm selection, the game's header tabs, its Primary and Secondary buttons, and
+// the Memories tiles for cards.
 
-// ── Rows: vanilla's list row in its three states, and its steel-blue selected row ──
+// ── Rows: a list row in its three states, and the warm selected row; the selected row's gold edge is the row
+// template's own, which its painter shows ──
 @ZigRowStyle = ButtonStyle(
   Default: (Background: (Color: $ZK.@ZigSurfaceRow)),
   Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
@@ -30,8 +33,8 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
-// The words on a selected row turn white: the muted and tone inks do not read on the steel blue. The title keeps
-// the list title's two lines, so selecting a row never cuts its name back to one.
+// The words on a selected row turn white, the one ink that reads on the warm selection whatever a theme does. The
+// title keeps the list title's two lines, so selecting a row never cuts its name back to one.
 @ZigRowTitleOnSelectedStyle = LabelStyle(...$ZX.@ZigLedgerTitleStyle, TextColor: $ZK.@ZigInkBright);
 @ZigRowMetaOnSelectedStyle = LabelStyle(...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigInkBright, Wrap: true, WrapMaxLines: 1);
 @ZigRowValueOnSelectedStyle = LabelStyle(...$ZX.@ZigCountStyle, TextColor: $ZK.@ZigInkBright);
@@ -61,24 +64,26 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
-// ── View tabs (Pages/ZigViewTab.ui): a page's views as tabs, never a filter's boxed segment. A faint pane and a
-// muted name at rest, the row's hover under the cursor; the chosen tab on the row fill, its name the rail's gold. ──
+// ── View tabs (Pages/ZigViewTab.ui): a page's views as the game's header tabs. The outlined tab at rest
+// (Common/HeaderTabBackground.png), the row's hover under the cursor; the chosen tab in the game's gold-framed
+// selected tab (Common/HeaderTabSelectedBackground.png, Border 7 as Common.ui's @HeaderTabsStyle draws it). The
+// name is the headline face in capitals, the head ink at rest and white when chosen. ──
 @ZigViewTabStyle = ButtonStyle(
-  Default: (Background: (Color: $ZK.@ZigSurfacePane)),
+  Default: (Background: PatchStyle(TexturePath: "../Common/HeaderTabBackground.png", Border: 7)),
   Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
   Pressed: (Background: (Color: $ZK.@ZigSurfaceRowPressed)),
   Sounds: $C.@ButtonSounds
 );
 
 @ZigViewTabOnStyle = ButtonStyle(
-  Default: (Background: (Color: $ZK.@ZigSurfaceRow)),
-  Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
-  Pressed: (Background: (Color: $ZK.@ZigSurfaceRowPressed)),
+  Default: (Background: PatchStyle(TexturePath: "../Common/HeaderTabSelectedBackground.png", Border: 7)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/HeaderTabSelectedBackground.png", Border: 7)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/HeaderTabSelectedBackground.png", Border: 7)),
   Sounds: $C.@ButtonSounds
 );
 
-@ZigViewTabLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkMuted, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
-@ZigViewTabLabelOnStyle = LabelStyle(...@ZigViewTabLabelStyle, TextColor: $ZK.@ZigAccent);
+@ZigViewTabLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkSection, RenderBold: true, FontName: "Secondary", RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+@ZigViewTabLabelOnStyle = LabelStyle(...@ZigViewTabLabelStyle, TextColor: $ZK.@ZigInkBright);
 
 // ── Tiles: vanilla's Memories tiles (Border 8), lighter under the cursor ──
 @ZigTileStyle = ButtonStyle(
@@ -105,6 +110,7 @@ $ZX = "ZigText.ui";
 );
 
 // The tile being read, vanilla's selected Memories tile (Pages/Memories/Memory.ui #ButtonSelected) in every state.
+// A choice tile (one of a few things to pick, as a post form's choices) is @ZigTileStyle, and this when chosen.
 @ZigTileSelectedStyle = ButtonStyle(
   Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
   Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
@@ -112,13 +118,23 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
+// A card that is one button (a depth to go into): the Memories tile at rest, the gold selected tile under the
+// cursor and pressed, so a click anywhere on it is plainly one choice.
+@ZigTierCardStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Sounds: $C.@ButtonSounds
+);
+
 // ── Action buttons (a Button holding Label #Label): each greys out when Java disables it ──
-// Primary: vanilla's square primary patch.
+// Primary: the game's Primary button. Its 12 border on all four sides, as the Secondary's, keeps a button narrower
+// than Common.ui's own 80-wide ends (a tile's 88-wide Show) whole.
 @ZigButtonPrimaryStyle = ButtonStyle(
-  Default: (Background: $C.@DefaultSquareButtonDefaultBackground),
-  Hovered: (Background: $C.@DefaultSquareButtonHoveredBackground),
-  Pressed: (Background: $C.@DefaultSquareButtonPressedBackground),
-  Disabled: (Background: $C.@DefaultSquareButtonDisabledBackground),
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Primary.png", Border: $C.@ButtonBorder)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Primary_Hovered.png", Border: $C.@ButtonBorder)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Primary_Pressed.png", Border: $C.@ButtonBorder)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Common/Buttons/Disabled.png", Border: $C.@ButtonBorder)),
   Sounds: $C.@ButtonSounds
 );
 

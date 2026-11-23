@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
 
 // One row of the shared menu's rail (com.ziggfreed.common.ui.menu.ZigMenu), appended by index into the
 // frame's #MenuList and addressed as "#MenuList[i] #TabBtn", so a tab's id never becomes an element id.
@@ -24,17 +25,18 @@ $ZT = "../Common/ZigType.ui";
 // the selected bar to 52 as whole Anchors, so the fills and the click cover both lines. Vanilla grows a list row
 // the same way: Pages/TriggerVolume/TriggerVolumeBrowseVolumeRow.ui (a Button row, a FlexWeight Top text column
 // over a hidden second line) and TriggerVolumeInspectorPage, which pushes the row's whole Anchor taller.
-// Every colour here is a ui/menu/MenuPalette default (an alpha one spelled #rrggbb(a)), and ZigMenu repaints
-// each from the palette in force on every build (ZigMenuDocumentsTest). A picture slot (#TabIconSlot,
+// Every ink, the bar and the rule are Common/ZigTokens.ui tokens, and the two fills (none at rest, the hover and
+// selected fill) are ui/menu/MenuPalette's own, spelled #rrggbb(a); ZigMenu repaints each from the palette in
+// force on every build (ZigMenuDocumentsTest). A picture slot (#TabIconSlot,
 // #SelIconSlot) takes an optional 28px picture, centred in the row, through ui/icon/IconRenderer.applyPlainIcon;
 // it ships hidden, and a tab never shows a picture without its label. The picture is an AssetImage of the item's
 // own icon texture, which only displays: an ItemGrid would show the item's tooltip and rarity square on the tab,
 // and an ItemIcon draws blank (UiIconWidgetHygieneTest).
 
-@TabLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
-@SelectedLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
-@SectionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, TextColor: #96a9be, RenderBold: true, RenderUppercase: true, VerticalAlignment: End);
-@SubLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+@TabLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkMuted, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+@SelectedLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBright, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+@SectionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, TextColor: $ZK.@ZigInkMuted, RenderBold: true, RenderUppercase: true, VerticalAlignment: End);
+@SubLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
 
 Group #ZigMenuTab {
   LayoutMode: Top;
@@ -106,7 +108,7 @@ Group #ZigMenuTab {
 
     Group #Marker {
       Anchor: (Width: 3, Height: 32);
-      Background: (Color: #e8a93b);
+      Background: (Color: $ZK.@ZigAccent);
     }
 
     // The bar plus this gap is the button's 10 of padding, so a picture and a label line up with the tabs'.
@@ -171,7 +173,7 @@ Group #ZigMenuTab {
 
   Group #Rule {
     Anchor: (Top: 15, Height: 1);
-    Background: (Color: #2b3542);
+    Background: (Color: $ZK.@ZigDivider);
     Visible: false;
   }
 }

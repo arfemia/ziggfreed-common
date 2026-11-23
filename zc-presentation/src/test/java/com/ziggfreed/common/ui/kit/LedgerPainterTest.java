@@ -225,7 +225,7 @@ class LedgerPainterTest {
 
         Look livePainted = metaLook(cmd, liveRow);
         assertTrue(livePainted.lines() >= 2, "the selected tall row's meta keeps its second line: " + livePainted);
-        assertEquals(ZigTokens.INK_BRIGHT, livePainted.ink(), "and reads white on the steel blue");
+        assertEquals(ZigTokens.INK_BRIGHT, livePainted.ink(), "and reads white on the warm selection");
         Look donePainted = metaLook(cmd, doneRow);
         assertTrue(donePainted.lines() >= 2, "a finished tall row's meta keeps its second line: " + donePainted);
         assertEquals(ZigTokens.INK_FAINT, donePainted.ink(), "and reads in the faint ink");
@@ -258,7 +258,7 @@ class LedgerPainterTest {
 
             Look selected = look(List.of(cmd), size, ROW0, "#Title");
             assertEquals(2, selected.lines(), size + ": the selected row's title keeps its second line");
-            assertEquals(ZigTokens.INK_BRIGHT, selected.ink(), size + ": and reads white on the steel blue");
+            assertEquals(ZigTokens.INK_BRIGHT, selected.ink(), size + ": and reads white on the warm selection");
 
             UICommandBuilder moved = new UICommandBuilder();
             LedgerPainter.select(moved, index, "r1", "r2", null);

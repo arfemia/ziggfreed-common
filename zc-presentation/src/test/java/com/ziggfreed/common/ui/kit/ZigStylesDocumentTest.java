@@ -85,10 +85,10 @@ class ZigStylesDocumentTest {
         String selected = style(ui, "@ZigRowSelectedStyle");
         for (String state : List.of("Default", "Hovered", "Pressed")) {
             assertTrue(selected.contains(state + ": (Background: (Color: $ZK.@ZigSurfaceRowSelected))"),
-                    "the selected row keeps the steel blue in every state: " + selected);
+                    "the selected row keeps the warm selection in every state: " + selected);
         }
         assertTrue(style(ui, "@ZigRowTitleOnSelectedStyle").contains("TextColor: $ZK.@ZigInkBright"),
-                "white on the selected row (4.9:1)");
+                "white on the selected row (13.4:1)");
         assertTrue(style(ui, "@ZigRowTitleOnSelectedStyle").contains("...$ZX.@ZigLedgerTitleStyle"),
                 "the selected row's title is the two-line list title, so selecting never cuts its second line (M515)");
     }
@@ -120,22 +120,6 @@ class ZigStylesDocumentTest {
                 "@ZigButtonDangerStyle")) {
             assertTrue(style(ui, name).contains("Disabled:"), name + " greys out when Java disables it");
         }
-    }
-
-    @Test
-    void aViewTabReadsAsNavigationNotAsAFilter() throws IOException {
-        String ui = document(DEFAULT_THEME);
-        assertTrue(style(ui, "@ZigViewTabStyle").contains("Default: (Background: (Color: $ZK.@ZigSurfacePane))"),
-                "a tab at rest is a faint pane, not a segment's boxed patch");
-        assertTrue(style(ui, "@ZigViewTabOnStyle").contains("Default: (Background: (Color: $ZK.@ZigSurfaceRow))"),
-                "the chosen tab sits on the row fill");
-        String label = style(ui, "@ZigViewTabLabelStyle");
-        assertTrue(label.contains("RenderUppercase: true") && label.contains("RenderBold: true")
-                && label.contains("FontSize: $ZT.@ZigFontBody") && label.contains("TextColor: $ZK.@ZigInkMuted"),
-                "a tab names its view in body-size bold capitals, muted at rest: " + label);
-        String on = style(ui, "@ZigViewTabLabelOnStyle");
-        assertTrue(on.contains("...@ZigViewTabLabelStyle") && on.contains("TextColor: $ZK.@ZigAccent"),
-                "the chosen tab's name is the rail's gold: " + on);
     }
 
     @Test

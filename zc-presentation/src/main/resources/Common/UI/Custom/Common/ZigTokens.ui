@@ -6,29 +6,43 @@
 // No other kit document spells a colour: a colour changes here, once, for every row, tile, pill and page built on
 // the kit. com.ziggfreed.common.ui.kit.ZigTokens holds the same names and values for the few colours Java pushes
 // (a tone's fill on an accent bar, a dot's tint), and the kit's document tests hold the two together; its contrast
-// test measures every ink and tone here against the row surface laid over the frame body.
+// test measures every ink and tone here against every surface laid over the band body.
+//
+// The palette is the game's Chapter screen (its design system's slate inks, gold marks, copper tagline and warm
+// selection), drawn over the game's own modal band (Common/BackgroundModal.png).
 //
 // This document imports nothing: it is where every value starts.
 
-// Inks: text colours, brightest first. Faint is the darkest player text allowed.
+// Inks: text colours, brightest first. Faint is the darkest player text allowed at the 13 floor; dim reads only
+// at 20 and up (the large-text floor).
 @ZigInkBright = #ffffff;
-@ZigInkStrong = #d6e4ee;
-@ZigInkBody = #b6c9de;
-@ZigInkMuted = #96a9be;
-@ZigInkFaint = #7f93a6;
-@ZigInkSection = #8fb4dc;
-@ZigInkHeading = #9aacbc;
+@ZigInkStrong = #d1dae6;
+@ZigInkBody = #98a2b1;
+@ZigInkMuted = #7a8aa0;
+@ZigInkFaint = #79899f;
+@ZigInkDim = #6e7a8c;
+@ZigInkSection = #b4c8c9;
+@ZigInkHeading = #b4c8c9;
+// The tagline's copper, under a title.
+@ZigInkCopper = #c58643;
 
-// Surfaces: vanilla's pane, its list row in three states and its selected row, the scrim under a pill, the rule.
+// Surfaces: vanilla's pane, a list row in three states and its warm selected row, the scrim under a pill, no fill
+// at all, the rule, and the band body every surface is judged over (the modal band's own colour).
 @ZigSurfacePane = #000000(0.15);
-@ZigSurfaceRow = #101925(0.55);
-@ZigSurfaceRowHover = #132033(0.8);
-@ZigSurfaceRowPressed = #182a40(0.9);
-@ZigSurfaceRowSelected = #4274a5;
+@ZigSurfaceRow = #172230(0.85);
+@ZigSurfaceRowHover = #12203f(0.92);
+@ZigSurfaceRowPressed = #101a28(0.92);
+@ZigSurfaceRowSelected = #3b2e21(0.92);
 @ZigSurfaceScrim = #0a1119(0.8);
-@ZigDivider = #2b3542;
-// Gold: points and Collect only.
+@ZigSurfaceClear = #000000(0);
+@ZigDivider = #48455c(0.6);
+@ZigBandBody = #161e32;
+// Gold: points and Collect.
 @ZigAccent = #e8a93b;
+// Marks: a lit mark and a title in flat gold (the gold gradient's darkest stop, Common/TextGradient.png, so a flat
+// title matches a masked one), and an unlit mark.
+@ZigMarkLit = #e8b962;
+@ZigMarkUnlit = #4a566b;
 
 // Tones: a meaning's fill (an accent bar, a dot, a pill) and its text (a state word). Tones are semantic, so a
 // theme never changes them: done reads green in every theme.

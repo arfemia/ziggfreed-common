@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $ZT = "ZigType.ui";
+$ZK = "ZigTokens.ui";
 
 // ziggfreed-common's shared CARD shapes, for any page laid out as headed cards (the Settings tab today):
 // a section card, the heading over it, a page's title and description, and a tile that opens another
@@ -15,11 +16,12 @@ $ZT = "ZigType.ui";
 // A tile is one Button, so a click anywhere on it opens its screen: an item icon (#TileIcon, an ItemGrid
 // whose one slot Java fills), a title (#TileTitle), one line (#TileSubtitle) and an accent bar
 // (#TileAccent). Those ids and the 210 x 104 size are what every page painting a tile relies on;
-// ZigCardsDocumentTest pins them. All text is set from Java on .TextSpans.
+// ZigCardsDocumentTest pins them. All text is set from Java on .TextSpans. Every colour is a token of
+// Common/ZigTokens.ui.
 
-@ZigCardHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, RenderBold: true, RenderUppercase: true, TextColor: #9aacbc, HorizontalAlignment: Start);
-@ZigPageTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontSubtitle, RenderBold: true, TextColor: #d6e4ee, VerticalAlignment: Center);
-@ZigPageDescriptionStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #7f93a6, Wrap: true);
+@ZigCardHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, RenderBold: true, RenderUppercase: true, TextColor: $ZK.@ZigInkHeading, HorizontalAlignment: Start);
+@ZigPageTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontSubtitle, RenderBold: true, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center);
+@ZigPageDescriptionStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkFaint, Wrap: true);
 
 // One card: the inset panel a section's rows or tiles sit in.
 @ZigSectionCard = Group {
@@ -46,17 +48,17 @@ $ZT = "ZigType.ui";
   EphemeralIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
 );
 
-// Flat per-state colours rather than a tinted patch: a PatchStyle tint multiplies and can only darken,
-// and a tile wants to BRIGHTEN under the cursor.
+// The kit's row surfaces in their three states, flat rather than a tinted patch (a PatchStyle tint multiplies and
+// can only darken): the Chapter's panel at rest, bluer under the cursor, darker pressed.
 @ZigTileBtnStyle = ButtonStyle(
-  Default: (Background: #1b2430),
-  Hovered: (Background: #27333f),
-  Pressed: (Background: #141c26),
+  Default: (Background: $ZK.@ZigSurfaceRow),
+  Hovered: (Background: $ZK.@ZigSurfaceRowHover),
+  Pressed: (Background: $ZK.@ZigSurfaceRowPressed),
   Sounds: $C.@ButtonSounds
 );
 
-@ZigTileTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #d6e4ee, RenderBold: true, VerticalAlignment: Center, Wrap: true);
-@ZigTileSubtitleStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #7f93a6, VerticalAlignment: Start, Wrap: true);
+@ZigTileTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center, Wrap: true);
+@ZigTileSubtitleStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkFaint, VerticalAlignment: Start, Wrap: true);
 
 // One tile: drop one in as  $K.@ZigTile #OpenFooBtn {}  and fill it from Java by id.
 @ZigTile = Button {
@@ -95,6 +97,6 @@ $ZT = "ZigType.ui";
 
   Group #TileAccent {
     Anchor: (Height: 3, Left: 0, Right: 0);
-    Background: #4aff7f;
+    Background: $ZK.@ZigAccent;
   }
 };

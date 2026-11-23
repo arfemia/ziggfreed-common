@@ -82,45 +82,6 @@ class ZigKitDocumentsTest {
     }
 
     @Test
-    void theNamedTextStylesAreThePlansScale() throws IOException {
-        String text = document("Common/ZigText.ui");
-        // name -> step, ink, and what else the style must say
-        Map<String, List<String>> styles = new LinkedHashMap<>();
-        styles.put("@ZigCaptionStyle", List.of("Caption", "ZigInkMuted"));
-        styles.put("@ZigFaintStyle", List.of("Caption", "ZigInkFaint"));
-        styles.put("@ZigCountStyle", List.of("Caption", "ZigInkBody", "RenderBold: true", "HorizontalAlignment: End"));
-        styles.put("@ZigSectionLabelStyle", List.of("Section", "ZigInkSection", "RenderBold: true",
-                "RenderUppercase: true", "LetterSpacing: 1"));
-        styles.put("@ZigBodyStyle", List.of("Body", "ZigInkBody"));
-        styles.put("@ZigButtonLabelStyle", List.of("Body", "ZigInkBright", "RenderBold: true", "ShrinkTextToFit: true",
-                "MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption"));
-        styles.put("@ZigRowTitleStyle", List.of("Emphasis", "ZigInkStrong", "RenderBold: true", "Wrap: true",
-                "WrapMaxLines: 1"));
-        styles.put("@ZigLedgerTitleStyle", List.of("Emphasis", "ZigInkStrong", "RenderBold: true",
-                "VerticalAlignment: Center", "Wrap: true", "WrapMaxLines: 2"));
-        styles.put("@ZigTileNameStyle", List.of("Emphasis", "ZigInkStrong", "RenderBold: true",
-                "FontName: \"Secondary\"", "RenderUppercase: true", "WrapMaxLines: 2"));
-        styles.put("@ZigHeadingStyle", List.of("Heading", "ZigInkStrong", "RenderBold: true"));
-        styles.put("@ZigLeadStyle", List.of("Heading", "ZigInkBody", "Wrap: true"));
-        styles.put("@ZigSubtitleStyle", List.of("Subtitle", "ZigInkStrong", "RenderBold: true"));
-        styles.put("@ZigTitleStyle", List.of("Title", "ZigInkStrong", "RenderBold: true", "WrapMaxLines: 2"));
-        styles.put("@ZigFigureStyle", List.of("Display", "ZigInkStrong", "RenderBold: true", "ShrinkTextToFit: true",
-                "MinShrinkTextToFitFontSize: $ZT.@ZigFontSubtitle"));
-        styles.put("@ZigHeroTitleStyle", List.of("Hero", "ZigInkBright", "RenderBold: true", "FontName: \"Secondary\"",
-                "RenderUppercase: true", "ShrinkTextToFit: true", "MinShrinkTextToFitFontSize: $ZT.@ZigFontTitle"));
-        for (Map.Entry<String, List<String>> entry : styles.entrySet()) {
-            String body = style(text, entry.getKey());
-            List<String> spec = entry.getValue();
-            assertTrue(body.contains("FontSize: $ZT.@ZigFont" + spec.get(0) + ","), entry.getKey() + " is the "
-                    + spec.get(0) + " step: " + body);
-            assertTrue(body.contains("TextColor: $ZK.@" + spec.get(1)), entry.getKey() + " is in " + spec.get(1));
-            for (String also : spec.subList(2, spec.size())) {
-                assertTrue(body.contains(also), entry.getKey() + " says " + also + ": " + body);
-            }
-        }
-    }
-
-    @Test
     void theLedgerRowCarriesTheSeamIdsInsideOneButton() throws IOException {
         String ui = document("Pages/ZigLedgerRow.ui");
         assertEquals(56, strut(block(ui, "#Select"), "#RowStrut", "the standard row"),

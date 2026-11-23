@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
 $ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
 
 // ── ziggfreed-common generic appendable LIST ROW ──────────────────────────────
 // Appended into a consumer's list container:  cmd.append("#MyList", "Pages/ZigListRow.ui");
@@ -25,12 +26,14 @@ $ZT = "../Common/ZigType.ui";
 // #IcoTex draws a Common-rooted texture path - a creature's portrait, an NPC role's model icon.
 // applyIcon returns whether it drew anything; a row sets "#MyList[i] #IconSlot.Visible" to that.
 // #IcoTex carries a fallback so a picture the client does not have still lines up.
+//
+// The row sits on the kit's row surface, and every colour here is a token of Common/ZigTokens.ui.
 
 Group #ZigListRow {
   LayoutMode: Left;
   Anchor: (Height: 46, Bottom: 4);
   Padding: (Horizontal: 6, Vertical: 3);
-  Background: (TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #2a3442);
+  Background: (Color: $ZK.@ZigSurfaceRow);
 
   Group #IconSlot {
     Anchor: (Width: 28, Height: 28, Top: 6, Left: 2);
@@ -58,11 +61,11 @@ Group #ZigListRow {
     Padding: (Left: 8);
     Label #Title {
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center);
     }
     Label #Sub {
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, VerticalAlignment: Center);
     }
   }
 
@@ -70,7 +73,7 @@ Group #ZigListRow {
     Visible: false;
     Anchor: (Width: 74, Height: 40);
     Text: "";
-    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8fd0a6, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigToneDoneText, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
   }
 
   Button #EditBtn {
@@ -79,7 +82,7 @@ Group #ZigListRow {
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 
@@ -90,7 +93,7 @@ Group #ZigListRow {
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ff9a9a, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigToneDangerText, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 }

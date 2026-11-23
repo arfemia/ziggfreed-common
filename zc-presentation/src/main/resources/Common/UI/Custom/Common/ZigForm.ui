@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $Z = "ZigButtons.ui";
 $ZT = "ZigType.ui";
+$ZK = "ZigTokens.ui";
 
 // ── ziggfreed-common's settings-form look, by name: the styles and pieces of the five form rows ──
 // Imported per document as:  $ZM = "../Common/ZigForm.ui";  (from Pages/; "ZigForm.ui" from Common/) and used as
@@ -9,11 +10,12 @@ $ZT = "ZigType.ui";
 //   $ZM.@ZigToggle #MyToggle {}
 // The five appended rows SettingsForm builds (Pages/ZigFormHeaderRow.ui, ZigFormNoteRow.ui, ZigFormFieldRow.ui,
 // ZigFormDropdownRow.ui and ZigFormToggleRow.ui) read these names, so a page of its own that wants the settings
-// form's look takes it from here, and the two never drift. Every text size is a Common/ZigType.ui step.
+// form's look takes it from here, and the two never drift. Every text size is a Common/ZigType.ui step and every
+// colour a Common/ZigTokens.ui token.
 //
-// @ZigFormHeaderStyle    a section heading: amber and bold at Emphasis.
-// @ZigFormLabelStyle     a row's label: light steel at Body, centred on the row's height.
-// @ZigFormNoteStyle      a note or a hint: muted steel at Caption, with NO Wrap, so a note in a fixed-height row
+// @ZigFormHeaderStyle    a section heading: the tagline's copper, bold at Emphasis.
+// @ZigFormLabelStyle     a row's label: the strong ink at Body, centred on the row's height.
+// @ZigFormNoteStyle      a note or a hint: the body ink at Caption, with NO Wrap, so a note in a fixed-height row
 //                        cannot overflow it. A note free to grow (the note row, a row's hint) spreads it and adds
 //                        the wrap itself:  Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
 // @ZigFormDropdownStyle  a dropdown: vanilla's box with a white, non-uppercase label.
@@ -23,15 +25,15 @@ $ZT = "ZigType.ui";
 //                        margins; an instance's own Anchor replaces all three. SettingsUiUtil.setToggle paints it:
 //                        its words on #Label's .TextSpans, its state by retinting the patch and the label.
 
-@ZigFormHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+@ZigFormHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkCopper, RenderBold: true, VerticalAlignment: Center);
 
-@ZigFormLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, VerticalAlignment: Center);
+@ZigFormLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center);
 
-@ZigFormNoteStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #aabccf);
+@ZigFormNoteStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkBody);
 
 @ZigFormDropdownStyle = DropdownBoxStyle(
   ...$C.@DefaultDropdownBoxStyle,
-  LabelStyle: (...$C.@DefaultDropdownBoxLabelStyle, TextColor: #ffffff, RenderUppercase: false)
+  LabelStyle: (...$C.@DefaultDropdownBoxLabelStyle, TextColor: $ZK.@ZigInkBright, RenderUppercase: false)
 );
 
 @ZigFormRow = Group {
@@ -50,6 +52,6 @@ $ZT = "ZigType.ui";
   Label #Label {
     FlexWeight: 1;
     Text: "";
-    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Center, VerticalAlignment: Center);
   }
 };

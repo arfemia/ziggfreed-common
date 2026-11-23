@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
 $ZT = "ZigType.ui";
+$ZK = "ZigTokens.ui";
 
 // ── ziggfreed-common shared SEARCH ROW (field + Search + Clear) ───────────────
 // Imported per page as:  $S = "../Common/ZigSearchRow.ui";  then instantiated WITH AN ID:
@@ -24,7 +25,7 @@ $ZT = "ZigType.ui";
 // button widths), @Placeholder (a %key; token for the field's placeholder text; "" for
 // none). Fixed inner ids: #SearchField, #SearchBtn, #ClearBtn. Both buttons are a Button
 // + inner #Label so their words come from the lang file on .TextSpans; keep
-// @ZigRichRowBtnStyle, it carries the click Sounds.
+// @ZigRichRowBtnStyle, it carries the click Sounds. Every colour is a Common/ZigTokens.ui token.
 
 @ZigSearchRow = Group {
   @Anchor = ();
@@ -41,7 +42,7 @@ $ZT = "ZigType.ui";
     Anchor: (Height: @Height);
     Padding: (Horizontal: 8);
     PlaceholderText: @Placeholder;
-    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBody);
   }
 
   Group { Anchor: (Width: 4); }
@@ -52,7 +53,7 @@ $ZT = "ZigType.ui";
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 
@@ -66,7 +67,7 @@ $ZT = "ZigType.ui";
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigToneDangerText, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 };
