@@ -5,27 +5,29 @@ $ZX = "../Common/ZigText.ui";
 $ZS = "../Common/ZigStyles.ui";
 $ZW = "../Common/ZigKit.ui";
 
-// The generic leaderboard page (com.ziggfreed.common.instance.leaderboard.LeaderboardPage) in its own
-// 860 x 700 frame, for a board whose deps name no rail tab (Kweebec's). Its body is exactly the menu
-// document's (Pages/ZigLeaderboardMenuPage.ui): the same elements, the same ids, the same order, held one for
-// one by LeaderboardMenuDocumentTest, so change the two together. That document's header comment describes
-// every part, #SplitRow and the picked thing's #VariantRow under it included. Only #Board's padding differs,
-// since this frame pads its own content. Shipped once in ziggfreed-common; neutral Zig* ids.
+// The generic leaderboard page (com.ziggfreed.common.instance.leaderboard.LeaderboardPage) on its own band
+// (@ZigDecoratedFrame), for a board whose deps name no rail tab (Kweebec's). Its box is 1200 x 800, wide enough for
+// the viewer's five figure tiles in one row (5 x 224 in the 1164 the frame's padding leaves), and the band's head and
+// foot (78 each) keep it on a 1080 screen. Its body is exactly the menu document's
+// (Pages/ZigLeaderboardMenuPage.ui): the same elements, the same ids, the same order, held one for one by
+// LeaderboardMenuDocumentTest, so change the two together. That document's header comment describes every part.
+// Only #Board's padding differs, since this frame pads its own content. Shipped once in ziggfreed-common; neutral
+// Zig* ids.
 
-// A column header's words: the view tab's name, wrapping onto a second line rather than cut off, in a 44px header.
+// A column header's words: the header tab's name, wrapping onto a second line rather than cut off, in a 44px header.
 // Every header column is at least a figure column's share of the row, far wider than the one ellipsis under which
 // a two-line label would crash the client (the ui rule).
 @HeadStyle = LabelStyle(...$ZS.@ZigViewTabLabelStyle, ShrinkTextToFit: false, Wrap: true, WrapMaxLines: 2);
 @HeadEndStyle = LabelStyle(...@HeadStyle, HorizontalAlignment: End);
 
-// A column header that sorts the list: the view tab's faint pane, its name at the end like the figures under
-// it, #Mark before the name on the sorted column.
+// A column header that sorts the list: the kit's list head (the faint pane, the row's hover under the cursor), its
+// name at the end like the figures under it, #Mark (a gold chevron) before the name on the sorted column.
 @SortHeader = Button {
   FlexWeight: 1;
   Anchor: (Height: 44, Left: 4);
   LayoutMode: Left;
   Padding: (Horizontal: 10);
-  Style: $ZS.@ZigViewTabStyle;
+  Style: $ZS.@ZigSectionHeadStyle;
   TextTooltipStyle: $C.@DefaultTextTooltipStyle;
 
   Group #Mark {
@@ -46,7 +48,7 @@ $C.@PageOverlay {}
 
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 860, Height: 700);
+  Anchor: (Width: 1200, Height: 800);
 
   #Content {
     Group #Board {
@@ -54,21 +56,21 @@ $F.@ZigDecoratedFrame {
       LayoutMode: Top;
 
       Label #Title {
-        Anchor: (Height: 28, Bottom: 2);
+        Anchor: (Height: 32, Bottom: 2);
         Text: "";
-        Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
+        Style: (...$ZX.@ZigTitleStyle, HorizontalAlignment: Center, VerticalAlignment: Center, WrapMaxLines: 1);
       }
 
       Label #Lead {
         Anchor: (Height: 20);
         Text: "";
         Visible: false;
-        Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 1);
       }
 
       Group #GroupRow {
         LayoutMode: Top;
-        Anchor: (Top: 12);
+        Anchor: (Top: 16);
 
         Label #GroupLabel {
           Anchor: (Height: 22);
@@ -78,7 +80,7 @@ $F.@ZigDecoratedFrame {
         }
 
         Group #GroupBar {
-          LayoutMode: LeftWrap;
+          LayoutMode: LeftCenterWrap;
         }
       }
 
@@ -115,7 +117,7 @@ $F.@ZigDecoratedFrame {
         }
 
         $C.@DropdownBox #Pick {
-          Anchor: (Width: 240, Height: 32, Top: 6);
+          Anchor: (Width: 320, Height: 32, Top: 6);
         }
       }
 
@@ -187,14 +189,12 @@ $F.@ZigDecoratedFrame {
 
       Group #YouStrip {
         LayoutMode: Top;
-        Anchor: (Top: 14);
-        Padding: (Horizontal: $ZK.@ZigSpace4, Vertical: 10);
-        Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+        Anchor: (Top: 16);
         Visible: false;
 
         Group #YouHead {
           LayoutMode: Left;
-          Anchor: (Height: 20);
+          Anchor: (Height: 22);
 
           Label #YouHeading {
             FlexWeight: 1;
@@ -210,26 +210,8 @@ $F.@ZigDecoratedFrame {
         }
 
         Group #YouFigures {
-          LayoutMode: Left;
-          Anchor: (Height: 78, Top: 4);
-
-          $ZW.@ZigStatTwoLine #YouPlace {}
-
-          $ZW.@ZigStatTwoLine #YouStat0 {
-            @Anchor = (Left: $ZK.@ZigSpace2);
-          }
-
-          $ZW.@ZigStatTwoLine #YouStat1 {
-            @Anchor = (Left: $ZK.@ZigSpace2);
-          }
-
-          $ZW.@ZigStatTwoLine #YouStat2 {
-            @Anchor = (Left: $ZK.@ZigSpace2);
-          }
-
-          $ZW.@ZigStatTwoLine #YouStat3 {
-            @Anchor = (Left: $ZK.@ZigSpace2);
-          }
+          LayoutMode: LeftWrap;
+          Anchor: (Top: 6);
         }
 
         Label #YouHint {
@@ -242,7 +224,7 @@ $F.@ZigDecoratedFrame {
 
       Group #TableHeader {
         LayoutMode: Left;
-        Anchor: (Height: 44, Top: 14, Bottom: 4);
+        Anchor: (Height: 44, Top: 8, Bottom: 4);
         Padding: (Right: 4);
         Visible: false;
 
@@ -295,7 +277,7 @@ $F.@ZigDecoratedFrame {
 
       Group #StatsHeader {
         LayoutMode: Left;
-        Anchor: (Height: 44, Top: 14, Bottom: 4);
+        Anchor: (Height: 44, Top: 8, Bottom: 4);
         Padding: (Right: 4);
         Visible: false;
 

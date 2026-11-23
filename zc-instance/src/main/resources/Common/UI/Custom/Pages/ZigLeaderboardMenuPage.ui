@@ -8,53 +8,60 @@ $ZW = "../Common/ZigKit.ui";
 // The generic leaderboard page (com.ziggfreed.common.instance.leaderboard.LeaderboardPage) on the shared
 // menu's rail: the page builds from this document instead of Pages/ZigLeaderboardPage.ui when its deps
 // name a rail tab (LeaderboardPageDeps.menuTab), as Records does. A board with no tab keeps the standalone
-// document and its own 860 x 700 frame.
+// document and its own 1200 x 800 box on the band.
 //
 // The frame's rail comes first (ui/menu/ZigMenu paints it, with the deps' tab selected), then #Board, the
 // one column holding exactly the standalone document's body: the same elements, the same ids, the same
 // order (LeaderboardMenuDocumentTest holds the two one for one, since the page addresses either with the
 // same commands). Change the body in both documents together. The frame owns the size and the close
-// button; every colour is a Common/ZigTokens.ui token and every size a Common/ZigType.ui step.
+// button; every colour is a Common/ZigTokens.ui token and every size a Common/ZigType.ui step. The look is the
+// game's Chapter screen, from the kit: the page's title in flat gold and its lead centred over the board.
 //
 // TOP: #Title and #Lead, the board's one line on how to read it (hidden when the board has none).
-// #GroupRow: the first row of tabs. A row whose tabs each bring their own columns (Records' sections) is the
-// kit's view tabs (Pages/ZigViewTab.ui, ViewTabPainter) over a thin rule (#GroupRule);
-// any other row is the kit's two-line segments (Pages/ZigSegmentTwoLine.ui, SegmentPainter.appendTwoLine), as
-// #TabRow, the periods, always is, so a long name wraps inside its segment rather than ending in an ellipsis.
+// #GroupRow: the first row of tabs, centred. A row whose tabs each bring their own columns (Records' sections) is
+// the game's header tabs (Pages/ZigViewTab.ui, ViewTabPainter) over a thin rule (#GroupRule);
+// any other row is the kit's two-line choice tiles (Pages/ZigSegmentTwoLine.ui, SegmentPainter.appendTwoLine), as
+// #TabRow, the periods, always is, so a long name wraps inside its tile rather than ending in an ellipsis.
 // Both rows wrap onto a second line rather than run off the edge, and each has an optional
 // section label above it. #SplitRow shows only on a tab with a split (LeaderboardSplit): its
-// choices as two-line segments in #SplitBar, one row of them, then #Pick, the vanilla dropdown the
-// achievements page uses, for one thing alone; the menu frame's width holds about six choices beside it, and
-// the 860 frame carries no split. #VariantRow shows only while the picked thing has variants (a boss's party
-// sizes, LeaderboardSplit.Variant): the thing's own columns first, then each variant, as two-line segments in
+// choices as two-line choice tiles in #SplitBar, one row of them, then #Pick, the vanilla dropdown the
+// achievements page uses, 320 wide for one thing alone ("The Crypt: Daily Run"); the menu body holds about
+// six choices beside it. #VariantRow shows only while the picked thing has variants (a boss's party
+// sizes, LeaderboardSplit.Variant): the thing's own columns first, then each variant, as two-line choice tiles in
 // #VariantBar, wrapping like #TabRow, each label on .TextSpans so a typed number fills. #ControlBar shows only
-// on a board with a Rankings view: the sort and the view, as segments.
+// on a board with a Rankings view: the sort and the view, as choice tiles.
 //
-// #YouStrip: the viewer's place on this board and their own number in each column (the kit's @ZigStat,
-// StatPainter), or, with no place yet, the line saying how to get on it. Hidden while the board is empty.
+// #YouStrip: the viewer's standing on this board, YOUR STANDING over the count on it, then #YouFigures, the host
+// the kit's figure tiles are painted into (Pages/ZigStatTile.ui, TilePainter.stats: 216 x 128 each with an 8px
+// gap, so five, their place and four figures, take 1120 of the 1238 this column holds); or, with no place yet,
+// the line saying how to get on it. Hidden while the board is empty.
 //
 // LIST: one of two headers (#TableHeader for Rankings; #StatsHeader for Stats, whose columns are
-// @SortHeader buttons: the sorted one swaps to the view tab's chosen look, its name turns gold and its
-// #Mark shows, and each carries a tooltip saying what it counts), then #LeaderboardList, which the page
-// appends Pages/ZigLeaderboardRow.ui or Pages/ZigLeaderboardStatsRow.ui into. The header and the rows
+// @SortHeader buttons on the kit's list head: the sorted one's name turns gold and its #Mark chevron shows, and
+// each carries a tooltip saying what it counts), then #LeaderboardList, which the page appends
+// Pages/ZigLeaderboardRow.ui or Pages/ZigLeaderboardStatsRow.ui into. The header and the rows
 // share their widths (Rank 72, Player FlexWeight 2, each figure FlexWeight 1 after a 4px gap, 10px in
 // from its right edge), so a hidden column leaves both the same. #EmptyState (the kit's
 // @ZigEmptyState) takes the list's place when nobody is on the board.
+//
+// HEIGHT: the column is the menu body less #Board's padding, 868 high. At its fullest (Records' Dungeons tab with a
+// boss's sizes: a title and lead 54, two rows of header tabs and the rule 97, the periods 56, the split 56, the
+// variants 52, the standing 180 and the header 56) the list keeps about 317, seven rows.
 
-// A column header's words: the view tab's name, wrapping onto a second line rather than cut off, in a 44px header.
+// A column header's words: the header tab's name, wrapping onto a second line rather than cut off, in a 44px header.
 // Every header column is at least a figure column's share of the row, far wider than the one ellipsis under which
 // a two-line label would crash the client (the ui rule).
 @HeadStyle = LabelStyle(...$ZS.@ZigViewTabLabelStyle, ShrinkTextToFit: false, Wrap: true, WrapMaxLines: 2);
 @HeadEndStyle = LabelStyle(...@HeadStyle, HorizontalAlignment: End);
 
-// A column header that sorts the list: the view tab's faint pane, its name at the end like the figures under
-// it, #Mark before the name on the sorted column.
+// A column header that sorts the list: the kit's list head (the faint pane, the row's hover under the cursor), its
+// name at the end like the figures under it, #Mark (a gold chevron) before the name on the sorted column.
 @SortHeader = Button {
   FlexWeight: 1;
   Anchor: (Height: 44, Left: 4);
   LayoutMode: Left;
   Padding: (Horizontal: 10);
-  Style: $ZS.@ZigViewTabStyle;
+  Style: $ZS.@ZigSectionHeadStyle;
   TextTooltipStyle: $C.@DefaultTextTooltipStyle;
 
   Group #Mark {
@@ -81,21 +88,21 @@ $F.@ZigMenuFrame {
       Padding: (Horizontal: 18, Top: 14, Bottom: 14);
 
       Label #Title {
-        Anchor: (Height: 28, Bottom: 2);
+        Anchor: (Height: 32, Bottom: 2);
         Text: "";
-        Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
+        Style: (...$ZX.@ZigTitleStyle, HorizontalAlignment: Center, VerticalAlignment: Center, WrapMaxLines: 1);
       }
 
       Label #Lead {
         Anchor: (Height: 20);
         Text: "";
         Visible: false;
-        Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 1);
       }
 
       Group #GroupRow {
         LayoutMode: Top;
-        Anchor: (Top: 12);
+        Anchor: (Top: 16);
 
         Label #GroupLabel {
           Anchor: (Height: 22);
@@ -105,7 +112,7 @@ $F.@ZigMenuFrame {
         }
 
         Group #GroupBar {
-          LayoutMode: LeftWrap;
+          LayoutMode: LeftCenterWrap;
         }
       }
 
@@ -142,7 +149,7 @@ $F.@ZigMenuFrame {
         }
 
         $C.@DropdownBox #Pick {
-          Anchor: (Width: 240, Height: 32, Top: 6);
+          Anchor: (Width: 320, Height: 32, Top: 6);
         }
       }
 
@@ -214,14 +221,12 @@ $F.@ZigMenuFrame {
 
       Group #YouStrip {
         LayoutMode: Top;
-        Anchor: (Top: 14);
-        Padding: (Horizontal: $ZK.@ZigSpace4, Vertical: 10);
-        Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+        Anchor: (Top: 16);
         Visible: false;
 
         Group #YouHead {
           LayoutMode: Left;
-          Anchor: (Height: 20);
+          Anchor: (Height: 22);
 
           Label #YouHeading {
             FlexWeight: 1;
@@ -237,26 +242,8 @@ $F.@ZigMenuFrame {
         }
 
         Group #YouFigures {
-          LayoutMode: Left;
-          Anchor: (Height: 78, Top: 4);
-
-          $ZW.@ZigStatTwoLine #YouPlace {}
-
-          $ZW.@ZigStatTwoLine #YouStat0 {
-            @Anchor = (Left: $ZK.@ZigSpace2);
-          }
-
-          $ZW.@ZigStatTwoLine #YouStat1 {
-            @Anchor = (Left: $ZK.@ZigSpace2);
-          }
-
-          $ZW.@ZigStatTwoLine #YouStat2 {
-            @Anchor = (Left: $ZK.@ZigSpace2);
-          }
-
-          $ZW.@ZigStatTwoLine #YouStat3 {
-            @Anchor = (Left: $ZK.@ZigSpace2);
-          }
+          LayoutMode: LeftWrap;
+          Anchor: (Top: 6);
         }
 
         Label #YouHint {
@@ -269,7 +256,7 @@ $F.@ZigMenuFrame {
 
       Group #TableHeader {
         LayoutMode: Left;
-        Anchor: (Height: 44, Top: 14, Bottom: 4);
+        Anchor: (Height: 44, Top: 8, Bottom: 4);
         Padding: (Right: 4);
         Visible: false;
 
@@ -322,7 +309,7 @@ $F.@ZigMenuFrame {
 
       Group #StatsHeader {
         LayoutMode: Left;
-        Anchor: (Height: 44, Top: 14, Bottom: 4);
+        Anchor: (Height: 44, Top: 8, Bottom: 4);
         Padding: (Right: 4);
         Visible: false;
 

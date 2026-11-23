@@ -1,29 +1,36 @@
 $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 
-// One row of the Stats view (appended into #LeaderboardList; see LeaderboardPage): the place (#RankCell: a
-// trophy #Medal in its slot, then the #Rank number), the player, four generic figures (#Col0..#Col3; the page
-// fills the first K from the board's StatColumnDef list and hides the rest) and Plays. Its widths are the
-// header's (Pages/ZigLeaderboardMenuPage.ui #StatsHeader): Rank 72, Player FlexWeight 2, each figure
-// FlexWeight 1 after a 4px gap, 10px in from its right edge. A long name ends in "...". The page shows the
-// medal and tints it and the number gold, silver or bronze for the top three, and lays the viewer's own row
-// on the selected row's fill with its words in the bright ink, all from Common/ZigTokens.ui.
+// One row of the Stats view (appended into #LeaderboardList; see LeaderboardPage): #Edge (3px at the left, clear at
+// rest, the kit's gold selected-row edge on the viewer's own row), the place (#RankCell: a trophy #Medal in its slot,
+// then the #Rank number), the player, four generic figures (#Col0..#Col3; the page fills the first K from the board's
+// StatColumnDef list and hides the rest) and Plays. Its widths are the header's (Pages/ZigLeaderboardMenuPage.ui
+// #StatsHeader): Rank 72 (the edge's 3 and the cell's 69), Player FlexWeight 2, each figure FlexWeight 1 after a 4px
+// gap, 10px in from its right edge. A long name ends in "...". The page shows the medal and tints it and the number
+// gold, pale steel or copper for the top three, and lays the viewer's own row on the selected row's warm fill with
+// its gold edge and its words in the bright ink, all from Common/ZigTokens.ui. 40 high with 4 between rows: the
+// Chapter's row on the band.
 
 Group #ZigLeaderboardStatsRow {
   LayoutMode: Left;
-  Anchor: (Height: 36, Bottom: 2);
+  Anchor: (Height: 40, Bottom: $ZK.@ZigSpace1);
   Background: (Color: $ZK.@ZigSurfaceRow);
 
+  Group #Edge {
+    Anchor: (Width: 3);
+    Background: (Color: $ZK.@ZigSurfaceClear);
+  }
+
   Group #RankCell {
-    Anchor: (Width: 72);
+    Anchor: (Width: 69);
     LayoutMode: Left;
-    Padding: (Left: 12);
+    Padding: (Left: 9);
 
     Group #MedalSlot {
       Anchor: (Width: 24);
 
       Group #Medal {
-        Anchor: (Width: 16, Height: 16, Top: 10, Left: 0);
+        Anchor: (Width: 16, Height: 16, Top: 12, Left: 0);
         Background: (TexturePath: "../Common/Glyphs/Trophy.png", Color: $ZK.@ZigAccent);
         Visible: false;
       }
@@ -40,7 +47,7 @@ Group #ZigLeaderboardStatsRow {
     FlexWeight: 2;
     Padding: (Left: 4);
     Text: "";
-    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true, WrapMaxLines: 1);
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, RenderBold: true, Wrap: true, WrapMaxLines: 1);
   }
 
   Label #Col0 {

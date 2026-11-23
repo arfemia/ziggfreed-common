@@ -20,18 +20,39 @@ import org.junit.jupiter.api.Test;
 /**
  * The records page on the shared menu's rail, opt in: with {@code LeaderboardPageDeps.menuTab} set the page
  * builds from its menu-frame document, which holds the same body as the standalone one (a board with no
- * tab, Kweebec's, keeps its own 860 x 700 frame), paints the rail, and answers a rail click before it reads
- * its own action. The body lives in two documents, so their element ids are held one for one: a command
- * against an element one of them lacks disconnects the player. The new document is held to the client
- * parser's id and brace rules too, since zc-presentation's syntax test sees only its own module.
+ * tab, Kweebec's, keeps its own 1200 x 800 box on the band, which with the band's head and foot fits a 1080 screen),
+ * paints the rail, and answers a rail click before it reads its own action. The body lives in two documents, so their
+ * element ids are held one for one: a command against an element one of them lacks disconnects the player. The new
+ * document is held to the client parser's id and brace rules too, since zc-presentation's syntax test sees only its
+ * own module. And every id the page's Java addresses by a literal is one its documents, its two row templates or the
+ * frames declare; the kit's painters own their templates' ids and are held by zc-presentation's selector test.
  */
 class LeaderboardMenuDocumentTest {
 
     private static final Path PAGES = Path.of("src", "main", "resources", "Common", "UI", "Custom", "Pages");
     private static final Path STANDALONE = PAGES.resolve("ZigLeaderboardPage.ui");
     private static final Path MENU = PAGES.resolve("ZigLeaderboardMenuPage.ui");
+    private static final Path ROW = PAGES.resolve("ZigLeaderboardRow.ui");
+    private static final Path STATS_ROW = PAGES.resolve("ZigLeaderboardStatsRow.ui");
+    private static final Path FRAMES = Path.of("..", "zc-presentation", "src", "main", "resources", "Common", "UI",
+            "Custom", "Common", "ZigFrames.ui");
     private static final Path PAGE = Path.of("src", "main", "java", "com", "ziggfreed", "common", "instance",
             "leaderboard", "LeaderboardPage.java");
+
+    /** How far the band reaches past a framed page's box, above and below together (its head and foot, 78 each). */
+    private static final int BAND_HEAD_AND_FOOT = 156;
+
+    /** The screen height every framed page fits with its band. */
+    private static final int SCREEN_HEIGHT = 1080;
+
+    /** The standalone frame's own size on its anchor. */
+    private static final Pattern FRAME_SIZE = Pattern.compile("Anchor: \\(Width: (\\d+), Height: (\\d+)\\)");
+
+    /** A Java string literal on one line. */
+    private static final Pattern LITERAL = Pattern.compile("\"(?:[^\"\\\\\\n]|\\\\.)*\"");
+
+    /** A Java comment: a block comment (javadoc included) or a line comment. */
+    private static final Pattern COMMENT = Pattern.compile("/\\*.*?\\*/|//[^\\n]*", Pattern.DOTALL);
 
     /** What the client's parser accepts as an element id: a letter, then letters and digits. */
     private static final Pattern ID = Pattern.compile("#([A-Za-z][A-Za-z0-9]*)");
@@ -50,8 +71,56 @@ class LeaderboardMenuDocumentTest {
 
         String standalone = code(STANDALONE);
         assertTrue(standalone.contains("$F.@ZigDecoratedFrame"), "a board with no tab keeps its own frame");
-        assertTrue(standalone.contains("Anchor: (Width: 860, Height: 700)"), "at its own size");
+        assertTrue(standalone.contains("Anchor: (Width: 1200, Height: 800)"), "at its own size");
         assertFalse(standalone.contains("@ZigMenuFrame"));
+
+        Matcher size = FRAME_SIZE.matcher(standalone);
+        assertTrue(size.find(), "the standalone frame names its size");
+        assertTrue(Integer.parseInt(size.group(2)) + BAND_HEAD_AND_FOOT <= SCREEN_HEIGHT,
+                "the band's head and foot reach past the box, and the whole band fits a 1080 screen");
+    }
+
+    @Test
+    void everyIdThePageAddressesIsDeclaredByItsDocumentsItsRowsOrTheFrames() throws IOException {
+        List<String> declared = new ArrayList<>();
+        declared.addAll(declared(code(STANDALONE)));
+        declared.addAll(declared(code(ROW)));
+        declared.addAll(declared(code(STATS_ROW)));
+        declared.addAll(declared(code(FRAMES)));
+        assertTrue(declared.contains("#YouFigures") && declared.contains("#Edge") && declared.contains("#CloseButton"),
+                "the scan found too little, so it is not scanning: " + declared);
+
+        String java = COMMENT.matcher(Files.readString(PAGE, StandardCharsets.UTF_8)).replaceAll(" ");
+        List<String> addressed = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+        Matcher literal = LITERAL.matcher(java);
+        while (literal.find()) {
+            String text = literal.group();
+            Matcher id = ID.matcher(text);
+            while (id.find()) {
+                String name = "#" + id.group(1);
+                addressed.add(name);
+                // A literal that ends on the id ("#Col" + c) names a numbered family: one of them must be declared.
+                boolean numbered = id.end() == text.length() - 1;
+                if (!declared.contains(name) && !(numbered && declaresNumbered(declared, name))) {
+                    missing.add(name);
+                }
+            }
+        }
+        assertTrue(addressed.contains("#YouFigures") && addressed.contains("#Edge") && addressed.contains("#Medal"),
+                "the page's literals were not found, so it is not scanning: " + addressed);
+        assertTrue(missing.isEmpty(), "the records page addresses ids no document of its declares: " + missing);
+    }
+
+    /** Whether {@code declared} holds {@code prefix} followed by a number ({@code #Col0} for {@code #Col}). */
+    private static boolean declaresNumbered(@Nonnull List<String> declared, @Nonnull String prefix) {
+        for (String id : declared) {
+            if (id.startsWith(prefix) && id.length() > prefix.length()
+                    && id.substring(prefix.length()).chars().allMatch(Character::isDigit)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Test

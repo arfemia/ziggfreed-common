@@ -80,6 +80,32 @@ public record LeaderboardSplit(@Nonnull Message allLabel, @Nonnull Message pickA
     }
 
     /**
+     * The key of the pick the split offers under {@code name}, matched without regard to case (a thing's id as an
+     * author writes it, where the split keys it as first recorded), or null when it offers none: a grouped pick
+     * first, then one in no group, as {@link #choiceOf} reads them.
+     */
+    @Nullable
+    public String pickNamed(@Nullable String name) {
+        String wanted = name == null ? "" : name.trim();
+        if (wanted.isEmpty()) {
+            return null;
+        }
+        for (Choice choice : choices) {
+            for (Pick pick : choice.picks()) {
+                if (pick.key().equalsIgnoreCase(wanted)) {
+                    return pick.key();
+                }
+            }
+        }
+        for (Pick pick : ungrouped) {
+            if (pick.key().equalsIgnoreCase(wanted)) {
+                return pick.key();
+            }
+        }
+        return null;
+    }
+
+    /**
      * How a split reads on every second-row tab but {@code allTimeTab} (a week, a month, a season): the first choice
      * shows {@code first}, a choice or a pick its own {@link Periodic}, and each row names its player with the
      * selection's meta beside them, read from the {@code allTimeTab} bucket and worded by {@code words} (null shows no

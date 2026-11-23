@@ -13,6 +13,7 @@ import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
 import com.ziggfreed.common.instance.dungeon.DungeonResults;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
+import com.ziggfreed.common.instance.dungeon.tier.TierNames;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardSplit;
 import com.ziggfreed.common.instance.portal.PortalDungeonConfig;
 
@@ -26,8 +27,9 @@ import com.ziggfreed.common.instance.portal.PortalDungeonConfig;
  * <p>A dungeon is a preset some player holds a line of in All Time: a dungeon stat files each run under
  * {@code dungeon:<difficulty>@<dungeon id>} (the round contract's target and qualifier), so a line's dungeon is its
  * id after the {@code @} and its variant the difficulty before it, empty for normal. A walk-in dungeon is named by its
- * file's {@code NameKey}, a portal dungeon by its {@code PortalDungeons} file's (else the game's own name for the
- * portal), anything else by its id. Dungeons sit in no group: every one shows under All dungeons.
+ * display name ({@link TierNames#displayName}, so each depth of a ladder and its daily read apart), a portal dungeon by
+ * its {@code PortalDungeons} file's (else the game's own name for the portal), anything else by its id. Dungeons sit
+ * in no group: every one shows under All dungeons.
  */
 public final class StatBoardDungeons {
 
@@ -116,18 +118,20 @@ public final class StatBoardDungeons {
         }
 
         /**
-         * A portal dungeon by its file's (or the game's) name, a walk-in dungeon by its file's {@code NameKey}, as the
-         * client resolves it; else its id ({@link DungeonResults#nameOf}).
+         * A portal dungeon by its file's (or the game's) name; a walk-in dungeon by its display name
+         * ({@link TierNames#displayName}: a tier of a ladder as its dungeon's name and the tier, "The Crypt: Tier 2", a
+         * daily as its dungeon's Daily Run, any other by its file's {@code NameKey}); else its id
+         * ({@link DungeonResults#nameOf}).
          */
         @Override
         @Nonnull
         public Message name(@Nonnull String thing) {
             String key = PortalDungeonConfig.getInstance().nameKeyOf(thing);
-            if (key == null) {
-                DungeonAsset dungeon = DungeonConfig.getInstance().resolve(thing);
-                key = dungeon == null ? null : dungeon.nameKey();
+            if (key != null) {
+                return DungeonResults.nameOf(thing, key);
             }
-            return DungeonResults.nameOf(thing, key);
+            Message named = TierNames.displayName(thing);
+            return named != null ? named : DungeonResults.nameOf(thing, null);
         }
 
         /** A label the board's words name ({@code difficulty.<label>}, Normal and Hard among them) by them, else as written. */

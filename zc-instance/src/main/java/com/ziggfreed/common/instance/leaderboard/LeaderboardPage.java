@@ -36,9 +36,8 @@ import com.ziggfreed.common.ui.kit.EmptyState;
 import com.ziggfreed.common.ui.kit.EmptyStatePainter;
 import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.ui.kit.SegmentPainter;
-import com.ziggfreed.common.ui.kit.Stat;
-import com.ziggfreed.common.ui.kit.StatPainter;
-import com.ziggfreed.common.ui.kit.Tone;
+import com.ziggfreed.common.ui.kit.StatTile;
+import com.ziggfreed.common.ui.kit.TilePainter;
 import com.ziggfreed.common.ui.kit.ViewTabPainter;
 import com.ziggfreed.common.ui.kit.ZigStyles;
 import com.ziggfreed.common.ui.kit.ZigTokens;
@@ -50,18 +49,18 @@ import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 /**
  * The generic leaderboard page (the reusable lift of {@code KweebecLeaderboardPage}). Two tab
  * axes (an optional PRIMARY axis over the SECONDARY axis), a three-metric sort (best score / total
- * points / best time) and a Rankings/Stats view on a board that keeps both, the viewer's own strip
+ * points / best time) and a Rankings/Stats view on a board that keeps both, the viewer's own standing
  * (their place and their number in each column, or the line saying how to get on the board), and a
- * scrollable ranked list (the top three gold, silver and bronze, the viewer's row on the selected
- * row's fill). The {@code ResultsPage} CTA deep-links here to the just-played bucket.
+ * scrollable ranked list (the top three gold, silver and copper, the viewer's row on the selected
+ * row's warm fill with its gold edge). The {@code ResultsPage} CTA deep-links here to the just-played bucket.
  *
- * <p>Built from zc's kit: a first row whose tabs each bring their own columns (a stat board's
- * sections) is a row of view tabs ({@link ViewTabPainter}), every other row a
- * segmented control ({@link SegmentPainter}), the viewer's figures {@code @ZigStat}s
- * ({@link StatPainter}), the empty board the kit's empty state ({@link EmptyStatePainter}), and
- * every colour a {@link ZigTokens} token or a {@link ZigStyles} named style. Every line goes on a
- * {@code .TextSpans}; a column header's tooltip goes through {@link UiText#setTooltip}, the one
- * tooltip writer.
+ * <p>Built from zc's kit, on the game's Chapter look: a first row whose tabs each bring their own columns (a stat
+ * board's sections) is a row of the game's header tabs ({@link ViewTabPainter}), every other row the kit's choice
+ * tiles ({@link SegmentPainter}), the viewer's standing the kit's figure tiles ({@link TilePainter#stats}), the empty
+ * board the kit's empty state ({@link EmptyStatePainter}), and every colour a {@link ZigTokens} token or a
+ * {@link ZigStyles} named style. Every line goes on a {@code .TextSpans}; a column header's tooltip goes through
+ * {@link UiText#setTooltip}, the one tooltip writer. {@link #openedAt} opens it on one tab, period and picked
+ * thing, named in any case (the {@code Records} destination's {@code Section}, {@code Tab} and {@code Pick}).
  *
  * <p>Consumer policy (the {@link Leaderboard} for the mode, the tab axes, the stat columns, the
  * chrome) is supplied through {@link LeaderboardPageDeps}; the page is mod-agnostic. When the
@@ -115,18 +114,24 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     static final String TIP_SUFFIX = ".tip";
     /** What separates a row's name from the figure beside it ({@link #withMeta}). */
     private static final String META_GAP = "   ";
-    /** The figures the viewer's strip holds beside their place ({@code #YouStat0..#YouStat3}). */
+    /** The figures the viewer's standing shows beside their place, each a figure tile in {@code #YouFigures}. */
     private static final int YOU_FIGURES = 4;
+    /** The host the viewer's standing is painted into, one kit figure tile per figure ({@link TilePainter#stats}). */
+    private static final String YOU_TILES = "#YouFigures";
+    /** The first figure tile's id: the viewer's place. */
+    private static final String PLACE_TILE = "place";
+    /** A row's 3px edge at its left, clear at rest and gold on the viewer's own row (both row templates declare it). */
+    private static final String EDGE = "#Edge";
     /** The words of a Rankings row the viewer's own row turns bright, beside its rank. */
     private static final List<String> RANKING_CELLS = List.of("#Player", "#Total", "#Score", "#Time", "#Plays");
     /** The words of a Stats row the viewer's own row turns bright, beside its rank. */
     private static final List<String> STATS_CELLS = List.of("#Player", "#Col0", "#Col1", "#Col2", "#Col3", "#Plays");
 
-    /** The top three places, each with the token its trophy and its number are tinted in. */
+    /** The top three places, each with the token its trophy and its number are tinted in: gold, pale steel, copper. */
     private enum Medal {
         GOLD(ZigTokens.ACCENT),
         SILVER(ZigTokens.INK_STRONG),
-        BRONZE(ZigTokens.TONE_AVAILABLE_FILL);
+        BRONZE(ZigTokens.INK_COPPER);
 
         private final String colour;
 
@@ -246,6 +251,42 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         // A stats-only board has no other view to fall back to, so it shows the Stats view even when the
         // selected tab has no columns.
         this.statsView = deps.isStatsOnly() || (statsView && !viewColumns.isEmpty());
+    }
+
+    /**
+     * The page opened on {@code primary}'s tab, {@code secondary}'s tab under it and {@code pick} picked under the
+     * choice that offers it, each matched to the board's own key without regard to case (an id as an author writes it).
+     * A name the board does not offer now (a section with no column, a thing nobody has recorded yet) is left as a fresh
+     * open leaves it, so with none named this is {@code new LeaderboardPage(viewer, deps)}. Every other state (the
+     * sort, the view, the variant) starts as a fresh open's.
+     */
+    @Nonnull
+    public static LeaderboardPage openedAt(@Nonnull PlayerRef viewer, @Nonnull LeaderboardPageDeps deps,
+                                           @Nullable String primary, @Nullable String secondary,
+                                           @Nullable String pick) {
+        String section = keyNamed(deps.primaryTabs(), primary);
+        String shownPrimary = section != null ? section : resolveKey(deps.primaryTabs(), ALL, deps.allTabs());
+        String period = keyNamed(deps.tabs(shownPrimary), secondary);
+        LeaderboardSplit split = deps.split(shownPrimary);
+        String picked = split == null ? null : split.pickNamed(pick);
+        String choice = picked == null ? null : split.choiceOf(picked);
+        return new LeaderboardPage(viewer, deps, section != null ? section : ALL, period != null ? period : ALL,
+                null, null, false, choice, picked);
+    }
+
+    /** The key of {@code tabs}' tab {@code name} names, without regard to case, or null for none. */
+    @Nullable
+    private static String keyNamed(@Nonnull List<LeaderboardBucketTab> tabs, @Nullable String name) {
+        String wanted = name == null ? "" : name.trim();
+        if (wanted.isEmpty()) {
+            return null;
+        }
+        for (LeaderboardBucketTab tab : tabs) {
+            if (tab.bucketKey().equalsIgnoreCase(wanted)) {
+                return tab.bucketKey();
+            }
+        }
+        return null;
     }
 
     /** The Stats columns the selection shows: a pick's, else a split choice's, else the primary tab's own. */
@@ -863,8 +904,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     }
 
     /**
-     * The Stats header: each shown column a sort button (the sorted one on the view tab's chosen look, its name
-     * gold, its mark showing) with a tooltip saying what it counts, then Plays on a board that records plays.
+     * The Stats header: each shown column a sort button (the sorted one's name gold, its chevron showing) with a
+     * tooltip saying what it counts, then Plays on a board that records plays.
      */
     private void paintStatsHeader(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
                                   @Nonnull LeaderboardScreenMessages t) {
@@ -889,13 +930,16 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         }
     }
 
-    /** One sort header: its words, its tooltip, its chosen look when it is the sorted column, and its click. */
+    /**
+     * One sort header: its words, its tooltip, its gold name and chevron when it is the sorted column, and its click.
+     * The header keeps its authored look (the kit's list head, {@code Common/ZigStyles.ui}'s {@code ZigSectionHeadStyle})
+     * either way, as the Chapter screen marks a sorted column by its words alone.
+     */
     private void sortHeader(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String header,
                             @Nonnull Message label, @Nonnull Message tip, @Nonnull String statKey) {
         ZigRichButton.text(cmd, header, label);
         UiText.setTooltip(cmd, header, tip);
         if (statSort.equals(statKey)) {
-            ZigStyles.apply(cmd, header + ".Style", ZigStyles.Name.VIEW_TAB_ON, playerRef);
             ZigRichButton.color(cmd, header, ZigTokens.ACCENT);
             cmd.set(header + " #Mark.Visible", true);
         }
@@ -1000,8 +1044,9 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     }
 
     /**
-     * A row's place: the trophy and the number gold, silver or bronze for the top three, and the viewer's own
-     * row on the selected row's fill with every word bright (the medal inks do not read on it).
+     * A row's place: the trophy and the number gold, pale steel or copper for the top three, and the viewer's own
+     * row on the selected row's warm fill with its gold edge ({@link #EDGE}, the kit's selected-row edge in
+     * {@link ZigTokens#MARK_LIT}) and every word bright (the medal inks do not read on it).
      */
     private static void paintPlace(@Nonnull UICommandBuilder cmd, @Nonnull String row, int rank, boolean self,
                                    @Nonnull List<String> cells) {
@@ -1012,6 +1057,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         }
         if (self) {
             UiRetint.fill(cmd, row, ZigTokens.SURFACE_ROW_SELECTED);
+            UiRetint.fill(cmd, row + " " + EDGE, ZigTokens.MARK_LIT);
             cmd.set(row + " #Rank.Style.TextColor", ZigTokens.INK_BRIGHT);
             for (String cell : cells) {
                 cmd.set(row + " " + cell + ".Style.TextColor", ZigTokens.INK_BRIGHT);
@@ -1021,17 +1067,18 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         }
     }
 
-    // ==================== the viewer's strip ====================
+    // ==================== the viewer's standing ====================
 
     /**
-     * The viewer's own strip: their place, the count on the board and their figure in each column; or, with no
-     * place yet, the line saying so and the tab's line on how to get on.
+     * The viewer's own standing: the count on the board, then their place and their figure in each column as the
+     * kit's figure tiles ({@link TilePainter#stats} into {@link #YOU_TILES}, a figure of nothing in the faint ink); or,
+     * with no place yet, the line saying so and the tab's line on how to get on.
      */
     private void paintYou(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t,
                           @Nonnull List<Map.Entry<UUID, LeaderboardEntry>> sorted, int self) {
         cmd.set("#YouHeading.TextSpans", t.youHeading());
         boolean ranked = self >= 0;
-        cmd.set("#YouFigures.Visible", ranked);
+        cmd.set(YOU_TILES + ".Visible", ranked);
         if (!ranked) {
             cmd.set("#YourRank.TextSpans", t.yourRankNone());
             optional(cmd, "#YouHint", deps.primaryHint(activePrimary));
@@ -1039,42 +1086,45 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         }
         cmd.set("#YouHint.Visible", false);
         cmd.set("#YourRank.TextSpans", t.youPlayers(sorted.size()));
-        int rank = self + 1;
-        StatPainter.paint(cmd, "#YouPlace", new Stat(t.youPlace(rank), t.youPlaceLabel(),
-                rank == 1 ? Tone.COLLECT : Tone.NEUTRAL));
         LeaderboardEntry mine = sorted.get(self).getValue();
-        List<Stat> figures = statsView ? statFigures(t, mine) : rankingFigures(t, mine);
-        for (int i = 0; i < YOU_FIGURES; i++) {
-            String figure = "#YouStat" + i;
-            boolean shown = i < figures.size();
-            cmd.set(figure + ".Visible", shown);
-            if (shown) {
-                StatPainter.paint(cmd, figure, figures.get(i));
-            }
-        }
+        List<StatTile> figures = statsView ? statFigures(t, mine) : rankingFigures(t, mine);
+        List<StatTile> tiles = new ArrayList<>(1 + YOU_FIGURES);
+        // The place first, pictured by the tab's own picture when it has one.
+        tiles.add(new StatTile(PLACE_TILE, Picture.item(deps.primaryPicture(activePrimary)), t.youPlace(self + 1),
+                t.youPlaceLabel(), null, null, false));
+        tiles.addAll(figures.subList(0, Math.min(figures.size(), YOU_FIGURES)));
+        TilePainter.stats(cmd, YOU_TILES, tiles);
     }
 
     /** The viewer's figure in each shown Stats column, under the column's own name. */
     @Nonnull
-    private List<Stat> statFigures(@Nonnull LeaderboardScreenMessages t, @Nonnull LeaderboardEntry mine) {
+    private List<StatTile> statFigures(@Nonnull LeaderboardScreenMessages t, @Nonnull LeaderboardEntry mine) {
         List<StatColumnDef> cols = columns();
         int shown = shownColumns();
-        List<Stat> out = new ArrayList<>(shown);
+        List<StatTile> out = new ArrayList<>(shown);
         for (int c = 0; c < shown; c++) {
             StatColumnDef def = cols.get(c);
-            out.add(new Stat(cell(def, def.valueOf(mine), t), def.label(), Tone.NEUTRAL));
+            long value = def.valueOf(mine);
+            out.add(figure(def.statKey(), cell(def, value, t), def.label(), value <= 0L));
         }
         return out;
     }
 
     /** The viewer's Rankings figures: total, best, fastest and plays, under the Rankings view's own names. */
     @Nonnull
-    private static List<Stat> rankingFigures(@Nonnull LeaderboardScreenMessages t, @Nonnull LeaderboardEntry mine) {
+    private static List<StatTile> rankingFigures(@Nonnull LeaderboardScreenMessages t,
+                                                 @Nonnull LeaderboardEntry mine) {
         return List.of(
-                new Stat(Msg.num(mine.totalPoints()), t.colTotal(), Tone.NEUTRAL),
-                new Stat(Msg.num(mine.bestScore), t.colScore(), Tone.NEUTRAL),
-                new Stat(time(mine.bestTimeSeconds), t.colTime(), Tone.NEUTRAL),
-                new Stat(Msg.num(mine.plays), t.colPlays(), Tone.NEUTRAL));
+                figure("total", Msg.num(mine.totalPoints()), t.colTotal(), mine.totalPoints() <= 0L),
+                figure("score", Msg.num(mine.bestScore), t.colScore(), mine.bestScore <= 0),
+                figure("time", time(mine.bestTimeSeconds), t.colTime(), mine.bestTimeSeconds <= 0),
+                figure("plays", Msg.num(mine.plays), t.colPlays(), mine.plays <= 0));
+    }
+
+    /** One figure tile of the standing: no picture, the figure over its column's name, faint when it is nothing. */
+    @Nonnull
+    private static StatTile figure(@Nonnull String id, @Nonnull Message value, @Nonnull Message name, boolean zero) {
+        return new StatTile(id, Picture.NONE, value, name, null, null, zero);
     }
 
     // ==================== shared ====================
