@@ -137,9 +137,11 @@ class ZigMenuDocumentsTest {
         assertTrue(own(button).contains("Padding: (Horizontal: " + MenuFrame.ROW_PADDING + ")"), "10 in from each side");
         assertTrue(own(button).contains("Default: (Background: (Color: $ZK.@ZigSurfaceClear))"),
                 "no resting fill (the kit's clear token, MenuPalette.CLEAR)");
-        assertTrue(own(button).contains("Hovered: (Background: (Color: $ZK.@ZigSurfaceTab))"),
-                "vanilla's hover fill (the kit's tab token, MenuPalette.HEADER)");
+        assertTrue(own(button).contains("Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover))"),
+                "the kit's row hover under the cursor (MenuPalette.HEADER)");
         assertTrue(own(button).contains("Sounds: $C.@ButtonSounds"), "a custom ButtonStyle clicks only with Sounds");
+        assertTrue(own(block(row, ZigMenu.SELECTED)).contains("Background: (Color: $ZK.@ZigSurfaceRowSelected)"),
+                "the selected tab on the kit's warm selected row (MenuPalette.SELECTED), a Background ZigMenu repaints");
 
         String tabLabel = styleLine(row, "@TabLabelStyle");
         String selectedLabel = styleLine(row, "@SelectedLabelStyle");

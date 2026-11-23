@@ -8,8 +8,10 @@ $ZW = "../Common/ZigKit.ui";
 // selected), then one column of the book's own.
 //
 // #Header is the band every tab shares: the owner's logo first (#BrandingLogo, ONE scaled AssetImage in the
-// logo's 260:97 shape at the band's height, hidden, a blank fallback), then the page title in #TitleContainer, a
-// one-sentence #PageSubtitle, and three stat blocks the active tab fills. A consumer's right-mode branding writes
+// logo's 260:97 shape at the band's height, hidden, a blank fallback), then the page title in #TitleContainer (the
+// kit's page title in flat gold capitals, held to one line in its 26px row, so a long server name ends in "..."
+// rather than running into the line under it), a one-sentence #PageSubtitle, and three stat blocks the active tab
+// fills. A consumer's right-mode branding writes
 // #BrandingLogo (its AssetPath, then shows it), #PanelTitle (the server name) and #BrandingDescriptionRight (the
 // description, shown); the page writes its own title first, so the branding wins. #BrandingDescriptionRight keeps
 // its fixed 17px line here, since the band's height is fixed: a description longer than one line is cut off in the
@@ -50,7 +52,7 @@ $F.@ZigMenuFrame {
             Label #PanelTitle {
               Text: "";
               FlexWeight: 1;
-              Style: $ZX.@ZigTitleStyle;
+              Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
             }
           }
 

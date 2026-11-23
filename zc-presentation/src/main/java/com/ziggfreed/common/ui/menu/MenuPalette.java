@@ -13,16 +13,18 @@ import com.ziggfreed.common.ui.theme.Palette;
 /**
  * The shared menu's colours as ONE {@link Palette}, the library's theme palette (the same fields a consumer's
  * theme carries), and the library's default palette, whose every colour is a kit token ({@link ZigTokens}, the
- * game's Chapter look): vanilla's own rail fills (its pane and its simple button fill) under the Chapter's inks,
- * gold and rule, on the band. The frame and the rail read every colour and texture from the palette in force
+ * game's Chapter look): vanilla's own rail pane under the Chapter's inks, gold and rule, on the band, its tabs
+ * reading as the kit's list rows (the row's hover under the cursor, the warm selected row with its gold edge for
+ * the chosen tab). The frame and the rail read every colour and texture from the palette in force
  * ({@link MenuDeps#palette()}); a slot a palette leaves unset or malformed falls back to the default's, so a
  * three-colour palette still paints a whole rail.
  *
- * <p>The rail reads {@code background} (the rail's pane), {@code header} (a hovered tab's fill and the selected
- * tab's), {@code textMuted} (a tab label, a section heading, a caption), {@code textPrimary} (the selected label
- * under its gold mask, the server name), {@code accent} (the selected tab's bar) and {@code divider} (the rule
- * between the consumer's section and the library's tabs). The three fills may carry an alpha
- * ({@code #rrggbbaa}); text and the bar are opaque ({@code #rrggbb}). The frame ({@link MenuFrameRetint}) reads
+ * <p>The rail reads {@code background} (the rail's pane), {@code header} (a hovered or pressed tab's fill),
+ * {@code textMuted} (a tab label, a section heading, a caption), {@code textPrimary} (the selected label under its
+ * gold mask, the server name), {@code accent} (the selected tab's bar) and {@code divider} (the rule between the
+ * consumer's section and the library's tabs). The three fills may carry an alpha ({@code #rrggbbaa}); text and the
+ * bar are opaque ({@code #rrggbb}). The selected tab's fill is {@link #SELECTED}, the kit's warm selection, which no
+ * palette recolours, as no theme recolours a selected list row. The frame ({@link MenuFrameRetint}) reads
  * {@code frame}, {@code primary}, the texture set and the band texture, which the default leaves unset.
  *
  * <p>A document spells an alpha colour vanilla's way, {@code #rrggbb(a)}, and Java {@code #rrggbbaa}
@@ -37,10 +39,17 @@ public final class MenuPalette {
     public static final String BACKGROUND = ZigTokens.SURFACE_PANE;
 
     /**
-     * A hovered tab's fill and the selected tab's: {@code Common.ui}'s {@code @ColorSimpleButtonBackground},
-     * {@code #000000(0.2)}, the kit's {@link ZigTokens#SURFACE_TAB}.
+     * A hovered or pressed tab's fill: the kit's row hover, {@link ZigTokens#SURFACE_ROW_HOVER}, so a tab under the
+     * cursor lights as a list row does (on the band, vanilla's black simple-button fill barely darkens the pane).
      */
-    public static final String HEADER = ZigTokens.SURFACE_TAB;
+    public static final String HEADER = ZigTokens.SURFACE_ROW_HOVER;
+
+    /**
+     * The selected tab's fill: the kit's warm selected row, {@link ZigTokens#SURFACE_ROW_SELECTED}, under the gold
+     * bar and the gold-masked label, so the chosen tab reads as a chosen list row with its gold edge. Not a palette
+     * slot: a theme's rail keeps the kit's warm selection, as every list row under that theme does.
+     */
+    public static final String SELECTED = ZigTokens.SURFACE_ROW_SELECTED;
 
     /** A tab label, a section heading, a caption: the kit's muted ink, {@link ZigTokens#INK_MUTED}. */
     public static final String TEXT_MUTED = ZigTokens.INK_MUTED;
@@ -114,25 +123,27 @@ public final class MenuPalette {
     /**
      * The pairs a readable rail keeps, for any resolved palette. A translucent fill is judged over what it
      * covers (the pane over the frame body, a tab's fill over the pane), and the selected label as
-     * {@code textPrimary} under the mask's darkest stop. The rule is decoration, so it has no floor.
+     * {@code textPrimary} under the mask's darkest stop, on the selected fill ({@link #SELECTED}). The rule is
+     * decoration, so it has no floor.
      */
     @Nonnull
     public static List<Pair> pairs(@Nonnull Resolved colours) {
         String pane = over(colours.background(), BACKDROP);
-        String tabFill = over(colours.header(), pane);
+        String hoverFill = over(colours.header(), pane);
+        String selectedFill = over(SELECTED, pane);
         String selectedLabel = multiply(colours.textPrimary(), MASK_DARKEST);
         return List.of(
                 new Pair("a tab label, a heading or a caption", colours.textMuted(), pane, TEXT_FLOOR),
-                new Pair("a hovered tab label", colours.textMuted(), tabFill, TEXT_FLOOR),
-                new Pair("the selected tab label, under its mask", selectedLabel, tabFill, TEXT_FLOOR),
+                new Pair("a hovered tab label", colours.textMuted(), hoverFill, TEXT_FLOOR),
+                new Pair("the selected tab label, under its mask", selectedLabel, selectedFill, TEXT_FLOOR),
                 new Pair("the server name", colours.textPrimary(), pane, TEXT_FLOOR),
-                new Pair("the selected tab's bar", colours.accent(), tabFill, LARGE_FLOOR));
+                new Pair("the selected tab's bar", colours.accent(), selectedFill, LARGE_FLOOR));
     }
 
     /** The default's colours, every one a document in the frame or rail may spell, plus {@link #CLEAR}. */
     @Nonnull
     public static List<String> defaultColours() {
-        return List.of(BACKGROUND, HEADER, TEXT_MUTED, TEXT_PRIMARY, ACCENT, DIVIDER, CLEAR);
+        return List.of(BACKGROUND, HEADER, SELECTED, TEXT_MUTED, TEXT_PRIMARY, ACCENT, DIVIDER, CLEAR);
     }
 
     /**

@@ -1,13 +1,15 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $K = "../Common/ZigCards.ui";
+$ZX = "../Common/ZigText.ui";
 
 // The Settings tab (com.ziggfreed.common.settings.page.SettingsPage): a player's own choices for this
 // server, one headed card per section, inside the shared menu frame (the frame's rail comes first, the
 // Settings tab selected). The frame owns the size, the padding and the close button.
 //
 // #TitleContainer is the title row and a right-mode branding host: the page writes its own title on
-// #PanelTitle, then a consumer's branding painter (told the page has the title row) may show the owner's
+// #PanelTitle (the kit's page title, the Chapter look's flat gold capitals every menu tab's title takes, on one
+// line centred against the logo), then a consumer's branding painter (told the page has the title row) may show the owner's
 // logo in #BrandingLogo (ONE scaled AssetImage in the logo's 260:97 shape, hidden, a blank fallback),
 // write the server name over #PanelTitle, and show its description in #BrandingDescriptionRight, which
 // wraps under the row. A command against an id this document lacks disconnects the player, so each of
@@ -40,7 +42,7 @@ $F.@ZigMenuFrame {
         Label #PanelTitle {
           Text: "";
           FlexWeight: 1;
-          Style: $K.@ZigPageTitleStyle;
+          Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
         }
       }
 

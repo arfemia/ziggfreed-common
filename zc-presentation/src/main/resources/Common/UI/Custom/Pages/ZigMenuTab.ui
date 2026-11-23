@@ -7,13 +7,14 @@ $ZK = "../Common/ZigTokens.ui";
 //
 // Vanilla's own left-rail row (Pages/WorldEvent/WorldEventNavButton.ui, Pages/UIGallery/CategoryButton.ui):
 // 32 high and 4 below, 10 in from each side, a body-size (14) uppercase label that shrinks to fit (never under
-// the 13 floor; every size is a Common/ZigType.ui step), a
-// faint dark fill under the cursor; the selected tab is vanilla's bold label under the gold gradient mask on
-// the same fill, with a slim bar beside it so it reads by shape and not only colour.
+// the 13 floor; every size is a Common/ZigType.ui step). The fills are the Chapter look's list row, so the rail
+// reads as the kit's lists do: the row's hover under the cursor, and the selected tab vanilla's bold label under
+// the gold gradient mask on the kit's warm selected row, with a slim gold bar beside it (the selected row's gold
+// edge) so it reads by shape and not only colour.
 //
 // ONE template for every kind of row; ZigMenu shows one child and hides the rest:
 //   #TabBtn       a tab: a Button with an inner Label #Label on .TextSpans (ui/ZigRichButton), never a
-//                 TextButton; no resting fill, the hover fill on Hovered and Pressed, click sounds.
+//                 TextButton; no resting fill, the row's hover fill on Hovered and Pressed, click sounds.
 //   #TabSelected  the selected tab: a Group (no click, no hover) with #Marker, its picture and #SelectedLabel,
 //                 whose mask no Java push can set, so it is authored here.
 //   #Header       a section heading: vanilla's section label (13, bold, uppercase).
@@ -25,9 +26,10 @@ $ZK = "../Common/ZigTokens.ui";
 // the selected bar to 52 as whole Anchors, so the fills and the click cover both lines. Vanilla grows a list row
 // the same way: Pages/TriggerVolume/TriggerVolumeBrowseVolumeRow.ui (a Button row, a FlexWeight Top text column
 // over a hidden second line) and TriggerVolumeInspectorPage, which pushes the row's whole Anchor taller.
-// Every ink, the bar, the rule and the two fills (none at rest, @ZigSurfaceClear; the hover and selected fill,
-// @ZigSurfaceTab) are Common/ZigTokens.ui tokens, the same values ui/menu/MenuPalette's defaults name; ZigMenu
-// repaints each from the palette in force on every build (ZigMenuPaintTest). A picture slot (#TabIconSlot,
+// Every ink, the bar, the rule and the three fills (none at rest, @ZigSurfaceClear; the hover fill,
+// @ZigSurfaceRowHover; the selected fill, @ZigSurfaceRowSelected) are Common/ZigTokens.ui tokens, the same values
+// ui/menu/MenuPalette's defaults name (HEADER and SELECTED for the two fills); ZigMenu repaints each from the palette
+// in force on every build, the selected fill always the kit's (ZigMenuPaintTest). A picture slot (#TabIconSlot,
 // #SelIconSlot) takes an optional 28px picture, centred in the row, through ui/icon/IconRenderer.applyPlainIcon;
 // it ships hidden, and a tab never shows a picture without its label. The picture is an AssetImage of the item's
 // own icon texture, which only displays: an ItemGrid would show the item's tooltip and rarity square on the tab,
@@ -48,8 +50,8 @@ Group #ZigMenuTab {
     LayoutMode: Left;
     Style: ButtonStyle(
       Default: (Background: (Color: $ZK.@ZigSurfaceClear)),
-      Hovered: (Background: (Color: $ZK.@ZigSurfaceTab)),
-      Pressed: (Background: (Color: $ZK.@ZigSurfaceTab)),
+      Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
+      Pressed: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
       Sounds: $C.@ButtonSounds
     );
 
@@ -103,7 +105,7 @@ Group #ZigMenuTab {
     Anchor: (Height: 32);
     LayoutMode: Left;
     Padding: (Right: 10);
-    Background: (Color: $ZK.@ZigSurfaceTab);
+    Background: (Color: $ZK.@ZigSurfaceRowSelected);
     Visible: false;
 
     Group #Marker {

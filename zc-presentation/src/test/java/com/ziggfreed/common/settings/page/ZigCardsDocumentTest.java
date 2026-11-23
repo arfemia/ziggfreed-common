@@ -159,14 +159,14 @@ class ZigCardsDocumentTest {
         assertTrue(page.contains("$F.@ZigMenuFrame"), "the Settings tab carries the shared rail");
         assertFalse(page.contains("@ZigDecoratedFrame"));
         assertTrue(page.contains("Group #Sections"));
-        assertTrue(page.contains("Style: $K.@ZigPageTitleStyle"));
+        assertTrue(page.contains("Style: (...$ZX.@ZigTitleStyle,"), "the page title is the kit's, as every menu tab's");
         assertTrue(page.contains("Style: $K.@ZigPageDescriptionStyle"));
         assertTrue(page.contains("Padding: (Left: " + SettingsLayout.PANEL_PADDING_LEFT + ")"));
         assertTrue(page.contains("Padding: (Right: " + SettingsLayout.SECTIONS_PADDING_RIGHT + ")"));
 
         String section = document("Pages/ZigSettingsSection.ui");
         assertTrue(section.contains("$K.@ZigSectionCard #Card"));
-        assertTrue(section.contains("Style: $K.@ZigCardHeaderStyle"));
+        assertTrue(section.contains("Style: $ZX.@ZigSectionLabelStyle"), "a section's heading is the kit's head");
         assertTrue(section.contains("Group #Rows"));
         assertTrue(section.contains("LayoutMode: LeftCenterWrap"));
         assertTrue(section.contains("Anchor: (Height: " + SettingsLayout.TILE_ROW_HEIGHT + ")"));
@@ -210,9 +210,12 @@ class ZigCardsDocumentTest {
 
         String title = block(row, "#PanelTitle");
         assertEquals("1", property(title, "FlexWeight"), "the title takes the rest of the row");
-        assertEquals("$K.@ZigPageTitleStyle", property(title, "Style"), "the page title's own style");
-        assertTrue(definition(document("Common/ZigCards.ui"), "@ZigPageTitleStyle").contains("VerticalAlignment: Center"),
-                "the title sits centred against the logo");
+        String titleStyle = property(title, "Style");
+        assertNotNull(titleStyle, "the title has a style");
+        assertTrue(titleStyle.startsWith("(...$ZX.@ZigTitleStyle,"), "the kit's page title: " + titleStyle);
+        assertTrue(titleStyle.contains("VerticalAlignment: Center"), "the title sits centred against the logo");
+        assertTrue(titleStyle.contains("WrapMaxLines: 1"),
+                "one line, ending in ..., so a long server name never runs out of the row: " + titleStyle);
 
         String description = block(page, "#BrandingDescriptionRight");
         assertEquals("false", property(description, "Visible"), "the branding description ships hidden");

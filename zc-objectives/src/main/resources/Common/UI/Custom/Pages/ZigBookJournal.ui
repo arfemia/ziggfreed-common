@@ -1,5 +1,4 @@
 $C = "../Common.ui";
-$ZK = "../Common/ZigTokens.ui";
 $ZW = "../Common/ZigKit.ui";
 $S = "../Common/ZigSearchRow.ui";
 
@@ -9,8 +8,9 @@ $S = "../Common/ZigSearchRow.ui";
 //
 // #Toolbar: four status segments, the category dropdown, the tag dropdown (shown only while a quest carries a
 // tag) and the search row. #Split: the list column (#List, the sections the kit's ledger painter appends; #ListEmpty
-// when the filters hide every quest) and the page card (#Page, the selected quest's page). #JournalEmpty shows
-// across the whole body instead when the log holds no quest at all.
+// when the filters hide every quest) and the page card (#Page, the selected quest's page, on the game's inset panel
+// as every reading page on the menu sits: the Achievements tab's, the Claims' and the Reputation page's). #JournalEmpty
+// shows across the whole body instead when the log holds no quest at all.
 
 Group #Journal {
   Anchor: (Height: 816);
@@ -73,7 +73,7 @@ Group #Journal {
     Group #PageCard {
       Anchor: (Width: 750);
       LayoutMode: Top;
-      Background: (Color: $ZK.@ZigSurfaceRow);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
 
       $ZW.@ZigDetailPage #Page {
         FlexWeight: 1;

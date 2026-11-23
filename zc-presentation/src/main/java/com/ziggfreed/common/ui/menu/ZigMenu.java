@@ -211,12 +211,13 @@ public final class ZigMenu {
             @Nonnull String sel, int index, @Nonnull MenuEntry entry, @Nullable MenuSubline subline,
             @Nullable String selectedId, @Nonnull MenuPalette.Resolved colours) {
         if (entry.id().equals(selectedId)) {
-            // The selected tab: vanilla's bold label under the gold mask on the selected fill, a bar beside it (a
-            // shape, not only a colour), and no binding, so pressing the page you are on does nothing.
+            // The selected tab: vanilla's bold label under the gold mask on the kit's warm selection (as a selected
+            // list row reads, whatever the theme), a bar beside it (a shape, not only a colour), and no binding, so
+            // pressing the page you are on does nothing.
             String selected = sel + " " + SELECTED;
             cmd.set(sel + " " + BUTTON + ".Visible", false);
             cmd.set(selected + ".Visible", true);
-            UiRetint.fill(cmd, selected, colours.header());
+            UiRetint.fill(cmd, selected, MenuPalette.SELECTED);
             UiRetint.fill(cmd, selected + " " + MARKER, colours.accent());
             cmd.set(selected + " " + SELECTED_LABEL + ".TextSpans", entry.label());
             cmd.set(selected + " " + SELECTED_LABEL + ".Style.TextColor", colours.textPrimary());

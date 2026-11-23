@@ -284,29 +284,31 @@ public final class ReputationView {
     /**
      * How to earn it: the author's own lines; without any, what the library can see (kills that count right
      * now, so a row out of its Season says nothing), and with nothing at all, the plain fact that helping them
-     * out raises it.
+     * out raises it. Each is one of the kit's bullet lines (the Chapter look's diamond before it), as the game's
+     * own Chapter screen lists its lines.
      */
     @Nonnull
     static List<DetailLine> earnLines(@Nonnull ReputationDef def) {
         List<DetailLine> out = new ArrayList<>();
         for (String key : def.earnKeys()) {
-            out.add(DetailLine.of(Picture.NONE, ContentKeys.tr(key)));
+            out.add(DetailLine.bullet(ContentKeys.tr(key), null));
         }
         if (!out.isEmpty()) {
             return out;
         }
         if (def.kills().stream().anyMatch(ReputationAsset.Kill::live)) {
-            out.add(DetailLine.of(Picture.NONE, ReputationText.line("earn.kills")));
+            out.add(DetailLine.bullet(ReputationText.line("earn.kills"), null));
         }
         if (out.isEmpty()) {
-            out.add(DetailLine.of(Picture.NONE, ReputationText.line("earn.default")));
+            out.add(DetailLine.bullet(ReputationText.line("earn.default"), null));
         }
         return out;
     }
 
     /**
-     * How much the player's worn gear moves each gain, as How to earn's last line: "raises by 10%" for a
-     * positive {@code gainPercent}, "lowers by 10%" for a negative one (the number always its size); null at 0.
+     * How much the player's worn gear moves each gain, as How to earn's last line (a bullet, like the lines above
+     * it): "raises by 10%" for a positive {@code gainPercent}, "lowers by 10%" for a negative one (the number always
+     * its size); null at 0.
      */
     @Nullable
     static DetailLine gearLine(long gainPercent) {
@@ -314,7 +316,7 @@ public final class ReputationView {
             return null;
         }
         String key = gainPercent > 0L ? "earn.gear.more" : "earn.gear.less";
-        return DetailLine.of(Picture.NONE, ReputationText.line(key, Math.abs(gainPercent)));
+        return DetailLine.bullet(ReputationText.line(key, Math.abs(gainPercent)), null);
     }
 
     /**

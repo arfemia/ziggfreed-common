@@ -1,7 +1,9 @@
 $K = "../Common/ZigCards.ui";
+$ZX = "../Common/ZigText.ui";
 
 // One section of the Settings tab: the heading over a card. Appended into #Sections by
-// settings/page/SettingsPage and addressed by its indexed parent ("#Sections[1] #Rows"). #Rows takes
+// settings/page/SettingsPage and addressed by its indexed parent ("#Sections[1] #Rows"). The heading is the
+// kit's head (the Chapter look's headline face in capitals), as every list section's head on the menu reads. #Rows takes
 // the shared form rows (heading, switch, dropdown) by index; #Tiles takes Pages/ZigSettingsTile.ui by
 // index, starts hidden and is sized from Java by the tiles it holds (SettingsLayout.tileGridHeight).
 // Both MUST stay childless here.
@@ -12,7 +14,7 @@ Group #ZigSettingsSection {
   Label #Heading {
     Text: "";
     Anchor: (Top: 10, Bottom: 4, Left: 2);
-    Style: $K.@ZigCardHeaderStyle;
+    Style: $ZX.@ZigSectionLabelStyle;
   }
 
   $K.@ZigSectionCard #Card {

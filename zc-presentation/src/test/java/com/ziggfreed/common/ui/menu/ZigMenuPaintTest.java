@@ -100,7 +100,7 @@ class ZigMenuPaintTest {
         String selected = row + " " + ZigMenu.SELECTED;
         assertFalse(p.shown(row + " " + ZigMenu.BUTTON + ".Visible"), "the button gives way to the selected group");
         assertTrue(p.shown(selected + ".Visible"));
-        assertTrue(p.set(selected + ".Background").contains(MenuPalette.HEADER), "the selected fill");
+        assertTrue(p.set(selected + ".Background").contains(MenuPalette.SELECTED), "the selected fill");
         assertTrue(p.set(selected + " " + ZigMenu.MARKER + ".Background").contains(MenuPalette.ACCENT), "the bar");
         assertTrue(p.sets().containsKey(selected + " " + ZigMenu.SELECTED_LABEL + ".TextSpans"));
         assertTrue(p.set(selected + " " + ZigMenu.SELECTED_LABEL + ".Style.TextColor").contains(MenuPalette.TEXT_PRIMARY));
@@ -157,6 +157,8 @@ class ZigMenuPaintTest {
         assertTrue(p.set("#MenuList[2] " + ZigMenu.BUTTON + ".Style.Hovered.Background").contains("#2a1410"));
         assertTrue(p.set("#MenuList[2] " + ZigMenu.BUTTON + " #Label.Style.TextColor").contains("#b89a88"));
         assertTrue(p.set("#MenuList[4] " + ZigMenu.SELECTED + " " + ZigMenu.MARKER + ".Background").contains("#ff5a2a"));
+        assertTrue(p.set("#MenuList[4] " + ZigMenu.SELECTED + ".Background").contains(MenuPalette.SELECTED),
+                "the chosen tab keeps the kit's warm selection under a theme, as a selected list row does");
         assertTrue(p.set("#MenuList[4] " + ZigMenu.SELECTED + " " + ZigMenu.SELECTED_LABEL + ".Style.TextColor").contains("#f5e0d0"));
         assertTrue(p.set("#MenuList[3] " + ZigMenu.RULE + ".Background").contains("#6b2f17"));
     }
