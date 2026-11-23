@@ -14,11 +14,28 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Each player's last few placements, for the rules that read where and when they built: a shaped placement (a block
  * continuing a straight run of three, or placed within the gather rules' flow ({@link GatherRulesAsset#shapedFlowMs})
- * of one), which {@code BuildThrift_Shaped} reads, and "a block this player placed within N seconds", which a gather
- * shape's {@code Origin.PlacedWithin} reads. In memory only and per player, the newest {@link #HELD} placements kept,
- * forgotten when the player leaves; thread-safe, the clock passed in.
+ * of one), which {@code BuildThrift_Shaped} reads on either half, {@code BuildThrift_Straight} on the run alone and
+ * {@code BuildThrift_Flow} in the flow alone ({@link Shape}), and "a block this player placed within N seconds", which
+ * a gather shape's {@code Origin.PlacedWithin} reads. In memory only and per player, the newest {@link #HELD}
+ * placements kept, forgotten when the player leaves; thread-safe, the clock passed in.
  */
 public final class RecentPlacements {
+
+    /**
+     * What one placement was to the shaped rules: it continued a straight run of three ({@code straight}), it came
+     * within the flow after a placement that did ({@code flowing}), both, or neither. The flow is counted from the
+     * last straight placement before this one, so the placement that starts a run is straight and not yet flowing.
+     */
+    public record Shape(boolean straight, boolean flowing) {
+
+        /** A placement neither half holds for. */
+        public static final Shape NONE = new Shape(false, false);
+
+        /** Either half: a shaped placement, as {@code BuildThrift_Shaped} reads it. */
+        public boolean shaped() {
+            return straight || flowing;
+        }
+    }
 
     /** How many placements a player's memory holds. */
     public static final int HELD = 64;
@@ -44,8 +61,12 @@ public final class RecentPlacements {
         int count;
         long lastShapedAt = Long.MIN_VALUE;
 
-        /** Record a placement; true when it is shaped (a straight run of three, or within {@code flowMs} of one). */
-        synchronized boolean place(@Nonnull UUID world, int x, int y, int z, long nowMs, long flowMs) {
+        /**
+         * Record a placement and say what it was: straight when it continues a straight run of three, flowing when it
+         * comes within {@code flowMs} of the last placement that did. Pure over this memory and its arguments.
+         */
+        @Nonnull
+        synchronized Shape place(@Nonnull UUID world, int x, int y, int z, long nowMs, long flowMs) {
             boolean straight = false;
             if (count >= 2) {
                 int last = (next - 1 + HELD) % HELD;
@@ -64,7 +85,7 @@ public final class RecentPlacements {
             if (straight) {
                 lastShapedAt = nowMs;
             }
-            return straight || flowing;
+            return straight || flowing ? new Shape(straight, flowing) : Shape.NONE;
         }
 
         /** When this player last placed at the position, or {@link Long#MIN_VALUE} for not lately. */
@@ -88,16 +109,25 @@ public final class RecentPlacements {
      * continues a straight run of three, or comes within the gather rules' flow of one that did).
      */
     public static boolean place(@Nullable UUID playerId, @Nullable UUID worldId, int x, int y, int z, long nowMs) {
+        return placement(playerId, worldId, x, y, z, nowMs).shaped();
+    }
+
+    /**
+     * {@code playerId} placed a block at the position at {@code nowMs}; answers which half of the shaped rules it
+     * meets ({@link Shape}): it continues a straight run of three, it comes within the gather rules' flow of one that
+     * did, both, or {@link Shape#NONE}. Records the placement exactly as {@link #place} does; call one of the two.
+     */
+    @Nonnull
+    public static Shape placement(@Nullable UUID playerId, @Nullable UUID worldId, int x, int y, int z, long nowMs) {
         if (playerId == null || worldId == null) {
-            return false;
+            return Shape.NONE;
         }
         long flowMs = GatherRulesConfig.getInstance().rules().shapedFlowMs();
-        boolean shaped = MEMORIES.computeIfAbsent(playerId, id -> new Memory()).place(worldId, x, y, z, nowMs,
-                flowMs);
+        Shape shape = MEMORIES.computeIfAbsent(playerId, id -> new Memory()).place(worldId, x, y, z, nowMs, flowMs);
         if (MEMORIES.size() > SWEEP_AT) {
             MEMORIES.values().removeIf(memory -> nowMs - memory.newest() > SWEEP_IDLE_MS);
         }
-        return shaped;
+        return shape;
     }
 
     /** Did {@code playerId} place the block at the position within the last {@code windowMs}? */

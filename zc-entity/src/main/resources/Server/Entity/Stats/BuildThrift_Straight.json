@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent chance a placement continuing a straight run is not used up, in whole percent points: the third block or later placed one step on along the line of the two before it. Added to BuildThrift by the thrift step on such a placement alone, never in the seconds after one (BuildThrift_Flow pays there, and BuildThrift_Shaped on either). Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

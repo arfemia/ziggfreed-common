@@ -1,5 +1,5 @@
 {
-  "$Comment": "Percent chance a shaped placement is not used up, in whole percent points: a block placed in a straight run of three or more, or within ten seconds of one. Added to BuildThrift by the thrift step on such a placement. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "$Comment": "Percent chance a shaped placement is not used up, in whole percent points: a block placed in a straight run of three or more, or within ten seconds of one (the gather rules' Shaped.FlowSeconds). Added to BuildThrift by the thrift step on such a placement, either half. BuildThrift_Straight pays on the straight run alone and BuildThrift_Flow in the seconds after one alone. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
   "InitialValue": 0.0,
   "Min": -1000.0,
   "Max": 0.0,

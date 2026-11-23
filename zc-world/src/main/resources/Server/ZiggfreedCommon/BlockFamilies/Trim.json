@@ -1,0 +1,19 @@
+{
+  "$Comment": "Wooden trim, beams and wall panels: every beam and decorative plank that is not stone, soil or metal, and vanilla's village wall panels, named by id since no native tag tells them from plain planks. A grant bound While ZigHolding with Items BlockFamily:Trim counts while one is in hand, so a thrift bonus on placing trim needs no stat of its own. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Blocks": [
+      "*_Beam",
+      "*_Decorative",
+      "Wood_Village_Wall*"
+    ]
+  },
+  "Exclude": {
+    "Tags": {
+      "Type": [
+        "Rock",
+        "Soil",
+        "Metal"
+      ]
+    }
+  }
+}

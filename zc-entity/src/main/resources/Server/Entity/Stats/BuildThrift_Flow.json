@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent chance a placement in the seconds after a straight run is not used up, in whole percent points: any block placed within the gather rules' Shaped.FlowSeconds (ten unless written) of a placement that continued a straight run of three. Added to BuildThrift by the thrift step on such a placement alone (BuildThrift_Straight pays on the run itself, and BuildThrift_Shaped on either). Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

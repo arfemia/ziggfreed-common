@@ -35,7 +35,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 
 /**
  * The thrift step: with {@code BuildThrift} in a hundred, plus each {@code BuildThrift_<Family>} whose block family
- * holds the block and {@code BuildThrift_Shaped} on a shaped placement ({@link RecentPlacements}), held at the cap
+ * holds the block, {@code BuildThrift_Shaped} on a shaped placement of either half, {@code BuildThrift_Straight} on
+ * one continuing a straight run and {@code BuildThrift_Flow} on one in the flow after a run
+ * ({@link RecentPlacements.Shape}), held at the cap
  * {@code BuildThrift}'s file names in its {@code ZigCeiling} tag ({@link CeilingTags}), a block a player places is
  * not used up: the engine's own place event is told not
  * to take it ({@code PlaceBlockEvent.setConsumeItem}). Only a block the {@value #ELIGIBLE_FAMILY} family holds is
@@ -58,8 +60,14 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
     /** A family's thrift stat is this prefix and the family's id. */
     public static final String FAMILY_PREFIX = "BuildThrift_";
 
-    /** Thrift on a shaped placement. */
+    /** Thrift on a shaped placement, either half. */
     public static final String SHAPED_STAT = "BuildThrift_Shaped";
+
+    /** Thrift on a placement continuing a straight run of three, the run alone. */
+    public static final String STRAIGHT_STAT = "BuildThrift_Straight";
+
+    /** Thrift on a placement in the flow after a straight run, the flow alone. */
+    public static final String FLOW_STAT = "BuildThrift_Flow";
 
     /** The family that holds every block thrift may spare. */
     public static final String ELIGIBLE_FAMILY = "Thrift";
@@ -99,9 +107,9 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
             if (player == null || pos == null) {
                 return;
             }
-            boolean shaped = RecentPlacements.place(player.getUuid(), player.getWorldUuid(), pos.x, pos.y, pos.z,
-                    System.currentTimeMillis());
-            boolean spare = spares(store, ref, event, shaped);
+            RecentPlacements.Shape shape = RecentPlacements.placement(player.getUuid(), player.getWorldUuid(), pos.x,
+                    pos.y, pos.z, System.currentTimeMillis());
+            boolean spare = spares(store, ref, event, shape);
             if (spare) {
                 event.setConsumeItem(false);
             }
@@ -116,7 +124,7 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
      * off or fall ({@link #canLoseSupport}), on the placer's roll?
      */
     private static boolean spares(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlaceBlockEvent event, boolean shaped) {
+            @Nonnull PlaceBlockEvent event, @Nonnull RecentPlacements.Shape shape) {
         if (!event.isConsumeItem() || GatherReads.gameMode(store, ref) == GameMode.Creative) {
             return false;
         }
@@ -130,7 +138,7 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
         if (placed == null || canLoseSupport(placed, overridesPlacement(store, ref))) {
             return false;
         }
-        return GatherReads.roll(percentFor(GatherReads.stats(store, ref), blockId, shaped));
+        return GatherReads.roll(percentFor(GatherReads.stats(store, ref), blockId, shape));
     }
 
     /**
@@ -194,8 +202,26 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
         });
     }
 
-    /** The chance in a hundred that placing {@code blockId} spares it, held at the cap. */
+    /**
+     * The chance in a hundred that placing {@code blockId} spares it, held at the cap, for a placement whose shaped
+     * halves the caller does not tell apart: {@code BuildThrift_Shaped} when it is shaped, neither half's own stat.
+     */
     public static double percentFor(@Nullable EntityStatMap stats, @Nonnull String blockId, boolean shaped) {
+        return sum(stats, blockId, shaped, false, false);
+    }
+
+    /**
+     * The chance in a hundred that placing {@code blockId} spares it, held at the cap: {@code BuildThrift_Shaped} on
+     * either half of {@code shape}, {@code BuildThrift_Straight} on the straight run, {@code BuildThrift_Flow} in the
+     * flow after one.
+     */
+    public static double percentFor(@Nullable EntityStatMap stats, @Nonnull String blockId,
+            @Nonnull RecentPlacements.Shape shape) {
+        return sum(stats, blockId, shape.shaped(), shape.straight(), shape.flowing());
+    }
+
+    private static double sum(@Nullable EntityStatMap stats, @Nonnull String blockId, boolean shaped,
+            boolean straight, boolean flowing) {
         if (stats == null) {
             return 0.0;
         }
@@ -206,6 +232,12 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
         }
         if (shaped) {
             sum += GatherReads.max(stats, SHAPED_STAT);
+        }
+        if (straight) {
+            sum += GatherReads.max(stats, STRAIGHT_STAT);
+        }
+        if (flowing) {
+            sum += GatherReads.max(stats, FLOW_STAT);
         }
         return Math.max(0.0, Math.min(CeilingTags.ceilingOf(THRIFT_STAT, FALLBACK_CEILING), sum));
     }

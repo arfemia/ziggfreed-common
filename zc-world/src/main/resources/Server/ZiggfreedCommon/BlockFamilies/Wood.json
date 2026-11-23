@@ -1,5 +1,5 @@
 {
-  "$Comment": "Wood of every kind, logs, planks, beams and trim: the blocks whose item is tagged Type Wood, but none of the Light family (a torch or a lantern is a light, not wood). BuildThrift_Wood spares placing them. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "$Comment": "Wood of every kind, logs, planks, beams and trim: the blocks whose item is tagged Type Wood, but none of the Light family (a torch or a lantern is a light, not wood). GatherSpeed_Wood speeds breaking them, placed or not, and BuildThrift_Wood spares placing them. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
   "Match": {
     "Tags": {
       "Type": [

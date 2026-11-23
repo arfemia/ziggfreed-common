@@ -15,7 +15,8 @@ import com.ziggfreed.common.asset.EditorSchema;
 /**
  * The server's one word on the gather steps' own rules, the numbers no stat carries: when a tree counts as tall (for
  * {@code GatherSpeed_TallTree}), how long the break chain keeps its rhythm and how many steps it counts (for
- * {@code GatherRhythm}), and how long a shaped placement keeps every placement shaped (for {@code BuildThrift_Shaped}).
+ * {@code GatherRhythm}), and how long a shaped placement keeps every placement shaped (for {@code BuildThrift_Shaped}
+ * and {@code BuildThrift_Flow}).
  * The FILE NAME is the record's id, and the record every step reads is {@value #SHARED_ID}.
  *
  * <p>Authored at {@code Server/ZiggfreedCommon/GatherRules/Default.json}, which this library ships; a pack's same-id
