@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_stance reading for requirement lines. Param is a stance id (Your_Stance), the reading how many of its faces the player holds that count now; or a stance id and a face's pick id joined by a slash (Your_Stance/Your_Face), the reading 1 while that face is held and counts, else 0. Write Min 1 on Your_Stance for a quest step done only while some face is held. A face counts while its slot is open, the player owns it and its kind is within its cap. It changes only through the player's own picks and their undo, a respec or a prestige, a face held or released, or a pick or stance reload (Volatility Player).",
+  "Factor": "ziggfreedcommon:track_stance",
+  "Text": { "TitleKey": "ziggfreedcommon.stance.factor.track_stance" },
+  "Volatility": "Player"
+}

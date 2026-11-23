@@ -6,6 +6,8 @@ One track is one file under `Server/ZiggfreedCommon/Tracks/` (subfolders are the
 
 One pick (the one shape every choice, Mastery node, trainer offer and prestige perk is) is one file under `Server/ZiggfreedCommon/TrackPicks/`, and one option a choice may offer one file under `Server/ZiggfreedCommon/TrackPickOptions/`. One pick generator (a family of picks from one template: `Base`, `IdPattern`, `ForEach` axes and a `Child` pick body, each row's tokens filled in; `Base` may carry tokens too) is one file under `Server/ZiggfreedCommon/TrackPickGenerators/`, and a pick file of a generated id replaces that pick. A pick with `Abstract` true is a skeleton picks inherit from, and one switched off switches off every pick under it. The server owner retunes a pick in `track-picks.json` and an option in `track-pick-options.json`. A grant (`Grants`) names its `Kind`: the library ships `Stat` (the `StatGrant` shape; a conditional bonus is a stat of its own, R757); other mods register their own kinds. A track's swap and respec prices are the library's one price shape (`Cost`), the one shops use.
 
+One stance (picks owned for good that count only while their face is held in one of its slots) is one file under `Server/ZiggfreedCommon/TrackStances/`, retuned in `track-stances.json`: its `Slots` rows (the `SlotRow` shape, each open while its `Requires` holds and its `Pick` is owned), its `Kinds` (the most of each kind held at once and what holding one adds), its `Hold` and `Break` fees, its `Where` and its `Budget`. A pick joins one through its `Stance` group (a pick naming no `Face` is a face itself), and a pick written `TaughtOnly` is never offered or taken, only taught, as a `Pick` reward (`Params`: `Track`, `Pick`) teaches it when its Claim is collected.
+
 One boost (a percent more on every gain on the tracks it names) is one file under `Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, retuned in `boost-settings.json`, whose `OnStart` group runs a server command whenever a boost starts. A boost starts from a boost item's native `ZigBoost` interaction (`Boost`, and optional `Percent`, `Seconds` and `Track`, the one track it lifts out of those the boost lifts, then a `Next` that consumes the item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, `Seconds`, `Track`) or a native `ZigBoost` reward file when its Claim is collected, or from `/zigboost start`. A stack carrying `ZigBoost` metadata (the `BoostToken` shape, minted by `/zigboost give` onto the library's `Zig_Boost_Token` item or by a mod onto its own) starts what the stack says in place of the interaction's own leaves. A boost with a `Reusable` group is one a player may start themselves (`/zigboost own`, or a mod's page), its `Reusable.Requires` asked only then.
 
 One proc (what a moment does for a player who meets its `Requires`: a talent's knack) is one file under `Server/ZiggfreedCommon/Procs/`, retuned in `mods/ziggfreedcommon/procs.json`. The procs answering one moment run by their `Order`, lower first, then by their ids compared lower-cased.
@@ -28,6 +30,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 - [TrackPickAsset](#type-trackpickasset)
 - [TrackPickGeneratorAsset](#type-trackpickgeneratorasset)
 - [PickOptionAsset](#type-pickoptionasset)
+- [TrackStanceAsset](#type-trackstanceasset)
+- [SlotRow](#type-slotrow)
 - [StatGrant](#type-statgrant)
 - [Cost](#type-cost)
 - [ZigTrackReward](#type-zigtrackreward)
@@ -427,6 +431,8 @@ What this world does to tracks: whether gains land and at what multiplier, and w
 | `ResetsAs` | `string` | `null` | Which of its track's Prestige.Resets switches decides what a prestige does to this pick: Picks (the tree's own picks), Mastery (the Mastery row), TrainerPicks (what a trainer taught), Abilities (learned abilities) or Techniques. Unauthored, TrainerPicks for a pick whose Where names a trainer, else Picks. A prestige the track's Prestige.Resets says keeps this kind leaves the pick exactly as it is, held even if a branch's points no longer meet its Requires; one it resets follows the track's prestige Build. It governs a prestige only: a respec clears every pick but what a trainer taught and gives its points back. |
 | `Branch` | `string` | `null` | The branch of the track's tree this pick sits in, by id (one its track's Branches names): the points spent on it count toward that branch, so a later row's Requires can open on them (ziggfreedcommon:track_branch_spent, Param <Track>:<Branch>, Min 5). Leave it out for a pick in no branch, such as a root row. |
 | `Node` | array of `string` | `null` | The either-or groups this pick is one face of, by ids of your own: every pick that writes a group's id is one choice with the others writing it, on its own track or on another (a group one face of which sits on each of five tracks lets a player hold it on one of them), so taking one face locks every other face of each of its groups until it is undone or its track is respecced. The first id is the row's own choice, the one the tree audit weighs a row by; any after it are further either-ors the pick belongs to (two picks of different rows that rule each other out). Give a group an id no other track's picks use unless they belong to the same choice. Leave it out for a pick that stands alone. |
+| `Stance` | [Stance](#field-trackpickasset-stance) | `null` | The stance this pick belongs to (a file under Server/ZiggfreedCommon/TrackStances): the pick is owned for good once taken, but what it grants, every proc and ability change that opens on it, and its ziggfreedcommon:track_pick reading count only while its face is held in one of the stance's slots. A pick writing no Face is a face itself, of the Kind it writes; one writing Face is a step of that face and lives while that face is held. Leave it out for a pick that always counts once taken. |
+| `TaughtOnly` | `boolean` | `null` | True keeps this pick off every page: it is never offered, owed or taken by a player, only taught (an admin's /zigtrack pick --pick, a one-time move from an older system, or a Pick reward when its Claim is collected). A respec, a saved build swap and a prestige keep it. Write it on a key, such as the pick a stance's slot opens on. False when unauthored. |
 | `Grants` | array of `codecMap` | `null` | What a pick bought outright grants each time it is taken (a choice grants what its chosen options grant). Each entry names its Kind: Stat raises a native stat; other mods add kinds of their own. |
 
 <a id="field-trackpickasset-groups-item"></a>
@@ -467,6 +473,15 @@ What this world does to tracks: whether gains land and at what multiplier, and w
 |---|---|---|---|
 | `Placements` | array of `string` | `null` | The NPC placements (trainers) whose page offers this pick, by id. Empty or unauthored, it is taken on the track's own page. |
 
+<a id="field-trackpickasset-stance"></a>
+### TrackPickAsset.Stance
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Id` | `string` | `null` | The stance, by id (a file under Server/ZiggfreedCommon/TrackStances). A stance no file defines, or one switched off, holds nothing, so a pick naming it counts nowhere. |
+| `Face` | `string` | `null` | The face this pick is a step of, by its pick id: the pick counts while that face is held. Leave it out on the face itself. |
+| `Kind` | `string` | `null` | On a face: its kind, one the stance's Kinds names (your own word, such as Weapon), which decides how many faces of it may be held at once and what holding one adds. A step writing Face reads its face's kind, never its own. |
+
 <a id="type-trackpickgeneratorasset"></a>
 ## TrackPickGeneratorAsset
 
@@ -501,6 +516,62 @@ What this world does to tracks: whether gains land and at what multiplier, and w
 | `From` | `integer` | `null` | The first level this option may be offered at. 1 when unauthored. |
 | `To` | `integer` | `null` | The last level this option may be offered at. Leave it out for no end. |
 | `Grants` | `json` | `null` | What taking this option grants, each time it is taken: grant entries with their Kind (Stat raises a native stat), in which {Name} is filled from the naming pick's Vars. A value that is exactly one {Name} takes that Var's own type, so "Add": "{Step}" reads as a number. A {Name} no Var fills keeps the option out of that pick, reported. |
+
+<a id="type-trackstanceasset"></a>
+## TrackStanceAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Enabled` | `boolean` | `null` | Whether this stance exists on this server; unauthored means true. False holds nothing: every pick in it counts nowhere and what holding a face adds is taken off, while what each player holds is kept, unread, until it is switched back on. |
+| `Text` | [ContentText](#type-contenttext) | `null` | What the stance is called (TitleKey) and a line on what it is for (FlavorKey), as localization keys in your own lang file. Without a TitleKey it is named by its id. |
+| `Icon` | `string` | `null` | The item whose picture stands for the stance. |
+| `Order` | `integer` | `null` | Where the stance sorts among the others on its page: lower first, then by id. |
+| `Slots` | array of [SlotRow](#type-slotrow) | `null` | The slots a face is held in, in the order they fill (the lowest open one first): each row its Id, and the Requires and Pick that open it (a row naming neither is open from the start). How many faces a player may hold is how many rows are open, so a third slot is one more row. A face whose slot closes is released, free. Under Parent this list replaces the parent's whole. |
+| `Kinds` | map of [Kind](#field-trackstanceasset-kinds-item) | `null` | Per kind of face (your own words, such as Weapon or Element): the most held at once (Max) and what holding one adds (WhileHeld). Under Parent, or in the owner file, a kind written merges into the one below it leaf by leaf. |
+| `Hold` | [Fee](#field-trackstanceasset-hold) | `null` | What filling a slot with a face costs, charged as it is held. Free when unauthored. |
+| `Break` | [Fee](#field-trackstanceasset-break) | `null` | What releasing a held face costs, charged as the player releases it (never in a fight or an encounter). A face released because it was lost (its pick undone or respecced, its slot closed, an admin's release) is always free. Free when unauthored. |
+| `Where` | [Where](#field-trackstanceasset-where) | `null` | Where a player holds and releases a face: the NPC placements (trainers) whose page does it. A placement switched off or gone counts as none; with none written or none standing, anywhere the stance's page opens. |
+| `Budget` | map of `double` | `null` | The most one face's live grants (the face and every step naming it, each at its full rank, an either-or at its largest face) may add, per stat id (such as Health) or grant family (a stat's ZigGrantFamily tag, such as Combat). The validator warns of a face past it (STANCE_FACE_OVER_BUDGET); nothing is capped while playing. What holding a face costs (Kinds WhileHeld) is not counted. |
+
+<a id="field-trackstanceasset-kinds-item"></a>
+### TrackStanceAsset.Kinds[]
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Text` | [ContentText](#type-contenttext) | `null` | What this kind is called (TitleKey), as a localization key: what a player reads when the stance holds as many of it as it may. Without one it is named by its word. |
+| `Max` | `integer` | `null` | The most faces of this kind held at once, whatever slots are open. 0 or less, or unauthored, sets no limit of its own. Lowered on a live server, the faces past it are released at each player's next settle, the latest slot first, free. |
+| `WhileHeld` | array of `codecMap` | `null` | What holding one face of this kind adds, once per face held, taken off the moment it is released: grants of any kind, a negative amount allowed (a cost to the body, such as { "Kind": "Stat", "Stat": "Health", "Add": -25 }). Under Parent this list replaces the parent's whole. |
+
+<a id="field-trackstanceasset-hold"></a>
+### TrackStanceAsset.Hold
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Cost` | [Cost](#type-cost) | `null` | The price, in any wallet or item (the one price shape shops use). Free when unauthored. |
+
+<a id="field-trackstanceasset-break"></a>
+### TrackStanceAsset.Break
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Cost` | [Cost](#type-cost) | `null` | The price, in any wallet or item (the one price shape shops use). Free when unauthored. |
+
+<a id="field-trackstanceasset-where"></a>
+### TrackStanceAsset.Where
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Placements` | array of `string` | `null` | The NPC placements (trainers) whose page offers this pick, by id. Empty or unauthored, it is taken on the track's own page. |
+
+<a id="type-slotrow"></a>
+## SlotRow
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Id` | `string` | `null` | What this slot is known by in a player's record (letters, digits and underscores), such as I, II or III. It names a lasting fact, never a price or a level: renaming it on a live server empties every player's slot of that name. A row with no Id is no slot. |
+| `Requires` | [Requires](#type-requires) | `null` | What a player must meet for this slot to be open, in the Requires shape quests use, every condition read (a mod condition included). Read when the player fills a slot and at each settle (a login, a world change, a change of picks), so write readings that change through the player's own progress (a level, a quest, a permission). Leave it out for no condition. |
+| `Pick` | `string` | `null` | A pick (by id, on any track) the player must own for this slot to be open: the key a quest's reward, a shop or an admin teaches. Leave it out for no key. A row with neither Requires nor Pick is open from the start. |
 
 <a id="type-statgrant"></a>
 ## StatGrant

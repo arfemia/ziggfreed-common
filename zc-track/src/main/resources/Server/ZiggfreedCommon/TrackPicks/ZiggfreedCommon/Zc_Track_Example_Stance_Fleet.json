@@ -1,0 +1,12 @@
+{
+  "$Comment": "The sample stance's other face (Zc_Track_Example_Stance), switched off like the rest of it: a pick on the sample track bought for one point at level two, of the stance's Swift kind. Its two stamina counts only while it is held. With only slot I open, holding it beside Rooted is refused until the player owns the stance's key, which opens slot II. Turn it on in track-picks.json beside the stance.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.stance.fleet", "FlavorKey": "ziggfreedcommon.track.example.stance.fleet.desc" },
+  "Icon": "Ingredient_Crystal_Blue",
+  "Order": 41,
+  "At": 2,
+  "Cost": { "Points": 1 },
+  "Stance": { "Id": "Zc_Track_Example_Stance", "Kind": "Swift" },
+  "Grants": [ { "Kind": "Stat", "Stat": "Stamina", "Add": 2 } ]
+}

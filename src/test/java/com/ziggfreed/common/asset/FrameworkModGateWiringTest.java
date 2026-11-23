@@ -70,6 +70,7 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * TrackCategories, TrackWorldRules, TrackPickOptions, DiminishKeys, TrackPrices, TrackSettings, BoostSettings,
  * WeakSpotSettings, EffectFamilies,
  * TrackCategories, TrackWorldRules, TrackPickOptions, BoostSettings, PlayerPower, WeakSpotSettings, EffectFamilies,
+ * TrackCategories, TrackWorldRules, TrackPickOptions, TrackStances, BoostSettings, WeakSpotSettings, EffectFamilies,
  * ConditionalStats, BlockFamilies, GatherRules and Gateways. A
  * store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}

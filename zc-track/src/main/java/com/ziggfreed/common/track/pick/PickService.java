@@ -45,6 +45,7 @@ import com.ziggfreed.common.track.asset.PrestigeBuild;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.event.TrackEvents;
 import com.ziggfreed.common.track.event.ZigTrackPicksChangedEvent;
+import com.ziggfreed.common.track.stance.Stances;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -61,6 +62,12 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code PickClaims}. A pick whose {@code Where} names a trainer that teaches ({@link PickTrainers}) is that trainer
  * page's to offer ({@link #trainerPicks}), so it is never owed here; one whose trainers are all switched off or gone
  * is owed and taken on the track's own page like any other (R608).
+ *
+ * <p><b>A pick only ever taught</b> ({@code TaughtOnly}) is never owed, never on a trainer's page and never taken
+ * ({@link Status#TAUGHT_ONLY}): {@link #teach} gives it (an admin, a one-time move, a {@code Pick} reward), and a
+ * respec, a saved build swap and a prestige keep it. <b>A pick in a stance</b> ({@code Stance}) is owned once taken
+ * ({@link #count}) and lives only while its face is held ({@link #liveCount}, {@code stance.Stances}); every change of
+ * picks frees the held faces it left unowned.
  *
  * <p><b>The pick level</b> ({@link #pickLevel}) is the level slots open up to: the best level ever under a
  * {@code Keep} prestige build (the picks stay, and nothing new opens until the climb passes them), the current
@@ -140,7 +147,9 @@ public final class PickService {
         /** The price cannot be paid. */
         CANNOT_PAY,
         /** No saved build is in use and a swap would lose picks no build holds: save them first, or force it. */
-        UNSAVED
+        UNSAVED,
+        /** The pick is only ever taught ({@code TaughtOnly}): an admin, a one-time move or a reward gives it. */
+        TAUGHT_ONLY
     }
 
     /**
@@ -301,7 +310,8 @@ public final class PickService {
         List<Owed> owed = new ArrayList<>();
         Function<String, PickState> elsewhere = statesOf(player, records);
         for (TrackPicks.PickDef pick : TrackPicks.onTrack(id)) {
-            if (!PickTrainers.of(pick.asset()).isEmpty() || open(pick, state, level, query, elsewhere) != Status.DONE) {
+            if (pick.asset().taughtOnly() || !PickTrainers.of(pick.asset()).isEmpty()
+                    || open(pick, state, level, query, elsewhere) != Status.DONE) {
                 continue;
             }
             boolean costed = pick.asset().costPoints() > 0;
@@ -360,10 +370,25 @@ public final class PickService {
         return out;
     }
 
-    /** How many times {@code player} took the pick or option {@code id} on {@code trackId}; 0 when not live. */
+    /**
+     * How many times {@code player} took the pick or option {@code id} on {@code trackId}, owned for good (a pick in a
+     * stance counted whether its face is held or not); 0 when not live. {@link #liveCount} counts only what lives.
+     */
     public static int count(@Nonnull UUID player, @Nullable String trackId, @Nullable String id) {
         TrackReading reading = trackId == null ? null : TrackService.read(TrackKey.player(player, trackId));
         return reading == null ? 0 : reading.record().picks().count(id);
+    }
+
+    /**
+     * How many times {@code player} took the pick or option {@code id} on {@code trackId} counting only what lives
+     * ({@code TrackPicks.liveCount}): exactly {@link #count} for a pick in no stance, and for one in a stance its
+     * count while its face is held, else 0. What {@code ziggfreedcommon:track_pick} reads, and what a talent's proc,
+     * ability change or form should open on. 0 when not live. Their world thread.
+     */
+    public static int liveCount(@Nonnull UUID player, @Nullable String trackId, @Nullable String id) {
+        TrackReading reading = trackId == null ? null : TrackService.read(TrackKey.player(player, trackId));
+        return reading == null ? 0 : TrackPicks.liveCount(TrackPicks.onTrack(reading.def().id()),
+                reading.record().picks(), id, Stances.counts(player));
     }
 
     /**
@@ -483,7 +508,7 @@ public final class PickService {
         for (TrackDef def : TrackService.defs()) {
             List<TrackPicks.PickDef> taught = new ArrayList<>();
             for (TrackPicks.PickDef pick : TrackPicks.onTrack(def.id())) {
-                if (!pick.isChoice() && pick.asset().placements().contains(at)) {
+                if (!pick.isChoice() && !pick.asset().taughtOnly() && pick.asset().placements().contains(at)) {
                     taught.add(pick);
                 }
             }
@@ -551,7 +576,7 @@ public final class PickService {
     @Nonnull
     public static Predicate<String> keptThroughPrestige(@Nonnull TrackDef def) {
         TrackAsset track = def.asset();
-        return byPick(def, pick -> !track.prestigeResets(pick.asset().resetsAs()));
+        return byPick(def, pick -> pick.asset().taughtOnly() || !track.prestigeResets(pick.asset().resetsAs()));
     }
 
     /**
@@ -566,20 +591,21 @@ public final class PickService {
         return byPick(def, pick -> staysInUse(pick.asset()));
     }
 
-    /** Does {@code pick} stay in use through every swap: taught at a trainer, or priced? */
+    /** Does {@code pick} stay in use through every swap: taught at a trainer, priced, or only ever taught? */
     static boolean staysInUse(@Nonnull TrackPickAsset pick) {
-        return !pick.placements().isEmpty() || pick.price() != null;
+        return !pick.placements().isEmpty() || pick.price() != null || pick.taughtOnly();
     }
 
     /**
      * Which of {@code def}'s picks a respec leaves be, read off the folded pick files: a pick a trainer taught (its
-     * {@code Where} names placements, its gate a level that stays met), and one the fold does not know on this track
-     * (switched off or gone, so nothing is lost while it cannot be read). Every other pick, the Mastery row included,
-     * is cleared by a respec. Takes a pick id in any case.
+     * {@code Where} names placements, its gate a level that stays met), one only ever taught ({@code TaughtOnly}: a
+     * player can never take it back), and one the fold does not know on this track (switched off or gone, so nothing
+     * is lost while it cannot be read). Every other pick, the Mastery row included, is cleared by a respec. Takes a
+     * pick id in any case.
      */
     @Nonnull
     public static Predicate<String> taughtByTrainer(@Nonnull TrackDef def) {
-        return byPick(def, pick -> !pick.asset().placements().isEmpty());
+        return byPick(def, pick -> !pick.asset().placements().isEmpty() || pick.asset().taughtOnly());
     }
 
     /**
@@ -1099,7 +1125,7 @@ public final class PickService {
             String node = TrackKey.normalize(picks.get(i));
             TrackPicks.PickDef pick = TrackPicks.pick(node);
             Status status = takeStatus(player, now, pick, null, query);
-            if (status == Status.UNKNOWN || status == Status.ELSEWHERE) {
+            if (status == Status.UNKNOWN || status == Status.ELSEWHERE || status == Status.TAUGHT_ONLY) {
                 left.add(node);
                 continue;
             }
@@ -1131,6 +1157,9 @@ public final class PickService {
      */
     public static void prestiged(@Nonnull UUID player, @Nonnull TrackDef def, boolean picksMoved) {
         PickUndo.closeTrack(player, def.id());
+        if (picksMoved) {
+            settleStances(player);
+        }
         Ref<EntityStore> ref = PlayerAccess.liveRef(player);
         if (ref != null) {
             TrackDerived.rebuild(ref.getStore(), ref);
@@ -1303,6 +1332,9 @@ public final class PickService {
         PickState state = record.picks();
         if (state.takesOf(pick.id()) >= pick.asset().repeatMax()) {
             return Status.MAXED;
+        }
+        if (!taught && pick.asset().taughtOnly()) {
+            return Status.TAUGHT_ONLY;
         }
         Status open = open(pick, state, taught ? Integer.MAX_VALUE : pickLevel(def, record), query,
                 statesOf(player, records));
@@ -1565,13 +1597,26 @@ public final class PickService {
         return trainers.isEmpty() || (placement != null && trainers.contains(TrackKey.normalize(placement)));
     }
 
-    /** Keep a change's knock-on: the epoch, the grants, the event. */
+    /**
+     * Keep a change's knock-on: the epoch, the faces held in a stance that stopped counting freed ({@code
+     * Stances.settle}: a face no longer owned after an undo, a respec or a swap), the grants, the event.
+     */
     private static void changed(@Nonnull UUID player, @Nonnull Climb climb,
             @Nonnull ZigTrackPicksChangedEvent.Change change, @Nullable String pickId, @Nullable String slot,
             @Nonnull List<String> options) {
         GateEpochs.bumpPlayer(player);
+        settleStances(player);
         TrackDerived.rebuild(climb.ref().getStore(), climb.ref());
         TrackEvents.firePicksChanged(player, climb.def().id(), change, pickId, slot, options);
+    }
+
+    /** Free the faces {@code player} holds that a change of picks left uncounted; its own guard, never stopping it. */
+    private static void settleStances(@Nonnull UUID player) {
+        try {
+            Stances.settle(player);
+        } catch (Throwable t) {
+            SafeLog.warn("[track] a player's stances could not be settled after a change of picks: " + t.getMessage());
+        }
     }
 
     @Nullable

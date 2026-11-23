@@ -14,6 +14,7 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.proc.ProcAsset;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.track.ZigTrackReward;
+import com.ziggfreed.common.track.asset.SlotRow;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
@@ -30,6 +31,7 @@ import com.ziggfreed.common.track.price.TrackPriceAsset;
 import com.ziggfreed.common.track.source.DiminishKeyAsset;
 import com.ziggfreed.common.track.source.SourceRow;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
+import com.ziggfreed.common.track.stance.TrackStanceAsset;
 import com.ziggfreed.common.track.world.TrackRules;
 import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
 import com.ziggfreed.common.world.WorldSelector;
@@ -73,6 +75,14 @@ public final class TrackSchemaDocs {
                     + "own, R757); other mods register their own kinds. A track's swap and respec prices are the "
                     + "library's one price shape (`Cost`), the "
                     + "one shops use.\n\n"
+                    + "One stance (picks owned for good that count only while their face is held in one of its "
+                    + "slots) is one file under `Server/ZiggfreedCommon/TrackStances/`, retuned in "
+                    + "`track-stances.json`: its `Slots` rows (the `SlotRow` shape, each open while its `Requires` "
+                    + "holds and its `Pick` is owned), its `Kinds` (the most of each kind held at once and what "
+                    + "holding one adds), its `Hold` and `Break` fees, its `Where` and its `Budget`. A pick joins one "
+                    + "through its `Stance` group (a pick naming no `Face` is a face itself), and a pick written "
+                    + "`TaughtOnly` is never offered or taken, only taught, as a `Pick` reward (`Params`: `Track`, "
+                    + "`Pick`) teaches it when its Claim is collected.\n\n"
                     + "One boost (a percent more on every gain on the tracks it names) is one file under "
                     + "`Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add "
                     + "up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, "
@@ -116,6 +126,8 @@ public final class TrackSchemaDocs {
             .register("TrackPickAsset", TrackPickAsset.CODEC)
             .register("TrackPickGeneratorAsset", TrackPickGeneratorAsset.CODEC)
             .register("PickOptionAsset", PickOptionAsset.CODEC)
+            .register("TrackStanceAsset", TrackStanceAsset.CODEC)
+            .register("SlotRow", SlotRow.CODEC)
             .register("StatGrant", StatGrant.CODEC)
             .register("Cost", CostAsset.CODEC)
             .register("ZigTrackReward", ZigTrackReward.CODEC)

@@ -57,6 +57,9 @@ import com.ziggfreed.common.validation.Finding;
  *       (every quantity a tree gives is a native stat, which gear and effects can carry too).</li>
  * </ul>
  *
+ * <p>A pick in a stance ({@code Stance}) is no part of its track's tree here: it counts only while its face is held,
+ * and its stance's {@code Budget} holds it ({@code stance.StanceValidator}).
+ *
  * <p>Gates are read from a pick's {@code Requires} at its top level and its {@code AllOf} clauses; an {@code AnyOf}
  * or {@code Not} clause is not reasoned about. A {@code Stat} grant's {@code Add} and {@code Percent} are summed as
  * written.
@@ -97,6 +100,11 @@ public final class TrackTreeAudit {
         // How many picks, on any track, name each either-or group: a group one pick alone names is no choice.
         Map<String, Integer> faceCounts = new HashMap<>();
         for (TrackPicks.PickDef pick : picks) {
+            if (pick.asset().stanceId() != null) {
+                // A pick in a stance counts only while its face is held: its budget is its stance's
+                // (STANCE_FACE_OVER_BUDGET), never its track's tree.
+                continue;
+            }
             byTrack.computeIfAbsent(pick.trackId(), k -> new ArrayList<>()).add(pick);
             for (String node : pick.asset().nodes()) {
                 faceCounts.merge(node, 1, Integer::sum);

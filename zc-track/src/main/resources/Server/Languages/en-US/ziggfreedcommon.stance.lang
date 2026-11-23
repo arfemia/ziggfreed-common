@@ -1,0 +1,67 @@
+# What the stances say: things a player has learned that count only while held in a slot. The file name is the key
+# PREFIX: an entry here resolves as ziggfreedcommon.stance.<key>.
+
+# How a requirement on a stance reading is named when nothing names the stance.
+factor.track_stance = held in a stance
+factor.track_stance_slots = open slots in a stance
+# A lock line's name for a reading on a stance that names itself: {0} the stance; in factor.holding {0} is what is
+# held and {1} the stance.
+factor.held_in = held in {0}
+factor.holding = {0} held in {1}
+factor.slots_in = open slots in {0}
+
+# Why a hold or a release was refused, on every page and command that offers one. In refused.kind.named {0} is the
+# kind, as the stance names it.
+refused.not_owned = You have not learned this yet.
+refused.held = You already hold this.
+refused.kind = You hold as many of this kind as you can. Release one first.
+refused.kind.named = No more {0} can be held at once. Release one first.
+refused.slot = Every open slot is full. Release something first.
+refused.not_held = You are not holding this.
+refused.here = This is done at a trainer elsewhere.
+
+# A slot's name: {0} its id as the stance writes it (I, II).
+slot.name = Slot {0}
+
+# The stance page. page.lead reads under a stance that writes no line of its own.
+page.lead = Hold what you have learned in an open slot. Only what you hold counts.
+page.empty = Nothing to show here yet.
+page.none = There is nothing to hold here.
+header.slots = Slots open
+header.held = Held
+section.slots = Slots
+section.faces = Yours to hold
+# A kind's section: {0} the kind, {1} how many are held, {2} the most that may be.
+section.kind = {0}: {1, number} held
+section.kind.capped = {0}: {1, number} of {2, number} held
+slot.meta.empty = Empty
+slot.meta.closed = Closed
+state.held = Held
+state.open = Open
+state.closed = Closed
+state.not_held = Not held
+block.opens = What opens it
+# In slot.needs.pick {0} is what must be learned first.
+slot.needs.pick = Learn {0}
+slot.needs.none = Open from the start
+# In slot.lead.held {0} is what the slot holds.
+slot.lead.held = Holds {0}.
+slot.lead.empty = Empty. Hold something here to make it count.
+slot.lead.closed = Closed for now. It opens once you meet what it asks.
+# In face.meta.held {0} is the slot.
+face.meta.held = Held in {0}
+face.meta.not_held = Not held
+block.gives = While held
+face.gives.none = Nothing more than holding it
+block.costs = Holding it costs
+block.hold.price = To hold it
+block.release.price = To release it
+price.free = Free
+action.hold = Hold
+action.release = Release
+action.failed = That could not be done. Try again.
+hold.confirm = Press again to pay and hold
+release.confirm = Press again to pay and release
+# In toast.held {0} is what is held and {1} the slot; in toast.released {0} is what was released.
+toast.held = You now hold {0} in {1}.
+toast.released = You released {0}.

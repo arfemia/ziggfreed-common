@@ -91,10 +91,4 @@ final class ZigTrackPickCommand extends TrackTargetCommand {
         }
         return null;
     }
-
-    @Nullable
-    private static String typed(@Nonnull CommandContext ctx, @Nonnull OptionalArg<String> arg) {
-        String value = arg.provided(ctx) ? arg.get(ctx) : null;
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 }

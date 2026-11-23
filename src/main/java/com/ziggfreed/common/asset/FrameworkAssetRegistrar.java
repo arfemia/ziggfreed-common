@@ -204,6 +204,8 @@ import com.ziggfreed.common.track.price.TrackPriceConfig;
 import com.ziggfreed.common.track.price.TrackPriceOwnerLayers;
 import com.ziggfreed.common.track.source.DiminishKeyAsset;
 import com.ziggfreed.common.track.source.DiminishKeyConfig;
+import com.ziggfreed.common.track.stance.TrackStanceAsset;
+import com.ziggfreed.common.track.stance.TrackStanceConfig;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
 import com.ziggfreed.common.track.source.TrackSourceOwnerLayers;
@@ -1352,6 +1354,20 @@ public final class FrameworkAssetRegistrar {
                     TrackPickOwnerLayers.reloadOptions();
                 });
 
+        // --- Track stances (Pattern A) - one stance per file: picks owned for good that count only while their face
+        //     is held in one of its slots: the slot rows, the per-kind caps and what holding a face adds, the hold
+        //     and release fees, Where, and the budget. The library ships none. Owner file
+        //     mods/ziggfreedcommon/track-stances.json, re-read on this same event. No loadsAfter: a stance names its
+        //     slot keys by pick id and the picks name their stance, each read live. ---
+        AssetStoreRegistrar.registerStore(TrackStanceAsset.class,
+                new DefaultAssetMap<String, TrackStanceAsset>(), TrackStanceAsset.TYPE_ROOT,
+                TrackStanceAsset::getId, TrackStanceAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackStanceAsset.class,
+                (LoadedAssetsEvent<String, TrackStanceAsset, DefaultAssetMap<String, TrackStanceAsset>> ev) -> {
+                    TrackStanceConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackStanceConfig.reloadOwnerLayer();
+                });
+
         // --- Boosts (Pattern A, gated) - one boost per file: the tracks it lifts (by id, by category, or All),
         //     its percent, whose it is, how long a start runs or that it stands, how it stacks with itself, its
         //     tile and its season. A file may gate on a mod through its top-level Requires. The library ships
@@ -1609,6 +1625,7 @@ public final class FrameworkAssetRegistrar {
                         + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
                         + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), TrackPickGenerators, "
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), "
+                        + "TrackStances (owner file mods/ziggfreedcommon/track-stances.json), "
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
                         + "PlayerPower (owner file mods/ziggfreedcommon/player-power.json), "

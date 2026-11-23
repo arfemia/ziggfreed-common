@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_stance_slots reading for requirement lines. Param is a stance id (Your_Stance); the reading is how many of its slots are open for the player, each row's Pick owned and its Requires met. Write Min 2 on a line that should show only once a second slot is open. A slot's Requires should read what changes through the player's own progress (a level, a quest, a pick), since the reading is kept until the player's own moves change it (Volatility Player); one reading this very count reads as unmet.",
+  "Factor": "ziggfreedcommon:track_stance_slots",
+  "Text": { "TitleKey": "ziggfreedcommon.stance.factor.track_stance_slots" },
+  "Volatility": "Player"
+}

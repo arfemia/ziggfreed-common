@@ -39,6 +39,13 @@ public final class TrackEvents {
                 () -> new ZigTrackPicksChangedEvent(playerId, trackId, change, pickId, slot, options));
     }
 
+    /** A face {@code playerId} holds in {@code stanceId} changed; built only when something listens. */
+    public static void fireStanceChanged(@Nonnull UUID playerId, @Nonnull String stanceId, @Nonnull String slotId,
+            @Nonnull String faceId, @Nonnull ZigStanceChangedEvent.Change change) {
+        SEAM.fire("ZigStanceChanged", ZigStanceChangedEvent.class,
+                () -> new ZigStanceChangedEvent(playerId, stanceId, slotId, faceId, change));
+    }
+
     /** A boost started: {@code boostId}, of {@code scope}'s word, by the player {@code playerId} (null for nobody). */
     public static void fireBoostStarted(@Nonnull String boostId, @Nonnull String scope, @Nullable UUID playerId,
             @Nonnull BoostRun run) {

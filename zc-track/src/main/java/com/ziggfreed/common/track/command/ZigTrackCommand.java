@@ -25,6 +25,9 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  * /zigtrack lamp [--player=&lt;name&gt;] --price=&lt;id&gt; | --minutes=&lt;n&gt; [--level=&lt;n&gt;] [--maxlevel=&lt;n&gt;]
  *                [--picks=&lt;n&gt;] [--tracks=&lt;id,id&gt;] [--category=&lt;id&gt;] [--minlevel=&lt;n&gt;] [--quantity=&lt;n&gt;]
  *                                                         hand lamps of minutes of play the player points at tracks
+ * /zigtrack stance list|hold|release [--player=&lt;name&gt;] --stance=&lt;id&gt; [--face=&lt;pick&gt;]
+ *                                                         a player's faces held in their stances: their own for any
+ *                                                         player (the adventurer group), another's for an operator
  * </pre>
  *
  * <p>No permission check is written here: the engine derives one node per verb
@@ -46,8 +49,8 @@ public final class ZigTrackCommand extends AbstractCommandCollection {
     /** Start a climb again. */
     static final String PRESTIGE = "prestige";
 
-    /** Make a pick. */
-    static final String PICK = "pick";
+    /** Make a pick (and with {@code --pick} alone, an admin's teach: the line a Pick reward's Claim replays). */
+    public static final String PICK = "pick";
 
     /** Undo the latest pick. */
     static final String UNDO = "undo";
@@ -87,5 +90,6 @@ public final class ZigTrackCommand extends AbstractCommandCollection {
         addSubCommand(new ZigTrackRespendCommand());
         addSubCommand(new ZigTrackStarterCommand());
         addSubCommand(new ZigTrackLampCommand());
+        addSubCommand(new ZigTrackStanceCommand());
     }
 }

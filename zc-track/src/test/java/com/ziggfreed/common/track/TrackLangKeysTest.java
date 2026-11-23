@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.track.pick.PickService;
+import com.ziggfreed.common.track.stance.StanceText;
+import com.ziggfreed.common.track.stance.Stances;
 
 /**
  * Every line the track module says ships in its English file: each {@code TrackText.line} and {@code TreeText.line}
@@ -38,6 +40,8 @@ class TrackLangKeysTest {
     private static final Pattern OWN_LINE = Pattern.compile("(?<![\\w.])line\\(\"([a-z][a-z0-9_.]*)\"");
 
     private static final Pattern TREE_LINE = Pattern.compile("TreeText\\.line\\(\"([a-z][a-z0-9_.]*)\"");
+
+    private static final Pattern STANCE_LINE = Pattern.compile("StanceText\\.line\\(\"([a-z][a-z0-9_.]*)\"");
 
     @Test
     void everyRefusalAndRespecLineShipsInEnglish() throws IOException {
@@ -67,6 +71,35 @@ class TrackLangKeysTest {
         Set<String> shipped = shipped("ziggfreedcommon.track.lang");
         assertEquals(List.of(), said.stream().filter(key -> !shipped.contains(key)).toList(),
                 "lines the track module says but its English file does not ship");
+    }
+
+    /**
+     * Every line a stance says ships in its English file: each {@code StanceText.line} key its sources spell, and every
+     * sentence {@link TrackText#refusal(Stances.Status)} answers for any hold or release status, read from the stance
+     * file or, for a fight, an encounter or a price, the track file a pick's refusal reads.
+     */
+    @Test
+    void everyStanceLineShipsInEnglish() throws IOException {
+        Set<String> said = new TreeSet<>();
+        for (Path file : sources()) {
+            collect(STANCE_LINE.matcher(Files.readString(file, StandardCharsets.UTF_8)), said);
+        }
+        assertTrue(said.size() >= 10, "the scan found almost nothing, so it is not scanning: " + said);
+        Set<String> stance = shipped("ziggfreedcommon.stance.lang");
+        assertEquals(List.of(), said.stream().filter(key -> !stance.contains(key)).toList(),
+                "lines the stances say but their English file does not ship");
+        Set<String> track = shipped("ziggfreedcommon.track.lang");
+        Set<String> missing = new TreeSet<>();
+        for (Stances.Status status : Stances.Status.values()) {
+            String id = TrackText.refusal(status).getMessageId();
+            boolean ships = id != null && (id.startsWith(StanceText.PREFIX)
+                    ? stance.contains(id.substring(StanceText.PREFIX.length()))
+                    : id.startsWith(TrackText.PREFIX) && track.contains(id.substring(TrackText.PREFIX.length())));
+            if (!ships) {
+                missing.add(status + " -> " + id);
+            }
+        }
+        assertEquals(Set.of(), missing, "a hold or release refusal no English file ships");
     }
 
     @Test

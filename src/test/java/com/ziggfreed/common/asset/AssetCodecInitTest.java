@@ -121,8 +121,10 @@ import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
 import com.ziggfreed.common.stats.condition.EffectFamilyAsset;
 import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
+import com.ziggfreed.common.track.asset.SlotRow;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
+import com.ziggfreed.common.track.stance.TrackStanceAsset;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
@@ -302,6 +304,11 @@ class AssetCodecInitTest {
         assertNotNull(TrackPickAsset.Cost.CODEC, "the pick's Cost group codec must static-init");
         assertNotNull(TrackPickAsset.Repeat.CODEC, "the pick's Repeat group codec must static-init");
         assertNotNull(TrackPickAsset.Where.CODEC, "the pick's Where group codec must static-init");
+        assertNotNull(TrackPickAsset.Stance.CODEC, "the pick's Stance group codec must static-init");
+        assertNotNull(TrackStanceAsset.CODEC, "TrackStanceAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(TrackStanceAsset.Kind.CODEC, "the stance's Kinds entry codec must static-init");
+        assertNotNull(TrackStanceAsset.Fee.CODEC, "the stance's Hold and Break group codec must static-init");
+        assertNotNull(SlotRow.CODEC, "the shared slot row codec must static-init");
         assertNotNull(TrackPickGeneratorAsset.CODEC,
                 "TrackPickGeneratorAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(TrackAsset.Tree.CODEC, "the track's Tree group codec must static-init");

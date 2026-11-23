@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.track.boost.HeldBoosts;
+import com.ziggfreed.common.track.stance.HeldStances;
 
 /**
  * Where one kind of subject's climbs are kept (R583): every read and write of track progress goes through
@@ -54,6 +55,24 @@ public interface TrackStore {
      * this store keeps no boosts, or nothing could be written.
      */
     default boolean putBoosts(@Nonnull TrackKey.Subject subject, @Nonnull HeldBoosts boosts) {
+        return false;
+    }
+
+    /**
+     * The faces a live {@code subject} holds in its stances, read on its own thread, or null when the subject is not
+     * live here or this store keeps no stances: the seam a stance is held through, so a later keeping keeps them
+     * beside its climbs.
+     */
+    @Nullable
+    default HeldStances stances(@Nonnull TrackKey.Subject subject) {
+        return null;
+    }
+
+    /**
+     * Keep {@code held} as the faces the live {@code subject} holds, on its own thread. False when the subject is not
+     * live here, this store keeps no stances, or nothing could be written.
+     */
+    default boolean putStances(@Nonnull TrackKey.Subject subject, @Nonnull HeldStances held) {
         return false;
     }
 }

@@ -7,9 +7,9 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 /**
  * The state {@link TreePage} round-trips on every binding: {@code action} ({@link TreeActions}: close, a tab, a row,
  * or one of the reading page's buttons, which act on whatever row the page shows and so carry no id), the {@code tab}
- * a tab's click names and the {@code row} a row's click names.
+ * a tab's click names and the {@code row} a row's click names. The stance page round-trips it too.
  */
-class TreeEventData {
+public class TreeEventData {
 
     public String action;
     public String tab;

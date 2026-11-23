@@ -3,6 +3,7 @@ package com.ziggfreed.common.track.pick;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -516,6 +517,35 @@ public final class TrackPicks {
             }
         }
         return (int) Math.min(Integer.MAX_VALUE, spent);
+    }
+
+    /**
+     * How many times {@code id} (a pick or an option) was taken on {@code state} counting only what lives (pure):
+     * {@link PickState#count} over every pick of {@code onTrack} in no stance, and over a pick in a stance only while
+     * {@code counts} says its face is held. A track with no pick in a stance answers {@link PickState#count} exactly,
+     * and {@code counts} is never asked. What {@code ziggfreedcommon:track_pick} reads (live), beside
+     * {@code track_pick_owned} (owned for good, {@link PickState#count}).
+     */
+    public static int liveCount(@Nonnull Collection<PickDef> onTrack, @Nonnull PickState state, @Nullable String id,
+            @Nonnull Predicate<PickDef> counts) {
+        Map<String, PickDef> inStance = null;
+        for (PickDef pick : onTrack) {
+            if (pick.asset().stanceId() != null) {
+                if (inStance == null) {
+                    inStance = new HashMap<>();
+                }
+                inStance.put(pick.id(), pick);
+            }
+        }
+        if (inStance == null) {
+            return state.count(id);
+        }
+        Map<String, PickDef> bound = inStance;
+        Map<String, Boolean> asked = new HashMap<>();
+        return state.keptOnly(pickId -> {
+            PickDef pick = bound.get(TrackKey.normalize(pickId));
+            return pick == null || asked.computeIfAbsent(pick.id(), key -> counts.test(pick));
+        }).count(id);
     }
 
     /**

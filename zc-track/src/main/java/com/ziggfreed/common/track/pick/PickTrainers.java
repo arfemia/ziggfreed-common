@@ -79,7 +79,15 @@ public final class PickTrainers {
      */
     @Nonnull
     public static List<String> of(@Nonnull TrackPickAsset pick) {
-        List<String> named = pick.placements();
+        return teachingAmong(pick.placements());
+    }
+
+    /**
+     * The placements among {@code named} (lower-cased ids, as a {@code Where} reads them) that teach now, in order:
+     * what decides where a pick is taken ({@link #of}) and where a stance's faces are held and released.
+     */
+    @Nonnull
+    public static List<String> teachingAmong(@Nonnull List<String> named) {
         if (named.isEmpty()) {
             return named;
         }

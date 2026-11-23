@@ -55,6 +55,7 @@ import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
 import com.ziggfreed.common.track.gain.TrackSettingsAsset;
 import com.ziggfreed.common.track.price.TrackPriceAsset;
 import com.ziggfreed.common.track.source.DiminishKeyAsset;
+import com.ziggfreed.common.track.stance.TrackStanceAsset;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 
 /**
@@ -271,6 +272,7 @@ class EditorSchemaSetTest {
         out.put(TrackPickAsset.class, TrackPickAsset.CODEC);
         out.put(PickOptionAsset.class, PickOptionAsset.CODEC);
         out.put(TrackPickGeneratorAsset.class, TrackPickGeneratorAsset.CODEC);
+        out.put(TrackStanceAsset.class, TrackStanceAsset.CODEC);
         out.put(TrackSourceAsset.class, TrackSourceAsset.CODEC);
         out.put(DiminishKeyAsset.class, DiminishKeyAsset.CODEC);
         out.put(TrackPriceAsset.class, TrackPriceAsset.CODEC);

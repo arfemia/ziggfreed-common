@@ -18,6 +18,8 @@ import com.ziggfreed.common.track.pick.PickService;
 import com.ziggfreed.common.track.pick.PickService.Status;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
+import com.ziggfreed.common.track.stance.StanceText;
+import com.ziggfreed.common.track.stance.Stances;
 
 /**
  * Every word the track module says: its lines are keys in {@code ziggfreedcommon.track.lang}, and a track or a
@@ -141,6 +143,27 @@ public final class TrackText {
             case CANNOT_PAY -> line("refused.pay");
             case IN_COMBAT -> line("refused.combat");
             case IN_ENCOUNTER -> line("refused.encounter");
+            default -> line("refused.other");
+        };
+    }
+
+    /**
+     * Why a hold or a release of a stance's face was refused ({@code Stances.hold} and {@code release}, or the status
+     * a page reads before it), in the player's words: the stance's own lines ({@code ziggfreedcommon.stance.lang}),
+     * and for a fight, an encounter or a price the very lines a pick's refusal says.
+     */
+    @Nonnull
+    public static Message refusal(@Nonnull Stances.Status status) {
+        return switch (status) {
+            case NOT_OWNED -> StanceText.line("refused.not_owned");
+            case ALREADY_HELD -> StanceText.line("refused.held");
+            case KIND_FULL -> StanceText.line("refused.kind");
+            case NO_SLOT -> StanceText.line("refused.slot");
+            case NOT_HELD -> StanceText.line("refused.not_held");
+            case NOT_HERE -> StanceText.line("refused.here");
+            case IN_COMBAT -> line("refused.combat");
+            case IN_ENCOUNTER -> line("refused.encounter");
+            case CANNOT_PAY -> line("refused.pay");
             default -> line("refused.other");
         };
     }

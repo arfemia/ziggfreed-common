@@ -24,6 +24,7 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.track.boost.BoostRun;
 import com.ziggfreed.common.track.boost.HeldBoosts;
+import com.ziggfreed.common.track.stance.HeldStances;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -44,7 +45,12 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code Loadouts} (each saved build: its {@code Slot}, {@code Choices} and {@code Order}, as the picks in use write
  * them) and {@code Active} (the saved build the picks in use came from). The player's own boosts ride beside the
  * climbs ({@code Boosts}: each running start and each wait before the next start of a boost), absent when they hold
- * none, so a save from before boosts reads as none held.
+ * none, so a save from before boosts reads as none held; and so do the faces they hold in their stances
+ * ({@code Stances}: each row's stance, slot and face), absent when they hold none. A save carrying {@code Stances} read
+ * by a build from before it (CommonLib 2.5.x) loses only that leaf at its next save: the engine drops a key no codec
+ * claims, the picks themselves stay in each climb's {@code Build}, and a later build reads the player as holding
+ * nothing, each face held again at its stance's {@code Hold} price (free unless written). {@link #VERSION} stays,
+ * since a bump would make an older build refuse the whole record.
  *
  * <p>{@link #register} runs once at library setup, before any world loads (a component type registered later
  * cannot be read off entities saved carrying it), and {@link #install} hangs the connect hook that attaches one
@@ -77,6 +83,10 @@ public final class TrackComponent implements Component<EntityStore> {
             .append(new KeyedCodec<>("Boosts", BoostsSave.CODEC, false),
                     (c, v) -> c.boosts = BoostsSave.read(v), c -> BoostsSave.of(c.boosts))
             .add()
+            // The faces the player holds in their stances (the track store's stance seam): absent when none is.
+            .append(new KeyedCodec<>("Stances", new ArrayCodec<>(HeldSave.CODEC, HeldSave[]::new), false),
+                    (c, v) -> c.stances = HeldSave.read(v), c -> HeldSave.of(c.stances))
+            .add()
             .build();
 
     /** Every climb on record, by {@link #storageKey}, sorted so a save is stable. */
@@ -90,7 +100,22 @@ public final class TrackComponent implements Component<EntityStore> {
     @Nonnull
     private HeldBoosts boosts = HeldBoosts.EMPTY;
 
+    /** The faces the player holds in their stances. Immutable, replaced whole. */
+    @Nonnull
+    private HeldStances stances = HeldStances.EMPTY;
+
     public TrackComponent() {
+    }
+
+    /** The faces the player holds in their stances, as last kept ({@link HeldStances#EMPTY} when none). */
+    @Nonnull
+    public HeldStances stances() {
+        return stances;
+    }
+
+    /** Keep {@code held} as the faces the player holds, replacing what was kept. */
+    public void stances(@Nonnull HeldStances held) {
+        this.stances = held;
     }
 
     /** The player's own boosts, as last kept ({@link HeldBoosts#EMPTY} when none). */
@@ -283,7 +308,64 @@ public final class TrackComponent implements Component<EntityStore> {
         copy.climbs.putAll(climbs);
         copy.savedAtMs = savedAtMs;
         copy.boosts = boosts;
+        copy.stances = stances;
         return copy;
+    }
+
+    /**
+     * One saved held face ({@code Stances}): its {@code Stance}, the {@code Slot} holding it and the {@code Face}'s
+     * pick id. A list of rows, so a later fact about a held face is a new leaf on its row, never a reshape.
+     */
+    static final class HeldSave {
+
+        @Nullable String stance;
+        @Nullable String slot;
+        @Nullable String face;
+
+        static final BuilderCodec<HeldSave> CODEC = BuilderCodec.builder(HeldSave.class, HeldSave::new)
+                .append(new KeyedCodec<>("Stance", Codec.STRING, false), (o, v) -> o.stance = v, o -> o.stance)
+                .add()
+                .append(new KeyedCodec<>("Slot", Codec.STRING, false), (o, v) -> o.slot = v, o -> o.slot)
+                .add()
+                .append(new KeyedCodec<>("Face", Codec.STRING, false), (o, v) -> o.face = v, o -> o.face)
+                .add()
+                .build();
+
+        HeldSave() {
+        }
+
+        /** {@code held} as saved, or null (the leaf left out) when nothing is held. */
+        @Nullable
+        static HeldSave[] of(@Nonnull HeldStances held) {
+            if (held.isEmpty()) {
+                return null;
+            }
+            List<HeldSave> rows = new ArrayList<>(held.rows().size());
+            for (HeldStances.Held one : held.rows()) {
+                HeldSave row = new HeldSave();
+                row.stance = one.stance();
+                row.slot = one.slot();
+                row.face = one.face();
+                rows.add(row);
+            }
+            return rows.toArray(new HeldSave[0]);
+        }
+
+        /** What {@code saved} holds, a row missing a part left out; {@link HeldStances#EMPTY} for none. */
+        @Nonnull
+        static HeldStances read(@Nullable HeldSave[] saved) {
+            if (saved == null || saved.length == 0) {
+                return HeldStances.EMPTY;
+            }
+            List<HeldStances.Held> rows = new ArrayList<>(saved.length);
+            for (HeldSave row : saved) {
+                if (row != null && row.stance != null && row.slot != null && row.face != null) {
+                    rows.add(new HeldStances.Held(row.stance, row.slot, row.face));
+                }
+            }
+            HeldStances held = new HeldStances(rows);
+            return held.isEmpty() ? HeldStances.EMPTY : held;
+        }
     }
 
     /**

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.track.stance.HeldStances;
 
 /**
  * The per-player record of climbs, read back through the engine codec a restart reads it with: every leaf of
@@ -104,10 +105,40 @@ class TrackComponentCodecTest {
                 new ExtraInfo());
         PickState read = written.get(swords).picks();
         assertEquals(2, read.takesOf("your_b"), "a take's count is read off the order");
+        assertEquals(HeldStances.EMPTY, written.stances(), "a save from before stances holds none");
         assertEquals(List.of("your_b", "your_swords_lines/lines/2", "your_a", "your_b"), read.order());
         assertEquals(List.of("your_keen", "your_edge"), read.chosen("your_swords_lines/lines/2"));
         assertEquals(List.of("your_c"), read.rememberedTakes());
         assertEquals(List.of("your_a"), read.loadout(2).takes());
         assertEquals(2, read.activeLoadout());
+    }
+
+    /**
+     * The faces held in stances, the record's own {@code Stances} leaf beside the climbs: each row survives a restart,
+     * reads back from its written shape in any case, a row missing a part is left out, and the climbs beside it are
+     * untouched. The record's {@code Version} stays, so an older build reads the save and drops only this leaf.
+     */
+    @Test
+    void heldStancesRoundTripBesideTheClimbs() throws IOException {
+        TrackKey track = TrackKey.player(PLAYER, "Your_Track");
+        TrackRecord climbed = new TrackRecord(9_000L, 0.0, 30, 0, Map.of()).withPicks(PickState.EMPTY
+                .withTakes("Your_Blade_Face", 1));
+        HeldStances held = HeldStances.EMPTY.with("Your_Stance", "I", "Your_Blade_Face")
+                .with("Your_Stance", "II", "Your_Flame_Face");
+        TrackComponent record = new TrackComponent();
+        record.put(track, climbed);
+        record.stances(held);
+
+        ExtraInfo info = new ExtraInfo();
+        TrackComponent restarted = TrackComponent.CODEC.decode(TrackComponent.CODEC.encode(record, info), info);
+        assertEquals(held, restarted.stances(), "every held face, in its stance and slot");
+        assertEquals(climbed, restarted.get(track), "the climbs beside it untouched");
+        assertEquals(1, TrackComponent.VERSION, "a bump would make an older build refuse the whole record");
+
+        TrackComponent written = TrackComponent.CODEC.decodeJson(RawJsonReader.fromJsonString(
+                "{\"Stances\": [ { \"Stance\": \"Your_Stance\", \"Slot\": \"II\", \"Face\": \"Your_Flame_Face\" },"
+                        + " { \"Stance\": \"Your_Stance\", \"Slot\": \"III\" } ]}"), new ExtraInfo());
+        assertEquals(List.of(new HeldStances.Held("your_stance", "ii", "your_flame_face")), written.stances().rows(),
+                "read in any case; a row missing its face is left out");
     }
 }

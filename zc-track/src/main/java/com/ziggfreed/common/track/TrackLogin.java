@@ -12,13 +12,15 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.track.pick.PickService;
 import com.ziggfreed.common.track.source.SourceBatch;
+import com.ziggfreed.common.track.stance.Stances;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A player's settle once they are ready in a world (a login and every world change): on a later world task, so
  * the player stands in the store, every usable track's level is written onto its mirror stat, every unlock
  * Claim owed and not yet parked is parked ({@link TrackService#settle}), every rank saved past a pick's limit is given
- * back with its points ({@link PickService#holdToLimits}), and the grants of their picks are rebuilt
+ * back with its points ({@link PickService#holdToLimits}), every face held in a stance that stopped counting is freed
+ * ({@code Stances.settle}), and the grants of their picks are rebuilt
  * under the rules of the world they now stand in ({@link TrackDerived#rebuild}): an arena that strips passive stats
  * takes them off here, and the next world gives them back.
  */
@@ -72,6 +74,12 @@ final class TrackLogin {
                 PickService.holdToLimits(uuid);
             } catch (Throwable t) {
                 SafeLog.warn("[track] the picks could not be held to their rank limits: " + t.getMessage());
+            }
+            // A face held in a stance that stopped counting (unowned, its slot closed, its kind past its cap) freed.
+            try {
+                Stances.settle(uuid);
+            } catch (Throwable t) {
+                SafeLog.warn("[track] the stances could not be settled: " + t.getMessage());
             }
         }
         // Its own guard: a failed settle still leaves the grants matching the world.

@@ -1,0 +1,12 @@
+{
+  "$Comment": "One face of the sample stance (Zc_Track_Example_Stance), switched off like the rest of it: a pick on the sample track bought for one point at level two, of the stance's Guard kind. Once learned it is the player's for good, but its six health counts only while it is held in one of the stance's slots (its Stance group). Turn it on in track-picks.json beside the stance.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.stance.rooted", "FlavorKey": "ziggfreedcommon.track.example.stance.rooted.desc" },
+  "Icon": "Ingredient_Crystal_Red",
+  "Order": 40,
+  "At": 2,
+  "Cost": { "Points": 1 },
+  "Stance": { "Id": "Zc_Track_Example_Stance", "Kind": "Guard" },
+  "Grants": [ { "Kind": "Stat", "Stat": "Health", "Add": 6 } ]
+}

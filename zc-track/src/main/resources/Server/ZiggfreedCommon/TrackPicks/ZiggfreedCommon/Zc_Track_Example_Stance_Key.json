@@ -1,0 +1,9 @@
+{
+  "$Comment": "The sample stance's key, switched off like the rest of it: a pick on the sample track that grants nothing and is only ever taught (TaughtOnly), never offered or taken on a page, kept through a respec, a build swap and a prestige. Owning it opens the sample stance's slot II. Teach it with /zigtrack pick --track=Zc_Track_Example --pick=Zc_Track_Example_Stance_Key, or pay it as a reward: { \"Kind\": \"Pick\", \"Params\": { \"Track\": \"Zc_Track_Example\", \"Pick\": \"Zc_Track_Example_Stance_Key\" } }.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.stance.key", "FlavorKey": "ziggfreedcommon.track.example.stance.key.desc" },
+  "Icon": "Ingredient_Bar_Copper",
+  "Order": 42,
+  "TaughtOnly": true
+}

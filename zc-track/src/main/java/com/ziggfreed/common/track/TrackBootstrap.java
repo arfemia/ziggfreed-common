@@ -40,6 +40,7 @@ import com.ziggfreed.common.track.gain.TrackSettingsAsset;
 import com.ziggfreed.common.track.lamp.TrackLampRewardKind;
 import com.ziggfreed.common.track.lamp.ZigTrackLampInteraction;
 import com.ziggfreed.common.track.pick.PickClaims;
+import com.ziggfreed.common.track.pick.PickRewardKind;
 import com.ziggfreed.common.track.pick.PickService;
 import com.ziggfreed.common.track.price.TrackPriceAsset;
 import com.ziggfreed.common.track.price.TrackPriceConfig;
@@ -47,6 +48,7 @@ import com.ziggfreed.common.track.price.TrackPriceOwnerLayers;
 import com.ziggfreed.common.track.source.DiminishKeyAsset;
 import com.ziggfreed.common.track.source.DiminishKeyConfig;
 import com.ziggfreed.common.track.source.ItemSpawnedMobs;
+import com.ziggfreed.common.track.stance.StanceDestinations;
 import com.ziggfreed.common.track.source.SourceBatch;
 import com.ziggfreed.common.track.source.TrackSourceForm;
 import com.ziggfreed.common.track.source.TrackSourceReactions;
@@ -61,13 +63,14 @@ import com.ziggfreed.common.usegate.ItemLevelTags;
 
 /**
  * Registers the track module at library setup, called once from the wiring root's {@code setup()}: the
- * per-player record and the connect hook that attaches it, the four readings, the Track reward kind and how it reads, the native {@code ZigTrack} reward Type,
+ * per-player record and the connect hook that attaches it, the readings, the Track and Pick reward kinds and how they
+ * read, the native {@code ZigTrack} reward Type,
  * how the two track objective kinds name their targets, the editor's list of tracks, the settle at every ready,
  * the {@code /zigtrack} family and the once-at-boot log of broken track files; the native {@code ZigTrackRules}
  * gameplay config group, the track sources' reaction on the produced moments, the gain plans' epoch hooks, the
  * picks waiting on the Claims tab, the undo window's close at a departure, the World Rules and Level Curves owner forms'
- * bindings, audit and preview, and the boosts ({@code boost.BoostBootstrap}). The ten stores (tracks, curves, categories, sources, world rules, picks, pick
- * generators, pick options, boosts, boost settings) are registered with the other framework stores. Registration only
+ * bindings, audit and preview, and the boosts ({@code boost.BoostBootstrap}). The eleven stores (tracks, curves, categories, sources, world rules, picks, pick
+ * generators, pick options, stances, boosts, boost settings) are registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
  */
 public final class TrackBootstrap {
@@ -185,8 +188,9 @@ public final class TrackBootstrap {
     }
 
     /**
-     * Picks: the picks waiting listed on the Claims tab, a departing player's undo window closed, and the
-     * {@code Track_Tree} destination that opens a track's tree page (before any asset decodes). The three pick
+     * Picks: the picks waiting listed on the Claims tab, a departing player's undo window closed, the
+     * {@code Track_Tree} destination that opens a track's tree page and the {@code Track_Stance} one that opens the
+     * stance page (before any asset decodes). The three pick
      * stores are registered with the other framework stores; the grants rebuild at every ready settle
      * ({@link TrackLogin}). Not guarded: a failed registration throws here, at setup.
      */
@@ -194,6 +198,7 @@ public final class TrackBootstrap {
         LedgerContributions.contribute(LedgerContributions.CLAIMS, PickClaims.INSTANCE);
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, PickService::onDisconnect);
         TreeDestinations.register();
+        StanceDestinations.register();
     }
 
     /**
@@ -211,6 +216,8 @@ public final class TrackBootstrap {
         RewardChips.contribute(TrackRewardKind.chips());
         TrackLampRewardKind.registerInto(RewardKinds.shared());
         RewardChips.contribute(TrackLampRewardKind.chips());
+        PickRewardKind.registerInto(RewardKinds.shared());
+        RewardChips.contribute(PickRewardKind.chips());
         ObjectiveTargetNames.register(TrackObjectives.LEVEL, TrackObjectives::levelTargetName);
         ObjectiveTargetNames.register(TrackObjectives.TIER, TrackObjectives::tierTargetName);
         BoostBootstrap.registerVocabulary();

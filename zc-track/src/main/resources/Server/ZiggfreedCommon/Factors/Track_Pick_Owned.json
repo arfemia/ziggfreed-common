@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_pick_owned reading for requirement lines. Param is a track id and a pick or option id joined by a slash (Your_Swords/Your_Edge); the reading is how many times the player took it on that track, owned for good: a pick in a stance counts whether its face is held or not, where ziggfreedcommon:track_pick counts it only while held. Write Min 1 to ask that a pick was bought, such as a step a later quest opens on. It changes only through the player's own picks, their undo, a respec or a prestige, or a track or pick reload (Volatility Player).",
+  "Factor": "ziggfreedcommon:track_pick_owned",
+  "Text": { "TitleKey": "ziggfreedcommon.track.factor.track_pick_owned" },
+  "Volatility": "Player"
+}

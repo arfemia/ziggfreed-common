@@ -38,8 +38,14 @@ abstract class TrackTargetCommand extends AbstractTargetPlayerCommand<TrackTarge
     /** The {@code --track} as typed and trimmed, or null when none was. */
     @Nullable
     protected final String typedTrack(@Nonnull CommandContext ctx) {
-        String typed = trackArg.provided(ctx) ? trackArg.get(ctx) : null;
-        return typed == null || typed.isBlank() ? null : typed.trim();
+        return typed(ctx, trackArg);
+    }
+
+    /** An optional text argument as typed and trimmed, or null when none was: every {@code /zigtrack} verb's read. */
+    @Nullable
+    static String typed(@Nonnull CommandContext ctx, @Nonnull OptionalArg<String> arg) {
+        String value = arg.provided(ctx) ? arg.get(ctx) : null;
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /** The usable track {@code --track} names, or null after refusing (none named, or no such track here). */

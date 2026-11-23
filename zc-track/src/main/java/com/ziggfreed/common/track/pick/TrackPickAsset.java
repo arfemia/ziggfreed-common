@@ -52,8 +52,9 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  * the mod is not installed), {@code Prerequisites} (picks or options on the same track taken first), {@code Where}
  * (the trainers whose page offers it; none means the track's own page), {@code SpendCap} (the most points of its
  * Cost's pool a player may have spent with this one taken), {@code Node} (the either-or it is one face of, on any
- * track) and {@code ResetsAs} (which of the track's {@code Prestige.Resets} switches decides what a prestige does to
- * it, R852). A choice's offers are a function of the files alone (R724): every option open at a slot's level, the
+ * track), {@code ResetsAs} (which of the track's {@code Prestige.Resets} switches decides what a prestige does to
+ * it, R852), {@code Stance} (the stance it belongs to: owned for good, counting only while its face is held, see
+ * {@code stance.Stances}) and {@code TaughtOnly} (never offered or taken, only taught). A choice's offers are a function of the files alone (R724): every option open at a slot's level, the
  * same on every server. Every leaf inherits through {@code Parent}; a server owner retunes a pick in
  * {@code mods/ziggfreedcommon/track-picks.json}.
  *
@@ -96,6 +97,8 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     @Nullable protected String resetsAs;
     @Nullable protected String branch;
     @Nullable protected String[] node;
+    @Nullable protected Stance stance;
+    @Nullable protected Boolean taughtOnly;
     @Nullable protected Grant[] grants;
 
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
@@ -212,6 +215,21 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                     + "by; any after it are further either-ors the pick belongs to (two picks of different rows that "
                     + "rule each other out). Give a group an id no other track's picks use unless they belong to the "
                     + "same choice. Leave it out for a pick that stands alone.").add()
+            .appendInherited(new KeyedCodec<>("Stance", Stance.CODEC, false),
+                    (a, v) -> a.stance = v, a -> a.stance, (a, p) -> a.stance = p.stance)
+            .documentation("The stance this pick belongs to (a file under Server/ZiggfreedCommon/TrackStances): the "
+                    + "pick is owned for good once taken, but what it grants, every proc and ability change that "
+                    + "opens on it, and its ziggfreedcommon:track_pick reading count only while its face is held in "
+                    + "one of the stance's slots. A pick writing no Face is a face itself, of the Kind it writes; one "
+                    + "writing Face is a step of that face and lives while that face is held. Leave it out for a "
+                    + "pick that always counts once taken.").add()
+            .appendInherited(new KeyedCodec<>("TaughtOnly", Codec.BOOLEAN, false),
+                    (a, v) -> a.taughtOnly = v, a -> a.taughtOnly, (a, p) -> a.taughtOnly = p.taughtOnly)
+            .metadata(EditorSchema.defaultValue(false))
+            .documentation("True keeps this pick off every page: it is never offered, owed or taken by a player, "
+                    + "only taught (an admin's /zigtrack pick --pick, a one-time move from an older system, or a "
+                    + "Pick reward when its Claim is collected). A respec, a saved build swap and a prestige keep it. "
+                    + "Write it on a key, such as the pick a stance's slot opens on. False when unauthored.").add()
             .appendInherited(new KeyedCodec<>("Grants", Grant.ARRAY_CODEC, false),
                     (a, v) -> a.grants = v, a -> a.grants, (a, p) -> a.grants = p.grants)
             .documentation("What a pick bought outright grants each time it is taken (a choice grants what its "
@@ -424,6 +442,51 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     public String node() {
         List<String> all = nodes();
         return all.isEmpty() ? null : all.get(0);
+    }
+
+    /**
+     * The stance this pick belongs to ({@code Stance.Id}), lower-cased, or null for a pick that always counts once
+     * taken.
+     */
+    @Nullable
+    public String stanceId() {
+        String key = stance == null ? null : TrackKey.normalize(stance.id);
+        return key == null || key.isEmpty() ? null : key;
+    }
+
+    /**
+     * The face of its stance this pick lives with, lower-cased: its {@code Stance.Face}, else its own id (a pick
+     * writing no Face is a face itself); null for a pick in no stance.
+     */
+    @Nullable
+    public String stanceFace() {
+        if (stanceId() == null) {
+            return null;
+        }
+        String face = TrackKey.normalize(stance.face);
+        return face.isEmpty() ? TrackKey.normalize(id) : face;
+    }
+
+    /** Is this pick a face of its stance (it writes a {@code Stance} and no other pick as its Face)? */
+    public boolean isStanceFace() {
+        String face = stanceFace();
+        return face != null && face.equals(TrackKey.normalize(id));
+    }
+
+    /**
+     * The kind this pick is as a face ({@code Stance.Kind}), lower-cased, or null when it writes none (a face of no
+     * kind: held under no kind's cap and paying no kind's grants), is a step of another face (whose kind counts, never
+     * its own) or is in no stance.
+     */
+    @Nullable
+    public String stanceKind() {
+        String key = isStanceFace() ? TrackKey.normalize(stance.kind) : null;
+        return key == null || key.isEmpty() ? null : key;
+    }
+
+    /** Is this pick only ever taught ({@code TaughtOnly}): never offered, owed or taken? */
+    public boolean taughtOnly() {
+        return Boolean.TRUE.equals(taughtOnly);
     }
 
     /** The grants a pick bought outright pays (null entries left out). */
@@ -691,6 +754,45 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                 .build();
 
         public Where() {
+        }
+
+        /** The placements named, lower-cased, blanks and repeats left out; empty for none. */
+        @Nonnull
+        public List<String> placements() {
+            return lowered(placements);
+        }
+    }
+
+    /**
+     * The Stance group: the stance a pick belongs to, the face it lives with, and (on a face) its kind. A pick naming
+     * no {@code Face} is a face itself.
+     */
+    public static final class Stance {
+
+        @Nullable protected String id;
+        @Nullable protected String face;
+        @Nullable protected String kind;
+
+        public static final BuilderCodec<Stance> CODEC = BuilderCodec.builder(Stance.class, Stance::new)
+                .appendInherited(new KeyedCodec<>("Id", Codec.STRING, false),
+                        (o, v) -> o.id = v, o -> o.id, (o, p) -> o.id = p.id)
+                .metadata(EditorSchema.assetRef("TrackStanceAsset"))
+                .documentation("The stance, by id (a file under Server/ZiggfreedCommon/TrackStances). A stance no "
+                        + "file defines, or one switched off, holds nothing, so a pick naming it counts nowhere.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Face", Codec.STRING, false),
+                        (o, v) -> o.face = v, o -> o.face, (o, p) -> o.face = p.face)
+                .metadata(EditorSchema.assetRef(TrackPickAsset.class))
+                .documentation("The face this pick is a step of, by its pick id: the pick counts while that face is "
+                        + "held. Leave it out on the face itself.").add()
+                .appendInherited(new KeyedCodec<>("Kind", Codec.STRING, false),
+                        (o, v) -> o.kind = v, o -> o.kind, (o, p) -> o.kind = p.kind)
+                .documentation("On a face: its kind, one the stance's Kinds names (your own word, such as Weapon), "
+                        + "which decides how many faces of it may be held at once and what holding one adds. A step "
+                        + "writing Face reads its face's kind, never its own.").add()
+                .build();
+
+        public Stance() {
         }
     }
 }

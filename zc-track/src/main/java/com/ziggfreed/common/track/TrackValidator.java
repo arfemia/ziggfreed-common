@@ -48,6 +48,7 @@ import com.ziggfreed.common.track.pick.TrackPicks;
 import com.ziggfreed.common.track.source.SourceRow;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
+import com.ziggfreed.common.track.stance.StanceValidator;
 import com.ziggfreed.common.track.world.TrackRules;
 import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
 import com.ziggfreed.common.track.world.TrackWorldRuleConfig;
@@ -223,6 +224,7 @@ public final class TrackValidator {
                 }
             }
             out.addAll(BoostValidator.audit());
+            out.addAll(StanceValidator.audit());
             return out;
         } catch (Throwable t) {
             SafeLog.warn("[track] the track audit failed: " + t.getMessage(), t);

@@ -18,32 +18,35 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>The page's undo window ({@link Window}) closes with the page: on its close, on the client's dismiss, and when
  * another page takes its place, but never on its own repaint.
+ *
+ * <p>A page of the same shape (tabs, a list, a reading page with three buttons) answers through it too: the stance
+ * page ({@code stance.StancePage}) does, with {@link TreeEventData} as its event.
  */
-final class TreeActions {
+public final class TreeActions {
 
     /** The frame's close button. */
-    static final String CLOSE = "close";
+    public static final String CLOSE = "close";
 
     /** A tab's click ({@code Tab} on the event). */
-    static final String TAB = "tab";
+    public static final String TAB = "tab";
 
     /** A row's click ({@code Row} on the event). */
-    static final String SELECT = "select";
+    public static final String SELECT = "select";
 
     /** The reading page's main button, on whatever row it shows. */
-    static final String PRIMARY = "primary";
+    public static final String PRIMARY = "primary";
 
     /** The reading page's second button. */
-    static final String SECONDARY = "secondary";
+    public static final String SECONDARY = "secondary";
 
     /** The reading page's danger button. */
-    static final String DANGER = "danger";
+    public static final String DANGER = "danger";
 
     /** Every action the page binds. */
     static final List<String> ALL = List.of(CLOSE, TAB, SELECT, PRIMARY, SECONDARY, DANGER);
 
     /** What the page does for an event: its steps, and its three ways to answer. */
-    interface Host<P> {
+    public interface Host<P> {
 
         /** The player the event came from, or null when there is none to answer for. */
         @Nullable
@@ -104,7 +107,7 @@ final class TreeActions {
     }
 
     /** Answer one event on {@code page}, exactly once. Never throws. */
-    static <P> void event(@Nonnull Host<P> page, @Nullable String action, @Nullable String tab,
+    public static <P> void event(@Nonnull Host<P> page, @Nullable String action, @Nullable String tab,
             @Nullable String row) {
         P player;
         try {

@@ -28,18 +28,19 @@ import com.ziggfreed.common.util.SafeLog;
  * one price: the authored
  * {@link CostAsset}, folded by {@link CommerceFold#cost} and checked, drained and refunded by
  * {@link CommerceEngines#costs()}, so it is payable in whatever wallet or item the owner names (R733, R736). Refund
- * the receipt a charge hands back, never the price. World thread.
+ * the receipt a charge hands back, never the price. A stance's hold and release fees charge through it too
+ * ({@code stance.Stances}). World thread.
  */
-final class PickPayments {
+public final class PickPayments {
 
     /** A charge that went through: who paid and what was really taken, to give back if the write fails. */
-    record Paid(@Nullable Subject subject, @Nonnull CostEngine.Receipt receipt) {
+    public record Paid(@Nullable Subject subject, @Nonnull CostEngine.Receipt receipt) {
 
         /** Nothing was charged (a free price). */
-        static final Paid FREE = new Paid(null, CostEngine.Receipt.FREE);
+        public static final Paid FREE = new Paid(null, CostEngine.Receipt.FREE);
 
         /** Give back what this charge took. */
-        void refund() {
+        public void refund() {
             if (subject == null || !receipt.ok() || receipt.paid().isFree()) {
                 return;
             }
@@ -62,7 +63,7 @@ final class PickPayments {
      * @param source what the price is for, named in a line about a bad price
      */
     @Nullable
-    static Paid charge(@Nonnull Ref<EntityStore> ref, @Nonnull CostAsset price, @Nonnull String source) {
+    public static Paid charge(@Nonnull Ref<EntityStore> ref, @Nonnull CostAsset price, @Nonnull String source) {
         return charge(ref, CommerceFold.cost(price, source), source);
     }
 
@@ -103,7 +104,7 @@ final class PickPayments {
      * Could the player at {@code ref} pay {@code cost} now, read without charging: true for a free price, false when
      * they cannot be read. What a page's status reads before a press charges.
      */
-    static boolean canPay(@Nonnull Ref<EntityStore> ref, @Nonnull Cost cost) {
+    public static boolean canPay(@Nonnull Ref<EntityStore> ref, @Nonnull Cost cost) {
         if (cost.isFree()) {
             return true;
         }
@@ -120,7 +121,7 @@ final class PickPayments {
 
     /** {@link #charge(Ref, CostAsset, String)} for a price already folded. */
     @Nullable
-    static Paid charge(@Nonnull Ref<EntityStore> ref, @Nonnull Cost cost, @Nonnull String source) {
+    public static Paid charge(@Nonnull Ref<EntityStore> ref, @Nonnull Cost cost, @Nonnull String source) {
         if (cost.isFree()) {
             return Paid.FREE;
         }

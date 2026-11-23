@@ -265,11 +265,11 @@ public final class TrackTree {
     }
 
     /**
-     * Is {@code pick} one of the tree's: bought outright, and taken on its track's own page (no trainer its
-     * {@code Where} names teaches now)?
+     * Is {@code pick} one of the tree's: bought outright, taken on its track's own page (no trainer its
+     * {@code Where} names teaches now), and not only ever taught ({@code TaughtOnly})?
      */
     static boolean inTree(@Nonnull TrackPicks.PickDef pick) {
-        return !pick.isChoice() && PickTrainers.of(pick.asset()).isEmpty();
+        return !pick.isChoice() && !pick.asset().taughtOnly() && PickTrainers.of(pick.asset()).isEmpty();
     }
 
     /**

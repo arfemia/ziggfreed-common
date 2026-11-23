@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.track.boost.HeldBoosts;
+import com.ziggfreed.common.track.stance.HeldStances;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -105,6 +106,24 @@ public final class PlayerTrackStore implements TrackStore {
             return false;
         }
         held.boosts(boosts);
+        PlayerRecords.changed(subject.playerId(), TrackComponent.REGISTRY_ID);
+        return true;
+    }
+
+    @Override
+    @Nullable
+    public HeldStances stances(@Nonnull TrackKey.Subject subject) {
+        TrackComponent record = live(subject);
+        return record == null ? null : record.stances();
+    }
+
+    @Override
+    public boolean putStances(@Nonnull TrackKey.Subject subject, @Nonnull HeldStances held) {
+        TrackComponent record = live(subject);
+        if (record == null) {
+            return false;
+        }
+        record.stances(held);
         PlayerRecords.changed(subject.playerId(), TrackComponent.REGISTRY_ID);
         return true;
     }

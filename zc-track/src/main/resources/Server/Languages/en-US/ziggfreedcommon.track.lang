@@ -15,6 +15,7 @@ factor.tier_in = {0} in {1}
 # How a requirement on how often a pick was taken is named: generic, then for a pick or option that names
 # itself ({0} the pick or option).
 factor.track_pick = picks taken on a track
+factor.track_pick_owned = picks learned on a track
 factor.pick_of = {0} picks
 # How a requirement on the points spent in a branch of a track's tree is named: generic, then for a branch ({0}).
 factor.track_branch_spent = points spent in a branch
@@ -80,6 +81,8 @@ lamp.refused.gone = You no longer carry this lamp.
 lamp.refused.same = Pick a different place for each choice.
 lamp.refused.changed = What you can pick has changed. Pick again.
 lamp.refused.none = Nothing you can grow right now can take this lamp.
+# A Pick reward as it reads in a reward list: {0} the pick it teaches.
+reward.pick = Learn {0}
 
 # A Claim's title. An unlock: {0} the track, {1} the level it was reached at. A track reward: {0} the track.
 claim.unlock = {0}: level {1}
@@ -128,6 +131,17 @@ example.trainer.footwork = Footwork
 example.trainer.footwork.desc = More health, taught by the sample trainer.
 example.trainer.guard = Steady Guard
 example.trainer.guard.desc = Much more health, taught by the sample trainer.
+# The sample stance (switched off unless an owner turns it on), its two kinds, its two faces and its slot key.
+example.stance = Sample Stance
+example.stance.desc = Hold one of what you learned here at a time. Its key opens a second slot.
+example.stance.guard = Guard
+example.stance.swift = Swift
+example.stance.rooted = Rooted
+example.stance.rooted.desc = More health while you hold it.
+example.stance.fleet = Fleet
+example.stance.fleet.desc = More stamina while you hold it.
+example.stance.key = Second Slot
+example.stance.key.desc = Opens the sample stance's second slot.
 
 # /zigtrack, the admin family. The command.desc.* keys are what the engine's own help resolves a command or
 # an argument's description from.
@@ -248,6 +262,31 @@ command.respend.none = {1} has no remembered pick that can be spent again on {0}
 # /zigtrack starter: {0} the track, {1} the player, {2} how many picks of the suggested build were spent.
 command.starter.done = {1} spent {2, number} {2, plural, one {pick} other {picks}} of the suggested build on {0}.
 command.starter.none = {1} has nothing of the suggested build left to spend on {0} right now.
+# /zigtrack stance, a player's own verbs in the admin family: any player acts on themselves, an operator on anyone.
+command.desc.stance = List, hold and release what a player holds in their stances.
+command.desc.stance.list = List a stance's slots and what each one holds.
+command.desc.stance.hold = Hold something learned in the lowest open slot of a stance.
+command.desc.stance.release = Release something held in a stance, paying what the stance asks.
+command.desc.arg.stance = The stance, by its id.
+command.desc.arg.stance.player = The player, who has to be online. Defaults to you; naming someone else takes a server operator, and acts for free, anywhere.
+command.desc.arg.face = What to hold or release, by its pick id.
+command.stance.others = Only a server operator can do this for another player.
+command.stance.needed = Name a stance with --stance=<id>.
+command.stance.unknown = No stance called '{0}' is switched on here.
+command.stance.none = No stance is switched on here.
+command.stance.face.needed = Name what to hold or release with --face=<pick id>.
+# In command.stance.list.head {0} is the stance, {1} the player, {2} the slots open and {3} the slots there are; in
+# the slot lines {0} is the slot and {1} what it holds.
+command.stance.list.head = {0} for {1}: {2, number} of {3, number} {3, plural, one {slot} other {slots}} open
+command.stance.list.held = {0}: {1}
+command.stance.list.empty = {0}: empty
+command.stance.list.closed = {0}: closed
+# In the hold and release lines {0} is the stance, {1} the player, {2} what was held or released, and {3} the slot it
+# went into, or why it was refused.
+command.stance.hold.done = {1} now holds {2} in {0}, {3}.
+command.stance.hold.refused = {1} cannot hold {2} in {0}. {3}
+command.stance.release.done = {1} released {2} from {0}.
+command.stance.release.refused = {1} cannot release {2} from {0}. {3}
 # The World Rules screen on the owner menu (OwnerForms/Track_World_Rules.json), which edits track-world-rules.json one
 # rule at a time.
 form.rules.title = World Rules

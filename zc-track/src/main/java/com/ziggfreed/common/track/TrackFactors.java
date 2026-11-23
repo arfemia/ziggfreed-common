@@ -16,9 +16,13 @@ import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.factor.FactorNames;
 import com.ziggfreed.common.track.curve.CurveTable;
 import com.ziggfreed.common.track.pick.TrackPicks;
+import com.ziggfreed.common.track.stance.StanceText;
+import com.ziggfreed.common.track.stance.StanceView;
+import com.ziggfreed.common.track.stance.Stances;
+import com.ziggfreed.common.track.stance.TrackStanceConfig;
 
 /**
- * The four track readings, contributed to every vocabulary on the server. {@code Param} names the track (its
+ * The track readings, contributed to every vocabulary on the server. {@code Param} names the track (its
  * id, any case), and for the tier reading the tier after a slash:
  * <ul>
  *   <li>{@value #LEVEL}: the best level ever reached, what a gate asks (a prestige never lowers it);</li>
@@ -29,7 +33,14 @@ import com.ziggfreed.common.track.pick.TrackPicks;
  *   <li>{@value #PRESTIGE}: how many times the player prestiged the track;</li>
  *   <li>{@value #PICK} (Param {@code <Track>/<Pick or option>}): how many times the player took that pick or
  *       option on the track: every slot a choice made with it, every take of a pick bought outright, every slot of a
- *       choice pick made. What a line rank or a gate on a build reads (Edge rank III is 39 Edge picks).</li>
+ *       choice pick made. What a line rank or a gate on a build reads (Edge rank III is 39 Edge picks). It counts what
+ *       lives: a pick in a stance ({@code Stance}) only while its face is held, every other pick exactly as taken.</li>
+ *   <li>{@value #PICK_OWNED} (the same Param): the same count owned for good, a pick in a stance counted whether its
+ *       face is held or not.</li>
+ *   <li>{@value #STANCE} (Param {@code <Stance>}, or {@code <Stance>/<Face>}): how many of the stance's faces the
+ *       player holds that count now, or 1 while that face counts, else 0.</li>
+ *   <li>{@value #STANCE_SLOTS} (Param {@code <Stance>}): how many of the stance's slots are open for the player, each
+ *       row's {@code Requires} asked.</li>
  *   <li>{@value #BRANCH_SPENT} (Param {@code <Track>:<Branch>}): the points the player spent on that track's picks
  *       whose {@code Branch} names that branch, each pick's cost once per take (or slot made). What a tree's later
  *       row opens on (R736): {@code Min 5} for the second row.</li>
@@ -56,6 +67,12 @@ public final class TrackFactors {
 
     public static final String PICK = "ziggfreedcommon:track_pick";
 
+    public static final String PICK_OWNED = "ziggfreedcommon:track_pick_owned";
+
+    public static final String STANCE = "ziggfreedcommon:track_stance";
+
+    public static final String STANCE_SLOTS = "ziggfreedcommon:track_stance_slots";
+
     public static final String BRANCH_SPENT = "ziggfreedcommon:track_branch_spent";
 
     /** Between a branch reading's track and branch: {@code <Track>:<Branch>}. */
@@ -64,10 +81,16 @@ public final class TrackFactors {
     private TrackFactors() {
     }
 
-    /** Claim the six ids process-wide and word their lock lines. Once, at library setup. */
+    /** Claim the nine ids process-wide and word their lock lines. Once, at library setup. */
     public static void contribute() {
         FactorContributions.register(PICK, OWNER, TrackFactors::pick);
         FactorNames.registerParamNamer(PICK, TrackFactors::pickLockName);
+        FactorContributions.register(PICK_OWNED, OWNER, TrackFactors::pickOwned);
+        FactorNames.registerParamNamer(PICK_OWNED, TrackFactors::pickLockName);
+        FactorContributions.register(STANCE, OWNER, TrackFactors::stance);
+        FactorNames.registerParamNamer(STANCE, TrackFactors::stanceLockName);
+        FactorContributions.register(STANCE_SLOTS, OWNER, TrackFactors::stanceSlots);
+        FactorNames.registerParamNamer(STANCE_SLOTS, TrackFactors::stanceSlotsLockName);
         FactorContributions.register(BRANCH_SPENT, OWNER, TrackFactors::branchSpent);
         FactorNames.registerParamNamer(BRANCH_SPENT, TrackFactors::branchLockName);
         FactorContributions.register(LEVEL, OWNER, ctx -> {
@@ -100,7 +123,11 @@ public final class TrackFactors {
         return tier == null ? null : reading.best() >= tier.from() ? 1.0 : 0.0;
     }
 
-    /** How many times the asking player took the pick or option {@code <Track>/<Id>} names; null for no track. */
+    /**
+     * How many times the asking player took the pick or option {@code <Track>/<Id>} names, counting only what lives
+     * ({@code TrackPicks.liveCount}: a pick in no stance exactly as taken, one in a stance only while its face is
+     * held); null for no track.
+     */
     @Nullable
     static Double pick(@Nonnull FactorContext ctx) {
         String[] parts = split(ctx.param());
@@ -108,7 +135,81 @@ public final class TrackFactors {
             return null;
         }
         TrackReading reading = reading(ctx, parts[0]);
+        return reading == null ? null : (double) TrackPicks.liveCount(TrackPicks.onTrack(reading.def().id()),
+                reading.record().picks(), parts[1], Stances.counts(playerOf(ctx.store(), ctx.subject())));
+    }
+
+    /**
+     * How many times the asking player took the pick or option {@code <Track>/<Id>} names, owned for good (a pick in
+     * a stance counted whether its face is held or not); null for no track.
+     */
+    @Nullable
+    static Double pickOwned(@Nonnull FactorContext ctx) {
+        String[] parts = split(ctx.param());
+        if (parts == null) {
+            return null;
+        }
+        TrackReading reading = reading(ctx, parts[0]);
         return reading == null ? null : (double) reading.record().picks().count(parts[1]);
+    }
+
+    /**
+     * The asking player's faces held in a stance: {@code <Stance>} reads how many of its faces count now,
+     * {@code <Stance>/<Face>} 1 while that face counts, else 0; null for a stance unknown or off, or no player.
+     */
+    @Nullable
+    static Double stance(@Nonnull FactorContext ctx) {
+        String param = ctx.param();
+        UUID playerId = playerOf(ctx.store(), ctx.subject());
+        if (playerId == null || param == null || param.isBlank()) {
+            return null;
+        }
+        String[] parts = split(param);
+        String stanceId = parts == null ? param.trim() : parts[0];
+        if (TrackStanceConfig.getInstance().live(stanceId) == null) {
+            return null;
+        }
+        StanceView view = Stances.view(playerId);
+        if (parts == null) {
+            return (double) view.faces(stanceId).size();
+        }
+        for (StanceView.HeldFace face : view.faces(stanceId)) {
+            if (face.faceId().equals(TrackKey.normalize(parts[1]))) {
+                return 1.0;
+            }
+        }
+        return 0.0;
+    }
+
+    /** How many of the stance {@code <Stance>}'s slots are open for the asking player; null when it cannot answer. */
+    @Nullable
+    static Double stanceSlots(@Nonnull FactorContext ctx) {
+        UUID playerId = playerOf(ctx.store(), ctx.subject());
+        Integer open = playerId == null ? null : Stances.slotsOpen(playerId, ctx.param());
+        return open == null ? null : (double) open;
+    }
+
+    /**
+     * What a lock line on a stance reading calls the gate: {@code <Stance>} the faces held in it
+     * ({@code stance.factor.held_in}), {@code <Stance>/<Face>} that face held ({@code stance.factor.holding}). Null,
+     * so the generic line reads, when the stance is unknown.
+     */
+    @Nullable
+    static Message stanceLockName(@Nonnull String param) {
+        String[] parts = split(param);
+        Message stance = StanceText.nameOf(parts == null ? param : parts[0]);
+        if (stance == null) {
+            return null;
+        }
+        return parts == null ? StanceText.line("factor.held_in", stance)
+                : StanceText.line("factor.holding", TrackText.pickName(parts[1]), stance);
+    }
+
+    /** What a lock line on {@code <Stance>}'s open slots calls the gate; null when the stance is unknown. */
+    @Nullable
+    static Message stanceSlotsLockName(@Nonnull String param) {
+        Message stance = StanceText.nameOf(param);
+        return stance == null ? null : StanceText.line("factor.slots_in", stance);
     }
 
     /**

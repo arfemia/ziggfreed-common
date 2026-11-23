@@ -24,9 +24,10 @@ import com.ziggfreed.common.i18n.Msg;
  * Mana, whose rows only the client carries) reads in the same shape from the name a requirement gives it
  * ({@code hytale:stat}'s own names), else its id. A percent grant (a share of the stat's base) reads on the same row
  * or name, its value the signed percent ("Health: +10%"). A kind that names itself in the tree's lang file ({@code grant.kind.<kind>}) reads that line;
- * any other kind one plain line. Grant kinds carry no wording of their own yet, so this is where they read.
+ * any other kind one plain line. Grant kinds carry no wording of their own yet, so this is where they read. The stance
+ * page lists a face's grants and what holding it adds through it too.
  */
-final class TreeGrants {
+public final class TreeGrants {
 
     /** The factor whose names name a stat. */
     private static final String STAT_FACTOR = "hytale:stat";
@@ -42,7 +43,7 @@ final class TreeGrants {
 
     /** {@code grants} as lines, in order; empty for none. */
     @Nonnull
-    static List<Message> lines(@Nonnull List<Grant> grants) {
+    public static List<Message> lines(@Nonnull List<Grant> grants) {
         List<Message> out = new ArrayList<>();
         for (Grant grant : grants) {
             if (grant instanceof StatGrant stat) {

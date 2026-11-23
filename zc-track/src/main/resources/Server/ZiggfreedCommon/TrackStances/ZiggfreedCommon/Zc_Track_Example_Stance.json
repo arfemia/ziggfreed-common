@@ -1,0 +1,25 @@
+{
+  "$Comment": "The library's sample stance, switched off: turn it on in mods/ziggfreedcommon/track-stances.json with { \"Zc_Track_Example_Stance\": { \"Enabled\": true } }, beside the sample track and its picks Zc_Track_Example_Stance_Rooted, _Fleet and _Key in track-picks.json. Rooted and Fleet are its two faces, one of each kind: owned for good once learned, but what each grants counts only while it is held in a slot. Slot I is open from the start; slot II opens once the player owns the key pick (a TaughtOnly pick: /zigtrack pick --pick=Zc_Track_Example_Stance_Key, or a Pick reward). Each kind may be held once at a time and costs two health while held. Releasing one costs a copper bar; holding is free. Try it with /zigtrack stance hold --stance=Zc_Track_Example_Stance --face=Zc_Track_Example_Stance_Rooted, or open it with the Track_Stance destination.",
+  "Enabled": false,
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.stance", "FlavorKey": "ziggfreedcommon.track.example.stance.desc" },
+  "Icon": "Ingredient_Bar_Copper",
+  "Order": 1000,
+  "Slots": [
+    { "Id": "I" },
+    { "Id": "II", "Pick": "Zc_Track_Example_Stance_Key" }
+  ],
+  "Kinds": {
+    "Guard": {
+      "Text": { "TitleKey": "ziggfreedcommon.track.example.stance.guard" },
+      "Max": 1,
+      "WhileHeld": [ { "Kind": "Stat", "Stat": "Health", "Add": -2 } ]
+    },
+    "Swift": {
+      "Text": { "TitleKey": "ziggfreedcommon.track.example.stance.swift" },
+      "Max": 1,
+      "WhileHeld": [ { "Kind": "Stat", "Stat": "Health", "Add": -2 } ]
+    }
+  },
+  "Break": { "Cost": { "Items": [ { "Item": "Ingredient_Bar_Copper", "Count": 1 } ] } },
+  "Budget": { "Health": 6, "Stamina": 2 }
+}
