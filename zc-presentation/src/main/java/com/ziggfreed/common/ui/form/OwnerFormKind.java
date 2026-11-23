@@ -18,6 +18,8 @@ import javax.annotation.Nullable;
  *   <li>{@code List}: words split on commas, written as a list of strings.</li>
  *   <li>{@code Switch}: on or off, written as true or false.</li>
  *   <li>{@code Choice}: one of the field's {@code Choices}, written as its value.</li>
+ *   <li>{@code Signed}: a number of any sign, written as a decimal (a lower bound or an offset that may be under 0).
+ *       Typed as text and read by {@link OwnerFormWrite}, since the settings form's own number takes 0 or more.</li>
  * </ul>
  */
 public enum OwnerFormKind {
@@ -28,10 +30,11 @@ public enum OwnerFormKind {
     CHANCE("Chance", FieldKind.CHANCE),
     LIST("List", FieldKind.CSV),
     SWITCH("Switch", FieldKind.TRISTATE),
-    CHOICE("Choice", FieldKind.DROPDOWN);
+    CHOICE("Choice", FieldKind.DROPDOWN),
+    SIGNED("Signed", FieldKind.TEXT);
 
     /** Every authored word, in order, for the editor's dropdown. */
-    public static final String[] WORDS = {"Text", "Number", "Whole", "Chance", "List", "Switch", "Choice"};
+    public static final String[] WORDS = {"Text", "Number", "Whole", "Chance", "List", "Switch", "Choice", "Signed"};
 
     @Nonnull private final String word;
     @Nonnull private final FieldKind fieldKind;
@@ -60,7 +63,7 @@ public enum OwnerFormKind {
 
     /** Is it a number? */
     public boolean numeric() {
-        return this == NUMBER || this == WHOLE || this == CHANCE;
+        return this == NUMBER || this == WHOLE || this == CHANCE || this == SIGNED;
     }
 
     /** The kind {@code word} names, matched without regard to case; null for anything else. */

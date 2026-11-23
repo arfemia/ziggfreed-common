@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -94,6 +95,17 @@ public final class OwnerFormPlan {
      */
     @Nonnull
     public static OwnerFormPlan read(@Nonnull OwnerFormAsset form, @Nullable String entryId) {
+        return read(form, entryId, field -> true);
+    }
+
+    /**
+     * {@link #read(OwnerFormAsset, String)} with only the settings {@code shown} lets through: a setting whose own
+     * {@code Requires} the viewing owner does not meet ({@link OwnerForms#fieldShownTo}) is left off, so it is neither
+     * drawn nor written, and every setting kept is numbered in order as if it were the form's only ones.
+     */
+    @Nonnull
+    public static OwnerFormPlan read(@Nonnull OwnerFormAsset form, @Nullable String entryId,
+            @Nonnull Predicate<OwnerFormAsset.Field> shown) {
         OwnerFileBinding binding = OwnerFileBindings.find(form.file());
         JsonObject root = new JsonObject();
         boolean malformed = false;
@@ -130,7 +142,8 @@ public final class OwnerFormPlan {
             for (OwnerFormAsset.Field field : section.fields()) {
                 OwnerFormKind kind = field.kind();
                 String path = field.path();
-                if (kind == null || !OwnerFormAsset.isPath(path) || (entry != null && !OwnerFormAsset.isEntry(entry))) {
+                if (kind == null || !OwnerFormAsset.isPath(path) || (entry != null && !OwnerFormAsset.isEntry(entry))
+                        || !shown.test(field)) {
                     continue;
                 }
                 String writePath = insideEntry || entryKey == null ? path : entryKey + "." + path;

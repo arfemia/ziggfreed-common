@@ -74,4 +74,38 @@ class OwnerFormWriteTest {
         assertFalse(reset.contains("\"Personal\""), "a reset takes the owner's value out: " + reset);
         assertTrue(reset.contains("\"Cap\": 2.0"), "and leaves the rest: " + reset);
     }
+
+    /**
+     * A {@code Signed} setting takes a number of any sign and writes it as a decimal ({@code -0.9}, {@code 3.0}), held to
+     * its bounds like any number; text that is no number is refused and writes nothing.
+     */
+    @Test
+    void aSignedSettingIsWrittenAsADecimalOfAnySign(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("clamps.json");
+        Files.writeString(file, "{ \"Default\": { \"Min\": 0.0 } }", StandardCharsets.UTF_8);
+        OwnerFileBinding binding = OwnerFileBinding.builder("test/clamps.json", () -> file).build();
+        OwnerFormField min = new OwnerFormField(0, OwnerFormKind.SIGNED, "Default.Min", -1.0, null, List.of());
+        OwnerFormField offset = new OwnerFormField(1, OwnerFormKind.SIGNED, "Default.Offset", null, null, List.of());
+        List<OwnerFormField> fields = List.of(min, offset);
+
+        Map<Integer, String> typed = new LinkedHashMap<>();
+        typed.put(0, " -0.9 ");
+        typed.put(1, "3");
+        OwnerFormWrite.Collected collected = OwnerFormWrite.collect(fields, typed);
+        assertTrue(collected.ok(), "both fit: " + collected.refusal());
+        assertEquals(Double.valueOf(-0.9), collected.leaves().get("Default.Min"));
+        assertEquals(Double.valueOf(3.0), collected.leaves().get("Default.Offset"));
+        assertTrue(OwnerFormWrite.write(binding, collected.leaves()));
+        String written = Files.readString(file, StandardCharsets.UTF_8);
+        assertTrue(written.contains("\"Min\": -0.9") && written.contains("\"Offset\": 3.0"),
+                "a signed number is written as a decimal: " + written);
+
+        Map<Integer, String> below = new LinkedHashMap<>();
+        below.put(0, "-2");
+        assertEquals(OwnerFormWrite.Problem.BELOW, OwnerFormWrite.collect(fields, below).refusal().problem());
+        Map<Integer, String> word = new LinkedHashMap<>();
+        word.put(1, "lots");
+        assertEquals(OwnerFormWrite.Problem.SIGNED, OwnerFormWrite.collect(fields, word).refusal().problem());
+        assertEquals(written, Files.readString(file, StandardCharsets.UTF_8), "a refused value writes nothing");
+    }
 }

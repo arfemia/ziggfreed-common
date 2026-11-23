@@ -37,6 +37,10 @@ import com.ziggfreed.common.util.SafeLog;
  * registered destination, since every tile opens an owner screen and none may be pack-addressable. Sections show in
  * their own order (the library's first, then each mod's by the order it opened with), the one named first moved to the
  * front, and tiles from a section nobody opened gather under More. A section with no tile showing is not drawn.
+ *
+ * <p>Help is a topic on a tile ({@link OwnerHelp}): a tile carries its own ({@link OwnerTile#help}) and a mod may give
+ * one to a tile it does not own by id ({@link #help}). The menu's Help button shows only the tiles that carry one, and
+ * pressing a tile there shows its topics ({@link OwnerHelpPage}) over a button that opens its screen.
  */
 public final class OwnerMenu {
 
@@ -60,6 +64,8 @@ public final class OwnerMenu {
 
     private static final Map<String, SectionDef> SECTIONS = new ConcurrentHashMap<>();
     private static final Map<String, OwnerTile> TILES = new ConcurrentHashMap<>();
+    /** The help topics a mod gave a tile it may not own (a form's, another mod's), by tile id, in the order given. */
+    private static final Map<String, List<OwnerHelp>> HELP = new ConcurrentHashMap<>();
 
     private static final String MORE = "\u0000more";
 
@@ -82,18 +88,76 @@ public final class OwnerMenu {
     }
 
     /**
+     * Give the tile {@code tileId} one more help topic, after the ones it carries itself: a mod's words about a screen
+     * it does not own (another mod's tile, or a form's, {@code form:<Id>}), shown wherever that tile shows. The same
+     * topic given twice is kept once; a tile id nobody adds shows nothing.
+     */
+    public static void help(@Nonnull String tileId, @Nonnull OwnerHelp topic) {
+        HELP.compute(key(tileId), (k, held) -> {
+            List<OwnerHelp> next = held == null ? new ArrayList<>() : new ArrayList<>(held);
+            if (!next.contains(topic)) {
+                next.add(topic);
+            }
+            return List.copyOf(next);
+        });
+    }
+
+    /** Every help topic {@code tile} carries: its own, then those mods gave its id, each once. */
+    @Nonnull
+    public static List<OwnerHelp> topics(@Nonnull OwnerTile tile) {
+        List<OwnerHelp> given = HELP.get(key(tile.id()));
+        if (given == null || given.isEmpty()) {
+            return tile.help();
+        }
+        List<OwnerHelp> out = new ArrayList<>(tile.help());
+        for (OwnerHelp topic : given) {
+            if (!out.contains(topic)) {
+                out.add(topic);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * The tile {@code tileId} names as the menu would draw it for a menu opened with {@code first} at the front (a
+     * form's tile included), or null when there is none. Its own rule is not asked here.
+     */
+    @Nullable
+    public static OwnerTile find(@Nullable String tileId, @Nullable String first) {
+        if (tileId == null || tileId.isBlank()) {
+            return null;
+        }
+        String wanted = key(tileId);
+        for (OwnerTile tile : tiles(first)) {
+            if (key(tile.id()).equals(wanted)) {
+                return tile;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Open the menu for {@code player} with {@code first}'s section at the front (null for the usual order). False when
      * the entity is no player, the owner audience refuses, or the open threw; the caller still owes the client an
      * answer then.
      */
     public static boolean open(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Player player, @Nullable String first) {
+        return open(store, ref, player, first, false);
+    }
+
+    /**
+     * {@link #open(Store, Ref, Player, String)} showing its Help ({@code help} true): only the tiles that carry a help
+     * topic, each opening its topics.
+     */
+    public static boolean open(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Player player, @Nullable String first, boolean help) {
         PlayerRef playerRef = PlayerAccess.playerRef(player);
         if (playerRef == null || !OwnerAudience.mayAdminister(store, ref, player)) {
             return false;
         }
         try {
-            player.getPageManager().openCustomPage(ref, store, new OwnerMenuPage(playerRef, first));
+            player.getPageManager().openCustomPage(ref, store, new OwnerMenuPage(playerRef, first, help));
             return true;
         } catch (Throwable t) {
             SafeLog.warn("[owner] the owner menu failed to open", t);
@@ -107,9 +171,18 @@ public final class OwnerMenu {
      */
     @Nonnull
     public static List<Section> plan(@Nonnull OwnerViewer viewer, @Nullable String first) {
+        return plan(viewer, first, false);
+    }
+
+    /**
+     * {@link #plan(OwnerViewer, String)}, with {@code helpOnly} keeping only the tiles that carry a help topic
+     * ({@link #topics}): what the menu's Help shows.
+     */
+    @Nonnull
+    public static List<Section> plan(@Nonnull OwnerViewer viewer, @Nullable String first, boolean helpOnly) {
         Map<String, List<OwnerTile>> byOwner = new LinkedHashMap<>();
         for (OwnerTile tile : tiles(first)) {
-            if (tile.shownTo(viewer)) {
+            if ((!helpOnly || !topics(tile).isEmpty()) && tile.shownTo(viewer)) {
                 String owner = SECTIONS.containsKey(key(tile.owner())) ? key(tile.owner()) : MORE;
                 byOwner.computeIfAbsent(owner, k -> new ArrayList<>()).add(tile);
             }
@@ -165,10 +238,21 @@ public final class OwnerMenu {
         return out;
     }
 
-    /** Forget every section and tile. Tests only. */
+    /** Does any tile {@code viewer} sees carry a help topic, so the menu offers its Help? */
+    public static boolean offersHelp(@Nonnull OwnerViewer viewer, @Nullable String first) {
+        for (OwnerTile tile : tiles(first)) {
+            if (!topics(tile).isEmpty() && tile.shownTo(viewer)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Forget every section, tile and help topic. Tests only. */
     public static void clearForTests() {
         SECTIONS.clear();
         TILES.clear();
+        HELP.clear();
     }
 
     @Nonnull

@@ -177,7 +177,7 @@ public final class OwnerFormValidator {
         }
         boolean fits = switch (kind) {
             case WHOLE -> below instanceof Integer || below instanceof Long;
-            case NUMBER, CHANCE -> below instanceof Double || below instanceof Float;
+            case NUMBER, CHANCE, SIGNED -> below instanceof Double || below instanceof Float;
             case SWITCH -> below instanceof Boolean;
             case LIST -> below instanceof List<?>;
             case TEXT, CHOICE -> below instanceof String;

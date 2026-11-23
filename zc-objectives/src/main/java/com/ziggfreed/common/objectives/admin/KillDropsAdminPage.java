@@ -434,6 +434,7 @@ public final class KillDropsAdminPage extends InteractiveCustomUIPage<KillDropsA
             case BELOW -> OwnerText.line("form.bad.below", name, bound(field.min()));
             case ABOVE -> OwnerText.line("form.bad.above", name, bound(field.max()));
             case CHOICE -> OwnerText.line("form.bad.choice", name);
+            case SIGNED -> OwnerText.line("form.bad.signed", name);
         };
     }
 

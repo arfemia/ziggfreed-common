@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.ziggfreed.common.settings.page.SettingsLayout;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.ZigFrame;
+import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.kit.Hero;
 import com.ziggfreed.common.ui.kit.HeroPainter;
@@ -42,6 +43,15 @@ public final class OwnerMenuPaint {
     public static final String TILE = "Tile";
     public static final String CLOSE = "close";
     public static final String PRESS = "tile";
+    /** The Help button: into the menu's Help, or back out of it. */
+    public static final String HELP = "help";
+
+    /** What the Help button shows: nothing (no tile the owner sees carries a topic), Help, or the way back out. */
+    public enum HelpButton {
+        HIDDEN,
+        OFFERED,
+        SHOWING
+    }
 
     /** The page's width, which the tile rows are worked out from. */
     public static final int PAGE_WIDTH = 1000;
@@ -57,25 +67,45 @@ public final class OwnerMenuPaint {
     static final String SECTIONS = "#OwnerMenuSections";
     static final String STATUS = "#OwnerMenuStatus";
     static final String EMPTY = "#OwnerMenuEmpty";
+    static final String BAR = "#OwnerMenuBar";
+    static final String HELP_BUTTON = "#OwnerMenuHelp";
 
     private OwnerMenuPaint() {
     }
 
-    /** The page's own binding: the frame's close button. */
+    /** The page's own bindings: the frame's close button and the Help button (bound even where it stays hidden). */
     public static void bind(@Nonnull UIEventBuilder events) {
         events.addEventBinding(CustomUIEventBindingType.Activating, ZigFrame.CLOSE, EventData.of(ACTION, CLOSE));
+        events.addEventBinding(CustomUIEventBindingType.Activating, HELP_BUTTON, EventData.of(ACTION, HELP), false);
     }
 
     /**
      * Paint the menu, appended already: the hero, {@code status} (null for none), then {@code sections}. Each tile's
-     * press carries its index in the answer, which the page reads back.
+     * press carries its index in the answer, which the page reads back. The Help button stays hidden.
      *
      * @return every tile drawn, by index
      */
     @Nonnull
     public static List<OwnerTile> paint(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull List<OwnerMenu.Section> sections, @Nullable Message status, boolean error) {
-        HeroPainter.paint(cmd, new Hero(null, OwnerText.line("menu.title"), OwnerText.line("menu.tagline"), null));
+        return paint(cmd, events, sections, status, error, HelpButton.HIDDEN);
+    }
+
+    /**
+     * {@link #paint(UICommandBuilder, UIEventBuilder, List, Message, boolean)} with the Help button as {@code help}
+     * says: hidden, offering Help, or (the menu showing its Help, its line saying so) leading back out.
+     */
+    @Nonnull
+    public static List<OwnerTile> paint(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull List<OwnerMenu.Section> sections, @Nullable Message status, boolean error,
+            @Nonnull HelpButton help) {
+        boolean showing = help == HelpButton.SHOWING;
+        HeroPainter.paint(cmd, new Hero(null, OwnerText.line("menu.title"),
+                OwnerText.line(showing ? "menu.help.tagline" : "menu.tagline"), null));
+        cmd.set(BAR + ".Visible", help != HelpButton.HIDDEN);
+        if (help != HelpButton.HIDDEN) {
+            ZigRichButton.text(cmd, HELP_BUTTON, OwnerText.line(showing ? "menu.help.done" : "menu.help"));
+        }
         status(cmd, status, error);
         List<OwnerTile> drawn = new ArrayList<>();
         for (int s = 0; s < sections.size(); s++) {
@@ -99,7 +129,7 @@ public final class OwnerMenuPaint {
             cmd.setObject(at + " #Tiles.Anchor", grid);
         }
         if (sections.isEmpty()) {
-            cmd.set(EMPTY + ".TextSpans", OwnerText.line("menu.empty"));
+            cmd.set(EMPTY + ".TextSpans", OwnerText.line(showing ? "menu.help.empty" : "menu.empty"));
             cmd.set(EMPTY + ".Visible", true);
         }
         return drawn;
@@ -108,6 +138,7 @@ public final class OwnerMenuPaint {
     /** The menu for a player who may not see it: the hero saying so, and nothing else. */
     public static void refused(@Nonnull UICommandBuilder cmd) {
         HeroPainter.paint(cmd, new Hero(null, OwnerText.line("menu.title"), OwnerText.line("menu.refused"), null));
+        cmd.set(BAR + ".Visible", false);
     }
 
     /** Show {@code status} on the status line (red for an error), or hide it for null. */

@@ -43,6 +43,8 @@ import com.ziggfreed.common.ui.form.OwnerFormEntries;
 import com.ziggfreed.common.ui.form.OwnerFormPaint;
 import com.ziggfreed.common.ui.form.OwnerFormPlan;
 import com.ziggfreed.common.ui.icon.ItemQualityLook;
+import com.ziggfreed.common.ui.owner.OwnerHelp;
+import com.ziggfreed.common.ui.owner.OwnerHelpPaint;
 import com.ziggfreed.common.ui.owner.OwnerMenu;
 import com.ziggfreed.common.ui.owner.OwnerMenuPaint;
 import com.ziggfreed.common.ui.owner.OwnerTile;
@@ -444,6 +446,48 @@ class KitSelectorsTest {
         OwnerFormPaint.refused(form.cmd(), Message.raw("Gone"));
         form.record();
         form.assertDeclared("the owner form");
+    }
+
+    /**
+     * The owner menu's Help, walked against the menu's document and the band: the button offering Help, then the menu
+     * showing it (and an empty one); then a tile's help page with two topics and its Open, one with no Open, its status
+     * line and a refusal.
+     */
+    @Test
+    void theOwnerMenusHelpAndAHelpPageAddressOnlyIdsTheirDocumentsDeclare() throws IOException {
+        String frames = KitDocs.document("Common/ZigFrames.ui");
+        String band = KitDocs.template(frames, "@ZigDecoratedFrame") + "\n" + KitDocs.template(frames, "@ZigBand");
+
+        Recorder menu = new Recorder(Map.of(), KitDocs.document(OwnerMenuPaint.PAGE_TEMPLATE) + "\n" + band);
+        OwnerMenuPaint.bind(menu.events());
+        OwnerTile helped = OwnerTile.screen("ziggfreedcommon", "a", Message.raw("A"), viewer -> true)
+                .help(OwnerHelp.topic("yourmod.help.a"));
+        OwnerMenuPaint.paint(menu.cmd(), menu.events(), List.of(
+                new OwnerMenu.Section("ziggfreedcommon", Message.raw("CommonLib"), List.of(helped))),
+                null, false, OwnerMenuPaint.HelpButton.OFFERED);
+        menu.record();
+        OwnerMenuPaint.paint(menu.cmd(), menu.events(), List.of(
+                new OwnerMenu.Section("ziggfreedcommon", Message.raw("CommonLib"), List.of(helped))),
+                null, false, OwnerMenuPaint.HelpButton.SHOWING);
+        menu.record();
+        OwnerMenuPaint.paint(menu.cmd(), menu.events(), List.of(), null, false, OwnerMenuPaint.HelpButton.SHOWING);
+        OwnerMenuPaint.refused(menu.cmd());
+        menu.record();
+        menu.assertDeclared("the owner menu's Help");
+
+        Recorder help = new Recorder(Map.of(), KitDocs.document(OwnerHelpPaint.PAGE_TEMPLATE) + "\n" + band);
+        OwnerHelpPaint.bind(help.events());
+        OwnerHelpPaint.paint(help.cmd(), Message.raw("A"), Message.raw("A line"),
+                List.of(OwnerHelp.topic("yourmod.help.a"), OwnerHelp.topic("yourmod.help.b")), true);
+        help.record();
+        OwnerHelpPaint.status(help.cmd(), Message.raw("That screen did not open"), true);
+        OwnerHelpPaint.refused(help.cmd(), Message.raw("Gone"));
+        help.record();
+        Recorder bare = new Recorder(Map.of(), KitDocs.document(OwnerHelpPaint.PAGE_TEMPLATE) + "\n" + band);
+        OwnerHelpPaint.paint(bare.cmd(), Message.raw("B"), null, List.of(OwnerHelp.topic("yourmod.help.b")), false);
+        bare.record();
+        help.assertDeclared("a tile's help page");
+        bare.assertDeclared("a tile's help page with no Open");
     }
 
     /**

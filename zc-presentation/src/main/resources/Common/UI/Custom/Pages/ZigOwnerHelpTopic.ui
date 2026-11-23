@@ -1,0 +1,74 @@
+$K = "../Common/ZigCards.ui";
+$ZX = "../Common/ZigText.ui";
+$ZM = "../Common/ZigForm.ui";
+
+// One help topic on a tile's help page (OwnerHelpPage), appended into #OwnerHelpTopics by index and addressed as its
+// own indexed parent ("#OwnerHelpTopics[1] #Overview"): the topic's title and its line, then its four parts on one
+// card, each a heading over a paragraph that wraps and grows with its words (no fixed height). Every word is pushed
+// from Java on .TextSpans by OwnerHelpPaint.
+
+Group #ZigOwnerHelpTopic {
+  LayoutMode: Top;
+  Anchor: (Bottom: 8);
+
+  Label #Title {
+    Text: "";
+    Anchor: (Top: 6, Bottom: 2);
+    Style: (...$ZX.@ZigHeadingStyle, Wrap: true);
+  }
+
+  Label #Subtitle {
+    Text: "";
+    Anchor: (Bottom: 8);
+    Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+  }
+
+  $K.@ZigSectionCard #Card {
+    Label #OverviewHead {
+      Text: "";
+      Anchor: (Bottom: 4);
+      Style: $ZM.@ZigFormHeaderStyle;
+    }
+
+    Label #Overview {
+      Text: "";
+      Anchor: (Bottom: 12);
+      Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+    }
+
+    Label #HowHead {
+      Text: "";
+      Anchor: (Bottom: 4);
+      Style: $ZM.@ZigFormHeaderStyle;
+    }
+
+    Label #How {
+      Text: "";
+      Anchor: (Bottom: 12);
+      Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+    }
+
+    Label #ExamplesHead {
+      Text: "";
+      Anchor: (Bottom: 4);
+      Style: $ZM.@ZigFormHeaderStyle;
+    }
+
+    Label #Examples {
+      Text: "";
+      Anchor: (Bottom: 12);
+      Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+    }
+
+    Label #TipsHead {
+      Text: "";
+      Anchor: (Bottom: 4);
+      Style: $ZM.@ZigFormHeaderStyle;
+    }
+
+    Label #Tips {
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+    }
+  }
+}

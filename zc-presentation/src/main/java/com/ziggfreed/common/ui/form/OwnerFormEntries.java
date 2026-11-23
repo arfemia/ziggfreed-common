@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -229,9 +230,24 @@ public final class OwnerFormEntries {
      */
     @Nonnull
     public static Map<String, Object> resetLeaves(@Nonnull OwnerFormAsset form) {
+        return resetLeaves(form, field -> true);
+    }
+
+    /**
+     * {@link #resetLeaves(OwnerFormAsset)} for the settings {@code shown} lets through alone: a setting the owner may
+     * not change ({@link OwnerForms#fieldShownTo}) is left as their file writes it.
+     */
+    @Nonnull
+    public static Map<String, Object> resetLeaves(@Nonnull OwnerFormAsset form,
+            @Nonnull Predicate<OwnerFormAsset.Field> shown) {
         Map<String, Object> leaves = new LinkedHashMap<>();
-        for (String path : declaredPaths(form)) {
-            leaves.put(path, null);
+        for (OwnerFormAsset.Section section : form.sections()) {
+            for (OwnerFormAsset.Field field : section.fields()) {
+                String path = field.path();
+                if (field.kind() != null && OwnerFormAsset.isPath(path) && shown.test(field)) {
+                    leaves.put(path, null);
+                }
+            }
         }
         return leaves;
     }

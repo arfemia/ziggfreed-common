@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.owner.OwnerAudience;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -32,6 +33,9 @@ import com.ziggfreed.common.util.SafeLog;
  * on a refusal), and every exit answers the client: Close closes, a tile that opened a screen has answered, a tile that
  * acted rebuilds the menu with its status line, and anything else (no player, a stale index, a screen that would not
  * open) gets an update.
+ *
+ * <p>Its Help button (shown while a tile the owner sees carries a help topic) draws the menu again with only those tiles,
+ * a press opening the tile's topics ({@link OwnerHelpPage}) rather than its screen; the button then leads back out.
  */
 public class OwnerMenuPage extends InteractiveCustomUIPage<OwnerMenuPage.Press> {
 
@@ -55,19 +59,28 @@ public class OwnerMenuPage extends InteractiveCustomUIPage<OwnerMenuPage.Press> 
     @Nonnull private List<OwnerTile> drawn = List.of();
     @Nullable private Message status;
     private boolean statusError;
+    /** Is the menu showing its Help (only the tiles that carry a topic, each opening its topics)? */
+    private boolean help;
 
     /**
      * The menu for {@code playerRef}, with {@code first}'s section at the front (null for the usual order).
      */
     public OwnerMenuPage(@Nonnull PlayerRef playerRef, @Nullable String first) {
+        this(playerRef, first, false);
+    }
+
+    /** {@link #OwnerMenuPage(PlayerRef, String)} showing its Help when {@code help} is true. */
+    public OwnerMenuPage(@Nonnull PlayerRef playerRef, @Nullable String first, boolean help) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, Press.CODEC);
         this.first = first;
+        this.help = help;
     }
 
     @Override
     public final void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
-        cmd.append(OwnerMenuPaint.PAGE_TEMPLATE);
+        // The menu theme's paint, the way every framed page of the family takes it (a consumer's theme, else the palette).
+        ZigMenu.appendThemed(cmd, OwnerMenuPaint.PAGE_TEMPLATE);
         OwnerMenuPaint.bind(events);
         drawn = List.of();
         try {
@@ -77,7 +90,10 @@ public class OwnerMenuPage extends InteractiveCustomUIPage<OwnerMenuPage.Press> 
                 return;
             }
             OwnerViewer viewer = new OwnerViewer(store, ref, player, this.playerRef);
-            drawn = OwnerMenuPaint.paint(cmd, events, OwnerMenu.plan(viewer, first), status, statusError);
+            OwnerMenuPaint.HelpButton button = help ? OwnerMenuPaint.HelpButton.SHOWING
+                    : OwnerMenu.offersHelp(viewer, first) ? OwnerMenuPaint.HelpButton.OFFERED
+                    : OwnerMenuPaint.HelpButton.HIDDEN;
+            drawn = OwnerMenuPaint.paint(cmd, events, OwnerMenu.plan(viewer, first, help), status, statusError, button);
         } catch (Throwable t) {
             SafeLog.warn("[owner] the owner menu could not paint everything", t);
         }
@@ -102,6 +118,14 @@ public class OwnerMenuPage extends InteractiveCustomUIPage<OwnerMenuPage.Press> 
         if (!OwnerPageGuard.stillAllowed(store, ref, player, this.playerRef, OwnerAudience::mayAdminister)) {
             return true;
         }
+        if (OwnerMenuPaint.HELP.equals(press.action)) {
+            // Into the Help or back out of it: the same menu drawn again.
+            help = !help;
+            status = null;
+            statusError = false;
+            player.getPageManager().openCustomPage(ref, store, this);
+            return true;
+        }
         if (!OwnerMenuPaint.PRESS.equals(press.action)) {
             return false;
         }
@@ -109,6 +133,14 @@ public class OwnerMenuPage extends InteractiveCustomUIPage<OwnerMenuPage.Press> 
         OwnerViewer viewer = new OwnerViewer(store, ref, player, this.playerRef);
         if (tile == null || !tile.shownTo(viewer)) {
             return false;
+        }
+        if (help) {
+            // In the Help a tile shows its topics, never its screen (the topics' own button opens that).
+            if (OwnerMenu.topics(tile).isEmpty()) {
+                return false;
+            }
+            player.getPageManager().openCustomPage(ref, store, new OwnerHelpPage(this.playerRef, tile.id(), first));
+            return true;
         }
         status = null;
         statusError = false;

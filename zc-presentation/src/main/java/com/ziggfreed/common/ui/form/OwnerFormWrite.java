@@ -18,8 +18,9 @@ import com.ziggfreed.common.owner.OwnerFileBinding;
  * file's own binding. The typed text is read by {@link SettingsForm}'s own parse ({@link OwnerFormKind#fieldKind}),
  * so a number field reads exactly as every settings form reads one, then held to the field's bounds and choices.
  *
- * <p><b>Number types.</b> A {@code Whole} leaf is boxed as an {@code Integer} and written {@code 16}; a {@code Number}
- * or {@code Chance} leaf as a {@code Double}, written {@code 1.5} or {@code 2.0}; a {@code Switch} as a
+ * <p><b>Number types.</b> A {@code Whole} leaf is boxed as an {@code Integer} and written {@code 16}; a {@code Number},
+ * {@code Chance} or {@code Signed} leaf as a {@code Double}, written {@code 1.5}, {@code 2.0} or {@code -0.9} (a
+ * {@code Signed} one is typed as text and read here, any sign, a finite number only); a {@code Switch} as a
  * {@code Boolean}; a {@code List} as a list of strings. A blank field (or a switch or choice left empty) is a null leaf,
  * which takes the owner's value out, so the layer under it reads again. Only the settings handed in are written, at
  * their own paths; nothing else in the file moves.
@@ -39,7 +40,9 @@ public final class OwnerFormWrite {
         /** Over the field's {@code Max}. */
         ABOVE,
         /** Not one of the field's {@code Choices}. */
-        CHOICE
+        CHOICE,
+        /** Not a number (a {@code Signed} field, which takes any sign). */
+        SIGNED
     }
 
     /** The first setting refused, and why. */
@@ -89,6 +92,12 @@ public final class OwnerFormWrite {
         Map<String, Object> leaves = new LinkedHashMap<>();
         for (OwnerFormField field : changed) {
             Object value = parsed.leaves().get(field.writePath());
+            if (field.kind() == OwnerFormKind.SIGNED && value != null) {
+                value = signed(String.valueOf(value));
+                if (value == null) {
+                    return refused(field, Problem.SIGNED);
+                }
+            }
             Problem problem = outOfBounds(field, value);
             if (problem != null) {
                 return refused(field, problem);
@@ -161,7 +170,19 @@ public final class OwnerFormWrite {
             case LIST -> FieldSpec.csv(id, path, id);
             case SWITCH -> FieldSpec.tristate(id, path, id);
             case CHOICE -> FieldSpec.dropdown(id, path, id, field.choices().toArray(String[]::new));
+            case SIGNED -> FieldSpec.text(id, path, id);
         };
+    }
+
+    /** A {@code Signed} field's typed text as a finite number of any sign, or null when it is no number. */
+    @Nullable
+    static Double signed(@Nonnull String raw) {
+        try {
+            double value = Double.parseDouble(raw.trim());
+            return Double.isFinite(value) ? value : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     @Nonnull
@@ -187,6 +208,7 @@ public final class OwnerFormWrite {
         return switch (field.kind()) {
             case WHOLE -> Problem.WHOLE;
             case CHANCE -> Problem.CHANCE;
+            case SIGNED -> Problem.SIGNED;
             default -> Problem.NUMBER;
         };
     }

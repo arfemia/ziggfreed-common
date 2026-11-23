@@ -24,6 +24,7 @@ import com.ziggfreed.common.owner.OwnerAudience;
 import com.ziggfreed.common.owner.OwnerFileBinding;
 import com.ziggfreed.common.ui.kit.FormLeaf;
 import com.ziggfreed.common.ui.kit.FormLeafPainter;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.ui.owner.OwnerMenu;
 import com.ziggfreed.common.ui.owner.OwnerPageGuard;
 import com.ziggfreed.common.ui.owner.OwnerText;
@@ -80,7 +81,8 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull Store<EntityStore> store) {
-        cmd.append(OwnerFormPaint.PAGE_TEMPLATE);
+        // The menu theme's paint, the way every framed page of the family takes it (a consumer's theme, else the palette).
+        ZigMenu.appendThemed(cmd, OwnerFormPaint.PAGE_TEMPLATE);
         OwnerFormPaint.bind(events);
         plan = null;
         entries = null;
@@ -108,7 +110,8 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
                 OwnerFormPaint.paintEntries(cmd, events, read, this.playerRef);
                 entries = read;
             } else {
-                OwnerFormPlan read = OwnerFormPlan.read(form, form.entries() == null ? null : entryId);
+                OwnerFormPlan read = OwnerFormPlan.read(form, form.entries() == null ? null : entryId,
+                        setting -> OwnerForms.fieldShownTo(setting, this.playerRef, player));
                 rows = read.entryId() == null ? OwnerFormPaint.paint(cmd, events, read, this.playerRef)
                         : OwnerFormPaint.paint(cmd, events, read, this.playerRef, OwnerText.line("form.entries.editing",
                                 OwnerFormPaint.entryName(read.entryId(),
@@ -224,7 +227,8 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
                     : OwnerText.line("form.failed", binding.id()), !removed);
         }
         if (list.resettable(row)) {
-            boolean reset = OwnerFormWrite.writeEntry(binding, row.id(), OwnerFormEntries.resetLeaves(list.form()));
+            boolean reset = OwnerFormWrite.writeEntry(binding, row.id(), OwnerFormEntries.resetLeaves(list.form(),
+                    setting -> OwnerForms.fieldShownTo(setting, this.playerRef, player)));
             return rebuild(ref, store, player, reset ? OwnerText.line("form.reset.done")
                     : OwnerText.line("form.failed", binding.id()), !reset);
         }
@@ -291,6 +295,10 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
         if (!leaf.overridden()) {
             return false;
         }
+        if (!OwnerForms.fieldShownTo(setting.authored(), this.playerRef, player)) {
+            return push(new UICommandBuilder(), OwnerText.line("form.locked", OwnerFormPaint.leaf(setting, "", false)
+                    .label()), true);
+        }
         OwnerFileBinding binding = current.binding();
         if (!current.writable() || binding == null) {
             return push(new UICommandBuilder(), cannotWrite(current), true);
@@ -320,6 +328,14 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
         }
         if (typed.isEmpty()) {
             return push(new UICommandBuilder(), OwnerText.line("form.unchanged"), false);
+        }
+        for (Integer i : typed.keySet()) {
+            // A setting's own Requires, asked again: the owner may have lost what it asks since the form was drawn.
+            OwnerFormPlan.Setting setting = current.setting(i);
+            if (setting != null && !OwnerForms.fieldShownTo(setting.authored(), this.playerRef, player)) {
+                return push(new UICommandBuilder(), OwnerText.line("form.locked",
+                        OwnerFormPaint.leaf(setting, "", false).label()), true);
+            }
         }
         List<OwnerFormField> fields = current.fields();
         OwnerFormWrite.Collected collected = OwnerFormWrite.collect(fields, typed);
@@ -451,6 +467,7 @@ public final class OwnerFormPage extends InteractiveCustomUIPage<OwnerFormEventD
             case BELOW -> OwnerText.line("form.bad.below", name, bound(field.min()));
             case ABOVE -> OwnerText.line("form.bad.above", name, bound(field.max()));
             case CHOICE -> OwnerText.line("form.bad.choice", name);
+            case SIGNED -> OwnerText.line("form.bad.signed", name);
         };
     }
 

@@ -1,5 +1,6 @@
 package com.ziggfreed.common.ui.owner;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 
@@ -58,10 +59,11 @@ public final class OwnerTile {
     @Nonnull private final Predicate<OwnerViewer> shown;
     @Nullable private final Opener opener;
     @Nullable private final Action action;
+    @Nonnull private final List<OwnerHelp> help;
 
     private OwnerTile(@Nonnull String owner, @Nonnull String id, @Nonnull Message title, int order,
             @Nullable Message line, @Nullable String icon, @Nonnull Predicate<OwnerViewer> shown,
-            @Nullable Opener opener, @Nullable Action action) {
+            @Nullable Opener opener, @Nullable Action action, @Nonnull List<OwnerHelp> help) {
         this.owner = Objects.requireNonNull(owner, "owner").trim();
         this.id = Objects.requireNonNull(id, "id").trim();
         this.title = Objects.requireNonNull(title, "title");
@@ -71,6 +73,7 @@ public final class OwnerTile {
         this.shown = Objects.requireNonNull(shown, "shown");
         this.opener = opener;
         this.action = action;
+        this.help = List.copyOf(help);
         if (this.owner.isEmpty() || this.id.isEmpty()) {
             throw new IllegalArgumentException("an owner tile needs an owner and an id");
         }
@@ -85,38 +88,49 @@ public final class OwnerTile {
     @Nonnull
     public static OwnerTile screen(@Nonnull String owner, @Nonnull String id, @Nonnull Message title,
             @Nonnull Opener opener) {
-        return new OwnerTile(owner, id, title, 100, null, null, viewer -> true, Objects.requireNonNull(opener), null);
+        return new OwnerTile(owner, id, title, 100, null, null, viewer -> true, Objects.requireNonNull(opener), null,
+                List.of());
     }
 
     /** A tile in {@code owner}'s section that acts in place and answers a status line. */
     @Nonnull
     public static OwnerTile action(@Nonnull String owner, @Nonnull String id, @Nonnull Message title,
             @Nonnull Action action) {
-        return new OwnerTile(owner, id, title, 100, null, null, viewer -> true, null, Objects.requireNonNull(action));
+        return new OwnerTile(owner, id, title, 100, null, null, viewer -> true, null, Objects.requireNonNull(action),
+                List.of());
     }
 
     /** Its place in the section, lowest first (100 unless set); a tie goes by id. */
     @Nonnull
     public OwnerTile order(int value) {
-        return new OwnerTile(owner, id, title, value, line, icon, shown, opener, action);
+        return new OwnerTile(owner, id, title, value, line, icon, shown, opener, action, help);
     }
 
     /** The line under its title. */
     @Nonnull
     public OwnerTile line(@Nullable Message value) {
-        return new OwnerTile(owner, id, title, order, value, icon, shown, opener, action);
+        return new OwnerTile(owner, id, title, order, value, icon, shown, opener, action, help);
     }
 
     /** The item drawn on it. */
     @Nonnull
     public OwnerTile icon(@Nullable String itemId) {
-        return new OwnerTile(owner, id, title, order, line, itemId, shown, opener, action);
+        return new OwnerTile(owner, id, title, order, line, itemId, shown, opener, action, help);
     }
 
     /** Who sees it, past the owner audience (asked at every paint and every press). */
     @Nonnull
     public OwnerTile shownWhen(@Nonnull Predicate<OwnerViewer> rule) {
-        return new OwnerTile(owner, id, title, order, line, icon, rule, opener, action);
+        return new OwnerTile(owner, id, title, order, line, icon, rule, opener, action, help);
+    }
+
+    /**
+     * The help topics it carries, in order (replacing any it had): the menu's Help lists it, and pressing it there shows
+     * them over a button that opens its screen. None for a tile with no help.
+     */
+    @Nonnull
+    public OwnerTile help(@Nonnull OwnerHelp... topics) {
+        return new OwnerTile(owner, id, title, order, line, icon, shown, opener, action, List.of(topics));
     }
 
     @Nonnull
@@ -146,6 +160,17 @@ public final class OwnerTile {
     @Nullable
     public String icon() {
         return icon;
+    }
+
+    /** The help topics it carries itself ({@link OwnerMenu#topics} adds those another mod gave it). */
+    @Nonnull
+    public List<OwnerHelp> help() {
+        return help;
+    }
+
+    /** Does it open a screen (rather than act in place)? */
+    public boolean opens() {
+        return opener != null;
     }
 
     /** Does its rule let {@code viewer} see it? A rule that throws hides it. */

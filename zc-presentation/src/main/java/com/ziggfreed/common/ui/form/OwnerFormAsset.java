@@ -57,8 +57,10 @@ import com.ziggfreed.common.progress.gate.StoreGates;
  * entries it lists; a path is dotted letters and digits, so no form reaches a reserved {@code $} key, and an id an
  * owner types is held to the store's id pattern before anything is written. A top-level {@code Requires} follows the
  * mod gate (a plain mod-presence check keeps the form out where that mod is missing) and asks the rest of the owner
- * each time the menu lists it. Every leaf is nullable and inherited through {@code Parent}; the server owner can retune
- * a form in {@code mods/ziggfreedcommon/owner-forms.json}.
+ * each time the menu lists it. A field's own {@code Requires} narrows who of the owners sees and writes that one setting
+ * (a switch only the server's operators may flip), asked whole each time the form is drawn and at every save. Every leaf
+ * is nullable and inherited through {@code Parent}; the server owner can retune a form in
+ * {@code mods/ziggfreedcommon/owner-forms.json}.
  *
  * <p>A form may also name what a mod registered in code for it: an {@code Audit} ({@link OwnerFormAudits}, the
  * problems a content audit finds in the files the form edits, counted on the form) and a {@code Preview}
@@ -408,6 +410,7 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
         @Nullable protected Double min;
         @Nullable protected Double max;
         @Nullable protected Choice[] choices;
+        @Nullable protected GateSpec requires;
 
         public static final BuilderCodec<Field> CODEC = BuilderCodec.builder(Field.class, Field::new)
                 .append(new KeyedCodec<>("Path", Codec.STRING, false),
@@ -423,7 +426,8 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
                         "Chance", "A number from 0 to 1, written as a decimal.",
                         "List", "Words split by commas, written as a list.",
                         "Switch", "On or off, written as true or false.",
-                        "Choice", "One of the field's Choices, written as its Value."))
+                        "Choice", "One of the field's Choices, written as its Value.",
+                        "Signed", "A number of any sign (under 0 too), written as a decimal."))
                 .documentation("What the setting is, which decides its control and how it is written: match the "
                         + "type the file's reader expects (Whole for a whole number, Number for a decimal).").add()
                 .append(new KeyedCodec<>("Label", Codec.STRING, false),
@@ -441,9 +445,21 @@ public final class OwnerFormAsset implements JsonAssetWithMap<String, DefaultAss
                 .append(new KeyedCodec<>("Choices", new ArrayCodec<>(Choice.CODEC, Choice[]::new), false),
                         (o, v) -> o.choices = v, o -> o.choices)
                 .documentation("For a Choice, the values it may take, in order, each with its words.").add()
+                .append(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
+                        (o, v) -> o.requires = v, o -> o.requires)
+                .documentation("Who of the owners may see and change this one setting, in the Requires shape quests "
+                        + "use, every condition asked of the owner each time the form is drawn and at every save "
+                        + "(a Permission the server's operators alone hold keeps a setting to them). An owner who "
+                        + "does not meet it sees the form without the setting. Leave it out for every owner.").add()
                 .build();
 
         public Field() {
+        }
+
+        /** Who of the owners may see and change this setting, or null for every owner. */
+        @Nullable
+        public GateSpec requires() {
+            return requires == null || requires.isEmpty() ? null : requires;
         }
 
         /** The path, trimmed, or null. */

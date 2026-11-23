@@ -77,6 +77,29 @@ public final class OwnerForms {
     }
 
     /**
+     * May this player see and change the one setting {@code field}: does its own {@code Requires} pass for them, every
+     * condition asked? A field writing none passes; no player, or a block that throws (one warning), fails.
+     */
+    public static boolean fieldShownTo(@Nonnull OwnerFormAsset.Field field, @Nullable PlayerRef playerRef,
+            @Nullable Player player) {
+        GateSpec requires = field.requires();
+        if (requires == null) {
+            return true;
+        }
+        Subject subject = Subject.of(playerRef, player);
+        if (subject == null) {
+            return false;
+        }
+        try {
+            return StoreGates.passes(requires, GateQuery.of(subject));
+        } catch (Throwable t) {
+            SafeLog.warn("[owner] the setting " + field.path() + " could not ask its Requires, so it is left off: "
+                    + t.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Open the form {@code formId} names for {@code viewer}, its Back returning to the owner menu with {@code menuFirst}
      * at the front. False when the form is gone, the audience or the form's {@code Requires} refuses, it offers nothing,
      * or the open threw.

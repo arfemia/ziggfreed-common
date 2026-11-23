@@ -322,3 +322,19 @@ owner.form.entries.unkeyed = {0} is not a file of entries by id, so this screen 
 # owner.form.audit.problems {0} is how many.
 owner.form.audit.none = No problems found in these files.
 owner.form.audit.problems = {0, number} {0, plural, one {problem} other {problems}} found in these files.
+
+# OE1 O6: a setting of any sign, a setting only some owners may change, and help as a topic on each tile of the owner
+# menu (its Help button, and a tile's help page). In owner.form.bad.signed and owner.form.locked {0} is the setting.
+owner.form.bad.signed = {0} needs a number.
+owner.form.locked = You cannot change {0}.
+owner.menu.help = Help
+owner.menu.help.done = Back to the settings
+owner.menu.help.tagline = Pick a screen to read what it does and how to use it.
+owner.menu.help.empty = No screen here has help yet.
+owner.help.overview = Overview
+owner.help.how = How it works
+owner.help.examples = Examples
+owner.help.tips = Tips
+owner.help.back = Back
+owner.help.open = Open the screen
+owner.help.missing = That help is not on this server any more.

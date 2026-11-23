@@ -1,0 +1,64 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// A tile's help on the owner menu (com.ziggfreed.common.ui.owner.OwnerHelpPage): the frame's hero filled by the tile's
+// title and line, then each help topic the tile carries (Pages/ZigOwnerHelpTopic.ui, appended into #OwnerHelpTopics,
+// which MUST stay childless here), in the words of the mod that gave the topic. Back returns to the menu's Help; Open
+// opens the tile's screen and shows only for a tile that opens one. #OwnerHelpStatus is the line a screen that would not
+// open answers on. Every pushed word is on .TextSpans; OwnerHelpPaint paints it all, which KitSelectorsTest walks.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 960, Height: 820);
+
+  #Content {
+    Label #OwnerHelpStatus {
+      Visible: false;
+      Text: "";
+      Anchor: (Bottom: 8);
+      Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    Group #OwnerHelpTopics {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 12);
+    }
+
+    Group #OwnerHelpFooter {
+      LayoutMode: Left;
+      Anchor: (Height: 40, Top: 12);
+
+      Button #OwnerHelpBack {
+        Anchor: (Width: 180, Height: 40);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.owner.help.back;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Button #OwnerHelpOpen {
+        Anchor: (Width: 220, Height: 40);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.owner.help.open;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

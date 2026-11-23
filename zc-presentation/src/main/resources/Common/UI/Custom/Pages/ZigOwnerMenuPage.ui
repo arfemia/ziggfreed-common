@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 
 // The owner menu (com.ziggfreed.common.ui.owner.OwnerMenuPage, /zigadmin; a consumer's own admin command opens it with
 // its section first): one section per mod, each the Settings tab's own section card (Pages/ZigSettingsSection.ui)
@@ -9,6 +10,9 @@ $ZX = "../Common/ZigText.ui";
 // does. #OwnerMenuSections is the appendable list and MUST stay childless here. Every word is pushed from Java on
 // .TextSpans (ziggfreedcommon.ui.lang owner.*, and each tile's own words); every appended piece is painted by
 // OwnerMenuPaint, which KitSelectorsTest walks.
+//
+// #OwnerMenuBar holds the Help button, shown only while a tile the owner sees carries a help topic: it draws the menu
+// again with only those tiles (a press opening the tile's topics, Pages/ZigOwnerHelpPage.ui), then leads back out.
 
 $C.@PageOverlay {}
 
@@ -17,6 +21,27 @@ $F.@ZigDecoratedFrame {
   Anchor: (Width: 1000, Height: 820);
 
   #Content {
+    Group #OwnerMenuBar {
+      Visible: false;
+      LayoutMode: Left;
+      Anchor: (Height: 36, Bottom: 8);
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Button #OwnerMenuHelp {
+        Anchor: (Width: 260, Height: 36);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: %ziggfreedcommon.ui.owner.menu.help;
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+
     Label #OwnerMenuStatus {
       Visible: false;
       Text: "";
