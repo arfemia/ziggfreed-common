@@ -1,12 +1,18 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 
 // The progression admin page (com.ziggfreed.common.objectives.admin.ProgressionAdminPage): one row
 // per registered progression-system switch, each an appended Pages/ZigFormToggleRow.ui (the shared
 // settings-form toggle row) painted from Java - label, live server-wide state, and an on/off toggle
 // where the switch is writable (a read-only row is tinted locked and carries no binding).
+//
+// On the band, the page's title and subtitle are the frame's hero (the gold title and the line under the game's
+// rule, ui/kit/HeroPainter), so this document declares neither. #SwitchPanel sits on the game's inset panel
+// (ContainerPanelPatch.png), the panel a consumer's theme retints by its Background. Every colour is a
+// Common/ZigTokens.ui token, every size a Common/ZigType.ui step, every button a kit state style.
 //
 // #Rows is the appendable list container and MUST stay childless here: rows are addressed by
 // indexed parent ("#Rows[0] #Toggle"), so a pre-authored child would shift every index. #Empty is
@@ -21,101 +27,87 @@ $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
   @Ornaments = true;
-  Anchor: (Width: 700, Height: 620);
+  Anchor: (Width: 700, Height: 690);
 
   #Content {
     Anchor: (Top: 0);
     LayoutMode: Top;
     Padding: (Full: 18);
 
-    Label #Title {
-      Text: "";
-      Anchor: (Height: 32, Bottom: 2);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
-    }
-
-    Label #Subtitle {
-      Text: "";
-      Anchor: (Height: 20, Bottom: 10);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center);
-    }
-
-    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
-
     Group #SwitchPanel {
       FlexWeight: 1;
       LayoutMode: Top;
-      Padding: (Full: 12);
+      Padding: (Full: $ZK.@ZigSpace3);
       Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
 
       Group #Rows {
         FlexWeight: 1;
         LayoutMode: TopScrolling;
         ScrollbarStyle: $C.@DefaultScrollbarStyle;
-        Padding: (Right: 4);
+        Padding: (Right: $ZK.@ZigSpace1);
       }
 
       Label #Empty {
         Text: "";
         Visible: false;
-        Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Anchor: (Height: 40, Top: $ZK.@ZigSpace2);
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
     // The in-game editors this page opens, a row of their own above the footer, each button shown from Java only
     // while its wizard is registered.
     Group #Editors {
-      Anchor: (Height: 36, Top: 12);
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace3);
       LayoutMode: Left;
 
       Button #QuestEditorButton {
         Visible: false;
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 180, Height: 32, Right: 8);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Anchor: (Width: 180, Height: $ZK.@ZigActionHeight, Right: $ZK.@ZigSpace2);
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
 
       Button #ReputationEditorButton {
         Visible: false;
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 200, Height: 32, Right: 8);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Anchor: (Width: 200, Height: $ZK.@ZigActionHeight, Right: $ZK.@ZigSpace2);
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
 
       Button #AchievementEditorButton {
         Visible: false;
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 200, Height: 32);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Anchor: (Width: 200, Height: $ZK.@ZigActionHeight);
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
     }
 
     Group #Footer {
-      Anchor: (Height: 36, Top: 8);
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace2);
       LayoutMode: Left;
 
       Group { FlexWeight: 1; }
 
       Button #BackButton {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 140, Height: 32);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Anchor: (Width: 140, Height: $ZK.@ZigActionHeight);
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
     }

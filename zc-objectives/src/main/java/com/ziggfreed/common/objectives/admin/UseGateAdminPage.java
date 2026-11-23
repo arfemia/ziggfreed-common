@@ -33,6 +33,8 @@ import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.RefusalLines;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.usegate.ItemLevelTags;
@@ -108,8 +110,8 @@ public final class UseGateAdminPage extends ToastablePage<UseGateAdminEventData>
         events.addEventBinding(CustomUIEventBindingType.Activating, "#BackButton",
                 EventData.of("Action", "back"));
 
-        cmd.set("#Title.TextSpans", msg("usegates.title"));
-        cmd.set("#Subtitle.TextSpans", msg("usegates.subtitle"));
+        // The title and subtitle are the band frame's hero: the gold title, the line under the game's rule.
+        HeroPainter.paint(cmd, new Hero(null, msg("usegates.title"), null, msg("usegates.subtitle")));
         ZigRichButton.text(cmd, "#BackButton", msg("page.back"));
         ZigRichButton.text(cmd, "#PrevButton", msg("usegates.prev"));
         ZigRichButton.text(cmd, "#NextButton", msg("usegates.next"));

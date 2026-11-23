@@ -27,6 +27,9 @@ import com.ziggfreed.common.reputation.authoring.ReputationWizard;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -66,12 +69,13 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
     /** The editor row's button that opens the achievement editor. */
     private static final String ACHIEVEMENT_EDITOR_BUTTON = "#AchievementEditorButton";
 
-    // The two paints SettingsUiUtil.setToggle does not cover: a read nobody could make (amber
-    // "?") and a switch this page may show but never flip (muted steel, no binding).
-    private static final String UNKNOWN_BG = "#4a4436";
-    private static final String UNKNOWN_LABEL = "#e0c36a";
-    private static final String LOCKED_BG = "#232b36";
-    private static final String LOCKED_LABEL = "#8696a8";
+    // The two paints SettingsUiUtil.setToggle does not cover, both the kit's tones (ZigTokens, a tint over the
+    // game's patch, so opaque): a read nobody could make (the available tone's amber "?") and a switch this page may
+    // show but never flip (the blocked tone's steel, no binding).
+    private static final String UNKNOWN_BG = ZigTokens.TONE_AVAILABLE_FILL;
+    private static final String UNKNOWN_LABEL = ZigTokens.TONE_AVAILABLE_TEXT;
+    private static final String LOCKED_BG = ZigTokens.TONE_BLOCKED_FILL;
+    private static final String LOCKED_LABEL = ZigTokens.TONE_BLOCKED_TEXT;
 
     /** The deps resolved for THIS open, so build and its event handlers read one consistent set. */
     @Nonnull private ProgressionAdminDeps deps = ProgressionAdminDeps.DEFAULTS;
@@ -97,8 +101,8 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
         events.addEventBinding(CustomUIEventBindingType.Activating, "#BackButton",
                 EventData.of("Action", "back"));
 
-        cmd.set("#Title.TextSpans", msg("page.title"));
-        cmd.set("#Subtitle.TextSpans", msg("page.subtitle"));
+        // The title and subtitle are the band frame's hero: the gold title, the line under the game's rule.
+        HeroPainter.paint(cmd, new Hero(null, msg("page.title"), null, msg("page.subtitle")));
         ZigRichButton.text(cmd, "#BackButton", msg("page.back"));
         paintEditor(cmd, events, QUEST_EDITOR_BUTTON, QuestWizard.ID, "page.quest_editor");
         paintEditor(cmd, events, EDITOR_BUTTON, ReputationWizard.ID, "page.editor.reputation");

@@ -1,119 +1,142 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$M = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 
-// Generic end-of-game results screen (com.ziggfreed.common.instance.result.ResultsPage):
-// outcome header, team-grouped per-player rows (Pages/ZigResultRow.ui), the viewer's
-// score-column breakdown, the reward strip (Pages/ZigResultChip.ui), and footer CTAs.
-// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+// Generic end-of-game results screen (com.ziggfreed.common.instance.result.ResultsPage), on the band
+// (@ZigDecoratedFrame), 1000 x 800: the outcome in the display title (its colour the outcome's own, pushed from Java
+// off the kit's tones), the run's length, then two columns: the team-grouped per-player rows on the left
+// (Pages/ZigResultRow.ui) and the viewer's points and run stats on the right, under the kit's heads. Under them the
+// rewards as the kit's reward cards (ui/kit/TilePainter.rewardCards into #RewardList, a wrapping grid that scrolls past
+// one row), then the Claim button and the footer. Shipped once in ziggfreed-common; neutral Zig* ids. Every colour
+// is a Common/ZigTokens.ui token, every size a Common/ZigType.ui step. Smoke-test in-game.
 
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 700, Height: 826);
+  Anchor: (Width: 1000, Height: 800);
 
   #Content {
     Label #OutcomeTitle {
       Text: "";
-      Anchor: (Height: 34, Bottom: 2);
-      Style: (FontSize: $ZT.@ZigFontDisplayLarge, TextColor: #ffd700, RenderBold: true, HorizontalAlignment: Center);
+      Anchor: (Height: 44);
+      Style: (...$ZX.@ZigDisplayTitleStyle, HorizontalAlignment: Center);
     }
     Label #Duration {
       Text: "";
-      Anchor: (Height: 18, Bottom: 8);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center);
+      Anchor: (Height: 18, Top: $ZK.@ZigSpace1, Bottom: $ZK.@ZigSpace3);
+      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center);
     }
 
-    Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
-
-    // Team-grouped per-player rows (scrolls past ~4 rows for a large party).
-    Group #ResultsList {
-      Anchor: (Height: 130, Bottom: 10);
-      LayoutMode: TopScrolling;
-      ScrollbarStyle: $C.@DefaultScrollbarStyle;
-      Padding: (Right: 4);
+    Group #OutcomeRule {
+      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace3);
+      Background: (Color: $ZK.@ZigDivider);
     }
 
-    // Point breakdown - how the score was earned (5 rows: Base + the score components).
-    Label #BreakdownTitle {
-      Text: "";
-      Anchor: (Height: 20, Bottom: 4);
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true);
-    }
-    Group #BreakdownList {
-      Anchor: (Height: 158, Bottom: 8);
-      LayoutMode: TopScrolling;
-      ScrollbarStyle: $C.@DefaultScrollbarStyle;
-      Padding: (Right: 4);
-    }
+    Group #RunColumns {
+      LayoutMode: Left;
+      Anchor: (Height: 344, Bottom: $ZK.@ZigSpace3);
 
-    // Run stats - raw per-run activity (a second section below the points).
-    Label #StatsTitle {
-      Text: "";
-      Anchor: (Height: 20, Bottom: 4);
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true);
-    }
-    Group #StatsList {
-      Anchor: (Height: 126, Bottom: 8);
-      LayoutMode: TopScrolling;
-      ScrollbarStyle: $C.@DefaultScrollbarStyle;
-      Padding: (Right: 4);
+      // Team-grouped per-player rows (scrolls past eleven rows for a large party).
+      Group #ResultsList {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: $ZK.@ZigSpace1);
+      }
+
+      Group #ScoreColumn {
+        Anchor: (Width: 470, Left: $ZK.@ZigSpace5);
+        LayoutMode: Top;
+
+        // Point breakdown - how the score was earned (5 rows: Base + the score components).
+        Label #BreakdownTitle {
+          Text: "";
+          Anchor: (Height: 22, Bottom: $ZK.@ZigSpace1);
+          Style: $ZX.@ZigHeadStyle;
+        }
+        Group #BreakdownList {
+          Anchor: (Height: 155, Bottom: $ZK.@ZigSpace2);
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Right: $ZK.@ZigSpace1);
+        }
+
+        // Run stats - raw per-run activity (a second section below the points).
+        Label #StatsTitle {
+          Text: "";
+          Anchor: (Height: 22, Bottom: $ZK.@ZigSpace1);
+          Style: $ZX.@ZigHeadStyle;
+        }
+        Group #StatsList {
+          Anchor: (Height: 124);
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Right: $ZK.@ZigSpace1);
+        }
+      }
     }
 
     Label #RewardsTitle {
       Text: "";
-      Anchor: (Height: 20, Bottom: 4);
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true);
+      Anchor: (Height: 22, Bottom: $ZK.@ZigSpace1);
+      Style: $ZX.@ZigHeadStyle;
     }
-    // Reward chips flow left and WRAP onto further rows (LeftCenterWrap) instead of running off
-    // the panel edge - the height holds up to three rows of pills; the consumer merges duplicate
-    // rewards (InstanceReward.merge) so a typical run is one short row.
-    Group #RewardList {
-      LayoutMode: LeftCenterWrap;
-      Anchor: (Height: 104, Bottom: 4);
+    // The reward cards flow left to right and wrap onto further rows, one row of cards high, scrolling past it; the
+    // consumer merges duplicate rewards (InstanceReward.merge) so a typical run is one row. Hidden when there is no
+    // card to show (a preview, or nothing won), so the note under the head takes its place.
+    Group #RewardScroll {
+      Anchor: (Height: 188, Bottom: $ZK.@ZigSpace1);
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: $ZK.@ZigSpace1);
+
+      Group #RewardList {
+        LayoutMode: LeftCenterWrap;
+      }
     }
     Label #NoRewards {
       Text: "";
       Visible: false;
-      Anchor: (Height: 18, Bottom: 4);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8);
+      Anchor: (Height: 18, Bottom: $ZK.@ZigSpace1);
+      Style: $ZX.@ZigCaptionStyle;
     }
     Label #PendingNote {
       Text: "";
       Visible: false;
       Anchor: (Height: 18, Bottom: 6);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #e0a030);
+      Style: (...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigToneCollectText);
     }
 
-    // Claim button (full-width, the primary action) + footer CTAs. Each is a Button holding a Label #Label
-    // whose words go on .TextSpans (ZigRichButton).
+    // Claim button (full-width, the primary action, the kit's Collect) + footer CTAs. Each is a Button holding a
+    // Label #Label whose words go on .TextSpans (ZigRichButton).
     Button #ClaimBtn {
-      Anchor: (Height: 40, Top: 4, Bottom: 8);
-      Style: $M.@ZigRichPrimaryBtnStyle;
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace1, Bottom: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigButtonCollectStyle;
       Visible: false;
       Label #Label {
         FlexWeight: 1;
         Text: "";
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Style: $ZX.@ZigButtonLabelStyle;
       }
     }
     Group #FooterRow {
       LayoutMode: Left;
-      Anchor: (Height: 36);
+      Anchor: (Height: $ZK.@ZigActionHeight);
       Button #ViewLbBtn {
         FlexWeight: 1;
-        Anchor: (Height: 36);
-        Style: $M.@ZigRichPrimaryBtnStyle;
+        Anchor: (Height: $ZK.@ZigActionHeight);
+        Style: $ZS.@ZigButtonSecondaryStyle;
         Visible: false;
-        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
+        Label #Label { FlexWeight: 1; Text: ""; Style: $ZX.@ZigButtonLabelStyle; }
       }
       Button #PlayAgainBtn {
         FlexWeight: 1;
-        Anchor: (Height: 36, Left: 6);
-        Style: $M.@ZigRichPrimaryBtnStyle;
+        Anchor: (Height: $ZK.@ZigActionHeight, Left: $ZK.@ZigSpace2);
+        Style: $ZS.@ZigButtonPrimaryStyle;
         Visible: false;
-        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
+        Label #Label { FlexWeight: 1; Text: ""; Style: $ZX.@ZigButtonLabelStyle; }
       }
     }
   }

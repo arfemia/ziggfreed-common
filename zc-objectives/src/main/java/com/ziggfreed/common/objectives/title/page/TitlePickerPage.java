@@ -47,6 +47,8 @@ import com.ziggfreed.common.ui.kit.DetailLine;
 import com.ziggfreed.common.ui.kit.DetailPainter;
 import com.ziggfreed.common.ui.kit.EmptyState;
 import com.ziggfreed.common.ui.kit.EmptyStatePainter;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
 import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.ui.kit.Progress;
 import com.ziggfreed.common.ui.kit.Tick;
@@ -109,9 +111,9 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
         tiles = List.of();
         Plan plan = readPlan(ref);
 
-        cmd.set("#Title.TextSpans", TitleText.picker("title"));
-        cmd.set("#Subtitle.TextSpans", TitleOwnerLayers.chat()
-                ? TitleText.picker("subtitle_chat") : TitleText.picker("subtitle"));
+        // The title and subtitle are the band frame's hero: the gold title, the line under the game's rule.
+        HeroPainter.paint(cmd, new Hero(null, TitleText.picker("title"), null, TitleOwnerLayers.chat()
+                ? TitleText.picker("subtitle_chat") : TitleText.picker("subtitle")));
         cmd.set("#Preview.TextSpans", preview());
         ZigRichButton.text(cmd, "#BackButton", TitleText.picker("back"));
         ZigRichButton.text(cmd, "#ShowNone", TitleText.picker("show_none"));

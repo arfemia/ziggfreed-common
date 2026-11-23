@@ -30,6 +30,8 @@ import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
 import com.ziggfreed.common.ui.hud.panel.HudPanelOwnerWriter;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Row;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -91,8 +93,8 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         draft.clear();
         rows = 0;
 
-        cmd.set("#Title.TextSpans", msg("title"));
-        cmd.set("#Subtitle.TextSpans", msg("subtitle"));
+        // The title and subtitle are the band frame's hero: the gold title, the line under the game's rule.
+        HeroPainter.paint(cmd, new Hero(null, msg("title"), null, msg("subtitle")));
         render(cmd, events, HudSettingsRows.server(panelIds(), HudPanelConfig.getInstance()));
 
         ZigRichButton.text(cmd, "#BackButton", msg("back"));

@@ -1,17 +1,19 @@
-$C = "../Common.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
 
-// One queue roster row (appended into #RosterList; see QueuePage). The initiator's
-// name is tinted from Java. Colour-only; no textures.
+// One queue roster row (appended into #RosterList; see PlayModePage): a player's name on the kit's row surface. The
+// initiator's name is tinted from Java with the kit's lit gold (ZigTokens.MARK_LIT), on the Label's own style.
 
 Group #ZigQueueRosterRow {
   LayoutMode: Left;
-  Anchor: (Height: 32, Bottom: 3);
+  Anchor: (Height: 36, Bottom: $ZK.@ZigSpace1);
+  Padding: (Horizontal: $ZK.@ZigSpace3);
+  Background: (Color: $ZK.@ZigSurfaceRow);
 
   Label #RowName {
     FlexWeight: 1;
-    Padding: (Left: 12);
+    Anchor: (Height: 36);
     Text: "";
-    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center);
+    Style: $ZX.@ZigRowTitleStyle;
   }
 }

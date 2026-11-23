@@ -7,10 +7,9 @@ $ZS = "../Common/ZigStyles.ui";
 
 // The authoring wizard (com.ziggfreed.common.authoring.AuthoringWizardPage): the one frame every in-game editor
 // opens in, a numbered step at a time, with the step's settings rows on the left and what is being made on the
-// right.
+// right. On the band, the wizard's name and its step line ("Step 2 of 3: Rewards") are the frame's hero (the gold
+// title and the copper tagline under it, ui/kit/HeroPainter), so this document declares neither.
 //
-//   #Title          the wizard's name
-//   #StepLine       "Step 2 of 3: Rewards"
 //   #PickerSearch   the shared search row, shown only on a step with a picker: it narrows every picker's list
 //   #Form           the step's Pages/ZigForm*Row.ui rows, appended by SettingsForm (MUST stay childless: rows are
 //                   addressed by indexed parent, "#Form[2] #Field")
@@ -26,26 +25,9 @@ $ZS = "../Common/ZigStyles.ui";
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 1040, Height: 720);
+  Anchor: (Width: 1040, Height: 775);
 
   #Content {
-    Label #Title {
-      Anchor: (Bottom: $ZK.@ZigSpace1);
-      Text: "";
-      Style: $ZX.@ZigTitleStyle;
-    }
-
-    Label #StepLine {
-      Anchor: (Bottom: $ZK.@ZigSpace2);
-      Text: "";
-      Style: $ZX.@ZigCaptionStyle;
-    }
-
-    Group #TitleRule {
-      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace3);
-      Background: (Color: $ZK.@ZigDivider);
-    }
-
     Group #Body {
       FlexWeight: 1;
       LayoutMode: Left;

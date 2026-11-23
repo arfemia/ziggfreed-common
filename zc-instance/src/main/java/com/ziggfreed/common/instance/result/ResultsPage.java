@@ -1,5 +1,6 @@
 package com.ziggfreed.common.instance.result;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -12,8 +13,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -21,8 +20,12 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.kit.DetailLine;
+import com.ziggfreed.common.ui.kit.TilePainter;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -34,7 +37,8 @@ import com.ziggfreed.common.util.NumberFormatter;
  * {@link MatchResult} snapshot the consumer builds at its resolve choke-point: an outcome
  * header (tinted by {@link ResultKind}), the team-grouped per-player score breakdown (the
  * viewer highlighted, MVP/medal tinted), the viewer's score-column breakdown, the granted
- * / pending reward chips, and footer CTAs (View Leaderboard / Play Again / Close).
+ * / pending rewards as the kit's reward cards ({@link TilePainter#rewardCards}), and footer CTAs (View Leaderboard /
+ * Play Again / Close). Every colour it pushes is a kit token ({@link ZigTokens}).
  *
  * <p>Consumer policy (the chrome {@link ResultsMessages}, the {@link ResultsActions}
  * footer handlers) is supplied through {@link ResultsPageDeps}; the page is mod-agnostic.
@@ -45,7 +49,6 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigResultsPage.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigResultRow.ui";
-    private static final String CHIP_TEMPLATE = "Pages/ZigResultChip.ui";
 
     private final MatchResult result;
     private final ResultsPageDeps deps;
@@ -86,13 +89,14 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         cmd.set("#OutcomeTitle.Style.TextColor", outcomeColor(result.kind()));
         cmd.set("#Duration.TextSpans", t.duration(result.durationSeconds()));
 
-        // Team-grouped per-player rows.
+        // Team-grouped per-player rows: a team's line in the head ink, the MVP in gold, the viewer's own row on the
+        // kit's warm selected row with the name white, everyone else in the strong ink (every one a kit token).
         boolean multiTeam = result.teams().size() > 1;
         int row = 0;
         PlayerResultRow viewerRow = null;
         for (TeamResult team : result.teams()) {
             if (multiTeam && team.teamLabel() != null) {
-                appendRow(cmd, row++, team.teamLabel(), t.teamTotal(team.teamTotal()), "#ffd97a");
+                appendRow(cmd, row++, team.teamLabel(), t.teamTotal(team.teamTotal()), ZigTokens.INK_SECTION);
             }
             for (PlayerResultRow pr : team.rows()) {
                 if (pr.isViewer()) {
@@ -100,11 +104,12 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
                 }
                 // The name is the library's display name (a Message, so setCell puts it on TextSpans);
                 // the score is plain locale-neutral data.
-                String color = pr.isMvp() ? "#ffd700" : (pr.isViewer() ? "#5ab0ff" : "#d7e4f0");
+                String color = pr.isMvp() ? ZigTokens.ACCENT
+                        : (pr.isViewer() ? ZigTokens.INK_BRIGHT : ZigTokens.INK_STRONG);
                 String sel = appendRow(cmd, row++, PlayerDisplayNames.displayName(pr.uuid(), null),
                         NumberFormatter.grouped(pr.primaryScore()), color);
                 if (pr.isViewer()) {
-                    cmd.set(sel + ".Background", "#1a3d4a");
+                    UiRetint.fill(cmd, sel, ZigTokens.SURFACE_ROW_SELECTED);
                 }
             }
         }
@@ -133,10 +138,13 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             }
         }
 
-        // Reward strip: a preview note (in-instance), the no-spoils line, or the claimable spoils chips.
-        // Nothing is granted on render - the player presses Claim (a manual claim, full-inventory guarded).
+        // Reward strip: a preview note (in-instance), the no-spoils line, or the claimable spoils as the kit's reward
+        // cards (an item on its quality's slot art with its own tooltip, anything else the gold card), none of them
+        // bound. Nothing is granted on render - the player presses Claim (a manual claim, full-inventory guarded).
         cmd.set("#RewardsTitle.TextSpans", t.rewardsTitle());
         List<RewardChip> chips = result.rewards();
+        boolean cards = rewardsPreviewNote == null && !chips.isEmpty();
+        cmd.set("#RewardScroll.Visible", cards);
         if (rewardsPreviewNote != null) {
             cmd.set("#NoRewards.Visible", true);
             cmd.set("#NoRewards.TextSpans", rewardsPreviewNote);
@@ -144,23 +152,18 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             cmd.set("#NoRewards.Visible", true);
             cmd.set("#NoRewards.TextSpans", t.noRewards());
         } else {
-            for (int i = 0; i < chips.size(); i++) {
-                RewardChip chip = chips.get(i);
-                cmd.append("#RewardList", CHIP_TEMPLATE);
-                String sel = "#RewardList[" + i + "]";
-                String icon = chip.iconItemId();
-                if (icon != null && !icon.isEmpty()) {
-                    cmd.set(sel + " #ChipIcon.Visible", true);
-                    cmd.set(sel + " #ChipIcon.Slots", List.of(new ItemGridSlot(new ItemStack(icon, 1))));
-                }
-                cmd.set(sel + " #ChipLabel.TextSpans", chip.label()); // composite Message (name + amount) -> TextSpans
+            List<DetailLine> lines = new ArrayList<>(chips.size());
+            for (RewardChip chip : chips) {
+                lines.add(DetailLine.reward(chip, null)); // composite Message (name + amount) -> TextSpans
             }
-            // After a claim, the note replaces the (now-hidden) Claim button: green = all delivered,
-            // amber = some held for a later claim (a full inventory at claim time).
+            TilePainter.rewardCards(cmd, events, "#RewardList", lines, line -> null);
+            // After a claim, the note replaces the (now-hidden) Claim button: the done tone = all delivered,
+            // the collect tone = some held for a later claim (a full inventory at claim time).
             if (claimed) {
                 cmd.set("#PendingNote.Visible", true);
                 cmd.set("#PendingNote.TextSpans", claimAllSucceeded ? t.claimedNote() : t.pendingNote());
-                cmd.set("#PendingNote.Style.TextColor", claimAllSucceeded ? "#7ad17a" : "#e0a030");
+                cmd.set("#PendingNote.Style.TextColor",
+                        claimAllSucceeded ? ZigTokens.TONE_DONE_TEXT : ZigTokens.TONE_COLLECT_TEXT);
             }
         }
 
@@ -245,13 +248,17 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         player.getPageManager().setPage(ref, store, Page.None);
     }
 
+    /**
+     * The outcome's colour on the display title, off the kit's tokens: a win in the title's gold, a loss in the
+     * danger tone, a draw in the body ink, an abort in the muted ink.
+     */
     @Nonnull
     private static String outcomeColor(@Nonnull ResultKind kind) {
         return switch (kind) {
-            case WIN -> "#ffd700";
-            case LOSS -> "#e05a5a";
-            case DRAW -> "#b6c9de";
-            case ABORT -> "#8696a8";
+            case WIN -> ZigTokens.MARK_LIT;
+            case LOSS -> ZigTokens.TONE_DANGER_TEXT;
+            case DRAW -> ZigTokens.INK_BODY;
+            case ABORT -> ZigTokens.INK_MUTED;
         };
     }
 }

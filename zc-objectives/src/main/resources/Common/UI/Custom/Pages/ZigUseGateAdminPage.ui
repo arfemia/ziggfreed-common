@@ -1,12 +1,18 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 
 // The Use Gates admin page (com.ziggfreed.common.objectives.admin.UseGateAdminPage): one row per feature the
 // installed use gates hide behind, then one per use gate, each an appended Pages/ZigFormToggleRow.ui (the shared
 // settings-form toggle row) painted from Java - its name, a hint line, and an on/off toggle. A page of rows at a
 // time; #Pager steps through the pages.
+//
+// On the band, the page's title and subtitle are the frame's hero (the gold title and the line under the game's
+// rule, ui/kit/HeroPainter), so this document declares neither. #GatePanel sits on the game's inset panel
+// (ContainerPanelPatch.png), the panel a consumer's theme retints by its Background. Every colour is a
+// Common/ZigTokens.ui token, every size a Common/ZigType.ui step, every button a kit state style.
 //
 // #Rows is the appendable list container and MUST stay childless here: rows are addressed by indexed parent
 // ("#Rows[0] #Toggle"), so a pre-authored child would shift every index. #Empty is the page-level note an
@@ -20,50 +26,36 @@ $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
   @Ornaments = true;
-  Anchor: (Width: 820, Height: 680);
+  Anchor: (Width: 820, Height: 730);
 
   #Content {
     Anchor: (Top: 0);
     LayoutMode: Top;
     Padding: (Full: 18);
 
-    Label #Title {
-      Text: "";
-      Anchor: (Height: 32, Bottom: 2);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
-    }
-
-    Label #Subtitle {
-      Text: "";
-      Anchor: (Height: 36, Bottom: 10);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center, Wrap: true);
-    }
-
-    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
-
     Group #GatePanel {
       FlexWeight: 1;
       LayoutMode: Top;
-      Padding: (Full: 12);
+      Padding: (Full: $ZK.@ZigSpace3);
       Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
 
       Group #Rows {
         FlexWeight: 1;
         LayoutMode: TopScrolling;
         ScrollbarStyle: $C.@DefaultScrollbarStyle;
-        Padding: (Right: 4);
+        Padding: (Right: $ZK.@ZigSpace1);
       }
 
       Label #Empty {
         Text: "";
         Visible: false;
-        Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Anchor: (Height: 40, Top: $ZK.@ZigSpace2);
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
     Group #Footer {
-      Anchor: (Height: 36, Top: 12);
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace3);
       LayoutMode: Left;
 
       Group #Pager {
@@ -71,28 +63,28 @@ $F.@ZigDecoratedFrame {
         Anchor: (Width: 460);
 
         Button #PrevButton {
-          Style: $Z.@ZigRichRowBtnStyle;
-          Anchor: (Width: 130, Height: 32);
+          Style: $ZS.@ZigButtonSecondaryStyle;
+          Anchor: (Width: 130, Height: $ZK.@ZigActionHeight);
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: $ZX.@ZigButtonLabelStyle;
           }
         }
 
         Label #PageLabel {
           Text: "";
-          Anchor: (Width: 180, Height: 32);
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #93a4b8, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Anchor: (Width: 180, Height: $ZK.@ZigActionHeight);
+          Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center);
         }
 
         Button #NextButton {
-          Style: $Z.@ZigRichRowBtnStyle;
-          Anchor: (Width: 130, Height: 32);
+          Style: $ZS.@ZigButtonSecondaryStyle;
+          Anchor: (Width: 130, Height: $ZK.@ZigActionHeight);
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: $ZX.@ZigButtonLabelStyle;
           }
         }
       }
@@ -100,12 +92,12 @@ $F.@ZigDecoratedFrame {
       Group { FlexWeight: 1; }
 
       Button #BackButton {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 140, Height: 32);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Anchor: (Width: 140, Height: $ZK.@ZigActionHeight);
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
     }

@@ -13,8 +13,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -33,6 +31,10 @@ import com.ziggfreed.common.lobby.QueueListener;
 import com.ziggfreed.common.lobby.QueueSnapshot;
 import com.ziggfreed.common.lobby.QueueState;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -65,7 +67,6 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
     private static final String CARD_TEMPLATE = "Pages/ZigPlayModeCard.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigQueueRosterRow.ui";
     private static final int MAX_ROWS = 32;
-    private static final String INITIATOR_COLOR = "#ffd97a";
 
     private final PlayModePageDeps deps;
     /** The difficulty chosen upstream (for the chooser state); null when opened straight into a live queue. */
@@ -94,8 +95,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
         // Labels take TextSpans (the viewer's locale, params filled), and so does every button's #Label:
-        // each button is a ZigRichButton.
-        cmd.set("#Title.TextSpans", t.title());
+        // each button is a ZigRichButton. The title and the difficulty line are the band frame's hero.
 
         MatchmakingQueue queue = deps.lobby().currentQueueOf(playerRef.getUuid());
         if (queue == null) {
@@ -108,16 +108,22 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         renderToastInto(cmd); // LAST: the toast overlay draws on top of the page content.
     }
 
+    /**
+     * The frame's hero: the screen's title in the gold display title, and the difficulty line under it as the copper
+     * tagline. The difficulty carries the preset NAME as a nested Message param, which the hero's painter puts on
+     * TextSpans, the one sink that resolves it client-side (.Text leaves the {0} literal).
+     */
+    private void paintHero(@Nonnull UICommandBuilder cmd, @Nonnull PlayScreenMessages t, @Nullable String preset) {
+        HeroPainter.paint(cmd, new Hero(null, t.title(), t.difficulty(deps.presetName().apply(preset)), null));
+    }
+
     // ==================== chooser state ====================
 
     private void buildChooser(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
                               @Nonnull PlayScreenMessages t) {
         cmd.set("#ModeCards.Visible", true);
         cmd.set("#RosterArea.Visible", false);
-        // TextSpans (not .Text): t.difficulty carries the preset NAME as a nested Message param,
-        // which only resolves client-side on TextSpans (.Text leaves the {0} literal). See
-        // hytale-rich-text-textspans.md / the DialoguePage #NodeText pattern.
-        cmd.set("#Subtitle.TextSpans", t.difficulty(deps.presetName().apply(presetId)));
+        paintHero(cmd, t, presetId);
 
         QueueModeSet modes = deps.modes().apply(presetId);
         List<QueueModeEntry> ordered = modes.enabledOrdered();
@@ -125,15 +131,13 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
             QueueModeEntry e = ordered.get(i);
             cmd.append("#ModeCards", CARD_TEMPLATE);
             String sel = "#ModeCards[" + i + "]";
-            // The glyph is authored in the consumer's /Server/ asset (never baked here); a blank
-            // id (the neutral fallback) draws no glyph rather than a broken icon.
+            // The glyph is authored in the consumer's /Server/ asset (never baked here), drawn as the item's own
+            // picture in the kit's plain picture slot (no item tooltip, so the card keeps its click); a blank id (the
+            // neutral fallback) draws no glyph rather than a broken icon.
             String icon = e.iconItemId();
-            if (icon != null && !icon.isBlank()) {
-                cmd.set(sel + " #CardIcon.Visible", true);
-                cmd.set(sel + " #CardIcon.Slots", List.of(new ItemGridSlot(new ItemStack(icon, 1))));
-            } else {
-                cmd.set(sel + " #CardIcon.Visible", false);
-            }
+            boolean drawn = icon != null && !icon.isBlank()
+                    && IconRenderer.applyPlainIcon(cmd, sel + " #CardIcon", icon, null);
+            cmd.set(sel + " #CardIcon.Visible", drawn);
             ZigRichButton.text(cmd, sel + " #CardBtn", labelFor(e, t));
             cmd.set(sel + " #CardSub.TextSpans", t.modeDesc(e.mode()));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CardBtn",
@@ -169,9 +173,9 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
 
         QueueSnapshot snap = queue.snapshot();
         LobbyConfig cfg = snap.config();
-        // TextSpans (not .Text) on all four Labels: the nested preset-name Message param, and the
+        // TextSpans (not .Text) on all three Labels and the hero: the nested preset-name Message param, and the
         // count, countdown and wait numbers, resolve only on TextSpans (a .Text prints "{0}").
-        cmd.set("#Subtitle.TextSpans", t.difficulty(deps.presetName().apply(snap.key().presetId())));
+        paintHero(cmd, t, snap.key().presetId());
         cmd.set("#PlayerCount.TextSpans", t.playerCount(snap.size(), cfg.maxParty()));
         cmd.set("#Status.TextSpans", statusFor(t, snap));
         cmd.set("#WaitEstimate.TextSpans", t.waitEstimate(cfg.fillTimeoutSeconds() + cfg.countdownSeconds()));
@@ -183,7 +187,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
             // The library's display name (a Message, perhaps a title around the name), on TextSpans.
             cmd.set(sel + " #RowName.TextSpans", PlayerDisplayNames.displayName(members.get(i), null));
             if (i == 0) {
-                cmd.set(sel + " #RowName.Style.TextColor", INITIATOR_COLOR); // initiator
+                cmd.set(sel + " #RowName.Style.TextColor", ZigTokens.MARK_LIT); // the initiator, in the kit's gold
             }
         }
 

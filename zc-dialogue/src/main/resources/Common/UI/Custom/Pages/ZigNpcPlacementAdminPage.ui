@@ -1,16 +1,20 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$Z = "../Common/ZigButtons.ui";
 $S = "../Common/ZigSearchRow.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 
 // The NPC placement admin page (com.ziggfreed.common.npc.placement.admin.NpcPlacementAdminPage).
-// Two stacked panels, each painted from Java:
+// On the band, the page's title and subtitle are the frame's hero (the gold title and the line under the game's
+// rule, ui/kit/HeroPainter), so this document declares neither. Then two stacked panels, each on the game's inset
+// panel (ContainerPanelPatch.png, the panels a consumer's theme retints by their Background) and painted from Java:
 //
 //   #PlacementPanel  what should be standing in this world. One appended
 //                    Pages/ZigFormToggleRow.ui per placement - id and role on #Title, the live
 //                    state on #Hint, and the owner on/off switch on #Toggle (a denied placement is
-//                    retinted and reads "blocked", since its gate, not the switch, is what stops it).
+//                    retinted in the kit's danger tone and reads "blocked", since its gate, not the
+//                    switch, is what stops it).
 //   #PlacePanel      stand a new one where you are. #RoleSearch is the shared search row (type,
 //                    press Search) filtering the roles this server can actually spawn; each match
 //                    is an appended Pages/ZigListRow.ui whose #EditBtn places it, with the role's
@@ -21,7 +25,7 @@ $ZT = "../Common/ZigType.ui";
 // addressed by indexed parent ("#Rows[0] #Toggle"), so a pre-authored child would shift every
 // index. #Empty and #NoRoles are the page-level notes shown instead of rows. All text is set from
 // Java on .TextSpans (no inline %key; placeholders), and every labeled button is a Button + inner
-// #Label.
+// #Label. Every colour is a Common/ZigTokens.ui token, every size a Common/ZigType.ui step.
 //
 // Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
 
@@ -30,104 +34,90 @@ $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
   @Ornaments = true;
-  Anchor: (Width: 760, Height: 660);
+  Anchor: (Width: 760, Height: 700);
 
   #Content {
     Anchor: (Top: 0);
     LayoutMode: Top;
     Padding: (Full: 18);
 
-    Label #Title {
-      Text: "";
-      Anchor: (Height: 32, Bottom: 2);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
-    }
-
-    Label #Subtitle {
-      Text: "";
-      Anchor: (Height: 20, Bottom: 10);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center);
-    }
-
-    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
-
     Group #PlacementPanel {
       FlexWeight: 1;
       LayoutMode: Top;
-      Padding: (Full: 12);
+      Padding: (Full: $ZK.@ZigSpace3);
       Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
 
       Label #PlacementsHeading {
         Text: "";
         Anchor: (Height: 22, Bottom: 6);
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, RenderBold: true, VerticalAlignment: Center);
+        Style: $ZX.@ZigHeadStyle;
       }
 
       Group #Rows {
         FlexWeight: 1;
         LayoutMode: TopScrolling;
         ScrollbarStyle: $C.@DefaultScrollbarStyle;
-        Padding: (Right: 4);
+        Padding: (Right: $ZK.@ZigSpace1);
       }
 
       Label #Empty {
         Text: "";
         Visible: false;
-        Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Anchor: (Height: 40, Top: $ZK.@ZigSpace2);
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
     Group #PlacePanel {
-      Anchor: (Height: 250, Top: 12);
+      Anchor: (Height: 250, Top: $ZK.@ZigSpace3);
       LayoutMode: Top;
-      Padding: (Full: 12);
+      Padding: (Full: $ZK.@ZigSpace3);
       Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
 
       Label #PlaceHeading {
         Text: "";
         Anchor: (Height: 22, Bottom: 2);
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, RenderBold: true, VerticalAlignment: Center);
+        Style: $ZX.@ZigHeadStyle;
       }
 
       Label #PlaceHint {
         Text: "";
         Anchor: (Height: 18, Bottom: 6);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, Wrap: true);
+        Style: (...$ZX.@ZigCaptionStyle, Wrap: true);
       }
 
       $S.@ZigSearchRow #RoleSearch {
-        @Anchor = (Bottom: 8);
+        @Anchor = (Bottom: $ZK.@ZigSpace2);
       }
 
       Group #RoleRows {
         FlexWeight: 1;
         LayoutMode: TopScrolling;
         ScrollbarStyle: $C.@DefaultScrollbarStyle;
-        Padding: (Right: 4);
+        Padding: (Right: $ZK.@ZigSpace1);
       }
 
       Label #NoRoles {
         Text: "";
         Visible: false;
         Anchor: (Height: 34, Top: 6);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
     Group #Footer {
-      Anchor: (Height: 36, Top: 12);
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace3);
       LayoutMode: Left;
 
       Group { FlexWeight: 1; }
 
       Button #BackButton {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 140, Height: 32);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Anchor: (Width: 140, Height: $ZK.@ZigActionHeight);
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
     }

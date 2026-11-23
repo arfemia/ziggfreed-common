@@ -1,12 +1,18 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 
 // The server's HUD layout (com.ziggfreed.common.ui.hud.settings.HudSettingsPage), for the audience the
 // consumer registered: per bar panel an on-for-everyone switch, a spot picker and one field per inline
 // leaf (the offsets, the spread, the band, the cut, the least height, the colour), written by #SaveButton
-// into the owner file for everyone. A player's own HUD choices are on the Settings tab.
+// into the owner file for everyone. A player's own HUD choices are on the Settings tab. This page arranges the
+// HUDs; the HUDs themselves keep their own look.
+//
+// On the band, the page's title and subtitle are the frame's hero (the gold title and the line under the game's
+// rule, ui/kit/HeroPainter), so this document declares neither. Every colour is a Common/ZigTokens.ui token, every
+// size a Common/ZigType.ui step, every button a kit state style.
 //
 // #Rows is the appendable list container and MUST stay childless here: rows are the shared
 // Pages/ZigForm*Row.ui templates, addressed by indexed parent ("#Rows[3] #Dropdown"), so a
@@ -20,57 +26,43 @@ $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
   @Ornaments = true;
-  Anchor: (Width: 720, Height: 640);
+  Anchor: (Width: 720, Height: 680);
 
   #Content {
     Anchor: (Top: 0);
     LayoutMode: Top;
     Padding: (Full: 18);
 
-    Label #Title {
-      Text: "";
-      Anchor: (Height: 32, Bottom: 2);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
-    }
-
-    Label #Subtitle {
-      Text: "";
-      Anchor: (Height: 20, Bottom: 10);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center);
-    }
-
-    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
-
     Group #Rows {
       FlexWeight: 1;
       LayoutMode: TopScrolling;
       ScrollbarStyle: $C.@DefaultScrollbarStyle;
-      Padding: (Right: 4);
+      Padding: (Right: $ZK.@ZigSpace1);
     }
 
     Group #Footer {
-      Anchor: (Height: 36, Top: 12);
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace3);
       LayoutMode: Left;
 
       Button #BackButton {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 140, Height: 32);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Anchor: (Width: 140, Height: $ZK.@ZigActionHeight);
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
 
       Group { FlexWeight: 1; }
 
       Button #SaveButton {
-        Style: $Z.@ZigRichPrimaryBtnStyle;
-        Anchor: (Width: 160, Height: 32);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+        Anchor: (Width: 160, Height: $ZK.@ZigActionHeight);
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
     }

@@ -34,6 +34,8 @@ import com.ziggfreed.common.ui.ZigSearchRow;
 import com.ziggfreed.common.ui.form.FieldKind;
 import com.ziggfreed.common.ui.form.FieldSpec;
 import com.ziggfreed.common.ui.form.SettingsForm;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -120,8 +122,9 @@ public final class AuthoringWizardPage extends ToastablePage<AuthoringWizardEven
         session.step(at);
         WizardStep step = steps.get(at);
 
-        cmd.set("#Title.TextSpans", title(wizard));
-        cmd.set("#StepLine.TextSpans", AuthoringText.line("wizard.step", at + 1, count, label(step.titleKey())));
+        // The wizard's name and the step line are the band frame's hero: the gold title, the copper tagline.
+        HeroPainter.paint(cmd, new Hero(null, title(wizard),
+                AuthoringText.line("wizard.step", at + 1, count, label(step.titleKey())), null));
 
         stepFields = step.fields();
         List<FieldSpec> specs = new ArrayList<>();

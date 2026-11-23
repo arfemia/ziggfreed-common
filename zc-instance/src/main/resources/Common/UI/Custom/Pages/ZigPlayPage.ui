@@ -1,7 +1,8 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$M = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
 
 // Generic Play screen (com.ziggfreed.common.instance.play.PlayModePage). ONE page that
 // morphs between the mode-card chooser (#ModeCards) and the live roster (#RosterArea) -
@@ -9,42 +10,34 @@ $ZT = "../Common/ZigType.ui";
 // ticks DOWN live via sendUpdate (no reopen). Cards append Pages/ZigPlayModeCard.ui;
 // roster rows append Pages/ZigQueueRosterRow.ui. Shipped once in ziggfreed-common; neutral
 // Zig* ids. Smoke-test in-game (.ui is not gradle-validated).
+//
+// On the band (@ZigDecoratedFrame): the screen's title and the difficulty line are the frame's hero (the gold title
+// and the copper tagline under it, ui/kit/HeroPainter), so this document declares no title of its own. The mode cards
+// sit centred in one row, each card one button (Pages/ZigPlayModeCard.ui). Every colour is a Common/ZigTokens.ui
+// token, every size a Common/ZigType.ui step, every button a kit state style.
 
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 580, Height: 560);
+  Anchor: (Width: 600, Height: 560);
 
   #Content {
-    Label #Title {
-      Text: "";
-      Anchor: (Height: 30, Bottom: 4);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
-    }
-    Label #Subtitle {
-      Text: "";
-      Anchor: (Height: 20, Bottom: 10);
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0);
-    }
-
-    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
-
-    // ----- chooser: the asset-driven mode cards (Public / Party / Solo), appended L->R -----
+    // ----- chooser: the asset-driven mode cards (Public / Party / Solo), appended L->R and centred -----
     Group #ModeCards {
-      LayoutMode: Left;
-      Anchor: (Height: 200, Bottom: 4);
+      LayoutMode: Center;
+      Anchor: (Height: 232, Bottom: $ZK.@ZigSpace1);
     }
 
     // Optional "Claim Rewards" button (chooser only); Java reveals it when spoils are pending. Both buttons on
     // this page are a Button holding a Label #Label whose words go on .TextSpans (ZigRichButton).
     Button #ClaimBtn {
-      Anchor: (Height: 38, Top: 6);
-      Style: $M.@ZigRichPrimaryBtnStyle;
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigButtonCollectStyle;
       Visible: false;
       Label #Label {
         FlexWeight: 1;
         Text: "";
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Style: $ZX.@ZigButtonLabelStyle;
       }
     }
 
@@ -56,41 +49,40 @@ $F.@ZigDecoratedFrame {
 
       Label #PlayerCount {
         Text: "";
-        Anchor: (Height: 20, Bottom: 4);
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0);
+        Anchor: (Height: 20, Bottom: $ZK.@ZigSpace1);
+        Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center);
       }
       Label #Status {
         Text: "";
-        Anchor: (Height: 22, Bottom: 4);
-        Style: (FontSize: $ZT.@ZigFontHeading, TextColor: #5ab0ff, RenderBold: true);
+        Anchor: (Height: 24, Bottom: $ZK.@ZigSpace1);
+        Style: (...$ZX.@ZigHeadingStyle, TextColor: $ZK.@ZigToneActiveText, HorizontalAlignment: Center);
       }
       Label #WaitEstimate {
         Text: "";
-        Anchor: (Height: 18, Bottom: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8);
+        Anchor: (Height: 18, Bottom: $ZK.@ZigSpace3);
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center);
       }
 
       Group #RosterList {
         FlexWeight: 1;
         LayoutMode: TopScrolling;
         ScrollbarStyle: $C.@DefaultScrollbarStyle;
-        Padding: (Right: 4);
+        Padding: (Right: $ZK.@ZigSpace1);
       }
 
       Group #FooterRow {
         LayoutMode: Left;
-        Anchor: (Height: 36, Top: 8);
-        // Footer CTA -> the shared center-aligned primary look (NOT the left-aligned dialogue-row
-        // option look), so "Leave the Gathering" centers in the full-width button.
+        Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace2);
+        // Leaving the queue is the game's Secondary button, its label centred in the full width.
         Button #LeaveBtn {
           FlexWeight: 1;
-          Anchor: (Height: 36);
-          Style: $M.@ZigRichPrimaryBtnStyle;
+          Anchor: (Height: $ZK.@ZigActionHeight);
+          Style: $ZS.@ZigButtonSecondaryStyle;
           Visible: false;
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: $ZX.@ZigButtonLabelStyle;
           }
         }
       }

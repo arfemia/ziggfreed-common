@@ -6,7 +6,9 @@ $ZS = "../Common/ZigStyles.ui";
 $ZW = "../Common/ZigKit.ui";
 
 // The title picker (com.ziggfreed.common.objectives.title.page.TitlePickerPage): which earned title shows beside
-// the player's name in menus and on boards. A title and subtitle, the preview bar ("You appear as: ..."), then one
+// the player's name in menus and on boards. On the band, its title and subtitle are the frame's hero (the gold title
+// and the line under the game's rule, ui/kit/HeroPainter), so this document declares neither. Then the preview bar
+// ("You appear as: ..."), then one
 // scrolling body: EARNED, the earned titles as two columns of Pages/ZigTitleTile.ui tiles with a Show / Shown
 // button each, and NOT EARNED YET, one Pages/ZigDetailLine.ui line per title still to earn, naming the achievement
 // that gives it and how far along the player is; a line opens the objective book on that achievement. With nothing
@@ -22,24 +24,12 @@ $C.@PageOverlay {}
 $ZF.@ZigDecoratedFrame {
   @CloseButton = true;
   @Ornaments = true;
-  Anchor: (Width: 640, Height: 560);
+  Anchor: (Width: 640, Height: 620);
 
   #Content {
     Anchor: (Top: 0);
     LayoutMode: Top;
     Padding: (Full: 18);
-
-    Label #Title {
-      Anchor: (Height: 28, Bottom: 2);
-      Text: "";
-      Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
-    }
-
-    Label #Subtitle {
-      Anchor: (Height: 18, Bottom: $ZK.@ZigSpace3);
-      Text: "";
-      Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
-    }
 
     Group #PreviewBar {
       Anchor: (Height: 44, Bottom: $ZK.@ZigSpace3);

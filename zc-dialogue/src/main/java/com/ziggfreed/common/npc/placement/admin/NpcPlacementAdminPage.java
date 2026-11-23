@@ -38,6 +38,9 @@ import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.Hero;
+import com.ziggfreed.common.ui.kit.HeroPainter;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -92,9 +95,10 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
     /** How many matching roles are worth offering before the filter has to do more work. */
     private static final int MAX_ROLES = 12;
 
-    // A denied row is not merely off, so it must not paint like an off switch somebody chose.
-    private static final String DENIED_BG = "#4a3636";
-    private static final String DENIED_LABEL = "#e08a8a";
+    // A denied row is not merely off, so it must not paint like an off switch somebody chose: the kit's danger tone
+    // (ZigTokens, a tint over the game's patch, so opaque).
+    private static final String DENIED_BG = ZigTokens.TONE_DANGER_FILL;
+    private static final String DENIED_LABEL = ZigTokens.TONE_DANGER_TEXT;
 
     @Nonnull private NpcPlacementAdminDeps deps = NpcPlacementAdminDeps.DEFAULTS;
 
@@ -126,8 +130,8 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
         World world = store.getExternalData().getWorld();
         String worldName = world == null ? "" : NpcPlacementService.worldName(world);
 
-        cmd.set("#Title.TextSpans", msg("page.title"));
-        cmd.set("#Subtitle.TextSpans", msg("page.subtitle", worldName));
+        // The title and subtitle are the band frame's hero: the gold title, the line under the game's rule.
+        HeroPainter.paint(cmd, new Hero(null, msg("page.title"), null, msg("page.subtitle", worldName)));
         ZigRichButton.text(cmd, "#BackButton", msg("page.back"));
 
         buildPlacements(cmd, events, store, world, worldName);

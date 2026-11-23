@@ -1,63 +1,44 @@
-$C = "../Common.ui";
-$M = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
 
-// One Play-screen mode card (appended into #ModeCards; see PlayModePage). A vertical card:
-// an item-glyph icon (set from Java via #CardIcon.Slots - a DATA property, settable, unlike
-// a texture path which would render a red X), a clickable name button (#CardBtn, the click
-// target Java binds per mode), and a one-line description. Mirrors ZigResultChip.ui's icon
-// style. Smoke-test the icon centering in-game (.ui is not gradle-validated).
-
-@ZigPlayIconStyle = ItemGridStyle(
-  SlotSize: 48,
-  SlotIconSize: 44,
-  SlotSpacing: 0,
-  SlotBackground: "../Common/ContainerPanelPatch.png",
-  QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",
-  BrokenSlotBackgroundOverlay: "../Common/ContainerPanelPatch.png",
-  BrokenSlotIconOverlay: "../Common/ContainerPanelPatch.png",
-  DefaultItemIcon: "../Common/ContainerPanelPatch.png",
-  DurabilityBar: "../Common/ContainerPanelPatch.png",
-  DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
-  DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
-  DurabilityBarColorStart: #a63232,
-  DurabilityBarColorEnd: #63b649,
-  EphemeralIconPatch: "../Common/ContainerPanelPatch.png",
-  EphemeralIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
-);
+// One Play-screen mode card (appended into #ModeCards; see PlayModePage), 180 x 232, a card you click: the whole
+// card is ONE button (#CardBtn, the click target Java binds per mode) on the kit's card style (Common/ZigStyles.ui
+// @ZigTierCardStyle: the game's Memories tile at rest, its gold Selected tile under the cursor). Inside it, top to
+// bottom: the mode's picture (#CardIcon, the kit's plain picture slot, painted through
+// ui/icon/IconRenderer.applyPlainIcon, so it only displays and the button keeps the click; hidden with none), its
+// name (#Label, flat gold capitals, two lines at most) and a one-line-or-more description (#CardSub).
 
 Group #ZigPlayModeCard {
-  Anchor: (Width: 170, Height: 196, Right: 8);
-  Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 6);
-  Padding: (Full: 10);
-  LayoutMode: Top;
-
-  Group #CardIconWrap {
-    Anchor: (Height: 56, Bottom: 8);
-    LayoutMode: Top;
-    ItemGrid #CardIcon {
-      Anchor: (Width: 48, Height: 48);
-      SlotsPerRow: 1;
-      AreItemsDraggable: false;
-      DisplayItemQuantity: false;
-      Style: @ZigPlayIconStyle;
-    }
-  }
+  Anchor: (Width: 180, Height: 232, Left: $ZK.@ZigSpace1, Right: $ZK.@ZigSpace1);
 
   // The name button: a Button holding a Label #Label whose words go on .TextSpans (ZigRichButton).
   Button #CardBtn {
-    Anchor: (Height: 36, Bottom: 8);
-    Style: $M.@ZigRichTabBtnStyle;
+    Anchor: (Full: 0);
+    LayoutMode: Top;
+    Padding: (Horizontal: $ZK.@ZigSpace3, Top: $ZK.@ZigSpace4, Bottom: $ZK.@ZigSpace3);
+    Style: $ZS.@ZigTierCardStyle;
+
+    Group #CardIconWrap {
+      LayoutMode: Center;
+      Anchor: (Height: $ZK.@ZigPicHeader, Bottom: $ZK.@ZigSpace3);
+
+      $ZW.@ZigPicture #CardIcon {
+        @Size = $ZK.@ZigPicHeader;
+      }
+    }
+
     Label #Label {
+      Anchor: (Height: 52, Bottom: $ZK.@ZigSpace2);
+      Text: "";
+      Style: (...$ZX.@ZigTitleStyle, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+
+    Label #CardSub {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, VerticalAlignment: Start, Wrap: true);
     }
-  }
-
-  Label #CardSub {
-    FlexWeight: 1;
-    Text: "";
-    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de, HorizontalAlignment: Center, Wrap: true);
   }
 }
