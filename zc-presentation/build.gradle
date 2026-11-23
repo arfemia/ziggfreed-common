@@ -20,6 +20,10 @@ dependencies {
     // and resolves through InteractionOutcome). One-way: zc-cast depends on zc-core alone and never imports this
     // module.
     implementation project(':zc-cast')
+    // One thing: a stat bar (ui/hud/statbar) reads the pool it draws exactly as a cost reads it, through zc-entity's
+    // resource/ResourceCosts.level (a retired id's one successor, the unknown-stat warning). One-way: zc-entity depends
+    // on zc-core alone and never imports this module.
+    implementation project(':zc-entity')
 }
 
 // UiDocumentSyntaxTest reads every zc module's Custom UI documents as one merged tree (the way the client loads

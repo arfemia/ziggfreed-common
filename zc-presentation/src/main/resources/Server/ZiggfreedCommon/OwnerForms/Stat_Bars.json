@@ -1,0 +1,105 @@
+{
+  "$Comment": "The in-game screen for mods/ziggfreedcommon/stat-bars.json, on the owner menu (/zigadmin): one row per stat bar a mod or pack ships under Server/ZiggfreedCommon/StatBars/ (named by its own label), each opening whether it shows, its colour and where it sits, beside the value its file ships. Save writes the entry under the bar's id and every player's bars repaint at once; Reset takes your entry back out. A bar beside another HUD moves with that HUD, so it is moved wherever that HUD's own mod moves it; the standing place below is only for a bar with no such HUD. When a bar shows stays in its file (ShowWhen). Every word is a key of ziggfreedcommon.hud.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Stat_Bars.",
+  "Title": "ziggfreedcommon.hud.statbar.form.title",
+  "Description": "ziggfreedcommon.hud.statbar.form.desc",
+  "Icon": "Potion_Signature_Large",
+  "Section": "ziggfreedcommon",
+  "Order": 86,
+  "File": "ziggfreedcommon/stat-bars.json",
+  "Entries": {
+    "Name": "Label"
+  },
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.hud.statbar.form.heading.look",
+      "Note": "ziggfreedcommon.hud.statbar.form.note",
+      "Fields": [
+        {
+          "Path": "Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.hud.settings.enabled",
+          "Hint": "ziggfreedcommon.hud.statbar.form.enabled.hint"
+        },
+        {
+          "Path": "Color",
+          "Kind": "Text",
+          "Label": "ziggfreedcommon.hud.statbar.form.color",
+          "Hint": "ziggfreedcommon.hud.statbar.form.color.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.hud.statbar.form.heading.beside",
+      "Fields": [
+        {
+          "Path": "Placement.Side",
+          "Kind": "Choice",
+          "Label": "ziggfreedcommon.hud.statbar.form.side",
+          "Hint": "ziggfreedcommon.hud.statbar.form.side.hint",
+          "Choices": [
+            { "Value": "Above", "Label": "ziggfreedcommon.hud.statbar.form.side.above" },
+            { "Value": "Below", "Label": "ziggfreedcommon.hud.statbar.form.side.below" }
+          ]
+        },
+        {
+          "Path": "Placement.Gap",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.hud.statbar.form.gap",
+          "Hint": "ziggfreedcommon.hud.statbar.form.gap.hint",
+          "Min": 0,
+          "Max": 200
+        },
+        {
+          "Path": "Order",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.hud.statbar.form.order",
+          "Hint": "ziggfreedcommon.hud.statbar.form.order.hint",
+          "Min": 0,
+          "Max": 100000
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.hud.statbar.form.heading.standing",
+      "Fields": [
+        {
+          "Path": "Placement.Position.Preset",
+          "Kind": "Choice",
+          "Label": "ziggfreedcommon.hud.statbar.form.corner",
+          "Hint": "ziggfreedcommon.hud.statbar.form.corner.hint",
+          "Choices": [
+            { "Value": "TopLeft", "Label": "ziggfreedcommon.hud.settings.corner.topleft" },
+            { "Value": "TopCenter", "Label": "ziggfreedcommon.hud.settings.corner.topcenter" },
+            { "Value": "TopRight", "Label": "ziggfreedcommon.hud.settings.corner.topright" },
+            { "Value": "CenterLeft", "Label": "ziggfreedcommon.hud.settings.corner.centerleft" },
+            { "Value": "Center", "Label": "ziggfreedcommon.hud.settings.corner.center" },
+            { "Value": "CenterRight", "Label": "ziggfreedcommon.hud.settings.corner.centerright" },
+            { "Value": "BottomLeft", "Label": "ziggfreedcommon.hud.settings.corner.bottomleft" },
+            { "Value": "BottomCenter", "Label": "ziggfreedcommon.hud.settings.corner.bottomcenter" },
+            { "Value": "BottomRight", "Label": "ziggfreedcommon.hud.settings.corner.bottomright" }
+          ]
+        },
+        {
+          "Path": "Placement.Position.OffsetX",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.hud.statbar.form.offset_x",
+          "Hint": "ziggfreedcommon.hud.statbar.form.offset_x.hint"
+        },
+        {
+          "Path": "Placement.Position.OffsetY",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.hud.statbar.form.offset_y",
+          "Hint": "ziggfreedcommon.hud.statbar.form.offset_y.hint"
+        },
+        {
+          "Path": "Placement.Width",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.hud.statbar.form.width",
+          "Hint": "ziggfreedcommon.hud.statbar.form.width.hint",
+          "Min": 160,
+          "Max": 1200
+        }
+      ]
+    }
+  ]
+}

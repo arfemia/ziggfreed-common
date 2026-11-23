@@ -140,6 +140,9 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotCutout;
 import com.ziggfreed.common.ui.hud.panel.HudSpotGap;
 import com.ziggfreed.common.ui.hud.panel.HudSpotPosition;
+import com.ziggfreed.common.ui.hud.statbar.StatBarAsset;
+import com.ziggfreed.common.ui.hud.statbar.StatBarPlacement;
+import com.ziggfreed.common.resource.StatPoolAsset;
 import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.form.OwnerFormAsset;
 import com.ziggfreed.common.ui.route.Destination;
@@ -210,6 +213,9 @@ class AssetCodecInitTest {
         assertNotNull(HudSpotGap.CODEC, "the shared Gap group codec must static-init");
         assertNotNull(HudSpotCutout.CODEC, "the shared Cutout group codec must static-init");
         assertNotNull(HudCardAsset.CODEC, "HudCardAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(StatBarAsset.CODEC, "StatBarAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(StatBarPlacement.CODEC, "the stat bar's Placement group codec must static-init");
+        assertNotNull(StatPoolAsset.CODEC, "StatPoolAsset.CODEC (the stat pools' owner entries) must static-init");
     }
 
     @Test

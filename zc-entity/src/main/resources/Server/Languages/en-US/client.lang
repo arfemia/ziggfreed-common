@@ -118,3 +118,4 @@ itemTooltip.stats.ProcChance = Talent Effect Chance: {value}%
 itemTooltip.stats.ProcStrength = Talent Effect Strength: {value}%
 itemTooltip.stats.ProcCooldownCut = Talent Cooldown Cut: {value}%
 itemTooltip.stats.CounterSize = Talent Stack Limit: {value}%
+itemTooltip.stats.Energy = Energy: {value}

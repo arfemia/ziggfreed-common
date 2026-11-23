@@ -105,3 +105,31 @@ settings.corner.bottomright = Bottom right
 settings.tracker_note = A blank field keeps the shipped value. Save applies to everyone at once, and writes mods/ziggfreedcommon/player-settings.json.
 settings.tracker_on = The quest tracker is on for everyone.
 settings.tracker_off = The quest tracker is off for everyone.
+
+# The Stat Bars screen on the owner menu (/zigadmin, OwnerForms/Stat_Bars.json): one row per bar a mod or pack
+# ships under Server/ZiggfreedCommon/StatBars/, each opening whether it shows, its colour and where it sits.
+statbar.form.title = Stat Bars
+statbar.form.desc = The bars that show how full a pool like Energy is, and where they sit.
+statbar.form.note = A change reaches every player at once, and Reset puts the bar back the way it ships.
+statbar.form.enabled.hint = Off hides this bar for everyone.
+statbar.form.color = Color
+statbar.form.color.hint = Six hex digits, like #f2c94c. Left empty, the bar keeps its own color.
+statbar.form.heading.look = The bar
+statbar.form.heading.beside = Beside another HUD
+statbar.form.side = Side
+statbar.form.side.hint = Whether the bar sits above or below the HUD it belongs to. It moves wherever that HUD is moved.
+statbar.form.side.above = Above
+statbar.form.side.below = Below
+statbar.form.gap = Gap
+statbar.form.gap.hint = Pixels between this bar and the HUD it sits beside.
+statbar.form.order = Order
+statbar.form.order.hint = Lower numbers sit closer when two bars share a side.
+statbar.form.heading.standing = Standing on its own
+statbar.form.corner = Corner
+statbar.form.corner.hint = Only for a bar with no HUD to sit beside.
+statbar.form.offset_x = Offset X
+statbar.form.offset_x.hint = Pixels in from the corner's left or right edge.
+statbar.form.offset_y = Offset Y
+statbar.form.offset_y.hint = Pixels in from the corner's top or bottom edge.
+statbar.form.width = Width
+statbar.form.width.hint = How wide the bar is when it stands on its own.

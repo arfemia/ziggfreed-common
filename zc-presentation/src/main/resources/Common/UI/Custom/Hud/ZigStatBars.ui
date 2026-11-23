@@ -1,0 +1,67 @@
+// The stat bars (ziggfreed-common, zc-presentation: ui/hud/statbar/StatBarHud). One bar per file under
+// Server/ZiggfreedCommon/StatBars/: a stat's name at the left, how full it is in the track, its whole value at
+// the right. The game draws only its own bars, so a pool a mod adds is drawn here, from a file and no code.
+//
+// The wrapper is full-viewport with no LayoutMode, so each slot is placed absolutely against the screen's own
+// edges: a slot's Anchor is pushed with every paint (StatBarLayout.Box), pinned exactly as the HUD a bar sits
+// beside is, or at the bar's own corner when it stands alone. Inside a slot the bar sits at the top, or under
+// the #Lead spacer whose height is pushed when it sits below another HUD. Slots are positional
+// (#ZigStatBar<n>) and addressed by index from Java; their count MUST match StatBarLayout.SLOTS.
+//
+// GEOMETRY, mirrored by StatBarLayout (ZigStatBarsDocumentTest holds the two together): a bar is 20 tall, its
+// padding 6 at each end and 2 above and below a 16 line; the name's box 60 wide, a 6 gap, the track (whatever
+// width is left, 10 tall, its padding 1), a 6 gap, the figure's box 36 wide. The fill's width is pushed, so
+// a bar's width (pushed on #Bar) and these numbers decide how long a full fill is.
+//
+// HUDs keep the plain look (no band, no blur): a dark scrim behind the bar so it reads over any ground, and the
+// same well, gloss and shade every HUD bar of the family wears, so the fill reads as a bar in any colour.
+$ZT = "../Common/ZigType.ui";
+
+@NameStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #e6e9ee, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+@FigureStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #e6e9ee, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+
+@Scrim = #0a1119(0.6);
+@TrackWell = #05080c(0.72);
+@Gloss = #ffffff(0.22);
+@BaseShade = #000000(0.22);
+
+@StatBarSlot = Group {
+  Anchor: (Width: 240, Height: 20, Left: 0, Top: 0);
+  LayoutMode: Top;
+  Visible: false;
+
+  Group #Lead { Anchor: (Height: 0); }
+
+  Group #Bar {
+    Anchor: (Width: 240, Height: 20);
+    LayoutMode: Left;
+    Padding: (Horizontal: 6, Vertical: 2);
+    Background: @Scrim;
+
+    Label #Label { Text: ""; Anchor: (Width: 60, Height: 16); Style: @NameStyle; }
+    Group { Anchor: (Width: 6); }
+    Group #Track {
+      FlexWeight: 1;
+      Anchor: (Height: 10, Top: 3);
+      Padding: (Full: 1);
+      Background: @TrackWell;
+      Group #Fill {
+        Anchor: (Left: 0, Top: 0, Bottom: 0, Width: 0);
+        Background: #4274a5;
+        Group #Gloss { Anchor: (Left: 0, Right: 0, Top: 0, Height: 3); Background: @Gloss; }
+        Group #Base { Anchor: (Left: 0, Right: 0, Bottom: 0, Height: 1); Background: @BaseShade; }
+      }
+    }
+    Group { Anchor: (Width: 6); }
+    Label #Figure { Text: ""; Anchor: (Width: 36, Height: 16); Style: @FigureStyle; }
+  }
+};
+
+Group #ZigStatBarsRoot {
+  Anchor: (Top: 0, Bottom: 0, Left: 0, Right: 0);
+
+  @StatBarSlot #ZigStatBar0 {}
+  @StatBarSlot #ZigStatBar1 {}
+  @StatBarSlot #ZigStatBar2 {}
+  @StatBarSlot #ZigStatBar3 {}
+}

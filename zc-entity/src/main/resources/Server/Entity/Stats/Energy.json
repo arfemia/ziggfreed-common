@@ -1,0 +1,23 @@
+{
+  "$Comment": "A pool an ability can spend, steady and quick to come back: 100 at most, full when the carrier appears and after a respawn, refilling 1 point every 0.1 seconds (10 a second) while the carrier is alive, in a fight or out of one. Nothing raises it and nothing speeds its refill (no level, gear or talent line), so it is the same for everyone. A cost names it as any other pool: { \"Stat\": \"Energy\", \"Amount\": 35 }. A server owner retunes its maximum and its refill on the Stat Pools screen of the owner menu (/zigadmin), saved in mods/ziggfreedcommon/stat-pools.json; the ZigOwnerPool tag below is what lists it there, and the first Regenerating rule is the one that screen's refill retunes. Shown on screen by a stat bar file (Server/ZiggfreedCommon/StatBars/), since the game draws only its own bars.",
+  "InitialValue": 100.0,
+  "Min": 0.0,
+  "Max": 100.0,
+  "Shared": false,
+  "ResetType": "MaxValue",
+  "Regenerating": [
+    {
+      "$Comment": "10 a second, always: the refill an owner's RegenPerSecond retunes (its Amount over this Interval).",
+      "Interval": 0.1,
+      "Amount": 1.0,
+      "RegenType": "Additive",
+      "Conditions": [
+        {
+          "Id": "Alive"
+        }
+      ]
+    }
+  ],
+  "HideFromTooltip": false,
+  "Tags": { "ZigOwnerPool": [ "true" ] }
+}

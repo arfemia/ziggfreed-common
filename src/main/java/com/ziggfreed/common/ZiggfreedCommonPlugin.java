@@ -149,6 +149,7 @@ import com.ziggfreed.common.track.TrackValidator;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
+import com.ziggfreed.common.ui.hud.statbar.StatBarBootstrap;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.form.OwnerFormValidator;
 import com.ziggfreed.common.ui.kit.ZigKitCommand;
@@ -356,6 +357,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Health and mana regeneration: the Regen_Health and Regen_Mana stats paid every tick, health paused for
         // 15 seconds after a hit.
         RegenBootstrap.install(this);
+        // Pools an owner tunes: a ZigOwnerPool-tagged stat (Energy) takes the owner's maximum and refill from
+        // stat-pools.json onto the native stat at every stat load, and the file is bound for the Stat Pools screen.
+        EntityBootstrap.installStatPools(this);
         // Recent hostile damage: what creatures' hits took from each player in the last ten seconds, the most a heal
         // given there is credited for (healing XP, a quest's health healed), forgotten at death and departure.
         HealCreditBootstrap.install(this);
@@ -415,6 +419,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // them down again. What a player said about their own HUD, and the page and command that
         // say it, are registered right after, beside the panels they move.
         HudPanels.install(this);
+        // The stat bars: one bar per file under StatBars/ for any stat the game draws no bar for (a pool such as
+        // Energy), attached to every player at ready, read and repainted a few times a second.
+        StatBarBootstrap.install(this);
         registerHudSettings();
         registerMenu();
         registerKitGallery();

@@ -78,6 +78,55 @@ public abstract class KeyedCustomHud extends CustomUIHud {
         return false;
     }
 
+    // ---------------------------------------------------------------------------------
+    // What another piece drawn against this HUD reads (a stat bar's Beside placement)
+    // ---------------------------------------------------------------------------------
+
+    /**
+     * Where this HUD sits now: its {@link #configuredPosition()}, read on each call so an owner's move is seen at once.
+     * Null when the position cannot be read (one warning).
+     */
+    @Nullable
+    public final HudPosition currentPosition() {
+        try {
+            return configuredPosition();
+        } catch (Throwable t) {
+            warn(getKey() + ": its position could not be read: " + t.getMessage());
+            return null;
+        }
+    }
+
+    /** The width of this HUD's box in pixels ({@link #panelWidth()}). */
+    public final int boxWidth() {
+        return panelWidth();
+    }
+
+    /**
+     * The height of this HUD's box in pixels ({@link #panelHeight()}); 0 for a HUD that sizes to its content
+     * ({@link #usesContentHeight()}), whose height nothing outside the client knows.
+     */
+    public final int boxHeight() {
+        return usesContentHeight() ? 0 : panelHeight();
+    }
+
+    /**
+     * How much of the box's width, from its left edge, holds what is drawn now: the whole width by default. A HUD
+     * whose content is left-aligned and narrower than its box at times (a row of slots, some hidden) answers less, so
+     * a piece drawn beside it lines up with what shows.
+     */
+    public int contentWidth() {
+        return panelWidth();
+    }
+
+    /**
+     * Whether anything of this HUD is on screen now, as its own last push left it: true by default. A HUD that hides
+     * its whole row (nothing to show, its owner or its player switched it off) answers false, so a piece drawn beside
+     * it hides with it.
+     */
+    public boolean showing() {
+        return true;
+    }
+
     /** The anchor for this HUD: content-sized height when {@link #usesContentHeight()}, else fixed. */
     @Nonnull
     private Anchor anchorFor(@Nonnull HudPosition position) {

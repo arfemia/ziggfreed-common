@@ -1,0 +1,34 @@
+{
+  "$Comment": "The in-game screen for mods/ziggfreedcommon/stat-pools.json, on the owner menu (/zigadmin): one row per pool an ability can spend from whose stat file carries the ZigOwnerPool tag (Energy, and any pack's own pool tagged the same way), each opening its maximum and its refill a second, beside the values its stat file ships. Save writes the entry under the stat's id and the stat is rewritten with those numbers for every player at once; Reset takes your entry back out. Every word is a key of ziggfreedcommon.pool.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Stat_Pools.",
+  "Title": "ziggfreedcommon.pool.form.title",
+  "Description": "ziggfreedcommon.pool.form.desc",
+  "Icon": "Potion_Stamina_Large",
+  "Section": "ziggfreedcommon",
+  "Order": 85,
+  "File": "ziggfreedcommon/stat-pools.json",
+  "Entries": {},
+  "Sections": [
+    {
+      "Heading": "ziggfreedcommon.pool.form.heading",
+      "Note": "ziggfreedcommon.pool.form.note",
+      "Fields": [
+        {
+          "Path": "Max",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.pool.form.max",
+          "Hint": "ziggfreedcommon.pool.form.max.hint",
+          "Min": 1,
+          "Max": 100000
+        },
+        {
+          "Path": "RegenPerSecond",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.pool.form.regen",
+          "Hint": "ziggfreedcommon.pool.form.regen.hint",
+          "Min": 0,
+          "Max": 100000
+        }
+      ]
+    }
+  ]
+}

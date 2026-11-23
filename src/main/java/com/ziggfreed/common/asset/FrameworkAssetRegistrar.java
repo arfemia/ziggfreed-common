@@ -205,6 +205,9 @@ import com.ziggfreed.common.ui.hud.panel.HudRowAsset;
 import com.ziggfreed.common.ui.hud.panel.HudRowConfig;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
+import com.ziggfreed.common.ui.hud.statbar.StatBarAsset;
+import com.ziggfreed.common.ui.hud.statbar.StatBarConfig;
+import com.ziggfreed.common.ui.hud.statbar.StatBarOwnerLayers;
 import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.hud.card.HudCardConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardOwnerLayers;
@@ -797,6 +800,19 @@ public final class FrameworkAssetRegistrar {
                     HudPanelConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     HudOwnerLayers.reloadPanels();
                     HudPanels.repaintAllOnline();
+                });
+
+        // --- Stat bars (Pattern A) - one bar a player sees per file: the stat it shows, its name and colour, where it
+        //     sits (beside another HUD, or standing at a corner) and when it shows. The library ships none; a mod
+        //     or pack adds a bar for any stat by dropping one file. Owner layer mods/ziggfreedcommon/stat-bars.json
+        //     (the Stat Bars screen); a reload pushes every online player's bars whole on their next paint. ---
+        AssetStoreRegistrar.registerStore(StatBarAsset.class,
+                new DefaultAssetMap<String, StatBarAsset>(), StatBarAsset.TYPE_ROOT,
+                StatBarAsset::getId, StatBarAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, StatBarAsset.class,
+                (LoadedAssetsEvent<String, StatBarAsset, DefaultAssetMap<String, StatBarAsset>> ev) -> {
+                    StatBarConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    StatBarOwnerLayers.reload();
                 });
 
         // --- HUD cards (Pattern A) - the ONE shared look every HUD card this family draws reads:
@@ -1483,6 +1499,7 @@ public final class FrameworkAssetRegistrar {
                         + "DungeonLayouts, DungeonOmens, "
                         + "RewardChests (owner file mods/ziggfreedcommon/reward-chests.json), "
                         + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
+                        + "StatBars (owner file mods/ziggfreedcommon/stat-bars.json), "
                         + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
                         + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, QuestCategories, "
                         + "Achievements, AchievementCategories, "

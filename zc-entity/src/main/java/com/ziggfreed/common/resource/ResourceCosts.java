@@ -63,7 +63,39 @@ public final class ResourceCosts {
         }
     }
 
+    /**
+     * What a pool holds now, in points of the stat: its live value and its bounds as the entity carries them (its
+     * modifiers on the maximum included), the reading a bar of the pool draws.
+     */
+    public record Level(double value, double min, double max) {
+
+        /** How full the pool is, 0 to 1: the value's place between {@code min} and {@code max}; 0 with no span. */
+        public double fraction() {
+            double span = max - min;
+            if (!(span > 0.0) || !Double.isFinite(span) || !Double.isFinite(value)) {
+                return 0.0;
+            }
+            return Math.max(0.0, Math.min(1.0, (value - min) / span));
+        }
+
+        /** Is the pool at its maximum (or holds nothing to fill: no span)? */
+        public boolean full() {
+            return !(max - min > 0.0) || value >= max - 1e-4;
+        }
+    }
+
     private ResourceCosts() {
+    }
+
+    /**
+     * What {@code ref}'s pool {@code stat} holds now ({@link Level}), read as a cost reads it (a retired id's one
+     * successor); null for an unknown stat (named once in the log) or an entity carrying none. Never throws.
+     */
+    @Nullable
+    public static Level level(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+            @Nullable String stat) {
+        EntityStatValue value = valueOf(accessor, ref, stat);
+        return value == null ? null : new Level(value.get(), value.getMin(), value.getMax());
     }
 
     /**

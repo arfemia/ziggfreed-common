@@ -62,7 +62,8 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
  * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, DungeonRooms, DungeonLayouts, DungeonOmens, RewardChests,
  * DialogueOptionTheme, NpcIdentities,
- * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
+ * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, StatBars (a bar's ShowWhen is asked of each player),
+ * PlayerSettings, AchievementCategories,
  * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
  * where its mod is missing, asked of each viewer otherwise), ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,

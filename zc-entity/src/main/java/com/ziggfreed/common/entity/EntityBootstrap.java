@@ -24,8 +24,10 @@ import com.ziggfreed.common.entity.title.ZigTitleComponent;
 import com.ziggfreed.common.grant.Grants;
 import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.grant.StatGrantWriter;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.progress.gate.GateEpochs;
 import com.ziggfreed.common.progress.gate.ZigGateEpochMovedEvent;
+import com.ziggfreed.common.resource.StatPools;
 import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.stats.damage.DamageTypes;
 import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
@@ -135,6 +137,23 @@ public final class EntityBootstrap {
             plugin.getEntityStoreRegistry().registerSystem(new TypedDamageBonusSystem());
         } catch (Throwable t) {
             throw new IllegalStateException("[stats] could not register the per-type damage bonus step", t);
+        }
+    }
+
+    /**
+     * The pools an owner tunes ({@code resource/StatPools}): every load of the stat store keeps each
+     * {@code ZigOwnerPool}-tagged stat's shipped file and writes the owner's maximum and refill onto it, and the owner
+     * file {@code mods/ziggfreedcommon/stat-pools.json} is bound for the Stat Pools screen. With no stat tagged it reads
+     * nothing and writes nothing.
+     */
+    public static void installStatPools(@Nonnull PluginBase plugin) {
+        try {
+            plugin.getEventRegistry().register(LoadedAssetsEvent.class, EntityStatType.class,
+                    (LoadedAssetsEvent<String, EntityStatType, IndexedLookupTableAssetMap<String, EntityStatType>> ev) ->
+                            StatPools.onStatsLoaded(ev));
+            OwnerFileBindings.register(StatPools.binding());
+        } catch (Throwable t) {
+            SafeLog.warn("[pools] the tunable pools could not be installed, so every pool keeps its file's values", t);
         }
     }
 

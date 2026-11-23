@@ -1,0 +1,10 @@
+# The Stat Pools screen on the owner menu (/zigadmin, OwnerForms/Stat_Pools.json): one row per pool a cost spends
+# whose stat file is tagged ZigOwnerPool, each opening its maximum and its refill.
+form.title = Stat Pools
+form.desc = How big each spendable pool is and how fast it refills.
+form.heading = Pool
+form.note = Abilities pay from these. A change reaches every player at once, and Reset puts the pool back the way it ships.
+form.max = Maximum
+form.max.hint = The most the pool holds. Anyone who starts full starts full at the new maximum.
+form.regen = Refill a second
+form.regen.hint = How much comes back each second, in a fight or out of one. 0 stops it refilling.
