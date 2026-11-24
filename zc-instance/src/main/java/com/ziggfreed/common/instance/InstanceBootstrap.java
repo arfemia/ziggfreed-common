@@ -48,6 +48,7 @@ import com.ziggfreed.common.instance.dungeon.omen.OmenMobs;
 import com.ziggfreed.common.instance.dungeon.omen.RunOmens;
 import com.ziggfreed.common.instance.dungeon.tier.RunTiers;
 import com.ziggfreed.common.instance.hub.HubMarkers;
+import com.ziggfreed.common.instance.hub.HubStanding;
 import com.ziggfreed.common.instance.hub.ZigHubWorldGenProvider;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
@@ -345,8 +346,9 @@ public final class InstanceBootstrap {
      * The temple hub: the {@code ZigHub} world generator Type its template names, registered into the engine's own
      * {@code IWorldGenProvider.CODEC} before any world loads, and the {@code Instance} and {@code Overworld}
      * destinations, the doorkeeper's and the hub's doors, before any asset decodes (a failed registration of either
-     * throws here, at setup: the template or the conversations naming them would fail to load); and a copy's start,
-     * which puts its districts' markers on its map. The
+     * throws here, at setup: the template or the conversations naming them would fail to load); a copy's start,
+     * which puts its districts' markers on its map; and the districts' factor ({@code ziggfreedcommon:hub_district},
+     * whether a district stands), which a placement gates on to stand in or out of the temple. The
      * district store registers with the other framework stores. Registration only.
      */
     public static void registerHub(@Nonnull JavaPlugin plugin) {
@@ -369,6 +371,12 @@ public final class InstanceBootstrap {
             plugin.getEventRegistry().registerGlobal(StartWorldEvent.class, HubMarkers::onWorldStart);
         } catch (Throwable t) {
             SafeLog.warn("[hub] a hub copy's map markers could not be wired", t);
+        }
+        try {
+            HubStanding.contribute();
+        } catch (Throwable t) {
+            SafeLog.warn("[hub] the hub district reading could not be contributed, so nothing gated on a district "
+                    + "standing appears", t);
         }
     }
 

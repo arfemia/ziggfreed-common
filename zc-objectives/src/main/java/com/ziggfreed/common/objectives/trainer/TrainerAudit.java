@@ -37,8 +37,10 @@ import com.ziggfreed.common.validation.ValidationReport;
  * that trainer never teaches it ({@link #WHERE_NAMES_NO_TRAINER}). A {@code Where} naming a trainer that does not
  * teach here is no fault (R608: its picks are learned on their tracks' own pages until it does), so it is one INFO
  * line a trainer id with how many picks name it: a trainer placement switched off (its own {@code Enabled} or the
- * owner's switch, {@link #TRAINER_SWITCHED_OFF}), or a trainer no placement file defines as yet
- * ({@link #TRAINER_NOT_PLACED}). It reads the loaded files, so it
+ * owner's switch, {@link #TRAINER_SWITCHED_OFF}), one its own {@code Requires} keeps from teaching on this server now
+ * ({@link #TRAINER_GATED}: a stand-in while what it stands in for is there, a trainer of a feature switched off), or a
+ * trainer no placement file defines as yet ({@link #TRAINER_NOT_PLACED}). A gated trainer is not counted as a second
+ * standing of its character either, since it teaches nowhere. It reads the loaded files, so it
  * runs once per boot: at the first player ready ({@link #runLateAudit}) or in zc's boot audit
  * ({@link #claimLateFindings}), never both.
  */
@@ -53,6 +55,7 @@ public final class TrainerAudit {
     public static final String WHERE_NAMES_NO_TRAINER = "WHERE_NAMES_NO_TRAINER";
     public static final String TRAINER_NOT_PLACED = "TRAINER_NOT_PLACED";
     public static final String TRAINER_SWITCHED_OFF = "TRAINER_SWITCHED_OFF";
+    public static final String TRAINER_GATED = "TRAINER_GATED";
 
     /** What a placement id may be spelt with: an asset's file name (letters, digits, {@code _} and {@code -}). */
     private static final Pattern PLACEMENT_ID = Pattern.compile("[A-Za-z0-9_-]+");
@@ -71,13 +74,21 @@ public final class TrainerAudit {
             picks.add(pick.asset());
         }
         Set<String> refused = placements.modGateRefusedFiles().keySet();
+        Set<String> gated = new TreeSet<>();
+        for (NpcPlacementAsset placement : placements.all().values()) {
+            if (placement != null && placement.getId() != null && placement.isTrainer()
+                    && Trainers.refused(placement)) {
+                gated.add(placement.getId().toLowerCase(Locale.ROOT));
+            }
+        }
         return audit(placements.all().values(), id -> TrackConfig.getInstance().resolve(id) != null,
                 id -> TrackCategoryConfig.getInstance().category(id) != null, Trainers::npcOf, picks,
-                id -> refused.contains(id.toLowerCase(Locale.ROOT)), NpcPlacementOverrides.getInstance()::isEnabled);
+                id -> refused.contains(id.toLowerCase(Locale.ROOT)), NpcPlacementOverrides.getInstance()::isEnabled,
+                gated::contains);
     }
 
     /**
-     * The pure core.
+     * The pure core, with no trainer kept away by its own {@code Requires}.
      *
      * @param npcOf      who stands at a placement (its id lower-cased), or null
      * @param refused    whether a placement id names a file the mod gate kept out, which is never named
@@ -88,11 +99,30 @@ public final class TrainerAudit {
             @Nonnull Predicate<String> trackKnown, @Nonnull Predicate<String> categoryKnown,
             @Nonnull Function<String, String> npcOf, @Nonnull Collection<TrackPickAsset> picks,
             @Nonnull Predicate<String> refused, @Nonnull Predicate<String> switchedOn) {
+        return audit(placements, trackKnown, categoryKnown, npcOf, picks, refused, switchedOn, id -> false);
+    }
+
+    /**
+     * The pure core.
+     *
+     * @param npcOf      who stands at a placement (its id lower-cased), or null
+     * @param refused    whether a placement id names a file the mod gate kept out, which is never named
+     * @param switchedOn whether the owner's switch leaves a placement (its id lower-cased) on
+     * @param gated      whether a placement's own {@code Requires} keeps it (its id lower-cased) from teaching now
+     */
+    @Nonnull
+    static List<Finding> audit(@Nonnull Collection<NpcPlacementAsset> placements,
+            @Nonnull Predicate<String> trackKnown, @Nonnull Predicate<String> categoryKnown,
+            @Nonnull Function<String, String> npcOf, @Nonnull Collection<TrackPickAsset> picks,
+            @Nonnull Predicate<String> refused, @Nonnull Predicate<String> switchedOn,
+            @Nonnull Predicate<String> gated) {
         List<Finding> out = new ArrayList<>();
-        // Every placement file loaded, switched on or off; those with a Trainer block; those of them switched off.
+        // Every placement file loaded, switched on or off; those with a Trainer block; those of them switched off;
+        // those its own Requires keeps from teaching.
         Set<String> loaded = new TreeSet<>();
         Set<String> trainers = new TreeSet<>();
         Set<String> trainersOff = new TreeSet<>();
+        Set<String> trainersGated = new TreeSet<>();
         Map<String, List<String>> byCharacter = new LinkedHashMap<>();
         for (NpcPlacementAsset placement : placements) {
             if (placement != null && placement.getId() != null) {
@@ -107,6 +137,8 @@ public final class TrainerAudit {
             trainers.add(key);
             if (!placement.isEnabled() || !switchedOn.test(key)) {
                 trainersOff.add(key);
+            } else if (gated.test(key)) {
+                trainersGated.add(key);
             }
             for (String track : block.tracks()) {
                 if (!trackKnown.test(track)) {
@@ -121,7 +153,7 @@ public final class TrainerAudit {
                             id));
                 }
             }
-            String npc = placement.isEnabled() ? npcOf.apply(id.toLowerCase(Locale.ROOT)) : null;
+            String npc = placement.isEnabled() && !trainersGated.contains(key) ? npcOf.apply(key) : null;
             if (npc != null && !npc.isBlank()) {
                 byCharacter.computeIfAbsent(npc.trim().toLowerCase(Locale.ROOT), k -> new ArrayList<>()).add(id);
             }
@@ -138,6 +170,7 @@ public final class TrainerAudit {
         });
         Map<String, Integer> notPlaced = new TreeMap<>();
         Map<String, Integer> switchedOff = new TreeMap<>();
+        Map<String, Integer> keptAway = new TreeMap<>();
         for (TrackPickAsset pick : picks) {
             if (pick == null) {
                 continue;
@@ -150,6 +183,8 @@ public final class TrainerAudit {
                 if (trainers.contains(named)) {
                     if (trainersOff.contains(named)) {
                         switchedOff.merge(named, 1, Integer::sum);
+                    } else if (trainersGated.contains(named)) {
+                        keptAway.merge(named, 1, Integer::sum);
                     }
                 } else if (!PLACEMENT_ID.matcher(named).matches()) {
                     out.add(Finding.warning(DOMAIN, WHERE_NAMES_NO_TRAINER, "the pick's Where names '" + named
@@ -167,6 +202,10 @@ public final class TrainerAudit {
         switchedOff.forEach((trainer, count) -> out.add(Finding.info(DOMAIN, TRAINER_SWITCHED_OFF, count
                 + " pick(s) name the trainer '" + trainer + "', whose placement is switched off, so they are learned "
                 + "on their tracks' own pages until it is switched on", trainer)));
+        keptAway.forEach((trainer, count) -> out.add(Finding.info(DOMAIN, TRAINER_GATED, count
+                + " pick(s) name the trainer '" + trainer + "', whose own Requires keeps it from teaching on this "
+                + "server now, so they are learned at the other trainers their Where names, else on their tracks' "
+                + "own pages", trainer)));
         notPlaced.forEach((trainer, count) -> out.add(Finding.info(DOMAIN, TRAINER_NOT_PLACED, count
                 + " pick(s) name the trainer '" + trainer + "', which no placement file defines as yet, so they are "
                 + "learned on their tracks' own pages until one does", trainer)));

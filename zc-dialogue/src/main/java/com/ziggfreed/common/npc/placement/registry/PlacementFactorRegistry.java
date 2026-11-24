@@ -123,6 +123,29 @@ public final class PlacementFactorRegistry {
         return FactorConditions.firstFailure(requires.conditionsOrEmpty(), REGISTRY, ctx);
     }
 
+    /**
+     * Whether {@code requires} definitely refuses the placement on this server, asked of nobody in no world: true only
+     * when a condition's factor reads a number its bounds refuse (a feature switched off, a district standing that a
+     * {@code Max: 0} waits on). A condition this context cannot answer (a reading that needs a world or a subject, a
+     * factor nobody registered) is passed over, never counted as a refusal, so a gate that reads a place keeps its
+     * character. What a trainer asks of its own placement to know whether it teaches (zc-objectives' trainers): one
+     * kept away from every world by its own rule teaches nowhere, so its lessons go to whoever else can teach them.
+     */
+    public static boolean refusesOnServer(@Nullable NpcPlacementAsset.Requires requires, @Nonnull String placementId) {
+        if (requires == null) {
+            return false;
+        }
+        FactorContext ctx = FactorContext.builder().payload(placementId).build();
+        for (FactorConditions.Failure failure
+                : FactorConditions.allFailuresResolved(requires.conditionsOrEmpty(), REGISTRY, ctx)) {
+            Double read = failure.resolved();
+            if (read != null && Double.isFinite(read)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Drop every registration. Tests only; a live server registers once and never unregisters. */
     static void clearForTests() {
         REGISTRY.clear();

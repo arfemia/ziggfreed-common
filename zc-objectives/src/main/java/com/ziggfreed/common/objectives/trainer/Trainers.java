@@ -13,6 +13,7 @@ import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
+import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackService;
 import com.ziggfreed.common.util.SafeLog;
@@ -20,9 +21,14 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The one read of which placements are trainers (R608): a trainer is an NPC placement carrying a {@code Trainer}
  * block, loaded and switched on (its own {@code Enabled} and the owner's switch in
- * {@code mods/ziggfreedcommon/npc-placements.json}). Its season and {@code Requires} are where it stands, not
- * whether it teaches, so a trainer standing only in winter keeps its picks at its page all year. What this answers
- * is also zc-track's {@code PickTrainers} seam: a pick whose named trainers none teach is learned on its track's page.
+ * {@code mods/ziggfreedcommon/npc-placements.json}), whose {@code Requires} does not refuse it on this server. Its
+ * season and its world are where it stands, not whether it teaches, so a trainer standing only in winter keeps its
+ * picks at its page all year; but a {@code Requires} that refuses it whoever asks and wherever (a feature switched off,
+ * a stand-in's {@code Max: 0} on a hub district that stands, read through
+ * {@link PlacementFactorRegistry#refusesOnServer}) keeps it from teaching, so its picks go to the other trainers their
+ * {@code Where} names, else to their track's page. A condition that needs a world or a subject to answer never counts
+ * against it. What this answers is also zc-track's {@code PickTrainers} seam: a pick whose named trainers none teach is
+ * learned on its track's page.
  */
 public final class Trainers {
 
@@ -62,7 +68,20 @@ public final class Trainers {
         if (placement == null || !placement.isTrainer() || !placement.isEnabled()) {
             return null;
         }
-        return NpcPlacementOverrides.getInstance().isEnabled(placement.getId()) ? placement : null;
+        if (!NpcPlacementOverrides.getInstance().isEnabled(placement.getId())) {
+            return null;
+        }
+        return refused(placement) ? null : placement;
+    }
+
+    /**
+     * Whether {@code placement}'s own {@code Requires} keeps it from teaching on this server now
+     * ({@link PlacementFactorRegistry#refusesOnServer}): the trainers' audit's {@code TRAINER_GATED} line and
+     * {@link #teaches} read it alike.
+     */
+    static boolean refused(@Nonnull NpcPlacementAsset placement) {
+        String id = placement.getId();
+        return PlacementFactorRegistry.refusesOnServer(placement.getRequires(), id == null ? "" : id);
     }
 
     /**

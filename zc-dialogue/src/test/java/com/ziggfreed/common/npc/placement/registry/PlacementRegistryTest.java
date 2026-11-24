@@ -142,6 +142,24 @@ class PlacementRegistryTest {
         assertTrue(PlacementFactorRegistry.isRegistered("YOURMOD:FEATURE"));
     }
 
+    @Test
+    void onlyADefiniteReadingRefusesAPlacementOnTheServerAndOneThatCannotBeAnsweredNever() {
+        PlacementFactorRegistry.register("yourmod:district", c -> "built".equals(c.param()) ? 1.0 : 0.0);
+        PlacementFactorRegistry.register("yourmod:needs_a_world", c -> c.world() == null ? null : 1.0);
+
+        assertTrue(PlacementFactorRegistry.refusesOnServer(NpcPlacementAsset.Requires.of(new FactorCondition[]{
+                FactorCondition.of("yourmod:district", "built", null, 0.0)}), "stand_in"),
+                "a stand-in waiting on a district that stands is refused everywhere");
+        assertFalse(PlacementFactorRegistry.refusesOnServer(NpcPlacementAsset.Requires.of(new FactorCondition[]{
+                FactorCondition.of("yourmod:district", "unbuilt", null, 0.0)}), "stand_in"),
+                "and stands in while it does not");
+        assertFalse(PlacementFactorRegistry.refusesOnServer(NpcPlacementAsset.Requires.of(new FactorCondition[]{
+                FactorCondition.of("yourmod:needs_a_world", null, 1.0, null),
+                FactorCondition.of("yourmod:nobody", null, 1.0, null)}), "here"),
+                "a reading this context cannot make, or nobody provides, is never counted as a refusal");
+        assertFalse(PlacementFactorRegistry.refusesOnServer(null, "plain"), "no Requires refuses nothing");
+    }
+
     // ==================== anchors: no position, never a crash ====================
 
     @Test

@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:hub_district reading for requirement lines. Param is a hub district id (a file under Server/ZiggfreedCommon/HubDistricts/); the reading is 1 while that district stands in the temple hub (switched on, in season, given a lot) and 0 while it does not, including a district no loaded file defines (AbsentReads), so a presence check needs Min 1. A character in the Forgotten Temple who stands in for one who moved into a district writes Max 0 on it, and the one in the district Min 1, so exactly one of them stands.",
+  "Factor": "ziggfreedcommon:hub_district",
+  "Text": { "TitleKey": "ziggfreedcommon.hub.factor.hub_district" },
+  "AbsentReads": 0
+}

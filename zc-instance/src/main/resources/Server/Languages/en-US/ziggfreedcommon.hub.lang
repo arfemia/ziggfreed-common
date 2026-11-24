@@ -23,6 +23,9 @@ porter.opt.farewell = I'll stay a while.
 # The hub's map.
 marker.concourse = Concourse
 
+# The hub district reading (ziggfreedcommon:hub_district) in a requirement line.
+factor.hub_district = a district standing in the temple hub
+
 # The Concourse's two pads: their names, what the game's lore page says of them and the hint a player sees on them.
 door.temple.name = Way to the Temple
 door.temple.description = Step on it to go back to the Forgotten Temple.
