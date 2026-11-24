@@ -352,7 +352,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `MaxLevel` | `integer` | `null` | Price each pick at the player's level on its track, never above this one. |
 | `Picks` | `integer` | `null` | How many different tracks the player picks, each paid in full. 1 when absent. |
 | `Tracks` | array of `string` | `null` | The tracks it may go to, by id. Absent for every track of the Category. |
-| `Category` | `string` | `null` | With no Tracks, every track of this category. Absent for every track. |
+| `Category` | `string` | `null` | With no Tracks, every track of this category (several split by commas). Absent for every track. |
 | `MinLevel` | `integer` | `null` | The level a track must stand at for the player to pick it. Absent for any. |
 
 <a id="type-trackworldruleasset"></a>

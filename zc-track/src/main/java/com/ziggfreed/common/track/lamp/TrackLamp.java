@@ -24,7 +24,8 @@ import com.ziggfreed.common.track.price.TrackPricing;
  * track each pick goes to ({@code Price}, a row of the XP price table, and its {@code Minutes}, {@code Level} and
  * {@code MaxLevel} over the row's, as a Track reward reads them, {@link TrackPricing}); how many different tracks the
  * player picks ({@code Picks}); which tracks it may go to ({@code Tracks} by id, else every track of
- * {@code Category}, else every track); and the level a track must stand at to be picked ({@code MinLevel}).
+ * {@code Category}, several split by commas, else every track); and the level a track must stand at to be picked
+ * ({@code MinLevel}).
  *
  * <p>One item ({@value #ITEM_ID}) stands for a lamp of any size: the {@code Track_Lamp} reward kind or
  * {@code /zigtrack lamp} mints one ({@link #mint}), and two lamps with the same numbers carry the same document and
@@ -65,7 +66,8 @@ public final class TrackLamp {
             .append(new KeyedCodec<>("Tracks", Codec.STRING_ARRAY), (t, v) -> t.tracks = v, t -> t.tracks)
             .documentation("The tracks it may go to, by id. Absent for every track of the Category.").add()
             .append(new KeyedCodec<>("Category", Codec.STRING), (t, v) -> t.category = v, t -> t.category)
-            .documentation("With no Tracks, every track of this category. Absent for every track.").add()
+            .documentation("With no Tracks, every track of this category (several split by commas). Absent for "
+                    + "every track.").add()
             .append(new KeyedCodec<>("MinLevel", Codec.INTEGER), (t, v) -> t.minLevel = v, t -> t.minLevel)
             .documentation("The level a track must stand at for the player to pick it. Absent for any.").add()
             .build();

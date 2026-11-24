@@ -5,11 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.instance.reward.DeferredRewards;
+import com.ziggfreed.common.instance.reward.InstanceReward;
+import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.track.lamp.TrackLampRewardKind;
 import com.ziggfreed.common.track.price.TrackPriceAsset;
 import com.ziggfreed.common.track.price.TrackPricing;
 
@@ -58,5 +65,27 @@ class MinutesPricingTest {
         assertNull(kept.param("Level"));
         assertEquals("Mining", TrackRewardKind.trackOf(kept));
         assertFalse(TrackRewardKind.isExact(TrackRewardKind.spec("Mining", 500)), "a plain amount takes the boosts");
+    }
+
+    /**
+     * A lamp kept in a Claim is worth its minutes, so a payout's diminishing returns hand a lamp of the share the
+     * Claim shows (R1148: half the minutes on a second clear), never the whole lamp on a coin flip: its deferred row
+     * reads the minutes as its amount, and its line filled with any share reads as the lamp of that share replays.
+     */
+    @Test
+    void aLampKeptInAClaimScalesByItsMinutes() {
+        RewardKindRegistry kinds = new RewardKindRegistry();
+        TrackLampRewardKind.registerInto(kinds);
+        Subject claimer = Subject.of(UUID.randomUUID(), "{player}");
+        RewardSpec lamp = RewardSpec.of(TrackLampRewardKind.KIND,
+                Map.of("Price", "Dungeon_Clear", "Minutes", "20", "MaxLevel", "30", "Category", "Combat,Magic"));
+        List<InstanceReward> rows = DeferredRewards.fromSpecs(List.of(lamp), kinds, claimer, "test", null);
+        assertEquals(1, rows.size());
+        InstanceReward row = rows.get(0);
+        assertEquals(20, row.quantity(), "the lamp's minutes are its amount");
+        assertTrue(row.scalesWithQuantity(), "a share of the Claim is a share of the lamp");
+        String half = row.id().replace(InstanceReward.AMOUNT_PLACEHOLDER, "10");
+        assertEquals(kinds.handler(TrackLampRewardKind.KIND).retryCommand(lamp.with("Minutes", "10"), claimer, "test"),
+                half, "the half share replays as a lamp of half the minutes");
     }
 }

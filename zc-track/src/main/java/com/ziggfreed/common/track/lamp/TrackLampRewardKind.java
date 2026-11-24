@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.EditorPick;
+import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardHandler;
@@ -27,13 +28,16 @@ import com.ziggfreed.common.track.price.TrackPricing;
  * {@code {"Kind": "Track_Lamp", "Params": {"Price": "Quest", "Level": 30, "Picks": 2, "Category": "Gathering"}}}.
  * {@code Price}, {@code Minutes}, {@code Level} and {@code MaxLevel} price each pick as a Track reward does, but when
  * the lamp is used, at the level of the track it goes to; {@code Picks} different tracks each paid in full;
- * {@code Tracks} (ids split by commas) or {@code Category} the tracks it may go to (every track without either);
- * {@code MinLevel} the level a track must stand at to be picked; {@code Count} how many lamps. UNPREFIXED because the
- * library owns the lamp behind it, and registered once into the shared vocabulary, so every site that pays a reward
- * pays it, each a Claim (M428): the lamp is handed over when the player collects it.
+ * {@code Tracks} (ids split by commas) or {@code Category} (several split by commas) the tracks it may go to (every
+ * track without either); {@code MinLevel} the level a track must stand at to be picked; {@code Count} how many lamps.
+ * UNPREFIXED because the library owns the lamp behind it, and registered once into the shared vocabulary, so every
+ * site that pays a reward pays it, each a Claim (M428): the lamp is handed over when the player collects it.
  *
  * <p>It hands the lamp the way any pickup lands ({@link TrackLamps#give}). With no live player it fails, and
- * {@link #retryCommand} answers the {@code /zigtrack lamp} line a Claim keeps beside the reward.
+ * {@link #retryCommand} answers the {@code /zigtrack lamp} line a Claim keeps beside the reward. A lamp kept in a
+ * Claim carries its minutes as its own ({@link #stamp}), which is the amount a Claim scaled before it pays reads
+ * ({@link #scalableRetryCommand}): a diminished repeat payout hands a lamp of the share it shows, never the whole lamp
+ * on a coin flip (R1148).
  */
 public final class TrackLampRewardKind implements RewardHandler {
 
@@ -69,8 +73,8 @@ public final class TrackLampRewardKind implements RewardHandler {
                         + "when left out."),
                 RewardParam.text("Tracks", "The tracks it may go to, by id, split by commas. Leave it out for "
                         + "every track of the Category.").withPick(EditorPick.list(TrackBootstrap.TRACKS_DATA_SET)),
-                RewardParam.text("Category", "With no Tracks, every track of this category. Leave it out for "
-                        + "every track."),
+                RewardParam.text("Category", "With no Tracks, every track of this category, several split by "
+                        + "commas. Leave it out for every track."),
                 RewardParam.integer("MinLevel", "The level a track must stand at to be picked."),
                 RewardParam.integer("Count", "How many lamps. 1 when left out.")));
     }
@@ -147,17 +151,54 @@ public final class TrackLampRewardKind implements RewardHandler {
         receipt.accept(spec);
     }
 
+    /**
+     * The lamp as it is kept when earned: the minutes its price row pays written in as its own {@code Minutes}, so
+     * the Claim keeping it reads them as its amount and a share of it is a lamp of that share
+     * ({@link #scalableRetryCommand}). As it was when it writes its own minutes, names no row, or its row pays
+     * nothing. The lamp is still priced when used, at the level of the track it goes to.
+     */
+    @Override
+    @Nonnull
+    public RewardSpec stamp(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+        if (!KIND.equalsIgnoreCase(spec.kind()) || written(spec, TrackPricing.PARAM_MINUTES)
+                || !written(spec, TrackPricing.PARAM_PRICE)) {
+            return spec;
+        }
+        double minutes = TrackPricing.resolve(spec.param(TrackPricing.PARAM_PRICE), null, null, null).minutes();
+        return minutes > 0.0 ? spec.with(TrackPricing.PARAM_MINUTES, number(minutes)) : spec;
+    }
+
     @Override
     @Nullable
     public String retryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject, @Nonnull String sourceId) {
         TrackLamp lamp = lampOf(spec);
-        if (!lamp.pays()) {
-            return null;
-        }
+        return lamp.pays() ? line(lamp, spec, subject, lamp.minutes() == null ? null : number(lamp.minutes())) : null;
+    }
+
+    /**
+     * The replay line with its minutes left as {@code {amount}}, so a Claim scaled before it pays (a diminished repeat
+     * clear) hands a lamp of the minutes it shows. Null for a lamp that writes no minutes of its own (one earned
+     * before {@link #stamp} could write them in), which then replays whole. A Claim reads its amount whole, so a lamp
+     * of fractional minutes (a row an owner wrote so) fills this line to other than its replay line, and the deferral
+     * keeps the replay line: that lamp is kept or dropped whole on a diminished Claim.
+     */
+    @Override
+    @Nullable
+    public String scalableRetryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        TrackLamp lamp = lampOf(spec);
+        return lamp.pays() && lamp.minutes() != null
+                ? line(lamp, spec, subject, InstanceReward.AMOUNT_PLACEHOLDER) : null;
+    }
+
+    /** The one spelling of the {@code /zigtrack lamp} line, {@code minutes} as given (a number or a placeholder). */
+    @Nonnull
+    private static String line(@Nonnull TrackLamp lamp, @Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nullable String minutes) {
         StringBuilder line = new StringBuilder(ZigTrackCommand.FAMILY + " " + ZigTrackCommand.LAMP + " --player="
                 + subject.name());
         append(line, "price", lamp.price());
-        append(line, "minutes", lamp.minutes() == null ? null : Double.toString(lamp.minutes()));
+        append(line, "minutes", minutes);
         append(line, "level", lamp.level() == null ? null : Integer.toString(lamp.level()));
         append(line, "maxlevel", lamp.maxLevel() == null ? null : Integer.toString(lamp.maxLevel()));
         append(line, "picks", lamp.picks() > 1 ? Integer.toString(lamp.picks()) : null);
@@ -173,5 +214,15 @@ public final class TrackLampRewardKind implements RewardHandler {
         if (value != null && !value.isBlank()) {
             line.append(" --").append(arg).append('=').append(value.trim());
         }
+    }
+
+    /**
+     * Minutes as a line and a stamped lamp write them: a whole number without a decimal point, so a Claim's amount
+     * (read whole) fills the scalable line to exactly the line it replays; a fraction as it is.
+     */
+    @Nonnull
+    static String number(double minutes) {
+        return minutes == Math.rint(minutes) && Math.abs(minutes) < 1.0e15 ? Long.toString((long) minutes)
+                : Double.toString(minutes);
     }
 }

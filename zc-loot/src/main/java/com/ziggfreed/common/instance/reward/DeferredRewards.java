@@ -82,9 +82,9 @@ import com.ziggfreed.common.subject.Subject;
  * at the row's own quantity, which names a Java-registered kind through what its owner contributed
  * ("+10 Sweets" for a wallet) rather than painting the line that pays it.
  *
- * <p>The chip's quantity comes from {@link #PARAM_AMOUNT} (or {@code Count} / {@code Quantity}),
- * which is the number most kinds already carry, so "+500 Mining XP" renders without the loot layer
- * knowing what a skill is.
+ * <p>The chip's quantity comes from {@link #PARAM_AMOUNT} (or {@code Count} / {@code Quantity}, or a
+ * lamp's {@code Minutes}), which is the number most kinds already carry, so "+500 Mining XP" renders
+ * without the loot layer knowing what a skill is.
  */
 public final class DeferredRewards {
 
@@ -97,8 +97,11 @@ public final class DeferredRewards {
     /** The parameter the chip's quantity is read from first. */
     public static final String PARAM_AMOUNT = "Amount";
 
-    /** The parameters the chip's quantity is read from, in order: the first one written as a number wins. */
-    private static final List<String> QUANTITY_PARAMS = List.of(PARAM_AMOUNT, "Count", "Quantity");
+    /**
+     * The parameters the chip's quantity is read from, in order: the first one written as a number wins. A reward
+     * worth minutes of play (a lamp kept in a Claim) is that many minutes, so a share of it is a share of its minutes.
+     */
+    private static final List<String> QUANTITY_PARAMS = List.of(PARAM_AMOUNT, "Count", "Quantity", "Minutes");
 
     /**
      * The name a deferred line is resolved for ({@link #fromSelection}'s {@code subject}), which the claiming
@@ -331,10 +334,10 @@ public final class DeferredRewards {
     }
 
     /**
-     * The parameter the chip's quantity is read from: the first of {@code Amount}, {@code Count} and
-     * {@code Quantity} that {@code spec} writes as a number, or null when it writes none (the chip then
-     * shows one). Public so a kind's scalable line leaves standing exactly the parameter the quantity
-     * reads ({@link RewardHandler#scalableRetryCommand}).
+     * The parameter the chip's quantity is read from: the first of {@code Amount}, {@code Count},
+     * {@code Quantity} and {@code Minutes} that {@code spec} writes as a number, or null when it writes none
+     * (the chip then shows one). Public so a kind's scalable line leaves standing exactly the parameter the
+     * quantity reads ({@link RewardHandler#scalableRetryCommand}).
      */
     @Nullable
     public static String quantityParam(@Nonnull RewardSpec spec) {

@@ -108,14 +108,14 @@ public final class TrackLamps {
         return out;
     }
 
-    /** The usable, not derived tracks {@code lamp} names, in the order the tracks sort. */
+    /**
+     * The usable, not derived tracks {@code lamp} names, in the order the tracks sort: its {@code Tracks}, else every
+     * track of its {@code Category} (several split by commas, {@code First,Second}), else every track.
+     */
     @Nonnull
     static List<TrackDef> pool(@Nonnull TrackLamp lamp) {
-        Set<String> named = new LinkedHashSet<>();
-        for (String id : lamp.tracks()) {
-            named.add(id.toLowerCase(Locale.ROOT));
-        }
-        String category = lamp.category();
+        Set<String> named = folded(lamp.tracks());
+        Set<String> categories = lamp.category() == null ? Set.of() : folded(List.of(lamp.category().split(",")));
         List<TrackDef> out = new ArrayList<>();
         for (TrackDef def : TrackService.defs()) {
             if (def.asset().isDerived()) {
@@ -128,8 +128,21 @@ public final class TrackLamps {
                 continue;
             }
             String own = def.asset().category();
-            if (category == null || (own != null && own.equalsIgnoreCase(category))) {
+            if (categories.isEmpty() || (own != null && categories.contains(own.toLowerCase(Locale.ROOT)))) {
                 out.add(def);
+            }
+        }
+        return out;
+    }
+
+    /** {@code ids} trimmed and lower-cased, blanks left out. */
+    @Nonnull
+    private static Set<String> folded(@Nonnull List<String> ids) {
+        Set<String> out = new LinkedHashSet<>();
+        for (String id : ids) {
+            String clean = id == null ? "" : id.trim();
+            if (!clean.isEmpty()) {
+                out.add(clean.toLowerCase(Locale.ROOT));
             }
         }
         return out;
