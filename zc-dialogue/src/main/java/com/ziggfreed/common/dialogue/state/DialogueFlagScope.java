@@ -192,7 +192,7 @@ public final class DialogueFlagScope {
             return false;
         }
         if (!isEmpty(selector.getGameplayConfig()) || !isEmpty(selector.getExcludeMatch())
-                || !isEmpty(selector.getPlacement())) {
+                || !isEmpty(selector.getPlacement()) || selector.getPvp() != null) {
             return false;
         }
         for (String raw : selector.getMatch()) {
@@ -387,7 +387,8 @@ public final class DialogueFlagScope {
             return "";
         }
         return join(selector.getGameplayConfig()) + "|" + join(selector.getMatch())
-                + "|" + join(selector.getExcludeMatch()) + "|" + join(selector.getPlacement());
+                + "|" + join(selector.getExcludeMatch()) + "|" + join(selector.getPlacement())
+                + (selector.getPvp() == null ? "" : "|pvp=" + selector.getPvp());
     }
 
     @Nonnull

@@ -63,6 +63,8 @@ public final class Nearby {
         FOES,
         /** Other players the ally rule names the holder's. */
         ALLIES,
+        /** Other players the holder may harm: PvP on in the world, and not the holder's allies. */
+        ENEMIES,
         /** Every other player. */
         PLAYERS
     }
@@ -84,6 +86,17 @@ public final class Nearby {
     public static int players(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> holder,
             double radius, @Nullable Condition[] conditions, @Nonnull Instant now, int stopAt) {
         return count(accessor, holder, Kind.ALLIES, radius, conditions, now, stopAt);
+    }
+
+    /**
+     * How many enemy players of {@code holder} are within {@code radius} blocks and meet every one of
+     * {@code conditions}, counting no further than {@code stopAt} (0 or less: no limit): the other living players the
+     * holder may harm ({@link Allies#mayHarm}: the world's PvP is on and the ally rule does not name them). 0 for a
+     * holder that is no player, and in a world with PvP off.
+     */
+    public static int enemyPlayers(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> holder,
+            double radius, @Nullable Condition[] conditions, @Nonnull Instant now, int stopAt) {
+        return count(accessor, holder, Kind.ENEMIES, radius, conditions, now, stopAt);
     }
 
     /**
@@ -257,13 +270,16 @@ public final class Nearby {
         }
         UUID holderId = null;
         boolean pvp = true;
-        if (kind == Kind.ALLIES) {
+        if (kind == Kind.ALLIES || kind == Kind.ENEMIES) {
             holderId = accessor.getComponent(holder, PlayerRef.getComponentType()) == null
                     ? null : FirstHits.idOf(accessor, holder);
             if (holderId == null) {
-                return; // only a player has allies
+                return; // only a player has allies or enemy players
             }
             pvp = Allies.pvpOn(accessor);
+            if (kind == Kind.ENEMIES && !pvp) {
+                return; // with PvP off no player may harm another
+            }
         }
         SpatialResource<Ref<EntityStore>, EntityStore> tree = accessor.getResource(kind == Kind.FOES
                 ? NPCPlugin.get().getNpcSpatialResource() : EntityModule.get().getPlayerSpatialResourceType());
@@ -298,6 +314,11 @@ public final class Nearby {
             case ALLIES -> {
                 UUID otherId = FirstHits.idOf(accessor, other);
                 yield holderId != null && otherId != null && Allies.areAllies(holderId, otherId, pvp);
+            }
+            case ENEMIES -> {
+                UUID otherId = FirstHits.idOf(accessor, other);
+                yield holderId != null && otherId != null && !holderId.equals(otherId)
+                        && !Allies.areAllies(holderId, otherId, true);
             }
             case PLAYERS -> true;
         };

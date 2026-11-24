@@ -1,1 +1,18 @@
 factor.counter_stacks = stacks held of a counter
+
+# The Held Effects screen on /zigadmin (OwnerForms/Held_Effects.json).
+form.held.title = Held Effects
+form.held.desc = Effects worn while a talent, a held item or a stat says so, and the auras that reach the wearer's allies.
+form.held.note = A held effect is worn as long as its talent, item or stat says, such as a carried flag's aura or a stance. What it needs stays in its file.
+form.held.on = Effect in use
+form.held.on.hint = Off: nobody wears this effect from its file, and it comes off anyone wearing it.
+form.held.heading.reach = Aura
+form.held.reach.note = An aura reaches the wearer's allies nearby: their party, or every other player while PvP is off. An effect with no aura is worn by the wearer alone.
+form.held.radius = Aura reach (blocks)
+form.held.radius.hint = How far from the wearer the aura reaches.
+form.held.max = Most reached
+form.held.max.hint = The most others the aura reaches at once, nearest first.
+form.held.min = Allies needed
+form.held.min.hint = How many others must be in reach for the effect to hold at all. 0 holds alone.
+form.held.self = Wearer wears it too
+form.held.self.hint = Off: only the others the aura reaches wear it, never the wearer.

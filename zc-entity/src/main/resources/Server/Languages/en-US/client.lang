@@ -120,3 +120,6 @@ itemTooltip.stats.ProcStrength = Talent Effect Strength: {value}%
 itemTooltip.stats.ProcCooldownCut = Talent Cooldown Cut: {value}%
 itemTooltip.stats.CounterSize = Talent Stack Limit: {value}%
 itemTooltip.stats.Energy = Energy: {value}
+itemTooltip.stats.PvpResist = Resistance to Players: {value}%
+itemTooltip.stats.PvpKnockbackResist = Knockback Resistance to Players: {value}%
+itemTooltip.stats.PvpBountyBonus = Bounty Reward: {value}%

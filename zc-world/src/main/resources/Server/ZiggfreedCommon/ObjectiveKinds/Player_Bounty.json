@@ -1,0 +1,11 @@
+{
+  "$Comment": "Ending a bounty: defeating a player whose streak of kills had put a bounty on them (the world's PvP rules, Bounty.At). Target is always Player; the Qualifier is the item you held. The amount a step counts is 1 a bounty; a track source's PerAmount reads what it is worth instead, a share of the fallen player's health for each kill in their streak (Bounty.PerKill, at most Bounty.MaxStreak kills), raised by your PvpBountyBonus stat. A step reads {\"Kind\": \"PLAYER_BOUNTY\", \"Amount\": 5}.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "TextKey": "ziggfreedcommon.pvp.objective.player_bounty",
+    "Icon": {
+      "ItemId": "Objective_Bounty"
+    }
+  }
+}

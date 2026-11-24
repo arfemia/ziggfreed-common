@@ -565,7 +565,8 @@ public final class TrackValidator {
     @Nonnull
     private static String whereKey(@Nonnull WorldSelector where) {
         return "match=" + axisKey(where.getMatch()) + "|config=" + axisKey(where.getGameplayConfig())
-                + "|placement=" + axisKey(where.getPlacement()) + "|exclude=" + axisKey(where.getExcludeMatch());
+                + "|placement=" + axisKey(where.getPlacement()) + "|exclude=" + axisKey(where.getExcludeMatch())
+                + "|pvp=" + where.getPvp();
     }
 
     @Nonnull

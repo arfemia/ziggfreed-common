@@ -1,0 +1,6 @@
+{
+  "$Comment": "Other players a player has defeated, counting only kills the world's PvP rules credit (never an idle player, a party member, or the same player again too soon). Read from the player's PvP record and never counted again. The file name is the key the Records board files it under, so keep it.",
+  "NameKey": "ziggfreedcommon.pvp.stat.kills",
+  "Kind": "Native",
+  "Format": "Count"
+}

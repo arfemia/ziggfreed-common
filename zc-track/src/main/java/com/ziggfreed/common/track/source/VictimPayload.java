@@ -21,6 +21,17 @@ public interface VictimPayload extends MomentPayload {
     Ref<EntityStore> victimRef();
 
     /**
+     * Does this moment pay only where the world's rules write {@code Gain.PlayerHits} true? Yes for any moment that
+     * happened to another player ({@link #victimIsPlayer}), the default: a hit or a kill another kind already counts
+     * on creatures (R864). A moment of PvP's own (a player kill, an assist, a bounty ended), which only a fight
+     * between players makes and which nothing pays unless a source names its kind, answers false, so it pays wherever
+     * the engine let the fight happen; a world zeroes it the usual way, with its gain multiplier for the track.
+     */
+    default boolean underPlayerHitRule() {
+        return victimIsPlayer();
+    }
+
+    /**
      * Is the entity the moment happened to a player? False when it names none, is gone, or cannot be read. World
      * thread, as every reaction runs.
      */

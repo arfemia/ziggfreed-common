@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent more a bounty the carrier ends is worth, in whole percent points (25 makes it worth a quarter more). A bounty stands on a player who keeps killing other players without dying (the world's PvP rules, the PvP Rules screen on /zigadmin), and whoever ends it earns a PLAYER_BOUNTY moment worth part of the fallen player's health for each kill in the streak; this stat raises that worth, so a track source paying on it pays more. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers or a talent's grant. Base 0; Min -100, so a subtractive modifier can at most make a bounty worth nothing.",
+  "InitialValue": 0.0,
+  "Min": -100.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

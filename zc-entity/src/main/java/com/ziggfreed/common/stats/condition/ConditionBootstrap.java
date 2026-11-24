@@ -45,6 +45,8 @@ public final class ConditionBootstrap {
                     ZigFoesNearCondition.codec());
             conditions.register(ZigPlayersNearCondition.TYPE_NAME, ZigPlayersNearCondition.class,
                     ZigPlayersNearCondition.codec());
+            conditions.register(ZigOutnumberedCondition.TYPE_NAME, ZigOutnumberedCondition.class,
+                    ZigOutnumberedCondition.codec());
             conditions.register(ZigStatPercentCondition.TYPE_NAME, ZigStatPercentCondition.class,
                     ZigStatPercentCondition.codec());
             conditions.register(ZigMovingCondition.TYPE_NAME, ZigMovingCondition.class, ZigMovingCondition.codec());

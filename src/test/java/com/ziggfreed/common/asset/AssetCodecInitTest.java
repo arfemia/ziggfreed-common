@@ -140,6 +140,8 @@ import com.ziggfreed.common.track.source.DiminishKeyAsset;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.world.TrackRules;
 import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
+import com.ziggfreed.common.pvp.PvpRuleAsset;
+import com.ziggfreed.common.pvp.PvpRules;
 import com.ziggfreed.common.match.When;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudRowAsset;
@@ -299,6 +301,8 @@ class AssetCodecInitTest {
         // The native gameplay config group registers into the engine's own Plugin codec, so a lower-case key in
         // it would fail inside a world's gameplay config instead of at this build.
         assertNotNull(TrackRules.CODEC, "TrackRules.CODEC must static-init (PascalCase keys)");
+        assertNotNull(PvpRuleAsset.CODEC, "PvpRuleAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(PvpRules.CODEC, "PvpRules.CODEC must static-init (PascalCase keys)");
         assertNotNull(TrackRules.GainRules.CODEC, "the Gain rules group codec must static-init");
         assertNotNull(TrackRules.GrantRules.CODEC, "the Grants rules group codec must static-init");
         assertNotNull(TrackPickAsset.CODEC, "TrackPickAsset.CODEC must static-init (PascalCase keys)");

@@ -214,6 +214,8 @@ import com.ziggfreed.common.track.stance.TrackStanceConfig;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
 import com.ziggfreed.common.track.source.TrackSourceOwnerLayers;
+import com.ziggfreed.common.pvp.PvpRuleAsset;
+import com.ziggfreed.common.pvp.PvpRuleConfig;
 import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
 import com.ziggfreed.common.track.world.TrackWorldRuleConfig;
 import com.ziggfreed.common.ui.hud.panel.HudOwnerLayers;
@@ -1339,6 +1341,20 @@ public final class FrameworkAssetRegistrar {
                     TrackWorldRuleConfig.reloadOwnerLayer();
                 });
 
+        // --- PvP rules (Pattern A) - what a kill between players counts for in the worlds a Where names (assists,
+        //     what credits nothing, the repeat guard, bounties), for what a world's own gameplay config
+        //     (Plugin.ZigPvp, the native home, which wins where both apply) cannot say; a pack adds a PvP mode by
+        //     one file. The library ships Default (every world). Owner file mods/ziggfreedcommon/pvp-rules.json,
+        //     re-read on this same event. ---
+        AssetStoreRegistrar.registerStore(PvpRuleAsset.class,
+                new DefaultAssetMap<String, PvpRuleAsset>(), PvpRuleAsset.TYPE_ROOT,
+                PvpRuleAsset::getId, PvpRuleAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PvpRuleAsset.class,
+                (LoadedAssetsEvent<String, PvpRuleAsset, DefaultAssetMap<String, PvpRuleAsset>> ev) -> {
+                    PvpRuleConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    PvpRuleConfig.reloadOwner();
+                });
+
         // --- Track picks (Pattern A, gated) - one pick per file, the one shape every choice, Mastery node, trainer
         //     offer and prestige perk is: its track, its choice groups or its cost and repeat, its Requires,
         //     prerequisites, spend cap, Where and grants. A file may gate on a mod through its top-level Requires.
@@ -1666,6 +1682,7 @@ public final class FrameworkAssetRegistrar {
                         + "TrackPrices (owner file mods/ziggfreedcommon/track-prices.json), "
                         + "TrackSettings (owner file mods/ziggfreedcommon/track-settings.json), "
                         + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
+                        + "PvpRules (owner file mods/ziggfreedcommon/pvp-rules.json), "
                         + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), TrackPickGenerators, "
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), "
                         + "TrackStances (owner file mods/ziggfreedcommon/track-stances.json), "

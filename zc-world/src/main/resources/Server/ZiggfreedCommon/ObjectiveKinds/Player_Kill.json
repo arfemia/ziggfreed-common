@@ -1,0 +1,11 @@
+{
+  "$Comment": "Defeating another player: the killing blow on a player the world's PvP rules credit (never an idle player, a party member, one who just came back, or the same player again too soon; the PvP Rules screen on /zigadmin). A fall, lava or drowning death soon after your hit counts as yours. Target is always Player; the Qualifier is the item you held. The amount a step counts is 1 a kill; a track source's PerAmount reads what the kill is worth instead, the fallen player's whole health, less when the repeat guard counts it for less. A step reads {\"Kind\": \"PLAYER_KILL\", \"Amount\": 10}.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "TextKey": "ziggfreedcommon.pvp.objective.player_kill",
+    "Icon": {
+      "ItemId": "Weapon_Sword_Iron"
+    }
+  }
+}

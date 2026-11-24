@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.codec.TagMatch;
 import com.ziggfreed.common.entity.HeldItemUtil;
@@ -83,6 +84,8 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *       <td>the mean native item level across the subject's armor slots, an empty slot counting 0</td></tr>
  *   <tr><td>{@code hytale:best_weapon_item_level}</td><td>ignored</td>
  *       <td>the highest native item level among the weapons on the subject's hotbar, 0 with none</td></tr>
+ *   <tr><td>{@code hytale:world_pvp}</td><td>ignored</td>
+ *       <td>1 when the world's own PvP switch ({@code WorldConfig.IsPvpEnabled}) is on, else 0</td></tr>
  * </table>
  *
  * <p><b>The two gear readings read what the subject CARRIES, not one item.</b> {@code worn_item_level} averages every
@@ -182,6 +185,11 @@ public final class HytaleFactors {
     public static final String WORN_ITEM_LEVEL = "hytale:worn_item_level";
     /** {@code hytale:best_weapon_item_level} - the highest native item level among the weapons on the subject's hotbar. */
     public static final String BEST_WEAPON_ITEM_LEVEL = "hytale:best_weapon_item_level";
+    /**
+     * {@code hytale:world_pvp} - 1 when the world the question is asked in lets players hurt each other (the world's
+     * own {@code IsPvpEnabled}, set by {@code /world config pvp}), else 0.
+     */
+    public static final String WORLD_PVP = "hytale:world_pvp";
 
     private static final Double YES = 1.0;
     private static final Double NO = 0.0;
@@ -212,6 +220,7 @@ public final class HytaleFactors {
         registry.register(ITEM_STAT, owner, HytaleFactors::resolveItemStat);
         registry.register(WORN_ITEM_LEVEL, owner, HytaleFactors::resolveWornItemLevel);
         registry.register(BEST_WEAPON_ITEM_LEVEL, owner, HytaleFactors::resolveBestWeaponItemLevel);
+        registry.register(WORLD_PVP, owner, HytaleFactors::resolveWorldPvp);
     }
 
     // ==================== providers ====================
@@ -530,6 +539,25 @@ public final class HytaleFactors {
         }
         PlayerRef playerRef = store.getComponent(subject, PlayerRef.getComponentType());
         return playerRef == null ? null : (ServerOperators.isOperator(playerRef) ? YES : NO);
+    }
+
+    /**
+     * {@code 1} when the world the question is asked in lets players hurt each other, else {@code 0}: the world's own
+     * {@code WorldConfig.isPvpEnabled}, read live (the engine announces no change to it), so a gate on it follows
+     * {@code /world config pvp} at once. The world is the context's own, else the one its store belongs to. Null when
+     * there is no world to read. {@code Param} is ignored.
+     */
+    @Nullable
+    static Double resolveWorldPvp(@Nonnull FactorContext ctx) {
+        try {
+            World world = ctx.world();
+            if (world == null && ctx.store() != null) {
+                world = ctx.store().getExternalData().getWorld();
+            }
+            return world == null ? null : (world.getWorldConfig().isPvpEnabled() ? YES : NO);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /**

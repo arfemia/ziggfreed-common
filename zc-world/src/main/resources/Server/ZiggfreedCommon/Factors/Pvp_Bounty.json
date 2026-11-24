@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:pvp_bounty reading for requirement lines: 1 while the player's streak of kills carries a bounty under their world's PvP rules (Bounty.At, the PvP Rules screen on /zigadmin), else 0. Write Min 1. A held effect on it puts a mark on whoever carries a bounty; a grant bound While a ZigRequires condition on it makes kills pay more while a bounty stands.",
+  "Factor": "ziggfreedcommon:pvp_bounty",
+  "Text": { "TitleKey": "ziggfreedcommon.pvp.factor.pvp_bounty" },
+  "AbsentReads": 0
+}

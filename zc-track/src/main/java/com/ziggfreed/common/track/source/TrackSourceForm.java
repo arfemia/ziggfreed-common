@@ -180,7 +180,7 @@ public final class TrackSourceForm {
         }
         if (out.containsKey(STEP_LIST)) {
             Object words = out.remove(STEP_LIST);
-            List<Double> steps = words == null ? List.of() : parseSteps(wordsOf(words));
+            List<Double> steps = DiminishSpec.parseStepValue(words);
             out.put(DIMINISH_STEPS, steps.isEmpty() ? null : new ArrayList<Object>(steps));
         }
         return out;
@@ -222,16 +222,10 @@ public final class TrackSourceForm {
         return out;
     }
 
-    /** The steps as words, in order; empty for no diminishing returns. Pure. */
+    /** The steps as words, in order; empty for no diminishing returns ({@link DiminishSpec#stepWords}). Pure. */
     @Nonnull
     static List<String> stepWords(@Nullable DiminishSpec spec) {
-        List<String> out = new ArrayList<>();
-        if (spec != null) {
-            for (double step : spec.steps()) {
-                out.add(number(step));
-            }
-        }
-        return out;
+        return DiminishSpec.stepWords(spec);
     }
 
     /** A row word parsed: its pattern, its Xp and its Level (0 for none). */
@@ -264,17 +258,13 @@ public final class TrackSourceForm {
         return out;
     }
 
-    /** The words as steps: each a number of 0 or more, in order; one that does not read is passed over. Pure. */
+    /**
+     * The words as steps: each a number of 0 or more, in order; one that does not read is passed over
+     * ({@link DiminishSpec#parseStepWords}). Pure.
+     */
     @Nonnull
     static List<Double> parseSteps(@Nonnull List<String> words) {
-        List<Double> out = new ArrayList<>();
-        for (String word : words) {
-            Double step = word == null ? null : parse(word.trim());
-            if (step != null && step >= 0.0) {
-                out.add(step);
-            }
-        }
-        return out;
+        return DiminishSpec.parseStepWords(words);
     }
 
     /**

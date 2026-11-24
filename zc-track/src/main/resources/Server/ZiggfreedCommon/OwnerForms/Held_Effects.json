@@ -1,0 +1,61 @@
+{
+  "$Comment": "The in-game screen for the held effects, on the owner menu (/zigadmin): one row per held effect (an effect worn while a talent, a held item or a stat says so: a stance, a guard's cue, a carried flag's aura), each opening its switch and its aura's reach, every setting saved straight into mods/ziggfreedcommon/held-effects.json under that effect's id, beside the value it has without your file. What an effect needs to be held, and every new one, stay in the files. Every word is a key of ziggfreedcommon.proc.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Held_Effects.",
+  "Title": "ziggfreedcommon.proc.form.held.title",
+  "Description": "ziggfreedcommon.proc.form.held.desc",
+  "Icon": "Furniture_Outlander_Banner",
+  "Section": "ziggfreedcommon",
+  "Order": 88,
+  "File": "ziggfreedcommon/held-effects.json",
+  "Entries": {
+    "Remove": false
+  },
+  "Sections": [
+    {
+      "Note": "ziggfreedcommon.proc.form.held.note",
+      "Fields": [
+        {
+          "Path": "Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.proc.form.held.on",
+          "Hint": "ziggfreedcommon.proc.form.held.on.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.proc.form.held.heading.reach",
+      "Note": "ziggfreedcommon.proc.form.held.reach.note",
+      "Fields": [
+        {
+          "Path": "Reach.Radius",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.proc.form.held.radius",
+          "Hint": "ziggfreedcommon.proc.form.held.radius.hint",
+          "Min": 0,
+          "Max": 64
+        },
+        {
+          "Path": "Reach.Max",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.proc.form.held.max",
+          "Hint": "ziggfreedcommon.proc.form.held.max.hint",
+          "Min": 0,
+          "Max": 32
+        },
+        {
+          "Path": "Reach.Min",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.proc.form.held.min",
+          "Hint": "ziggfreedcommon.proc.form.held.min.hint",
+          "Min": 0,
+          "Max": 32
+        },
+        {
+          "Path": "Reach.Self",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.proc.form.held.self",
+          "Hint": "ziggfreedcommon.proc.form.held.self.hint"
+        }
+      ]
+    }
+  ]
+}

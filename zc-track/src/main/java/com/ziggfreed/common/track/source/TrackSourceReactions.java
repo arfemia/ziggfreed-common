@@ -323,11 +323,12 @@ public final class TrackSourceReactions implements MomentListener {
 
     /**
      * Did the moment happen to another player in a world whose rules leave {@code Gain.PlayerHits} off (R864)? Asked
-     * once a moment, before either the direct pay or the tick's sum, so no source pays a hit on a player there.
+     * once a moment, before either the direct pay or the tick's sum, so no source pays a hit on a player there. A
+     * moment of PvP's own stands outside the rule ({@link VictimPayload#underPlayerHitRule}).
      */
     private static boolean refusedAsPlayerHit(@Nonnull Moment moment) {
         VictimPayload payload = moment.payload(VictimPayload.class);
-        if (payload == null || !payload.victimIsPlayer()) {
+        if (payload == null || !payload.underPlayerHitRule()) {
             return false;
         }
         try {

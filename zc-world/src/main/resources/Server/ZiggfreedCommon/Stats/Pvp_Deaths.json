@@ -1,0 +1,6 @@
+{
+  "$Comment": "Times a player was defeated by other players, counting only deaths the world's PvP rules credited to someone. Every death of any kind is the Deaths statistic. Read from the player's PvP record and never counted again.",
+  "NameKey": "ziggfreedcommon.pvp.stat.deaths",
+  "Kind": "Native",
+  "Format": "Count"
+}

@@ -67,7 +67,8 @@ class LangFileIntegrityTest {
             Path.of("zc-instance", "src", "main", "resources", "Server", "Languages"),
             Path.of("zc-reputation", "src", "main", "resources", "Server", "Languages"),
             Path.of("zc-stats", "src", "main", "resources", "Server", "Languages"),
-            Path.of("zc-track", "src", "main", "resources", "Server", "Languages"));
+            Path.of("zc-track", "src", "main", "resources", "Server", "Languages"),
+            Path.of("zc-world", "src", "main", "resources", "Server", "Languages"));
 
     private static final String EN_US = "en-US";
 

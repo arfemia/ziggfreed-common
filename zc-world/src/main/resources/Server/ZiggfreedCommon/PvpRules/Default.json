@@ -1,0 +1,22 @@
+{
+  "$Comment": "The PvP rules every world runs under unless a more specific rule names it (a pack's arena file) or the world's own gameplay config writes Plugin.ZigPvp. Whether players can hurt each other at all is the world's own PvP switch (/world config pvp); these rules say what a kill between them counts for. Tune them on the PvP Rules screen of /zigadmin, or in mods/ziggfreedcommon/pvp-rules.json under the id Default. A pack adds a PvP mode with a file of its own that writes Parent Default and only what it changes.",
+  "Where": { "Match": [ "*" ] },
+  "Rules": {
+    "Enabled": true,
+    "Credit": {
+      "AssistSeconds": 15,
+      "EnvironmentSeconds": 10,
+      "IdleSeconds": 60,
+      "FreshSpawnSeconds": 30,
+      "Repeat": { "Steps": [ 1, 0 ], "Window": "60m" }
+    },
+    "Bounty": {
+      "Enabled": true,
+      "At": 5,
+      "PerKill": 20,
+      "MaxStreak": 10,
+      "LogoutSeconds": 10,
+      "Announce": true
+    }
+  }
+}

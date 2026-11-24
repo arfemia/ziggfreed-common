@@ -1,0 +1,6 @@
+{
+  "$Comment": "Kills of other players a player helped with and did not land themselves: they hurt the fallen player shortly before someone else finished them, or carried an aura the killer fought under. Read from the player's PvP record and never counted again.",
+  "NameKey": "ziggfreedcommon.pvp.stat.assists",
+  "Kind": "Native",
+  "Format": "Count"
+}

@@ -1,0 +1,6 @@
+{
+  "$Comment": "Bounties a player ended: they defeated a player whose killing streak had put a bounty on them (the world's PvP rules, Bounty.At). Read from the player's PvP record and never counted again.",
+  "NameKey": "ziggfreedcommon.pvp.stat.bounties",
+  "Kind": "Native",
+  "Format": "Count"
+}

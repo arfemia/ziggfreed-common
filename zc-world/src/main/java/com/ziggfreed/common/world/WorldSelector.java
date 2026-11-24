@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
@@ -56,6 +57,13 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
  *       {@code ExcludeMatch} therefore matches <b>nothing</b> (there is no positive axis left to
  *       filter), which reads as the opposite of what an author expects, so
  *       {@link WhereValidator} calls it out.</li>
+ *   <li><b>{@code Pvp}</b> - the world's own PvP switch ({@code WorldConfig.IsPvpEnabled}): written
+ *       {@code true}, only a world whose players can hurt each other matches; {@code false}, only one
+ *       where they cannot. A filter over the other axes, like {@code ExcludeMatch}, but one that
+ *       stands on its own: a {@code Where} naming only {@code Pvp} reaches every world whose switch
+ *       agrees, ranked as {@code *}. Read live, since the engine announces no change to it; the
+ *       name-only {@link #match(String, String)} reads it off the loaded world of that name, and a
+ *       world it cannot find does not match.</li>
  * </ul>
  *
  * <p><b>The codec carries NO defaults: an absent list stays null.</b> Read sites genuinely differ
@@ -81,6 +89,7 @@ public final class WorldSelector {
     @Nullable protected String[] gameplayConfig;
     @Nullable protected String[] placement;
     @Nullable protected String[] excludeMatch;
+    @Nullable protected Boolean pvp;
 
     public static final BuilderCodec<WorldSelector> CODEC =
             BuilderCodec.builder(WorldSelector.class, WorldSelector::new)
@@ -113,6 +122,13 @@ public final class WorldSelector {
                             + "the exceptions. It filters the axes above rather than standing in for "
                             + "them, so a Where carrying only ExcludeMatch matches nothing.")
                     .add()
+                    .append(new KeyedCodec<>("Pvp", Codec.BOOLEAN, false),
+                            (o, v) -> o.pvp = v, o -> o.pvp)
+                    .documentation("The world's own PvP switch: true matches only worlds where players "
+                            + "can hurt each other, false only worlds where they cannot. It filters the "
+                            + "axes above, and written alone it reaches every world whose switch agrees, "
+                            + "at the catch-all's rank. Unauthored, PvP plays no part.")
+                    .add()
                     .build();
 
     public WorldSelector() {
@@ -137,6 +153,14 @@ public final class WorldSelector {
         return s;
     }
 
+    /** This selector with its {@code Pvp} filter set to {@code pvp} (null for none), the rest unchanged. */
+    @Nonnull
+    public WorldSelector withPvp(@Nullable Boolean pvp) {
+        WorldSelector s = of(match, gameplayConfig, excludeMatch, placement);
+        s.pvp = pvp;
+        return s;
+    }
+
     @Nullable
     public String[] getMatch() {
         return match;
@@ -158,9 +182,18 @@ public final class WorldSelector {
         return excludeMatch;
     }
 
-    /** True when no positive axis is authored, so this selector can never match a world. */
+    /** The {@code Pvp} filter as authored: true for PvP worlds only, false for the others, null for no part. */
+    @Nullable
+    public Boolean getPvp() {
+        return pvp;
+    }
+
+    /**
+     * True when no positive axis is authored, so this selector can never match a world. A written {@code Pvp} stands
+     * on its own (every world whose switch agrees), so it counts as one.
+     */
     public boolean hasNoPositiveAxis() {
-        return isEmpty(match) && isEmpty(gameplayConfig) && isEmpty(placement);
+        return isEmpty(match) && isEmpty(gameplayConfig) && isEmpty(placement) && pvp == null;
     }
 
     /** True when nothing at all is authored (the "absent stays null" case a read site defaults). */
@@ -178,7 +211,9 @@ public final class WorldSelector {
         if (isEmpty(placement)) {
             return this;
         }
-        return of(match, gameplayConfig, excludeMatch, null);
+        WorldSelector without = of(match, gameplayConfig, excludeMatch, null);
+        without.pvp = pvp;
+        return without;
     }
 
     /**
@@ -219,7 +254,8 @@ public final class WorldSelector {
             return null;
         }
         try {
-            return match(world.getName(), world.getWorldConfig().getGameplayConfig());
+            return match(world.getName(), world.getWorldConfig().getGameplayConfig(),
+                    pvp == null ? null : world.getWorldConfig().isPvpEnabled());
         } catch (Throwable t) {
             warn("WorldSelector.match failed: " + t.getMessage());
             return null;
@@ -227,15 +263,28 @@ public final class WorldSelector {
     }
 
     /**
-     * The matcher: score this selector against a world's name and its authored {@code GameplayConfig}.
-     * Returns the most specific rank across the positive axes, or {@code null} when nothing matched or
-     * an {@code ExcludeMatch} pattern vetoed the world. No engine coupling - this is the unit-tested
-     * decision core {@link #match(World)} delegates to. A {@code Placement} axis scores each named
-     * placement's own {@code Where} against the same world ({@link #placementWheres}); this selector's
-     * own axes come first, so a tie keeps them, then the placements in authored order.
+     * Score this selector against a world's name and its authored {@code GameplayConfig}: {@link #match(String, String,
+     * Boolean)} with the world's PvP switch read off the loaded world of that name, only when a {@code Pvp} filter is
+     * written (a name no loaded world carries then matches nothing).
      */
     @Nullable
     public MatchRank match(@Nullable String worldName, @Nullable String worldGameplayConfig) {
+        return match(worldName, worldGameplayConfig, pvp == null ? null : loadedWorldPvp(worldName));
+    }
+
+    /**
+     * The matcher: score this selector against a world's name, its authored {@code GameplayConfig} and its PvP switch
+     * ({@code worldPvp}, null when it cannot be told). Returns the most specific rank across the positive axes, or
+     * {@code null} when nothing matched, an {@code ExcludeMatch} pattern vetoed the world, or a written {@code Pvp}
+     * disagrees with the switch (or the switch cannot be told). No engine coupling - this is the unit-tested
+     * decision core {@link #match(World)} delegates to. A {@code Placement} axis scores each named
+     * placement's own {@code Where} against the same world ({@link #placementWheres}); this selector's
+     * own axes come first, so a tie keeps them, then the placements in authored order. A {@code Pvp} written alone
+     * ranks as {@code *}.
+     */
+    @Nullable
+    public MatchRank match(@Nullable String worldName, @Nullable String worldGameplayConfig,
+            @Nullable Boolean worldPvp) {
         // ExcludeMatch is a FILTER over the positive axes, never a complement of them: a selector
         // with nothing positive authored matches nothing, whatever it excludes.
         if (hasNoPositiveAxis()) {
@@ -244,12 +293,34 @@ public final class WorldSelector {
         if (matchesAny(excludeMatch, worldName)) {
             return null;
         }
+        if (pvp != null && !pvp.equals(worldPvp)) {
+            return null;
+        }
         MatchRank best = directRank(match, gameplayConfig, worldName, worldGameplayConfig);
         for (WorldSelector where : placementWheres()) {
             // Each answer carries no Placement axis of its own, so this never recurses.
-            best = MatchRank.moreSpecific(best, where.match(worldName, worldGameplayConfig));
+            best = MatchRank.moreSpecific(best, where.match(worldName, worldGameplayConfig, worldPvp));
+        }
+        if (best == null && pvp != null && isEmpty(match) && isEmpty(gameplayConfig) && isEmpty(placement)) {
+            // Pvp written alone stands for every world whose switch agrees, at the catch-all's rank.
+            best = MatchRank.ofNamePattern(Pattern.parse("*"));
         }
         return best;
+    }
+
+    /** The PvP switch of the loaded world called {@code worldName}, or null when no such world is loaded. */
+    @Nullable
+    private static Boolean loadedWorldPvp(@Nullable String worldName) {
+        if (worldName == null || worldName.isBlank()) {
+            return null;
+        }
+        try {
+            Universe universe = Universe.get();
+            World world = universe == null ? null : universe.getWorld(worldName);
+            return world == null ? null : world.getWorldConfig().isPvpEnabled();
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /**

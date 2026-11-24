@@ -1,0 +1,129 @@
+{
+  "$Comment": "The in-game screen for the PvP rules, on the owner menu (/zigadmin): one row per rule file (the library's Default, which every world runs under, and any a pack ships for its arenas), each opening what a kill between players counts for in its worlds, every setting saved straight into mods/ziggfreedcommon/pvp-rules.json under that rule's id, beside the value it has without your file. Which worlds a rule covers and every new rule stay in the files. Every word is a key of ziggfreedcommon.pvp.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Pvp_Rules.",
+  "Title": "ziggfreedcommon.pvp.form.rules.title",
+  "Description": "ziggfreedcommon.pvp.form.rules.desc",
+  "Icon": "Weapon_Sword_Iron",
+  "Section": "ziggfreedcommon",
+  "Order": 72,
+  "File": "ziggfreedcommon/pvp-rules.json",
+  "Entries": {
+    "Remove": false
+  },
+  "Sections": [
+    {
+      "Note": "ziggfreedcommon.pvp.form.rules.note",
+      "Fields": [
+        {
+          "Path": "Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.pvp.form.rules.on",
+          "Hint": "ziggfreedcommon.pvp.form.rules.on.hint"
+        },
+        {
+          "Path": "Rules.Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.pvp.form.rules.enabled",
+          "Hint": "ziggfreedcommon.pvp.form.rules.enabled.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.pvp.form.rules.heading.credit",
+      "Fields": [
+        {
+          "Path": "Rules.Credit.AssistSeconds",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.pvp.form.rules.assist",
+          "Hint": "ziggfreedcommon.pvp.form.rules.assist.hint",
+          "Min": 0,
+          "Max": 300
+        },
+        {
+          "Path": "Rules.Credit.EnvironmentSeconds",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.pvp.form.rules.environment",
+          "Hint": "ziggfreedcommon.pvp.form.rules.environment.hint",
+          "Min": 0,
+          "Max": 120
+        },
+        {
+          "Path": "Rules.Credit.IdleSeconds",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.pvp.form.rules.idle",
+          "Hint": "ziggfreedcommon.pvp.form.rules.idle.hint",
+          "Min": 0,
+          "Max": 3600
+        },
+        {
+          "Path": "Rules.Credit.FreshSpawnSeconds",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.pvp.form.rules.fresh",
+          "Hint": "ziggfreedcommon.pvp.form.rules.fresh.hint",
+          "Min": 0,
+          "Max": 600
+        },
+        {
+          "Path": "RepeatSteps",
+          "Kind": "List",
+          "Label": "ziggfreedcommon.pvp.form.rules.repeat.steps",
+          "Hint": "ziggfreedcommon.pvp.form.rules.repeat.steps.hint"
+        },
+        {
+          "Path": "Rules.Credit.Repeat.Window",
+          "Kind": "Text",
+          "Label": "ziggfreedcommon.pvp.form.rules.repeat.window",
+          "Hint": "ziggfreedcommon.pvp.form.rules.repeat.window.hint"
+        }
+      ]
+    },
+    {
+      "Heading": "ziggfreedcommon.pvp.form.rules.heading.bounty",
+      "Fields": [
+        {
+          "Path": "Rules.Bounty.Enabled",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.pvp.form.rules.bounty.on",
+          "Hint": "ziggfreedcommon.pvp.form.rules.bounty.on.hint"
+        },
+        {
+          "Path": "Rules.Bounty.At",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.pvp.form.rules.bounty.at",
+          "Hint": "ziggfreedcommon.pvp.form.rules.bounty.at.hint",
+          "Min": 1,
+          "Max": 100
+        },
+        {
+          "Path": "Rules.Bounty.PerKill",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.pvp.form.rules.bounty.per",
+          "Hint": "ziggfreedcommon.pvp.form.rules.bounty.per.hint",
+          "Min": 0,
+          "Max": 1000
+        },
+        {
+          "Path": "Rules.Bounty.MaxStreak",
+          "Kind": "Whole",
+          "Label": "ziggfreedcommon.pvp.form.rules.bounty.max",
+          "Hint": "ziggfreedcommon.pvp.form.rules.bounty.max.hint",
+          "Min": 1,
+          "Max": 100
+        },
+        {
+          "Path": "Rules.Bounty.LogoutSeconds",
+          "Kind": "Number",
+          "Label": "ziggfreedcommon.pvp.form.rules.bounty.logout",
+          "Hint": "ziggfreedcommon.pvp.form.rules.bounty.logout.hint",
+          "Min": 0,
+          "Max": 120
+        },
+        {
+          "Path": "Rules.Bounty.Announce",
+          "Kind": "Switch",
+          "Label": "ziggfreedcommon.pvp.form.rules.bounty.announce",
+          "Hint": "ziggfreedcommon.pvp.form.rules.bounty.announce.hint"
+        }
+      ]
+    }
+  ]
+}

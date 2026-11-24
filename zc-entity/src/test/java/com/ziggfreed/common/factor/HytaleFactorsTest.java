@@ -63,6 +63,7 @@ class HytaleFactorsTest {
                         HytaleFactors.TOOL_POWER,
                         HytaleFactors.TOOL_QUALITY,
                         HytaleFactors.TOOL_TIER,
+                        HytaleFactors.WORLD_PVP,
                         HytaleFactors.WORN_ITEM_LEVEL),
                 registry.ids(),
                 "the portable set is fixed - a new id here is a deliberate vocabulary addition");

@@ -1,0 +1,9 @@
+{
+  "$Comment": "Percent less damage the carrier takes from other players, in whole percent points (10 takes a tenth off every player's hit, a projectile's and a damage over time a player put on included). It never touches a hit from a creature, a fall, fire or anything else, and it adds to no other resistance. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers or a talent's grant; a grant bound While ZigOutnumbered makes it count only while enemy players outnumber you. ziggfreed-common reads it on every hit one player lands on another and holds it at the cap this file's ZigCeiling tag names (25, so a player's hit always does most of its damage; nothing raises it, and a server changes it by shipping this file with another value). Base 0; Min is a generous negative so a subtractive modifier never clamps, and a total below 0 cuts nothing rather than raising the damage.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false,
+  "Tags": { "ZigGrantFamily": [ "Combat" ], "ZigCeiling": [ "25" ] }
+}

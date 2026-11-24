@@ -7,6 +7,8 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.damage.onhit.ZigCritEvent;
 import com.ziggfreed.common.effect.landing.EffectLandings;
 import com.ziggfreed.common.health.ZigHealGivenEvent;
+import com.ziggfreed.common.owner.OwnerFileBinding;
+import com.ziggfreed.common.owner.OwnerFileBindings;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -44,6 +46,11 @@ public final class ProcBootstrap {
         plugin.getEventRegistry().register(ZigHealGivenEvent.class, ProcMoments::onHealGiven);
         plugin.getEventRegistry().register(ZigCritEvent.class, ProcMoments::onCrit);
         EffectLandings.register(EffectWatch.WATCHER);
+        // The Held Effects screen (OwnerForms/Held_Effects.json) writes held-effects.json one effect at a time: each
+        // Default read off the store under the owner's layer, each write through the store's own entry writer.
+        OwnerFileBindings.register(OwnerFileBinding.keyedStore(ProcOwnerLayers.HELD_EFFECTS_BINDING,
+                ProcOwnerLayers::heldEffectsFile,
+                HeldEffectConfig.getInstance(), HeldEffectAsset.CODEC, ProcOwnerLayers::reloadHeldEffects));
         try {
             ProcFactors.contribute();
             ProgressionRuntime.defaults(Procs.OWNER).momentListener(ProcMoments.INSTANCE);

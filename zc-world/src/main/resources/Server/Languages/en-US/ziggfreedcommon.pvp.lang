@@ -1,0 +1,61 @@
+# What everyone in the world reads about a bounty (the world's PvP rules, Bounty.Announce): {0} and {1} are player
+# names, the last number the kills in a row the bounty stands on.
+bounty.raised = {0} has a bounty on their head after {1, number} {1, plural, one {kill} other {kills}} in a row
+bounty.grew = {0}'s bounty grows: {1, number} {1, plural, one {kill} other {kills}} in a row
+bounty.ended = {0} ended {1}'s bounty of {2, number} {2, plural, one {kill} other {kills}}
+bounty.lost = {0}'s bounty of {1, number} {1, plural, one {kill} other {kills}} is gone
+bounty.fled = {0} left mid-fight, and their bounty of {1, number} {1, plural, one {kill} other {kills}} is gone
+
+# A quest step or achievement criterion of the three PvP kinds: {0} is how many, {1} the target (Player).
+objective.player_kill = Defeat {0} players
+objective.player_kill.any = Defeat {0} players
+objective.player_assist = Help defeat {0} players
+objective.player_assist.any = Help defeat {0} players
+objective.player_bounty = End {0} bounties
+objective.player_bounty.any = End {0} bounties
+
+# The PvP readings for requirement lines (Factors/Pvp_Streak.json, Factors/Pvp_Bounty.json).
+factor.pvp_streak = kills in a row without dying
+factor.pvp_bounty = a bounty on your head
+
+# The PvP statistics on the Records board (Stats/Pvp_*.json).
+stat.kills = Players Defeated
+stat.assists = Player Assists
+stat.deaths = Defeats by Players
+stat.best_streak = Best Kill Streak
+stat.bounties = Bounties Ended
+
+# The PvP Rules screen on /zigadmin (OwnerForms/Pvp_Rules.json).
+form.rules.title = PvP Rules
+form.rules.desc = How kills between players are credited in each world: assists, what pays nothing, and bounties.
+form.rules.note = Whether players can hurt each other at all is the world's own PvP switch, /world config pvp. These rules say what a kill between them counts for.
+form.rules.on = Rule in use
+form.rules.on.hint = Off keeps the rule and applies it nowhere.
+form.rules.enabled = Kills credited here
+form.rules.enabled.hint = Off: a kill between players counts for nothing in these worlds: no kill, no assist, no streak, no bounty.
+form.rules.heading.credit = Kills and assists
+form.rules.assist = Assist time (seconds)
+form.rules.assist.hint = Everyone who hurt a player this long before they died shares the kill as an assist, by how much of the damage they dealt.
+form.rules.environment = Fall and lava credit (seconds)
+form.rules.environment.hint = A death from a fall, lava or drowning this soon after a player's hit counts as that player's kill. 0 never counts one.
+form.rules.idle = Idle victim (seconds)
+form.rules.idle.hint = Killing a player who has not moved, looked around or used anything this long counts for nothing. 0 never calls anyone idle.
+form.rules.fresh = Just came back (seconds)
+form.rules.fresh.hint = Killing a player this soon after they came back from death counts for nothing, so a spawn cannot be camped.
+form.rules.repeat.steps = Same player again
+form.rules.repeat.steps.hint = What each kill of the same player counts for in the window below, in order: 1, 0 counts the first in full and nothing after it; 1, 0.5, 0 counts the second half. Counted for each killer and helper on their own.
+form.rules.repeat.window = Same player window
+form.rules.repeat.window.hint = How long a kill of the same player is remembered: a span such as 60m or 2h, or Daily or Weekly.
+form.rules.heading.bounty = Bounties
+form.rules.bounty.on = Bounties
+form.rules.bounty.on.hint = Off: no streak puts a bounty on anyone in these worlds.
+form.rules.bounty.at = Bounty after (kills)
+form.rules.bounty.at.hint = How many counted kills in a row, without dying, put a bounty on a player.
+form.rules.bounty.per = Bounty worth per kill (%)
+form.rules.bounty.per.hint = Ending a bounty is worth this share of the fallen player's health for each kill in their streak.
+form.rules.bounty.max = Most kills counted
+form.rules.bounty.max.hint = The most kills of a streak the bounty's worth counts.
+form.rules.bounty.logout = Leaving mid-fight (seconds)
+form.rules.bounty.logout.hint = Leaving the server this soon after another player's hit ends the streak and its bounty, and pays no one. 0 never ends one.
+form.rules.bounty.announce = Tell everyone
+form.rules.bounty.announce.hint = On: everyone in the world reads a line when a bounty goes up, grows and ends.

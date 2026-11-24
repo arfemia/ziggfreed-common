@@ -33,6 +33,9 @@ public final class ProcOwnerLayers {
     /** The owner file over the held effects. */
     public static final String HELD_EFFECTS_FILE = "held-effects.json";
 
+    /** The held effects' owner file as the Held Effects form names it: its path under {@code mods/}. */
+    public static final String HELD_EFFECTS_BINDING = "ziggfreedcommon/" + HELD_EFFECTS_FILE;
+
     private static final String LOG_TAG = "proc";
 
     @Nonnull
@@ -58,9 +61,15 @@ public final class ProcOwnerLayers {
                 CounterConfig.getInstance(), "counter", c -> GateSpec.missingMod(c.requires()));
     }
 
+    /** {@value #HELD_EFFECTS_FILE} where it lives right now, for the Held Effects screen's binding. */
+    @Nonnull
+    public static Path heldEffectsFile() {
+        return directory.resolve(HELD_EFFECTS_FILE);
+    }
+
     /** (Re)read {@value #HELD_EFFECTS_FILE} into the held-effect fold's owner layer. */
     public static void reloadHeldEffects() {
-        OwnerLayerReader.apply(LOG_TAG, directory.resolve(HELD_EFFECTS_FILE), HeldEffectAsset.class,
+        OwnerLayerReader.apply(LOG_TAG, heldEffectsFile(), HeldEffectAsset.class,
                 HeldEffectAsset.CODEC, HeldEffectConfig.getInstance(), "held effect",
                 h -> GateSpec.missingMod(h.requires()));
     }

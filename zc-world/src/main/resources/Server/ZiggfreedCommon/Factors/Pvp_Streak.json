@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:pvp_streak reading for requirement lines: how many other players the player has killed in a row without dying, counting only kills the world's PvP rules credit (not an idle player, a party member, the same player again too soon). 0 for none. It moves with every kill and death, outside any gate's memory.",
+  "Factor": "ziggfreedcommon:pvp_streak",
+  "Text": { "TitleKey": "ziggfreedcommon.pvp.factor.pvp_streak" },
+  "AbsentReads": 0
+}

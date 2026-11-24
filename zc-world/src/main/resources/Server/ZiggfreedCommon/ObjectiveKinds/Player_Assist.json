@@ -1,0 +1,11 @@
+{
+  "$Comment": "Sharing in another player's defeat: everyone who hurt them shortly before they fell (the world's PvP rules, AssistSeconds), the one who landed the blow included, and whoever carried an aura the killer fought under (an effect tagged ZigPvpAssist). Target is always Player; the Qualifier is the item you held. The amount a step counts is 1 a kill shared; a track source's PerAmount reads what your share is worth instead, the fallen player's health times your share of the player damage they took, so a source paying kills and assists half each pays a solo kill the whole health bar and splits a shared one. A step reads {\"Kind\": \"PLAYER_ASSIST\", \"Amount\": 10}.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "TextKey": "ziggfreedcommon.pvp.objective.player_assist",
+    "Icon": {
+      "ItemId": "Weapon_Shield_Iron"
+    }
+  }
+}

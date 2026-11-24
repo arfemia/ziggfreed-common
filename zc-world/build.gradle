@@ -1,9 +1,12 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
 // World identity (selectors, name index, match ranking), atmosphere and placement helpers, the
-// world-map POI/discovery layer, and the placed-block ledger every anti-exploit reader shares.
+// world-map POI/discovery layer, the placed-block ledger every anti-exploit reader shares, and
+// the PvP ledger and its per-world rules (pvp/). zc-loot is the one diminishing-returns ledger
+// the PvP repeat-kill guard counts on.
 
 dependencies {
     implementation project(':zc-core')
     implementation project(':zc-entity')
+    implementation project(':zc-loot')
 }

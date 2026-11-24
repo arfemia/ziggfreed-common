@@ -1,7 +1,9 @@
 package com.ziggfreed.common.loot.diminish;
 
 import java.time.DayOfWeek;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -286,6 +288,64 @@ public final class DiminishSpec {
         } catch (NumberFormatException notANumber) {
             return 0L;
         }
+    }
+
+    /**
+     * The steps of {@code spec} as words, in order, a whole step without a decimal point ({@code 1}, {@code 0.5}),
+     * the way an owner form shows a step list; empty for no spec. Pure.
+     */
+    @Nonnull
+    public static List<String> stepWords(@Nullable DiminishSpec spec) {
+        List<String> out = new ArrayList<>();
+        if (spec != null) {
+            for (double step : spec.steps()) {
+                out.add(step == Math.rint(step) && Math.abs(step) < 1e15 ? Long.toString((long) step)
+                        : Double.toString(step));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Step words read back as steps, in order: each a number of 0 or more; a word that does not read is passed over.
+     * What an owner form's step list writes. Pure.
+     */
+    @Nonnull
+    public static List<Double> parseStepWords(@Nonnull List<String> words) {
+        List<Double> out = new ArrayList<>();
+        for (String word : words) {
+            if (word == null || word.isBlank()) {
+                continue;
+            }
+            try {
+                double step = Double.parseDouble(word.trim());
+                if (Double.isFinite(step) && step >= 0.0) {
+                    out.add(step);
+                }
+            } catch (NumberFormatException notANumber) {
+                // A word that is no number is passed over.
+            }
+        }
+        return out;
+    }
+
+    /**
+     * {@link #parseStepWords} over a form's value as it arrives: a list of words, or one string split at its commas;
+     * empty for null. Pure.
+     */
+    @Nonnull
+    public static List<Double> parseStepValue(@Nullable Object value) {
+        List<String> words = new ArrayList<>();
+        if (value instanceof List<?> list) {
+            for (Object item : list) {
+                if (item != null) {
+                    words.add(String.valueOf(item));
+                }
+            }
+        } else if (value != null) {
+            words.addAll(Arrays.asList(String.valueOf(value).split(",")));
+        }
+        return parseStepWords(words);
     }
 
     /** A span written in its largest whole unit: {@code 600000} is {@code 10m}. Pure. */

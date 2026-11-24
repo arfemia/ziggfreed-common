@@ -53,6 +53,7 @@ import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
 import com.ziggfreed.common.objectives.producer.ZigFallDamageProducer;
 import com.ziggfreed.common.objectives.producer.ZigGearSetProducer;
 import com.ziggfreed.common.objectives.producer.ZigHealProducer;
+import com.ziggfreed.common.objectives.producer.ZigPvpProducer;
 import com.ziggfreed.common.objectives.producer.ZigInstanceRoundProducer;
 import com.ziggfreed.common.objectives.producer.ZigLootReceivedProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
@@ -244,6 +245,8 @@ public final class ProgressionDefaults {
         ZigDamageProducer.install(plugin);
         // HEAL_GIVEN, a heal on oneself or an ally, credited for the creature damage it gives back.
         ZigHealProducer.install(plugin);
+        // PLAYER_KILL, PLAYER_ASSIST and PLAYER_BOUNTY, PvP's own moments, off the PvP ledger's credited deaths.
+        ZigPvpProducer.install(plugin);
         plugin.getEntityStoreRegistry().registerSystem(new ZigCraftProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
@@ -301,7 +304,8 @@ public final class ProgressionDefaults {
                 ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigGearSetProducer.KIND,
                 TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND, ZigDamageProducer.KIND,
-                ZigHealProducer.KIND, ZigPlayerDeathProducer.KIND, ZigFallDamageProducer.KIND,
+                ZigHealProducer.KIND, ZigPvpProducer.KILL, ZigPvpProducer.ASSIST, ZigPvpProducer.BOUNTY,
+                ZigPlayerDeathProducer.KIND, ZigFallDamageProducer.KIND,
                 ZigConsumeItemProducer.KIND, ZigTravelDistanceProducer.KIND_SPRINT,
                 ZigTravelDistanceProducer.KIND_SWIM, ZigReachLocationProducer.KIND, ZigBountyProducer.KIND,
                 ZigBountyProducer.KIND_STREAK, ZigCurrencyProducer.KIND_EARN, ZigCurrencyProducer.KIND_SPEND);

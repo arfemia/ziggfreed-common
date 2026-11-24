@@ -1,0 +1,6 @@
+{
+  "$Comment": "The most other players a player has defeated in a row without dying, counting only credited kills. Read from the player's PvP record and never counted again.",
+  "NameKey": "ziggfreedcommon.pvp.stat.best_streak",
+  "Kind": "Native",
+  "Format": "Count"
+}

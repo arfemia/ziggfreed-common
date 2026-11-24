@@ -1,0 +1,7 @@
+{
+  "$Comment": "Names the hytale:world_pvp reading for requirement lines: 1 when the world the question is asked in lets players hurt each other (the world's own PvP switch, /world config pvp), else 0. Use it to keep something to PvP worlds: an effect's ApplyConditions through ZigRequires, an item's use gate, a held effect's Requires, a reward row. A condition on it needs Min 1; Max 0 keeps something out of PvP worlds. It is asked fresh every time (Volatility Moment), since the game says nothing when the switch changes.",
+  "Factor": "hytale:world_pvp",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.world_pvp" },
+  "AbsentReads": 0,
+  "Volatility": "Moment"
+}

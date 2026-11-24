@@ -41,6 +41,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.damage.onhit.Crits;
 import com.ziggfreed.common.damage.onhit.OnHitBootstrap;
+import com.ziggfreed.common.damage.pvp.PvpHitBootstrap;
 import com.ziggfreed.common.damage.weakspot.WeakSpotBootstrap;
 import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
@@ -166,6 +167,7 @@ import com.ziggfreed.common.util.ZigScheduler;
 import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.world.BlockRulesBootstrap;
 import com.ziggfreed.common.world.gather.GatherBootstrap;
+import com.ziggfreed.common.pvp.PvpBootstrap;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
 import com.ziggfreed.common.world.temp.TempBlocksBootstrap;
@@ -325,6 +327,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Crits and lifesteal (R865, R866): the crit step right after the weak spot's, for any attacker raising
         // CritChance, and the lifesteal step once a hit is applied, for any attacker raising Lifesteal.
         OnHitBootstrap.install(this);
+        // PvP hits (SK18): a disarmed attacker's hits cancelled and its tagged chains refused, and a player's hit on
+        // another player cut by the victim's PvpResist and PvpKnockbackResist, after the crit step.
+        PvpHitBootstrap.install(this);
         // Conditional stats (R757): the library's entity conditions into the engine's condition map, the holder pass,
         // the first-hit record and the damage and healing terms a conditional stat pays through, before any asset
         // decodes and after the route step it adds to.
@@ -377,6 +382,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // The gather and build steps (block speed, tool care, thrift, growth, the gather shapes), ordered after
         // the block rules' refusals they read.
         GatherBootstrap.install(this);
+        // The PvP ledger (SK18): the Plugin.ZigPvp group before any gameplay config decodes, the per-player record,
+        // the hit tally, the death's credits and bounties, the ZigGrudge condition and the PvP readings.
+        PvpBootstrap.install(this);
         // The yearly calendar declares its feature switches, its two readings and the occurrence slot
         // here, before the progression runtime is set up over content that gates on them.
         CalendarBootstrap.install(this);

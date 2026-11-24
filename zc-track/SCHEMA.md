@@ -1563,6 +1563,7 @@ What a matching moment pays, and the level it waits for. A bare number is its Xp
 | `GameplayConfig` | array of `string` | `null` | Exact matches against a world's own authored GameplayConfig key. It carries no uuid and survives an instance being rebuilt, so it is the sturdiest way to target an instance world, and it outranks every name pattern. |
 | `Placement` | array of `string` | `null` | NPC placement ids, in any casing. Matches every world one of those placements may stand in, as that placement's own Where says (the server owner's npc-placements.json included), whether or not its NPC is standing there right now, so this follows the NPC when a server moves it. It ranks as that Where matched. A placement's own Where cannot use it. |
 | `ExcludeMatch` | array of `string` | `null` | Name patterns, same grammar as Match, that REJECT a world even when a positive axis matched - for 'everywhere except' without enumerating the exceptions. It filters the axes above rather than standing in for them, so a Where carrying only ExcludeMatch matches nothing. |
+| `Pvp` | `boolean` | `null` | The world's own PvP switch: true matches only worlds where players can hurt each other, false only worlds where they cannot. It filters the axes above, and written alone it reaches every world whose switch agrees, at the catch-all's rank. Unauthored, PvP plays no part. |
 
 <a id="type-diminish"></a>
 ## Diminish

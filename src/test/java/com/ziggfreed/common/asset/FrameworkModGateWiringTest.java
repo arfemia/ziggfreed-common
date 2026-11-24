@@ -70,6 +70,7 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,
  * TrackCategories, TrackWorldRules, TrackPickOptions, TrackStances, TrackPickRespecs, DiminishKeys, TrackPrices,
  * TrackSettings,
+ * TrackCategories, TrackWorldRules, PvpRules, TrackPickOptions, TrackStances, DiminishKeys, TrackPrices, TrackSettings,
  * BoostSettings, PlayerPower, WeakSpotSettings, EffectFamilies,
  * ConditionalStats, BlockFamilies, GatherRules and Gateways. A
  * store that gains a

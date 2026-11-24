@@ -705,11 +705,12 @@ public final class BoundGrants {
     }
 
     /**
-     * Is {@code condition} one that walks who is near ({@code ZigFoesNear}, {@code ZigPlayersNear}), read from a memo
-     * at the conditional pass's cadence rather than every tick?
+     * Is {@code condition} one that walks who is near ({@code ZigFoesNear}, {@code ZigPlayersNear},
+     * {@code ZigOutnumbered}), read from a memo at the conditional pass's cadence rather than every tick?
      */
     static boolean isSpatial(@Nullable Condition condition) {
-        return condition instanceof ZigFoesNearCondition || condition instanceof ZigPlayersNearCondition;
+        return condition instanceof ZigFoesNearCondition || condition instanceof ZigPlayersNearCondition
+                || condition instanceof ZigOutnumberedCondition;
     }
 
     /** Take off every saved bound modifier on {@code stats}; a wanted one is written again on this same pass. */
