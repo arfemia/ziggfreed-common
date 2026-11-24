@@ -2,6 +2,7 @@ package com.ziggfreed.common.stats.condition;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -19,6 +20,10 @@ import com.hypixel.hytale.server.core.modules.entity.EntityModule;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
@@ -27,6 +32,7 @@ import com.hypixel.hytale.server.npc.blackboard.view.attitude.AttitudeView;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.support.MarkedEntitySupport;
 import com.ziggfreed.common.entity.Allies;
+import com.ziggfreed.common.factor.HytaleFactors;
 
 /**
  * Who is near an entity, read off the engine's own spatial trees (rebuilt every tick by the engine's spatial systems):
@@ -118,6 +124,77 @@ public final class Nearby {
             @Nonnull Ref<EntityStore> holder, @Nullable Vector3d center, double radius,
             @Nullable Condition[] conditions, @Nonnull Instant now, int limit) {
         return nearestFirst(accessor, holder, Kind.ALLIES, center, radius, conditions, now, limit);
+    }
+
+    /**
+     * The hurt allies of {@code holder} ({@link Allies}) within {@code radius} blocks of {@code center}: each ally whose
+     * health sits below its maximum (the range {@code ZigStatPercent} reads, {@link HytaleFactors#percentOf}) and meets
+     * every one of {@code conditions}, the nearest the center first, or with {@code mostHurtFirst} the one with the
+     * lowest share of its health left first (the nearer first on a tie), no more than {@code limit} (0 or less: no
+     * limit). The one "who needs a heal" read: a heal aimed at a hurt ally asks it. An ally whose health cannot be read
+     * is left out. Empty, never null; empty for a holder that is no player.
+     */
+    @Nonnull
+    public static List<Ref<EntityStore>> hurtAlliesAround(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> holder, @Nullable Vector3d center, double radius,
+            @Nullable Condition[] conditions, @Nonnull Instant now, int limit, boolean mostHurtFirst) {
+        try {
+            if (center == null) {
+                return List.of();
+            }
+            List<Hurt<Ref<EntityStore>>> found = new ArrayList<>();
+            walk(accessor, holder, Kind.ALLIES, center, radius, conditions, now, ref -> {
+                Vector3d there = positionOf(accessor, ref);
+                found.add(new Hurt<>(ref, there == null ? Double.MAX_VALUE : there.distanceSquared(center),
+                        healthPercent(accessor, ref)));
+                return true;
+            });
+            return capped(hurtFirst(found, mostHurtFirst), limit);
+        } catch (Throwable t) {
+            return List.of();
+        }
+    }
+
+    /**
+     * One ally a walk found: who, how far from the center (squared), and the share of its health it has left (0 to
+     * 100, null when it cannot be read).
+     */
+    record Hurt<T>(@Nonnull T who, double distanceSq, @Nullable Double percent) {
+    }
+
+    /**
+     * {@code found} with every one at full health or unreadable left out, the nearest first, or with
+     * {@code mostHurtFirst} the lowest share of health first and the nearer first on a tie; equal ones keep the
+     * order they were found in. Pure.
+     */
+    @Nonnull
+    static <T> List<T> hurtFirst(@Nonnull List<Hurt<T>> found, boolean mostHurtFirst) {
+        List<Hurt<T>> hurt = new ArrayList<>(found.size());
+        for (Hurt<T> one : found) {
+            if (one.percent() != null && one.percent() < 100.0) {
+                hurt.add(one);
+            }
+        }
+        Comparator<Hurt<T>> nearer = Comparator.comparingDouble(Hurt::distanceSq);
+        hurt.sort(mostHurtFirst ? Comparator.<Hurt<T>>comparingDouble(Hurt::percent).thenComparing(nearer) : nearer);
+        List<T> out = new ArrayList<>(hurt.size());
+        for (Hurt<T> one : hurt) {
+            out.add(one.who());
+        }
+        return out;
+    }
+
+    /** The share of its health {@code ref} has left (0 to 100), or null when it has no health to read. */
+    @Nullable
+    private static Double healthPercent(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> ref) {
+        try {
+            EntityStatMap stats = accessor.getComponent(ref, EntityStatsModule.get().getEntityStatMapComponentType());
+            EntityStatValue health = stats == null ? null : stats.get(DefaultEntityStatTypes.getHealth());
+            return health == null ? null : HytaleFactors.percentOf(health.get(), health.getMin(), health.getMax());
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /**
