@@ -54,6 +54,13 @@ service.respec.free = Free
 service.respec.action = Reset
 service.respec.confirm = Press again to reset
 
+# A respec of one kind of pick on every track (a respec file whose Where names this trainer): its row's meta, {0} how
+# many picks it would clear; the page's line when the file has no description of its own; what it gives back.
+service.respec_kind.meta = {0, number} {0, plural, one {pick} other {picks}} to clear
+service.respec_kind.lead = Clears everything you learned of this kind and gives back what it cost, less any share it keeps. What was given to you stays.
+service.respec_kind.back = You get back
+service.respec_kind.back.none = Nothing to give back
+
 # The next prestige of a track, shown once the climb has reached the level it needs: {0} the track. In
 # service.prestige.meta {0} is the prestige it starts; in service.prestige.done {1} is the prestige now; in
 # service.prestige.line.gain {0} is the percent more every gain on it pays and {1} the track.

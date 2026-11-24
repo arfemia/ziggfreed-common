@@ -33,8 +33,8 @@ import com.ziggfreed.common.ui.toast.ToastKind;
 
 /**
  * The Learn part: every pick bought outright whose {@code Where} names this trainer ({@code PickService.trainerPicks}),
- * each with the level it opens at, what it costs (its points, and its price in wallets or items,
- * {@code PickService.price}), and Learn, the level still needed, or Learned. Learn takes it through
+ * each with the level it opens at, what it costs (its points, and its price in wallets or items for the player's next
+ * rank, {@code PickService.price}), and Learn, the level still needed, or Learned. Learn takes it through
  * {@code PickService.take} at this placement, which asks every rule again and charges the price; a Learn with a price
  * pays only on its second press ({@link TrainerEntry#confirmed}).
  */
@@ -67,7 +67,7 @@ final class LearnOffers {
         Picture picture = asset == null ? Picture.NONE : Picture.item(asset.icon());
         Tone tone = tone(pick);
         Message word = word(pick);
-        List<DetailLine> price = CommerceChips.priceLines(PickService.price(pick.pickId()));
+        List<DetailLine> price = CommerceChips.priceLines(PickService.price(pick.pickId(), pick.taken()));
         Message cost = pick.costPoints() > 0 ? TrainerText.line("learn.cost", pick.costPoints())
                 : price.size() == 1 ? price.get(0).text() : null;
         LedgerRow row = new LedgerRow(pick.pickId(), name, TrainerText.line("learn.meta", track, pick.opensAt()),
@@ -97,7 +97,8 @@ final class LearnOffers {
         // A Learn that charges a price arms on its first press and pays on the second: a respec keeps what a trainer
         // taught, so only the undo window would give back a misclick. Decided from the price itself, never its
         // rendered lines, so a line that fails to render never lets a charge through on one press.
-        return PickService.price(pickId).isFree() ? TrainerEntry.of(row, page, at -> learn(at, trackId, pickId))
+        return PickService.price(pickId, pick.taken()).isFree()
+                ? TrainerEntry.of(row, page, at -> learn(at, trackId, pickId))
                 : TrainerEntry.confirmed(row, page, at -> learn(at, trackId, pickId),
                         TrainerText.line("learn.confirm"));
     }

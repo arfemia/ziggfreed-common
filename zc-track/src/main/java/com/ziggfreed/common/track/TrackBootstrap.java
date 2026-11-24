@@ -69,8 +69,8 @@ import com.ziggfreed.common.usegate.ItemLevelTags;
  * the {@code /zigtrack} family and the once-at-boot log of broken track files; the native {@code ZigTrackRules}
  * gameplay config group, the track sources' reaction on the produced moments, the gain plans' epoch hooks, the
  * picks waiting on the Claims tab, the undo window's close at a departure, the World Rules and Level Curves owner forms'
- * bindings, audit and preview, and the boosts ({@code boost.BoostBootstrap}). The eleven stores (tracks, curves, categories, sources, world rules, picks, pick
- * generators, pick options, stances, boosts, boost settings) are registered with the other framework stores. Registration only
+ * bindings, audit and preview, and the boosts ({@code boost.BoostBootstrap}). The twelve stores (tracks, curves, categories, sources, world rules, picks, pick
+ * generators, pick options, stances, pick respecs, boosts, boost settings) are registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
  */
 public final class TrackBootstrap {

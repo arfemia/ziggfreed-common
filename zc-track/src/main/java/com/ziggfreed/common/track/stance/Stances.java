@@ -1,11 +1,9 @@
 package com.ziggfreed.common.track.stance;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -538,20 +536,13 @@ public final class Stances {
         return record == null ? null : new Live(player, ref, store, subject, record);
     }
 
-    /** Does {@code player} own a pick (by id, any case): taken at least once on its own track? Asked once a pick. */
+    /**
+     * Does {@code player} own a pick (by id, any case): taken at least once on its own track? Asked once a pick
+     * ({@code PickService.ownership}, the one read a slot row's key asks, a track's saved builds alike).
+     */
     @Nonnull
     static Predicate<String> owner(@Nullable UUID player) {
-        Map<String, Boolean> asked = new HashMap<>();
-        return pickId -> {
-            String id = TrackKey.normalize(pickId);
-            if (player == null || id.isEmpty()) {
-                return false;
-            }
-            return asked.computeIfAbsent(id, key -> {
-                TrackPicks.PickDef pick = TrackPicks.pick(key);
-                return pick != null && PickService.count(player, pick.trackId(), key) > 0;
-            });
-        };
+        return PickService.ownership(player);
     }
 
     /** A slot row's {@code Requires} asked of the player at {@code ref}, through the server's one evaluator. */

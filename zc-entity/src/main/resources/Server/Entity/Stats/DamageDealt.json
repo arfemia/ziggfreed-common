@@ -1,0 +1,9 @@
+{
+  "$Comment": "A true share of every hit the carrier deals, in whole percent points: each hit, of any damage type, a damage over time tick and a projectile's included, is multiplied by one plus this over 100 after every other bonus has built it, so -10 deals nine tenths of whatever the hit would have been (where -10 on DamageBonus only comes off the summed percent). Any item's StatModifiers, an effect or a pick's grant change it like any stat, a creature's as a player's. Held at the cap this file's ZigCeiling tag names (0, so it only ever lowers a hit; a server that wants it to raise one ships this file with a higher value). A hit never goes below nothing. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false,
+  "Tags": { "ZigGrantFamily": [ "Combat" ], "ZigCeiling": [ "0" ] }
+}

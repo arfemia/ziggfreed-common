@@ -47,6 +47,7 @@ itemTooltip.stats.CritDamage_Ice = Ice Critical Damage: {value}%
 itemTooltip.stats.CritDamage_Lightning = Lightning Critical Damage: {value}%
 itemTooltip.stats.CritDamage_Arcane = Arcane Critical Damage: {value}%
 itemTooltip.stats.Lifesteal = Lifesteal: {value}%
+itemTooltip.stats.DamageDealt = All Damage Dealt: {value}%
 itemTooltip.stats.WeakSpotDamage = Weak Spot Damage: {value}%
 itemTooltip.stats.WeakSpotMax = Weak Spot Damage Cap: {value}%
 itemTooltip.stats.Damage_PerBurningFoe = Damage per Burning Foe Near: {value}%

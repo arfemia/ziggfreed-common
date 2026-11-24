@@ -33,8 +33,11 @@ final class BuildCommands {
         switch (status) {
             case NOT_LIVE -> TrackCommandMessages.refused(ctx, "player.offline");
             case NOTHING -> TrackCommandMessages.detail(ctx, "build.in_use", TrackText.name(def.asset()), target.name());
-            case NO_LOADOUT -> TrackCommandMessages.refused(ctx, def.loadoutsMax() > 0 ? "build.no_slot" : "build.none",
-                    TrackText.name(def.asset()), def.loadoutsMax());
+            case NO_LOADOUT -> {
+                int open = PickService.loadouts(target.id(), def.id()).max();
+                TrackCommandMessages.refused(ctx, open > 0 ? "build.no_slot" : "build.none",
+                        TrackText.name(def.asset()), open);
+            }
             default -> TrackCommandMessages.refused(ctx, "build." + status.name().toLowerCase(Locale.ROOT),
                     TrackText.name(def.asset()), target.name());
         }

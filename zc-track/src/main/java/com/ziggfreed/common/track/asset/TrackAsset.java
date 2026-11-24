@@ -187,8 +187,9 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     + "audit alone, never in play. Leave it out to check only that each row can open.").add()
             .appendInherited(new KeyedCodec<>("Loadouts", Loadouts.CODEC, false),
                     (a, v) -> a.loadouts = v, a -> a.loadouts, (a, p) -> a.loadouts = p.loadouts)
-            .documentation("Saved builds: how many a player keeps on this track and what swapping to one costs. "
-                    + "Each leaf left out reads from the track's category, else none are kept and a swap is free.")
+            .documentation("Saved builds: how many a player keeps on this track, the further ones that open on their "
+                    + "own row (Slots), and what swapping to one costs. Each leaf left out reads from the track's "
+                    + "category, else none are kept and a swap is free.")
             .add()
             .appendInherited(new KeyedCodec<>("Respec", Respec.CODEC, false),
                     (a, v) -> a.respec = v, a -> a.respec, (a, p) -> a.respec = p.respec)
@@ -774,20 +775,30 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     }
 
     /**
-     * The Loadouts group: how many saved builds a player keeps on a track and what a swap costs. A category writes
-     * the same group as its tracks' default, leaf by leaf.
+     * The Loadouts group: how many saved builds a player keeps on a track, the further builds that open on their own
+     * condition ({@code Slots}, rows of the shared {@link SlotRow} shape, the build's number read off each row's id),
+     * and what a swap costs. A category writes the same group as its tracks' default, leaf by leaf.
      */
     public static final class Loadouts {
 
         @Nullable protected Integer max;
+        @Nullable protected SlotRow[] slots;
         @Nullable protected CostAsset swapCost;
 
         public static final BuilderCodec<Loadouts> CODEC = BuilderCodec.builder(Loadouts.class, Loadouts::new)
                 .appendInherited(new KeyedCodec<>("Max", Codec.INTEGER, false),
                         (o, v) -> o.max = v, o -> o.max, (o, p) -> o.max = p.max)
                 .metadata(EditorSchema.defaultValue(0L))
-                .documentation("How many builds a player may save on the track and swap between. 0 when "
-                        + "unauthored (here and on the category): no saved builds.").add()
+                .documentation("How many builds every player may save on the track and swap between. 0 when "
+                        + "unauthored (here and on the category): no saved builds but those Slots opens.").add()
+                .appendInherited(new KeyedCodec<>("Slots", SlotRow.ARRAY_CODEC, false),
+                        (o, v) -> o.slots = v, o -> o.slots, (o, p) -> o.slots = p.slots)
+                .documentation("Further saved builds, past Max, each open on its own row: the row's Id is the "
+                        + "build's number (III or 3 is the third), and it opens while its Requires holds and its Pick "
+                        + "is owned ({Track} in the Pick stands for this track's id, so one row on a parent track "
+                        + "serves every track under it). A row numbered at or under Max changes nothing. A build "
+                        + "saved in a slot that later closes stays saved, out of use until it opens again. Under "
+                        + "Parent this list replaces the parent's whole; left out here, the category's.").add()
                 .appendInherited(new KeyedCodec<>("SwapCost", CostAsset.CODEC, false),
                         (o, v) -> o.swapCost = v, o -> o.swapCost, (o, p) -> o.swapCost = p.swapCost)
                 .documentation("What a swap to a saved build costs, in any wallet or item (the one price shape "
@@ -801,6 +812,15 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nullable
         public Integer max() {
             return max == null ? null : Math.max(0, max);
+        }
+
+        /**
+         * The further builds' rows as written ({@link SlotRow#rows}: a row with no id, or repeating one, left out), or
+         * null when unauthored (so a track's own empty list stands over its category's).
+         */
+        @Nullable
+        public List<SlotRow> slots() {
+            return slots == null ? null : SlotRow.rows(slots);
         }
 
         /** The swap's price as written, or null when unauthored. */

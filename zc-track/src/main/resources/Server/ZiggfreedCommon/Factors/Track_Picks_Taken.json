@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_picks_taken reading for requirement lines. Param is a pick id pattern, any case, where * matches any run of characters (Your_*_Rank); the reading is how many takes the player owns of every pick or option whose id matches, on every track they climb, owned for good as ziggfreedcommon:track_pick_owned counts them. Write Min 1 to ask for any one of a set of steps (Your_*_Final), or Min 10 for ten ranks bought across a family. It changes only through the player's own picks, their undo, a respec or a prestige, or a track or pick reload (Volatility Player).",
+  "Factor": "ziggfreedcommon:track_picks_taken",
+  "Text": { "TitleKey": "ziggfreedcommon.track.factor.track_picks_taken" },
+  "Volatility": "Player"
+}

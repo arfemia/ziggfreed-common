@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +24,7 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.progress.asset.GeneratorCore;
 import com.ziggfreed.common.progress.gate.GateEpochs;
+import com.ziggfreed.common.proc.ProcAsset;
 import com.ziggfreed.common.track.PickState;
 import com.ziggfreed.common.track.TrackDerived;
 import com.ziggfreed.common.track.TrackKey;
@@ -546,6 +548,36 @@ public final class TrackPicks {
             PickDef pick = bound.get(TrackKey.normalize(pickId));
             return pick == null || asked.computeIfAbsent(pick.id(), key -> counts.test(pick));
         }).count(id);
+    }
+
+    /**
+     * How many takes {@code state} owns of every pick or option whose id matches {@code pattern} (pure): the pattern
+     * any case, {@code *} matching any run of characters (zc-track's one such matcher, {@code ProcAsset.namesId}), so
+     * {@code Your_*_Rank} names every rank pick; each id the record holds (a take's pick, a slot's choice pick, an option
+     * chosen) counted once by {@link PickState#count}, owned for good. 0 for a blank pattern. What
+     * {@code ziggfreedcommon:track_picks_taken} sums over every track.
+     */
+    public static int takenMatching(@Nonnull PickState state, @Nullable String pattern) {
+        String wanted = TrackKey.normalize(pattern);
+        if (wanted.isEmpty() || state.isEmpty()) {
+            return 0;
+        }
+        Set<String> ids = new LinkedHashSet<>(state.takes().keySet());
+        state.slots().forEach((slot, options) -> {
+            Slot parts = slot(slot);
+            if (parts != null) {
+                ids.add(parts.pickId());
+            }
+            ids.addAll(options);
+        });
+        List<String> patterns = List.of(wanted);
+        long total = 0L;
+        for (String id : ids) {
+            if (ProcAsset.namesId(patterns, id)) {
+                total += state.count(id);
+            }
+        }
+        return (int) Math.min(Integer.MAX_VALUE, total);
     }
 
     /**

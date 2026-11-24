@@ -29,7 +29,7 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link CostAsset}, folded by {@link CommerceFold#cost} and checked, drained and refunded by
  * {@link CommerceEngines#costs()}, so it is payable in whatever wallet or item the owner names (R733, R736). Refund
  * the receipt a charge hands back, never the price. A stance's hold and release fees charge through it too
- * ({@code stance.Stances}). World thread.
+ * ({@code stance.Stances}), and a kind respec's fee and what it gives back ({@link #give}). World thread.
  */
 public final class PickPayments {
 
@@ -109,9 +109,7 @@ public final class PickPayments {
             return true;
         }
         try {
-            Store<EntityStore> store = ref.getStore();
-            Subject subject = Subject.of(store.getComponent(ref, PlayerRef.getComponentType()),
-                    store.getComponent(ref, Player.getComponentType()));
+            Subject subject = subjectOf(ref);
             return subject != null && CommerceEngines.costs().canPay(subject, cost);
         } catch (Throwable t) {
             SafeLog.fine("[track] whether a player can pay a price could not be read: " + t.getMessage());
@@ -126,9 +124,7 @@ public final class PickPayments {
             return Paid.FREE;
         }
         try {
-            Store<EntityStore> store = ref.getStore();
-            Subject subject = Subject.of(store.getComponent(ref, PlayerRef.getComponentType()),
-                    store.getComponent(ref, Player.getComponentType()));
+            Subject subject = subjectOf(ref);
             if (subject == null) {
                 return null;
             }
@@ -138,5 +134,37 @@ public final class PickPayments {
             SafeLog.warn("[track] the price of " + source + " could not be charged: " + t.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Hand {@code cost} to the player at {@code ref} (what a kind respec gives back), every wallet amount and item
+     * through the library's one price engine ({@code CostEngine.refund}, an item into the bag with the rest at the
+     * player's feet): true when it was handed over or was free, false when the player cannot be read (nothing given).
+     *
+     * @param source what it is for, named in a line when it cannot be handed over
+     */
+    public static boolean give(@Nonnull Ref<EntityStore> ref, @Nonnull Cost cost, @Nonnull String source) {
+        if (cost.isFree()) {
+            return true;
+        }
+        try {
+            Subject subject = subjectOf(ref);
+            if (subject == null) {
+                return false;
+            }
+            CommerceEngines.costs().refund(subject, cost);
+            return true;
+        } catch (Throwable t) {
+            SafeLog.warn("[track] what " + source + " gives back could not be handed over: " + t.getMessage());
+            return false;
+        }
+    }
+
+    /** The paying subject the player at {@code ref} is, or null when they cannot be read. */
+    @Nullable
+    private static Subject subjectOf(@Nonnull Ref<EntityStore> ref) {
+        Store<EntityStore> store = ref.getStore();
+        return Subject.of(store.getComponent(ref, PlayerRef.getComponentType()),
+                store.getComponent(ref, Player.getComponentType()));
     }
 }

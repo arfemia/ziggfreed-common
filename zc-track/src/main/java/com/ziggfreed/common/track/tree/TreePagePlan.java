@@ -152,7 +152,7 @@ final class TreePagePlan {
     static Plan of(@Nonnull UUID player, @Nonnull TrackTree.View view, @Nullable String tab, @Nullable String row) {
         TrackDef def = view.def();
         TrackAsset track = def.asset();
-        List<Tab> tabs = tabs(view);
+        List<Tab> tabs = tabs(player, view);
         String shown = tabs.isEmpty() ? TAB_ROOT : tabs.get(0).id();
         for (Tab each : tabs) {
             if (each.id().equals(tab)) {
@@ -178,9 +178,13 @@ final class TreePagePlan {
         return new Plan(header(view, track), tabs, shown, list, entries, selected);
     }
 
-    /** The tabs: the root (when any pick sits in no branch), each branch in order, then Builds when there is one. */
+    /**
+     * The tabs: the root (when any pick sits in no branch), each branch in order, then Builds when {@code player} has a
+     * saved build open on the track (its {@code Loadouts.Max}, or a {@code Loadouts.Slots} row they opened) or the track
+     * offers a respec.
+     */
     @Nonnull
-    private static List<Tab> tabs(@Nonnull TrackTree.View view) {
+    private static List<Tab> tabs(@Nonnull UUID player, @Nonnull TrackTree.View view) {
         TrackAsset track = view.def().asset();
         List<Tab> tabs = new ArrayList<>();
         for (TrackTree.Branch branch : view.branches()) {
@@ -192,7 +196,7 @@ final class TreePagePlan {
                         Picture.item(declared == null ? null : declared.icon())));
             }
         }
-        if (view.def().loadoutsMax() > 0 || offersRespec(view.def())) {
+        if (!PickService.loadouts(player, view.def().id()).slots().isEmpty() || offersRespec(view.def())) {
             tabs.add(new Tab(TAB_BUILDS, TreeText.line("tab.builds"), Picture.NONE));
         }
         return tabs;
@@ -272,8 +276,8 @@ final class TreePagePlan {
 
         @Nonnull
         LedgerRow ledgerRow() {
-            List<DetailLine> price = node.cost() <= 0 ? CommerceChips.priceLines(PickService.price(node.pickId()))
-                    : List.of();
+            List<DetailLine> price = node.cost() <= 0
+                    ? CommerceChips.priceLines(PickService.price(node.pickId(), node.taken())) : List.of();
             Message cost = node.cost() > 0 ? TreeText.line(ranked() ? "node.meta.rank" : "node.meta.once", node.cost())
                     : price.isEmpty() ? TreeText.line("node.meta.free") : price.get(0).text();
             Message meta = node.isFace() ? TreeText.line("node.meta.face", cost) : cost;
@@ -341,7 +345,7 @@ final class TreePagePlan {
             // bought, so only the undo window would give back a misclick.
             // Decided from the price itself, never its rendered lines, so a line that fails to render never lets a
             // charge through on one press.
-            Map<ActionSlot, Message> confirms = PickService.price(pickId).isFree()
+            Map<ActionSlot, Message> confirms = PickService.price(pickId, node.taken()).isFree()
                     ? Map.of() : Map.of(ActionSlot.PRIMARY, TreeText.line("take.confirm"));
             return new Entry(id(), page, presses, confirms);
         }
@@ -363,7 +367,7 @@ final class TreePagePlan {
             if (node.status() == Status.LOCKED && row.open()) {
                 lines.add(ticked(TreeText.line("need.other"), false));
             }
-            List<DetailLine> price = CommerceChips.priceLines(PickService.price(node.pickId()));
+            List<DetailLine> price = CommerceChips.priceLines(PickService.price(node.pickId(), node.taken()));
             if (node.cost() <= 0) {
                 if (price.isEmpty()) {
                     lines.add(DetailLine.of(Picture.NONE, TreeText.line("need.free")));

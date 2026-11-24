@@ -15,6 +15,7 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.factor.FactorNames;
 import com.ziggfreed.common.track.curve.CurveTable;
+import com.ziggfreed.common.track.pick.PickService;
 import com.ziggfreed.common.track.pick.TrackPicks;
 import com.ziggfreed.common.track.stance.StanceText;
 import com.ziggfreed.common.track.stance.StanceView;
@@ -37,6 +38,10 @@ import com.ziggfreed.common.track.stance.TrackStanceConfig;
  *       lives: a pick in a stance ({@code Stance}) only while its face is held, every other pick exactly as taken.</li>
  *   <li>{@value #PICK_OWNED} (the same Param): the same count owned for good, a pick in a stance counted whether its
  *       face is held or not.</li>
+ *   <li>{@value #PICKS_TAKEN} (Param a pick id pattern, {@code *} matching any run of characters:
+ *       {@code Your_*_Rank}): the owned count summed over every pick or option whose id matches, on every track the
+ *       player climbs ({@code PickService.takenMatching}): ranks of a family bought anywhere, or any of a set of steps
+ *       owned ({@code Min 1}).</li>
  *   <li>{@value #STANCE} (Param {@code <Stance>}, or {@code <Stance>/<Face>}): how many of the stance's faces the
  *       player holds that count now, or 1 while that face counts, else 0.</li>
  *   <li>{@value #STANCE_SLOTS} (Param {@code <Stance>}): how many of the stance's slots are open for the player, each
@@ -69,6 +74,8 @@ public final class TrackFactors {
 
     public static final String PICK_OWNED = "ziggfreedcommon:track_pick_owned";
 
+    public static final String PICKS_TAKEN = "ziggfreedcommon:track_picks_taken";
+
     public static final String STANCE = "ziggfreedcommon:track_stance";
 
     public static final String STANCE_SLOTS = "ziggfreedcommon:track_stance_slots";
@@ -81,12 +88,14 @@ public final class TrackFactors {
     private TrackFactors() {
     }
 
-    /** Claim the nine ids process-wide and word their lock lines. Once, at library setup. */
+    /** Claim the ten ids process-wide and word their lock lines. Once, at library setup. */
     public static void contribute() {
         FactorContributions.register(PICK, OWNER, TrackFactors::pick);
         FactorNames.registerParamNamer(PICK, TrackFactors::pickLockName);
         FactorContributions.register(PICK_OWNED, OWNER, TrackFactors::pickOwned);
         FactorNames.registerParamNamer(PICK_OWNED, TrackFactors::pickLockName);
+        FactorContributions.register(PICKS_TAKEN, OWNER, TrackFactors::picksTaken);
+        FactorNames.registerParamNamer(PICKS_TAKEN, TrackFactors::picksTakenLockName);
         FactorContributions.register(STANCE, OWNER, TrackFactors::stance);
         FactorNames.registerParamNamer(STANCE, TrackFactors::stanceLockName);
         FactorContributions.register(STANCE_SLOTS, OWNER, TrackFactors::stanceSlots);
@@ -151,6 +160,30 @@ public final class TrackFactors {
         }
         TrackReading reading = reading(ctx, parts[0]);
         return reading == null ? null : (double) reading.record().picks().count(parts[1]);
+    }
+
+    /**
+     * How many takes the asking player owns, on every track, of every pick or option whose id matches the Param's
+     * pattern ({@code PickService.takenMatching}); null for a blank Param or no player.
+     */
+    @Nullable
+    static Double picksTaken(@Nonnull FactorContext ctx) {
+        String param = ctx.param();
+        UUID playerId = playerOf(ctx.store(), ctx.subject());
+        if (playerId == null || param == null || param.isBlank()) {
+            return null;
+        }
+        return (double) PickService.takenMatching(playerId, param);
+    }
+
+    /**
+     * What a lock line on a picks-taken pattern calls the gate: the pick's own name for a pattern naming one pick
+     * ({@code factor.pick_of}); null, so the generic line reads, for a pattern with a {@code *}.
+     */
+    @Nullable
+    static Message picksTakenLockName(@Nonnull String param) {
+        return param.isBlank() || param.indexOf('*') >= 0 ? null
+                : TrackText.line("factor.pick_of", TrackText.pickName(param.trim()));
     }
 
     /**

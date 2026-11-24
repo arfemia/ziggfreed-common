@@ -201,6 +201,8 @@ import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
 import com.ziggfreed.common.track.pick.TrackPickOwnerLayers;
+import com.ziggfreed.common.track.pick.TrackPickRespecAsset;
+import com.ziggfreed.common.track.pick.TrackPickRespecConfig;
 import com.ziggfreed.common.track.gain.TrackSettingsAsset;
 import com.ziggfreed.common.track.price.TrackPriceAsset;
 import com.ziggfreed.common.track.price.TrackPriceConfig;
@@ -1395,6 +1397,19 @@ public final class FrameworkAssetRegistrar {
                     TrackStanceConfig.reloadOwnerLayer();
                 });
 
+        // --- Track pick respecs (Pattern A) - one respec of a kind of pick per file: the kind it clears on every
+        //     track (ResetsAs), the picks it keeps, the share of each wallet it gives back, its fee and Where. The
+        //     library ships one sample, switched off. Owner file mods/ziggfreedcommon/track-pick-respecs.json, re-read
+        //     on this same event. No loadsAfter: a respec names picks by pattern and is read when it is bought. ---
+        AssetStoreRegistrar.registerStore(TrackPickRespecAsset.class,
+                new DefaultAssetMap<String, TrackPickRespecAsset>(), TrackPickRespecAsset.TYPE_ROOT,
+                TrackPickRespecAsset::getId, TrackPickRespecAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackPickRespecAsset.class,
+                (LoadedAssetsEvent<String, TrackPickRespecAsset, DefaultAssetMap<String, TrackPickRespecAsset>> ev) -> {
+                    TrackPickRespecConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackPickRespecConfig.reloadOwnerLayer();
+                });
+
         // --- Boosts (Pattern A, gated) - one boost per file: the tracks it lifts (by id, by category, or All),
         //     its percent, whose it is, how long a start runs or that it stands, how it stacks with itself, its
         //     tile and its season. A file may gate on a mod through its top-level Requires. The library ships
@@ -1654,6 +1669,7 @@ public final class FrameworkAssetRegistrar {
                         + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), TrackPickGenerators, "
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), "
                         + "TrackStances (owner file mods/ziggfreedcommon/track-stances.json), "
+                        + "TrackPickRespecs (owner file mods/ziggfreedcommon/track-pick-respecs.json), "
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
                         + "PlayerPower (owner file mods/ziggfreedcommon/player-power.json), "

@@ -1,10 +1,13 @@
 package com.ziggfreed.common.track;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.track.asset.PrestigeBuild;
+import com.ziggfreed.common.track.asset.SlotRow;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryConfig;
@@ -93,6 +96,23 @@ public record TrackDef(@Nonnull TrackAsset asset, @Nonnull CurveTable table) {
         TrackCategoryAsset category = category();
         Integer fromCategory = category == null || category.loadouts() == null ? null : category.loadouts().max();
         return fromCategory == null ? 0 : fromCategory;
+    }
+
+    /**
+     * The rows of the saved builds past {@link #loadoutsMax()} that open on their own condition: the track's own
+     * {@code Loadouts.Slots}, else its category's, else none. Which of them a player has open is
+     * {@code PickService.loadouts}'.
+     */
+    @Nonnull
+    public List<SlotRow> loadoutRows() {
+        List<SlotRow> own = asset.loadouts() == null ? null : asset.loadouts().slots();
+        if (own != null) {
+            return own;
+        }
+        TrackCategoryAsset category = category();
+        List<SlotRow> fromCategory = category == null || category.loadouts() == null ? null
+                : category.loadouts().slots();
+        return fromCategory == null ? List.of() : fromCategory;
     }
 
     /** What a swap to a saved build costs: the track's own {@code Loadouts.SwapCost}, else its category's, else free. */

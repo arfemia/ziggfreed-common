@@ -27,6 +27,7 @@ import com.ziggfreed.common.track.lamp.TrackLamp;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
+import com.ziggfreed.common.track.pick.TrackPickRespecAsset;
 import com.ziggfreed.common.track.price.TrackPriceAsset;
 import com.ziggfreed.common.track.source.DiminishKeyAsset;
 import com.ziggfreed.common.track.source.SourceRow;
@@ -83,6 +84,13 @@ public final class TrackSchemaDocs {
                     + "through its `Stance` group (a pick naming no `Face` is a face itself), and a pick written "
                     + "`TaughtOnly` is never offered or taken, only taught, as a `Pick` reward (`Params`: `Track`, "
                     + "`Pick`) teaches it when its Claim is collected.\n\n"
+                    + "A pick's `Cost.Scaling` grows its `Cost.Price` with each take already owned (`Curve`, "
+                    + "`Multiplier`, `SoftCap`). A track's `Loadouts.Slots` opens further saved builds past "
+                    + "`Loadouts.Max`, each a `SlotRow` whose `Id` is the build's number and whose `Pick` may write "
+                    + "`{Track}` for the track's id. One respec of a kind of pick (it clears every pick of one "
+                    + "`ResetsAs` kind on every track, gives back each take's price today at its `Refund` shares and "
+                    + "keeps what was only ever taught and what its `Keep` names) is one file under "
+                    + "`Server/ZiggfreedCommon/TrackPickRespecs/`, retuned in `track-pick-respecs.json`.\n\n"
                     + "One boost (a percent more on every gain on the tracks it names) is one file under "
                     + "`Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add "
                     + "up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, "
@@ -127,6 +135,7 @@ public final class TrackSchemaDocs {
             .register("TrackPickGeneratorAsset", TrackPickGeneratorAsset.CODEC)
             .register("PickOptionAsset", PickOptionAsset.CODEC)
             .register("TrackStanceAsset", TrackStanceAsset.CODEC)
+            .register("TrackPickRespecAsset", TrackPickRespecAsset.CODEC)
             .register("SlotRow", SlotRow.CODEC)
             .register("StatGrant", StatGrant.CODEC)
             .register("Cost", CostAsset.CODEC)

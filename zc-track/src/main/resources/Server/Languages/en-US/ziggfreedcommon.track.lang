@@ -16,6 +16,7 @@ factor.tier_in = {0} in {1}
 # itself ({0} the pick or option).
 factor.track_pick = picks taken on a track
 factor.track_pick_owned = picks learned on a track
+factor.track_picks_taken = picks learned
 factor.pick_of = {0} picks
 # How a requirement on the points spent in a branch of a track's tree is named: generic, then for a branch ({0}).
 factor.track_branch_spent = points spent in a branch
@@ -54,6 +55,10 @@ refused.other = This cannot be done right now.
 # What a player's own respec did: {0} the track, {1} how many picks it cleared.
 respec.done = {0} is reset: {1, number} {1, plural, one {pick is} other {picks are}} cleared and the points are yours to spend again.
 respec.nothing = You have nothing to clear on {0}.
+# What a player's respec of one kind of pick did (a respec file such as a trainer offers): {0} the respec, {1} how many
+# picks it cleared.
+respec.kind.done = {0} is done: {1, number} {1, plural, one {pick is} other {picks are}} cleared, and what they cost is given back.
+respec.kind.nothing = You have nothing {0} would clear.
 
 # A Track reward as it reads in a reward list: {0} the amount, {1} the track's name.
 reward.gain = +{0, number} {1}
@@ -142,6 +147,9 @@ example.stance.fleet = Fleet
 example.stance.fleet.desc = More stamina while you hold it.
 example.stance.key = Second Slot
 example.stance.key.desc = Opens the sample stance's second slot.
+# The sample respec of what a trainer taught (switched off unless an owner turns it on).
+example.respec = Forget the Lessons
+example.respec.desc = Forget the first lesson the sample trainer taught you. The points come back, and half of the items.
 
 # /zigtrack, the admin family. The command.desc.* keys are what the engine's own help resolves a command or
 # an argument's description from.
@@ -151,7 +159,8 @@ command.desc.show = Show a player's tracks, online or not.
 command.desc.prestige = Start a player's climb on a track again.
 command.desc.pick = Make a pick on a player's track: choose an offered option, or give a pick bought outright, past its level, wherever it is taught and without charging its price.
 command.desc.undo = Undo a player's latest pick that can still be undone.
-command.desc.respec = Clear every pick a player made on a track and give back the points. What a trainer taught stays.
+command.desc.respec = Clear every pick a player made on a track and give back the points. What a trainer taught stays. With --kind, run a respec file of one kind of pick on every track instead, for free.
+command.desc.arg.kind = A respec file, by its id: it clears one kind of pick on every track and gives back what it says.
 command.desc.savebuild = Save the picks a player has in use on a track as one of their saved builds.
 command.desc.swapbuild = Swap a player's picks on a track for one of their saved builds, paying the swap's price.
 command.desc.builds = List a player's saved builds on a track.
@@ -235,6 +244,11 @@ command.undo.batch = Undid {1}'s last {2, number} {2, plural, one {pick} other {
 command.undo.none = {0} has no pick left to undo. A pick can be undone until its page closes, and for {1, number} {1, plural, one {minute} other {minutes}} at most.
 command.respec.done = Cleared {2, number} {2, plural, one {pick} other {picks}} {1} made on {0}.
 command.respec.none = {1} has no picks to clear on {0}.
+# /zigtrack respec --kind: {0} the respec, {1} the player, {2} how many picks it cleared.
+command.respec.kind.done = {0} cleared {2, number} {2, plural, one {pick} other {picks}} for {1}, and gave back what they cost.
+command.respec.kind.none = {1} has nothing {0} would clear.
+command.respec.kind.unknown = No respec called '{0}' is switched on here.
+command.respec.needed = Name a track with --track=<id>, or a respec with --kind=<id>.
 # In command.undo.needed {0} is the player and {1} the pick that could not be undone.
 command.undo.needed = {0} cannot undo {1} yet: a later pick still needs it. Undo that one first.
 # In command.undo.needed.batch {0} is the player, {1} how many picks the batch made in one go holds, {2} the track.

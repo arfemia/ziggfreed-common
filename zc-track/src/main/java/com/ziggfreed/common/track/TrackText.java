@@ -18,6 +18,7 @@ import com.ziggfreed.common.track.pick.PickService;
 import com.ziggfreed.common.track.pick.PickService.Status;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
+import com.ziggfreed.common.track.pick.TrackPickRespecAsset;
 import com.ziggfreed.common.track.stance.StanceText;
 import com.ziggfreed.common.track.stance.Stances;
 
@@ -201,6 +202,33 @@ public final class TrackText {
     @Nonnull
     public static Message respecLine(@Nonnull PickService.Result result, @Nonnull Message track) {
         return respecLine(result.status(), result.count(), track);
+    }
+
+    /**
+     * What a player's respec of a kind of pick, the respec called {@code respec}, answered
+     * ({@code PickService.respecKind}): done, with how many picks it cleared; nothing to clear (also what an offer of
+     * it reads before there is anything); else why it was refused ({@link #refusal(Status)}).
+     */
+    @Nonnull
+    public static Message respecKindLine(@Nonnull Status status, int cleared, @Nonnull Message respec) {
+        return switch (status) {
+            case DONE -> line("respec.kind.done", respec, cleared);
+            case NOTHING -> line("respec.kind.nothing", respec);
+            default -> refusal(status);
+        };
+    }
+
+    /** {@link #respecKindLine(Status, int, Message)} straight off a kind respec's result. */
+    @Nonnull
+    public static Message respecKindLine(@Nonnull PickService.Result result, @Nonnull Message respec) {
+        return respecKindLine(result.status(), result.count(), respec);
+    }
+
+    /** What the respec {@code respec} is called: its TitleKey, else its id. */
+    @Nonnull
+    public static Message respecName(@Nonnull TrackPickRespecAsset respec) {
+        String key = respec.titleKey();
+        return key != null ? Msg.key(key) : Msg.raw(respec.getId() == null ? "" : respec.getId());
     }
 
     /** What {@code tier} is called: its {@code Name}, else its id. */

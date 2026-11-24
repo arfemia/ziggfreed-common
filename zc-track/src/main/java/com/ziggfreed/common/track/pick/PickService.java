@@ -1,8 +1,10 @@
 package com.ziggfreed.common.track.pick;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +23,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.cast.WorldEvictors;
-import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.encounter.run.EncounterRuns;
@@ -42,6 +43,7 @@ import com.ziggfreed.common.track.TrackService;
 import com.ziggfreed.common.track.TrackStore;
 import com.ziggfreed.common.track.TrackStores;
 import com.ziggfreed.common.track.asset.PrestigeBuild;
+import com.ziggfreed.common.track.asset.SlotRow;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.event.TrackEvents;
 import com.ziggfreed.common.track.event.ZigTrackPicksChangedEvent;
@@ -93,7 +95,19 @@ import com.ziggfreed.common.util.SafeLog;
  * stays held by design even when a gate it once met (a branch's points) no longer is: nothing re-gates a pick already
  * held.
  *
- * <p><b>Saved builds</b> (R736): a track's {@code Loadouts.Max} builds, saved ({@link #saveLoadout}) and swapped
+ * <p><b>A respec of a kind of pick</b> ({@link #respecKind}, a {@code TrackPickRespecAsset}): every pick of one kind
+ * ({@code ResetsAs}) on every track the player climbs is cleared but what was only ever taught and what its
+ * {@code Keep} names, each cleared take's price today given back at the respec's {@code Refund} shares (its points
+ * whole, as every respec gives points back), the faces of a stance those picks held freed by the settle that follows,
+ * at the respec's fee, refused in combat or mid-encounter, and undone whole by one {@link #undo} while its window
+ * stays open.
+ *
+ * <p><b>A price that grows</b>: a pick's {@code Cost.Scaling} grows its {@code Cost.Price} with every take already
+ * owned ({@code PickPrices}), read by {@link #price(String, int)}, {@link #takeStatus} and {@link #take}; a pick
+ * writing none costs its {@code Price} every take, exactly as before.
+ *
+ * <p><b>Saved builds</b> (R736): a track's {@code Loadouts.Max} builds, and each further build its
+ * {@code Loadouts.Slots} opens on its row ({@code LoadoutSlots}), saved ({@link #saveLoadout}) and swapped
  * ({@link #swapLoadout}) for the track's swap price, never in combat or mid-encounter. A pick a trainer taught, or one
  * with a price, stays in use through every swap and is never saved into a build ({@link #keptInUse}, read off the
  * pick files alone, never the prestige settings). A swap
@@ -474,20 +488,95 @@ public final class PickService {
         return reading == null ? List.of() : reading.record().picks().rememberedTakes();
     }
 
-    /** {@code player}'s saved builds on {@code trackId}: none when the track keeps none or they are not live. */
+    /**
+     * {@code player}'s saved builds on {@code trackId}: every build open to them ({@code Loadouts.Max}, and each further
+     * one whose {@code Loadouts.Slots} row is open), ascending, {@code max} how many that is; none when the track keeps
+     * none or they are not live. A build saved in a slot that has closed is kept, out of the list until it opens again.
+     */
     @Nonnull
     public static Loadouts loadouts(@Nonnull UUID player, @Nullable String trackId) {
         TrackReading reading = trackId == null ? null : TrackService.read(TrackKey.player(player, trackId));
         if (reading == null) {
             return Loadouts.none(TrackKey.normalize(trackId));
         }
-        int max = reading.def().loadoutsMax();
+        List<Integer> open = openLoadouts(player, reading.def());
         PickState state = reading.record().picks();
         List<LoadoutView> slots = new ArrayList<>();
-        for (int slot = 1; slot <= max; slot++) {
+        for (int slot : open) {
             slots.add(new LoadoutView(slot, state.loadout(slot).size(), state.activeLoadout() == slot));
         }
-        return new Loadouts(reading.def().id(), max, state.activeLoadout() <= max ? state.activeLoadout() : 0, slots);
+        return new Loadouts(reading.def().id(), open.size(),
+                open.contains(state.activeLoadout()) ? state.activeLoadout() : 0, slots);
+    }
+
+    /**
+     * The saved builds open to {@code player} on {@code def}, ascending ({@link LoadoutSlots#open}): 1 to its
+     * {@code Loadouts.Max}, then each {@code Loadouts.Slots} row past it that is open, its key pick owned on any track
+     * and its {@code Requires} met (unmet while the player is not live). A track writing no rows asks nothing.
+     */
+    @Nonnull
+    private static List<Integer> openLoadouts(@Nonnull UUID player, @Nonnull TrackDef def) {
+        List<SlotRow> rows = def.loadoutRows();
+        if (rows.isEmpty()) {
+            return LoadoutSlots.open(def.loadoutsMax(), rows, def.id(), id -> false, spec -> false);
+        }
+        Ref<EntityStore> ref = PlayerAccess.liveRef(player);
+        return LoadoutSlots.open(def.loadoutsMax(), rows, def.id(), ownership(player),
+                ref == null ? spec -> false : passer(ref));
+    }
+
+    /** Is the saved build {@code slot} open to {@code player} on {@code def} ({@link #openLoadouts})? */
+    private static boolean loadoutOpen(@Nonnull UUID player, @Nonnull TrackDef def, int slot) {
+        List<SlotRow> rows = def.loadoutRows();
+        if (rows.isEmpty() || slot <= def.loadoutsMax()) {
+            return LoadoutSlots.isOpen(slot, def.loadoutsMax(), rows, def.id(), id -> false, spec -> false);
+        }
+        Ref<EntityStore> ref = PlayerAccess.liveRef(player);
+        return LoadoutSlots.isOpen(slot, def.loadoutsMax(), rows, def.id(), ownership(player),
+                ref == null ? spec -> false : passer(ref));
+    }
+
+    /**
+     * Does {@code player} own a pick (by id, any case): taken at least once on its own track, a pick the fold does not
+     * know never? Asked once a pick for the predicate's life (one read's): what a slot row's key ({@link SlotRow#opens})
+     * asks, a stance's slots and a track's further saved builds alike.
+     */
+    @Nonnull
+    public static Predicate<String> ownership(@Nullable UUID player) {
+        Map<String, Boolean> asked = new HashMap<>();
+        return pickId -> {
+            String id = TrackKey.normalize(pickId);
+            if (player == null || id.isEmpty()) {
+                return false;
+            }
+            return asked.computeIfAbsent(id, key -> {
+                TrackPicks.PickDef pick = TrackPicks.pick(key);
+                return pick != null && count(player, pick.trackId(), key) > 0;
+            });
+        };
+    }
+
+    /**
+     * How many takes {@code player} owns, on every track they climb, of every pick or option whose id matches
+     * {@code pattern} (any case, {@code *} matching any run of characters, {@code Your_*_Rank}): the sum of
+     * {@code ziggfreedcommon:track_pick_owned} over each such id ({@link TrackPicks#takenMatching}), what
+     * {@code ziggfreedcommon:track_picks_taken} reads. 0 for a blank pattern or a player not live. World thread.
+     */
+    public static int takenMatching(@Nonnull UUID player, @Nullable String pattern) {
+        if (pattern == null || pattern.isBlank()) {
+            return 0;
+        }
+        long total = 0L;
+        for (TrackDef def : TrackService.defs()) {
+            if (def.asset().isDerived()) {
+                continue;
+            }
+            TrackReading reading = TrackService.read(TrackKey.player(player, def.id()));
+            if (reading != null) {
+                total += TrackPicks.takenMatching(reading.record().picks(), pattern);
+            }
+        }
+        return (int) Math.min(Integer.MAX_VALUE, total);
     }
 
     /**
@@ -671,7 +760,8 @@ public final class PickService {
 
     /**
      * Take the pick bought outright {@code pickId} on {@code trackId} once more, paying its {@code Cost}: its points,
-     * and its {@code Cost.Price} charged through the library's one price ({@link Status#CANNOT_PAY} when it cannot be
+     * and its {@code Cost.Price} (grown for the takes already owned when it writes {@code Cost.Scaling}) charged through
+     * the library's one price ({@link Status#CANNOT_PAY} when it cannot be
      * paid, nothing taken), given back if the take cannot be kept or is undone. A rank of it a Remember prestige set
      * aside is held again, so the take leaves what is remembered (the oldest such take; an undo puts it back at the
      * head). {@code placement} is the trainer the page belongs to (null for the track's own page). World thread.
@@ -691,11 +781,12 @@ public final class PickService {
         if (status != Status.DONE) {
             return Result.of(status);
         }
-        PickPayments.Paid paid = PickPayments.charge(climb.ref(), priceOf(pick), "the pick " + pick.id());
+        PickState state = climb.record().picks();
+        PickPayments.Paid paid = PickPayments.charge(climb.ref(), priceOf(pick, state.takesOf(pick.id())),
+                "the pick " + pick.id());
         if (paid == null) {
             return Result.of(Status.CANNOT_PAY);
         }
-        PickState state = climb.record().picks();
         PickState next = state.withTakes(pick.id(), 1).withoutRememberedTake(pick.id());
         // A rank a prestige put aside, bought again, leaves what is remembered; its undo puts it back at the head.
         List<String> remembered = next.rememberedTakes().size() < state.rememberedTakes().size()
@@ -748,14 +839,19 @@ public final class PickService {
     /**
      * Undo {@code player}'s latest pick still in its window, newest first: the slot unmade, or the take given back
      * (a re-spent remembered take goes back to the head of what is remembered). Refused, and kept undoable, when it
-     * would leave a pick the player still holds short of what it met when it was taken ({@link Status#NEEDED}).
-     * World thread.
+     * would leave a pick the player still holds short of what it met when it was taken ({@link Status#NEEDED}). A
+     * kind respec ({@link #respecKind}) undoes whole: what it gave back is taken back ({@link Status#CANNOT_PAY}, kept
+     * undoable, while the player no longer has it), every track it cleared gets its picks back as they were, and its fee
+     * is given back; the faces of a stance it freed stay free, to hold again. World thread.
      */
     @Nonnull
     public static Result undo(@Nonnull UUID player) {
         PickUndo.Entry entry = PickUndo.pop(player, System.currentTimeMillis());
         if (entry == null) {
             return Result.of(Status.NOTHING);
+        }
+        if (entry.respec() != null) {
+            return undoKindRespec(player, entry, entry.respec());
         }
         Climb climb = climb(player, entry.trackId());
         if (climb == null) {
@@ -914,9 +1010,277 @@ public final class PickService {
         return climb == null ? Cost.FREE : PickPayments.respecPrice(climb.def(), climb.def().best(climb.record()));
     }
 
+    // ==================== a kind of pick, respecced ====================
+
+    /**
+     * What a respec of a kind does to one player, read without writing: each track it clears picks on, its picks before
+     * and after (by lower-cased track id, in the tracks' order), how many picks it clears, and what it gives back.
+     */
+    record KindPlan(@Nonnull Map<String, PickState> before, @Nonnull Map<String, PickState> after, int cleared,
+                    @Nonnull Cost refund) {
+    }
+
+    /**
+     * {@code player}'s own respec of a kind of pick ({@code respecId}, a switched-on {@code TrackPickRespecAsset}),
+     * at {@code placement} (the trainer the page belongs to, null for none): refused away from the trainers its
+     * {@code Where} names that stand ({@link Status#ELSEWHERE}), in combat or mid-encounter as a respec is
+     * ({@link #respecRefusal}), and with nothing of its kind to clear ({@link Status#NOTHING}, nothing charged); else
+     * its fee is charged ({@link Status#CANNOT_PAY}), every pick of its kind on every track is cleared but what was only
+     * ever taught and what its {@code Keep} names (a saved build in use stays linked unless a cleared pick could have
+     * been saved in it), and what each cleared take cost at its price today comes back at its {@code Refund} shares (the
+     * points whole). One undo entry, undone whole ({@link #undo}); the tracks' older picks are no longer undoable. The
+     * faces of a stance that stop being owned are freed, free, by the settle that follows. World thread.
+     *
+     * @return the result, its {@code trackId} the first track cleared and its {@code count} the picks cleared
+     */
+    @Nonnull
+    public static Result respecKind(@Nonnull UUID player, @Nullable String respecId, @Nullable String placement) {
+        return respecKind(player, respecId, placement, false);
+    }
+
+    /**
+     * An admin's respec of a kind of pick for {@code player}: {@link #respecKind} anywhere, in a fight or not, free,
+     * leaving no undo; the refund is the respec's own, as for the player's. World thread.
+     */
+    @Nonnull
+    public static Result respecKindAsAdmin(@Nonnull UUID player, @Nullable String respecId) {
+        return respecKind(player, respecId, null, true);
+    }
+
+    /**
+     * How many of {@code player}'s picks the respec {@code respecId} would clear now, on every track: what a page says
+     * before it charges; 0 for a respec unknown or off, nothing of its kind held, or a player not live. World thread.
+     */
+    public static int respecKindClears(@Nonnull UUID player, @Nullable String respecId) {
+        KindPlan plan = planKind(player, respecId);
+        return plan == null ? 0 : plan.cleared();
+    }
+
+    /**
+     * What the respec {@code respecId} would give {@code player} back now: each cleared take's price today at its
+     * {@code Refund} shares; free for nothing to clear, a respec unknown or off, or a player not live. World thread.
+     */
+    @Nonnull
+    public static Cost respecKindRefund(@Nonnull UUID player, @Nullable String respecId) {
+        KindPlan plan = planKind(player, respecId);
+        return plan == null ? Cost.FREE : plan.refund();
+    }
+
+    /** What a player's own respec {@code respecId} costs (its {@code Cost}, folded); free for none or no such respec. */
+    @Nonnull
+    public static Cost respecKindFee(@Nullable String respecId) {
+        TrackPickRespecAsset respec = TrackPickRespecConfig.getInstance().live(respecId);
+        return respec == null ? Cost.FREE : feeOf(respec);
+    }
+
+    /**
+     * Is {@code placement} somewhere {@code respec} is bought: one of the trainers its {@code Where} names that stand
+     * now ({@link PickTrainers#teachingAmong}), or anywhere while none it names stands.
+     */
+    public static boolean respecHere(@Nonnull TrackPickRespecAsset respec, @Nullable String placement) {
+        List<String> trainers = PickTrainers.teachingAmong(respec.placements());
+        return trainers.isEmpty() || (placement != null && trainers.contains(TrackKey.normalize(placement)));
+    }
+
+    @Nonnull
+    private static Result respecKind(@Nonnull UUID player, @Nullable String respecId, @Nullable String placement,
+            boolean admin) {
+        TrackPickRespecAsset respec = TrackPickRespecConfig.getInstance().live(respecId);
+        if (respec == null) {
+            return Result.of(Status.UNKNOWN);
+        }
+        Ref<EntityStore> ref = PlayerAccess.liveRef(player);
+        if (ref == null) {
+            return Result.of(Status.NOT_LIVE);
+        }
+        if (!admin) {
+            if (!respecHere(respec, placement)) {
+                return Result.of(Status.ELSEWHERE);
+            }
+            Status refused = refusal(ref);
+            if (refused != null) {
+                return Result.of(refused);
+            }
+        }
+        Map<String, Climb> climbs = climbs(player);
+        KindPlan plan = planKind(respec, picksOf(climbs), TrackPicks::pick);
+        if (plan.cleared() == 0) {
+            return Result.of(Status.NOTHING);
+        }
+        String source = "the respec " + respec.getId();
+        PickPayments.Paid fee = admin ? PickPayments.Paid.FREE : PickPayments.charge(ref, feeOf(respec), source);
+        if (fee == null) {
+            return Result.of(Status.CANNOT_PAY);
+        }
+        List<Climb> written = new ArrayList<>();
+        for (Map.Entry<String, PickState> next : plan.after().entrySet()) {
+            Climb climb = climbs.get(next.getKey());
+            if (climb == null || !climb.store().put(climb.key(), climb.record().withPicks(next.getValue()))) {
+                putBack(written);
+                fee.refund();
+                return Result.of(Status.NOT_LIVE);
+            }
+            written.add(climb);
+        }
+        if (!PickPayments.give(ref, plan.refund(), source)) {
+            putBack(written);
+            fee.refund();
+            return Result.of(Status.NOT_LIVE);
+        }
+        for (String trackId : plan.after().keySet()) {
+            PickUndo.closeTrack(player, trackId);
+        }
+        if (!admin) {
+            PickUndo.record(player, PickUndo.Entry.kindRespec(new PickUndo.KindRespec(TrackKey.normalize(
+                    respec.getId()), plan.before(), plan.after(), fee, plan.refund(), plan.cleared()),
+                    System.currentTimeMillis()));
+        }
+        changedOn(player, ref, plan.after().keySet(), ZigTrackPicksChangedEvent.Change.RESPEC);
+        return new Result(Status.DONE, plan.after().keySet().iterator().next(), null, null, List.of(),
+                plan.cleared());
+    }
+
+    /** Undo a kind respec (the {@link #undo} of a {@code respec} entry). */
+    @Nonnull
+    private static Result undoKindRespec(@Nonnull UUID player, @Nonnull PickUndo.Entry entry,
+            @Nonnull PickUndo.KindRespec respec) {
+        Ref<EntityStore> ref = PlayerAccess.liveRef(player);
+        if (ref == null) {
+            PickUndo.putBack(player, entry);
+            return Result.of(Status.NOT_LIVE);
+        }
+        Map<String, Climb> climbs = new LinkedHashMap<>();
+        for (Map.Entry<String, PickState> after : respec.after().entrySet()) {
+            Climb climb = climb(player, after.getKey());
+            if (climb == null) {
+                PickUndo.putBack(player, entry);
+                return Result.of(Status.NOT_LIVE);
+            }
+            if (!climb.record().picks().equals(after.getValue())) {
+                // A pick changed since in a way no undo recorded (an admin's teach): nothing to put back as it was.
+                return Result.of(Status.NOTHING);
+            }
+            climbs.put(after.getKey(), climb);
+        }
+        PickPayments.Paid back = PickPayments.charge(ref, respec.given(),
+                "taking back what the respec " + respec.respecId() + " gave");
+        if (back == null) {
+            PickUndo.putBack(player, entry);
+            return Result.of(Status.CANNOT_PAY);
+        }
+        List<Climb> written = new ArrayList<>();
+        for (Map.Entry<String, Climb> one : climbs.entrySet()) {
+            Climb climb = one.getValue();
+            if (!climb.store().put(climb.key(), climb.record().withPicks(respec.before().get(one.getKey())))) {
+                putBack(written);
+                back.refund();
+                PickUndo.putBack(player, entry);
+                return Result.of(Status.NOT_LIVE);
+            }
+            written.add(climb);
+        }
+        respec.fee().refund();
+        changedOn(player, ref, climbs.keySet(), ZigTrackPicksChangedEvent.Change.UNDONE);
+        return new Result(Status.DONE, entry.trackId(), null, null, List.of(), respec.cleared());
+    }
+
+    /** Each climb of {@code climbs} written back as it was read (a write that could not be finished). */
+    private static void putBack(@Nonnull List<Climb> climbs) {
+        for (Climb climb : climbs) {
+            climb.store().put(climb.key(), climb.record());
+        }
+    }
+
+    /** {@code player}'s live climbs on every usable track that keeps picks of its own, by lower-cased track id. */
+    @Nonnull
+    private static Map<String, Climb> climbs(@Nonnull UUID player) {
+        Map<String, Climb> out = new LinkedHashMap<>();
+        for (TrackDef def : TrackService.defs()) {
+            if (def.asset().isDerived()) {
+                continue;
+            }
+            Climb climb = climb(player, def.id());
+            if (climb != null) {
+                out.put(def.id(), climb);
+            }
+        }
+        return out;
+    }
+
+    @Nonnull
+    private static Map<String, PickState> picksOf(@Nonnull Map<String, Climb> climbs) {
+        Map<String, PickState> out = new LinkedHashMap<>();
+        climbs.forEach((trackId, climb) -> out.put(trackId, climb.record().picks()));
+        return out;
+    }
+
+    /** {@code player}'s plan under the respec {@code respecId}, or null for a respec unknown or off. */
+    @Nullable
+    private static KindPlan planKind(@Nonnull UUID player, @Nullable String respecId) {
+        TrackPickRespecAsset respec = TrackPickRespecConfig.getInstance().live(respecId);
+        return respec == null ? null : planKind(respec, picksOf(climbs(player)), TrackPicks::pick);
+    }
+
+    /**
+     * The pure core of a kind respec over {@code states} (each track's picks, by track id, any case) and the folded
+     * picks ({@code picks} by id, any case): on each track every pick {@code respec} clears
+     * ({@link TrackPickRespecAsset#clears}) leaves, a pick the fold does not know on that track staying, and the build
+     * in use unlinked only where a cleared pick could have been saved in it ({@link #staysInUse}); what each cleared
+     * take bought outright cost at its price today ({@link PickPrices#paidFor}, its growth included) summed, then shared
+     * by the respec's {@code Refund} ({@link PickPrices#shared}). A track it clears nothing on is left out.
+     */
+    @Nonnull
+    static KindPlan planKind(@Nonnull TrackPickRespecAsset respec, @Nonnull Map<String, PickState> states,
+            @Nonnull Function<String, TrackPicks.PickDef> picks) {
+        Map<String, PickState> before = new LinkedHashMap<>();
+        Map<String, PickState> after = new LinkedHashMap<>();
+        int cleared = 0;
+        Cost paid = Cost.FREE;
+        for (Map.Entry<String, PickState> track : states.entrySet()) {
+            String trackId = TrackKey.normalize(track.getKey());
+            PickState state = track.getValue();
+            Map<String, Boolean> known = new HashMap<>();
+            Predicate<String> goes = id -> known.computeIfAbsent(TrackKey.normalize(id), key -> {
+                TrackPicks.PickDef pick = picks.apply(key);
+                return pick != null && pick.trackId().equals(trackId) && respec.clears(pick.asset());
+            });
+            PickState next = state.keptOnly(goes.negate());
+            int gone = state.size() - next.size();
+            if (gone == 0) {
+                continue;
+            }
+            boolean unlink = false;
+            for (Map.Entry<String, Integer> take : state.takes().entrySet()) {
+                if (goes.test(take.getKey())) {
+                    TrackPicks.PickDef pick = picks.apply(take.getKey());
+                    paid = PickPrices.plus(paid, PickPrices.paidFor(PickPrices.base(pick.asset()), take.getValue()));
+                    unlink |= !staysInUse(pick.asset());
+                }
+            }
+            for (String slot : state.slots().keySet()) {
+                TrackPicks.Slot parts = TrackPicks.slot(slot);
+                if (parts != null && goes.test(parts.pickId())) {
+                    unlink |= !staysInUse(picks.apply(parts.pickId()).asset());
+                }
+            }
+            before.put(trackId, state);
+            after.put(trackId, unlink ? next.withActiveLoadout(0) : next);
+            cleared += gone;
+        }
+        return new KindPlan(before, after, cleared, PickPrices.shared(paid, respec::currencyShare,
+                respec.itemShare()));
+    }
+
+    /** {@code respec}'s fee ({@code Cost}), folded through the library's one price; free for none. */
+    @Nonnull
+    private static Cost feeOf(@Nonnull TrackPickRespecAsset respec) {
+        return respec.fee() == null ? Cost.FREE : CommerceFold.cost(respec.fee(), "the respec " + respec.getId());
+    }
+
     /**
      * Save the picks {@code player} has in use on {@code trackId} as the build {@code slot} (1 to the track's
-     * {@code Loadouts.Max}), replacing what was saved there, and mark it the build in use. A pick a trainer taught or
+     * {@code Loadouts.Max}, or a further build its {@code Loadouts.Slots} opens for them), replacing what was saved
+     * there, and mark it the build in use. A pick a trainer taught or
      * a priced one ({@link #keptInUse}) is never saved: it stays in use through every swap. Free. World thread.
      *
      * @return the result, its {@code count} the picks saved
@@ -931,7 +1295,7 @@ public final class PickService {
         if (climb == null) {
             return Result.of(Status.NOT_LIVE);
         }
-        if (slot < 1 || slot > def.loadoutsMax()) {
+        if (!loadoutOpen(player, def, slot)) {
             return Result.of(Status.NO_LOADOUT);
         }
         PickState state = climb.record().picks();
@@ -973,8 +1337,7 @@ public final class PickService {
         if (climb == null) {
             return Result.of(Status.NOT_LIVE);
         }
-        int max = def.loadoutsMax();
-        if (slot < 1 || slot > max) {
+        if (!loadoutOpen(player, def, slot)) {
             return Result.of(Status.NO_LOADOUT);
         }
         Ref<EntityStore> ref = climb.ref();
@@ -990,7 +1353,7 @@ public final class PickService {
             // That build is in use exactly as it was saved: nothing to swap, so nothing is charged.
             return Result.of(Status.NOTHING);
         }
-        boolean linked = active >= 1 && active <= max;
+        boolean linked = active >= 1 && loadoutOpen(player, def, active);
         if (!linked && !force && !inUse.isEmpty()) {
             // No build holds the picks in use, so the swap would lose them: the caller asks first.
             return Result.of(Status.UNSAVED);
@@ -1345,17 +1708,17 @@ public final class PickService {
             return Status.ELSEWHERE;
         }
         Status cost = costStatus(player, pick, records);
-        return cost != Status.DONE || taught ? cost : priceStatus(player, pick);
+        return cost != Status.DONE || taught ? cost : priceStatus(player, pick, state.takesOf(pick.id()));
     }
 
     /**
-     * Can {@code player} pay {@code pick}'s {@code Cost.Price} now, read without charging: {@link Status#DONE} for a
-     * free price, or for a player who is not live here (the write itself answers that), else
-     * {@link Status#CANNOT_PAY} while their wallets or bags fall short.
+     * Can {@code player} pay {@code pick}'s {@code Cost.Price} for the take after {@code taken} owned now, read
+     * without charging: {@link Status#DONE} for a free price, or for a player who is not live here (the write itself
+     * answers that), else {@link Status#CANNOT_PAY} while their wallets or bags fall short.
      */
     @Nonnull
-    private static Status priceStatus(@Nonnull UUID player, @Nonnull TrackPicks.PickDef pick) {
-        Cost price = priceOf(pick);
+    private static Status priceStatus(@Nonnull UUID player, @Nonnull TrackPicks.PickDef pick, int taken) {
+        Cost price = priceOf(pick, taken);
         if (price.isFree()) {
             return Status.DONE;
         }
@@ -1364,20 +1727,30 @@ public final class PickService {
     }
 
     /**
-     * What one take of the pick {@code pickId} costs in wallets and items besides its points ({@code Cost.Price},
-     * folded through the library's one price): what a trainer's page and a track's page show beside the points.
+     * What the first take of the pick {@code pickId} costs in wallets and items besides its points
+     * ({@code Cost.Price}, folded through the library's one price): {@link #price(String, int)} with none owned.
      * {@link Cost#FREE} for a pick with none, or none of that id.
      */
     @Nonnull
     public static Cost price(@Nullable String pickId) {
-        return priceOf(TrackPicks.pick(pickId));
+        return price(pickId, 0);
     }
 
-    /** {@link #price} of a folded pick. */
+    /**
+     * What the take of the pick {@code pickId} after {@code taken} takes owned costs in wallets and items besides its
+     * points: its {@code Cost.Price}, grown for those takes when it writes {@code Cost.Scaling} ({@link PickPrices}),
+     * the same every take when it writes none. What a trainer's page and a track's page show beside the points, given
+     * the player's ranks of it. {@link Cost#FREE} for a pick with none, or none of that id.
+     */
     @Nonnull
-    private static Cost priceOf(@Nullable TrackPicks.PickDef pick) {
-        CostAsset price = pick == null ? null : pick.asset().price();
-        return price == null ? Cost.FREE : CommerceFold.cost(price, "the pick " + pick.id());
+    public static Cost price(@Nullable String pickId, int taken) {
+        return priceOf(TrackPicks.pick(pickId), taken);
+    }
+
+    /** {@link #price(String, int)} of a folded pick. */
+    @Nonnull
+    private static Cost priceOf(@Nullable TrackPicks.PickDef pick, int taken) {
+        return pick == null ? Cost.FREE : PickPrices.nth(PickPrices.base(pick.asset()), taken);
     }
 
     /** {@link #takeStatus(UUID, TrackDef, TrackRecord, TrackPicks.PickDef, String, GateQuery, Map)} on a live climb. */
@@ -1604,10 +1977,34 @@ public final class PickService {
     private static void changed(@Nonnull UUID player, @Nonnull Climb climb,
             @Nonnull ZigTrackPicksChangedEvent.Change change, @Nullable String pickId, @Nullable String slot,
             @Nonnull List<String> options) {
+        knockOn(player, climb.ref());
+        TrackEvents.firePicksChanged(player, climb.def().id(), change, pickId, slot, options);
+    }
+
+    /**
+     * {@link #changed} for a write on several tracks at once (a kind respec, its undo): the knock-on once, then one
+     * event per track, naming no pick.
+     */
+    private static void changedOn(@Nonnull UUID player, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Collection<String> trackIds, @Nonnull ZigTrackPicksChangedEvent.Change change) {
+        knockOn(player, ref);
+        for (String trackId : trackIds) {
+            TrackEvents.firePicksChanged(player, trackId, change, null, null, List.of());
+        }
+    }
+
+    /** The epoch, the stances settled and the grants rebuilt: what every change of picks keeps, once. */
+    private static void knockOn(@Nonnull UUID player, @Nonnull Ref<EntityStore> ref) {
         GateEpochs.bumpPlayer(player);
         settleStances(player);
-        TrackDerived.rebuild(climb.ref().getStore(), climb.ref());
-        TrackEvents.firePicksChanged(player, climb.def().id(), change, pickId, slot, options);
+        TrackDerived.rebuild(ref.getStore(), ref);
+    }
+
+    /** A slot row's {@code Requires} asked of the player at {@code ref}, through the server's one evaluator. */
+    @Nonnull
+    private static Predicate<GateSpec> passer(@Nonnull Ref<EntityStore> ref) {
+        GateQuery query = queryOf(ref);
+        return spec -> StoreGates.passes(spec, query);
     }
 
     /** Free the faces {@code player} holds that a change of picks left uncounted; its own guard, never stopping it. */

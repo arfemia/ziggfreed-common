@@ -1,9 +1,11 @@
 package com.ziggfreed.common.track.pick;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -12,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.track.PickState;
 
 /**
@@ -35,16 +38,40 @@ final class PickUndo {
      * one go ({@code batch}: each take's pick id in the order made, a repeat for each further rank; a re-spend of
      * remembered takes also lists them in {@code remembered}, put back at the head of what is remembered on undo), so
      * one undo gives back the whole batch, however long. A take that was paid for keeps its charge ({@code paid}),
-     * whose receipt the undo gives back; null for one that cost no price.
+     * whose receipt the undo gives back; null for one that cost no price. A player's own respec of a kind of pick is
+     * one entry too ({@code respec}, its fee as {@code paid}), however many tracks it cleared.
      */
     record Entry(@Nonnull String trackId, @Nonnull String pickId, @Nullable String slot,
                  @Nonnull List<String> options, @Nonnull List<String> remembered, long atMs,
-                 @Nonnull List<String> batch, @Nullable PickPayments.Paid paid) {
+                 @Nonnull List<String> batch, @Nullable PickPayments.Paid paid, @Nullable KindRespec respec) {
 
         Entry {
             options = List.copyOf(options);
             remembered = List.copyOf(remembered);
             batch = List.copyOf(batch);
+        }
+
+        /** A choice, a take or a batch, its charge ({@code paid}, null for none): no kind respec. */
+        Entry(@Nonnull String trackId, @Nonnull String pickId, @Nullable String slot, @Nonnull List<String> options,
+                @Nonnull List<String> remembered, long atMs, @Nonnull List<String> batch,
+                @Nullable PickPayments.Paid paid) {
+            this(trackId, pickId, slot, options, remembered, atMs, batch, paid, null);
+        }
+
+        /**
+         * A player's own respec of a kind of pick ({@code PickService.respecKind}), on every track it cleared: filed
+         * under its first track, named by its respec's id.
+         */
+        @Nonnull
+        static Entry kindRespec(@Nonnull KindRespec respec, long atMs) {
+            String first = respec.after().isEmpty() ? "" : respec.after().keySet().iterator().next();
+            return new Entry(first, respec.respecId(), null, List.of(), List.of(), atMs, List.of(), respec.fee(),
+                    respec);
+        }
+
+        /** Does this entry touch {@code trackId}: filed under it, or a kind respec that cleared picks there? */
+        boolean touches(@Nonnull String trackId) {
+            return trackId.equals(this.trackId) || (respec != null && respec.after().containsKey(trackId));
         }
 
         /** A choice, a free take or a batch: nothing was charged. */
@@ -72,6 +99,21 @@ final class PickUndo {
         /** Is this a batch of takes rather than one choice or one take? */
         boolean isBatch() {
             return !batch.isEmpty();
+        }
+    }
+
+    /**
+     * What a kind respec did, for its undo: each track's picks before and after it (by lower-cased track id, in the
+     * order cleared), the fee's charge to give back, what it handed the player to take back, and how many picks it
+     * cleared. An undo puts every track back only while each still holds exactly what the respec left.
+     */
+    record KindRespec(@Nonnull String respecId, @Nonnull Map<String, PickState> before,
+                      @Nonnull Map<String, PickState> after, @Nonnull PickPayments.Paid fee, @Nonnull Cost given,
+                      int cleared) {
+
+        KindRespec {
+            before = Collections.unmodifiableMap(new LinkedHashMap<>(before));
+            after = Collections.unmodifiableMap(new LinkedHashMap<>(after));
         }
     }
 
@@ -156,14 +198,17 @@ final class PickUndo {
         }
     }
 
-    /** Close {@code player}'s window on {@code trackId} alone (a prestige or a respec of it). */
+    /**
+     * Close {@code player}'s window on {@code trackId} alone (a prestige or a respec of it), a kind respec that
+     * cleared picks there with it.
+     */
     static void closeTrack(@Nullable UUID player, @Nonnull String trackId) {
         Deque<Entry> held = player == null ? null : OPEN.get(player);
         if (held == null) {
             return;
         }
         synchronized (held) {
-            held.removeIf(entry -> entry.trackId().equals(trackId));
+            held.removeIf(entry -> entry.touches(trackId));
         }
     }
 

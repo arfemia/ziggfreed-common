@@ -8,10 +8,14 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.commerce.page.CommerceChips;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.track.TrackDef;
+import com.ziggfreed.common.track.TrackKey;
 import com.ziggfreed.common.track.TrackText;
 import com.ziggfreed.common.track.pick.PickService;
 import com.ziggfreed.common.track.pick.PickService.Status;
+import com.ziggfreed.common.track.pick.TrackPickRespecAsset;
+import com.ziggfreed.common.track.pick.TrackPickRespecConfig;
 import com.ziggfreed.common.ui.kit.ActionLook;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailAction;
@@ -41,7 +45,10 @@ final class ServiceOffers {
     private ServiceOffers() {
     }
 
-    /** The services for every track the trainer teaches; null when it teaches no usable track. */
+    /**
+     * The services for every track the trainer teaches, then every respec of a kind of pick whose {@code Where} names
+     * this trainer; null when there is none.
+     */
     @Nullable
     static TrainerOffers offers(@Nonnull TrainerAt at, @Nullable PageSection entry) {
         List<TrainerEntry> entries = new ArrayList<>();
@@ -49,7 +56,56 @@ final class ServiceOffers {
             entries.add(respec(at, track));
             entries.addAll(TrainerServices.entries(at, track));
         }
+        for (TrackPickRespecAsset respec : TrackPickRespecConfig.getInstance().liveRespecs()) {
+            if (respec.placements().contains(TrackKey.normalize(at.placementId()))) {
+                entries.add(kindRespec(at, respec));
+            }
+        }
         return entries.isEmpty() ? null : new TrainerOffers(TrainerText.line("part.services"), entries);
+    }
+
+    /**
+     * A respec of a kind of pick ({@code PickService.respecKind}): what it clears on every track, its fee, what it gives
+     * back now (each cleared take's price today at its shares), and Reset, which asks to be pressed twice.
+     */
+    @Nonnull
+    private static TrainerEntry kindRespec(@Nonnull TrainerAt at, @Nonnull TrackPickRespecAsset respec) {
+        String respecId = respec.getId();
+        Message name = TrackText.respecName(respec);
+        int clears = PickService.respecKindClears(at.playerId(), respecId);
+        boolean ready = clears > 0;
+        List<DetailLine> price = CommerceChips.priceLines(PickService.respecKindFee(respecId));
+        List<DetailLine> back = CommerceChips.priceLines(PickService.respecKindRefund(at.playerId(), respecId));
+        Message value = price.isEmpty() ? TrainerText.line("service.respec.free")
+                : price.size() == 1 ? price.get(0).text() : null;
+        Picture picture = Picture.item(respec.icon());
+        LedgerRow row = new LedgerRow("respec_kind/" + TrackKey.normalize(respecId), name,
+                ready ? TrainerText.line("service.respec_kind.meta", clears)
+                        : TrainerText.line("service.respec.meta.none"),
+                picture, ready ? Tone.AVAILABLE : Tone.NEUTRAL,
+                ready ? TrainerText.line("service.state.ready") : null, value, null, Mark.NONE, !ready);
+        DetailAction reset = new DetailAction(ActionSlot.PRIMARY, TrainerText.line("service.respec.action"),
+                ActionLook.DANGER, "respec", null, ready, null);
+        List<DetailLine> priceBlock = price.isEmpty()
+                ? List.of(DetailLine.of(Picture.NONE, TrainerText.line("service.respec.free"))) : price;
+        List<DetailLine> backBlock = back.isEmpty()
+                ? List.of(DetailLine.of(Picture.NONE, TrainerText.line("service.respec_kind.back.none"))) : back;
+        Message lead = respec.flavorKey() != null ? ContentKeys.tr(respec.flavorKey())
+                : TrainerText.line("service.respec_kind.lead");
+        DetailView page = new DetailView(picture, name, null, null, List.of(), null, null, null, lead,
+                List.of(new DetailBlock("price", TrainerText.line("service.respec.price"), null, priceBlock),
+                        new DetailBlock("back", TrainerText.line("service.respec_kind.back"), null, backBlock)),
+                List.of(reset), ready ? null : TrackText.respecKindLine(Status.NOTHING, 0, name));
+        return TrainerEntry.confirmed(row, page, pressed -> buyKind(pressed, respecId, name),
+                TrainerText.line("service.respec.confirm"));
+    }
+
+    /** Run the respec of a kind for the player at this trainer, and say what it did. */
+    @Nonnull
+    private static TrainerResult buyKind(@Nonnull TrainerAt at, @Nonnull String respecId, @Nonnull Message name) {
+        PickService.Result result = PickService.respecKind(at.playerId(), respecId, at.placementId());
+        return TrainerResult.toast(result.done() ? ToastKind.SUCCESS : ToastKind.WARNING,
+                TrackText.respecKindLine(result, name));
     }
 
     /** The respec of {@code track}: what it clears, what it costs, and Reset, which asks to be pressed twice. */

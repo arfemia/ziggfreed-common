@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.codec.JsonTreeCodec;
+import com.ziggfreed.common.cost.CostScaling;
 import com.ziggfreed.common.grant.BuiltInGrants;
 import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -375,6 +376,12 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
         return cost == null || cost.price == null || cost.price.isFree() ? null : cost.price;
     }
 
+    /** How the price grows with each take ({@code Cost.Scaling}) as written, or null for a price that stays the same. */
+    @Nullable
+    public Scaling priceScaling() {
+        return cost == null ? null : cost.scaling;
+    }
+
     /** The prerequisite ids, lower-cased, blanks left out. */
     @Nonnull
     public List<String> prerequisites() {
@@ -692,12 +699,16 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
         }
     }
 
-    /** The Cost group: points of a track each take spends, and a price in any wallet or item besides. */
+    /**
+     * The Cost group: points of a track each take spends, a price in any wallet or item besides, and how that price
+     * grows with each take ({@code Scaling}).
+     */
     public static final class Cost {
 
         @Nullable protected Integer points;
         @Nullable protected String track;
         @Nullable protected CostAsset price;
+        @Nullable protected Scaling scaling;
 
         public static final BuilderCodec<Cost> CODEC = BuilderCodec.builder(Cost.class, Cost::new)
                 .appendInherited(new KeyedCodec<>("Points", Codec.INTEGER, false),
@@ -718,9 +729,90 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                         + "is free, and a walk that spends picks for the player (a starter build, a re-spend) "
                         + "passes a priced pick over. Free when unauthored.")
                 .add()
+                .appendInherited(new KeyedCodec<>("Scaling", Scaling.CODEC, false),
+                        (o, v) -> o.scaling = v, o -> o.scaling, (o, p) -> o.scaling = p.scaling)
+                .documentation("How the Price grows with each take of a pick taken more than once (Repeat): every "
+                        + "wallet amount and item count of the next take is worked out from the takes already owned, "
+                        + "so the tenth rank costs more than the first. The Points never grow. A respec that gives a "
+                        + "pick back works its refund out from the same prices. Leave it out for a price that stays "
+                        + "the same.")
+                .add()
                 .build();
 
         public Cost() {
+        }
+    }
+
+    /**
+     * The Cost group's {@code Scaling}: how a pick's {@code Price} grows with each take, read into the library's one
+     * growth rule (zc-commerce's {@link CostScaling}): {@code Curve}, {@code Multiplier}, {@code SoftCap}.
+     */
+    public static final class Scaling {
+
+        /** {@code Curve} authored as "multiply by Multiplier for each take owned"; the default. */
+        public static final String EXPONENTIAL = "Exponential";
+
+        /** {@code Curve} authored as "the base times the take's number raised to Multiplier". */
+        public static final String POLYNOMIAL = "Polynomial";
+
+        @Nullable protected String curve;
+        @Nullable protected Double multiplier;
+        @Nullable protected Integer softCap;
+
+        public static final BuilderCodec<Scaling> CODEC = BuilderCodec.builder(Scaling.class, Scaling::new)
+                .appendInherited(new KeyedCodec<>("Curve", Codec.STRING, false),
+                        (o, v) -> o.curve = v, o -> o.curve, (o, p) -> o.curve = p.curve)
+                .metadata(EditorSchema.oneOfDocumented(
+                        EXPONENTIAL, "Each take costs Multiplier times the one before",
+                        POLYNOMIAL, "Take n costs the base times n to the power of Multiplier"))
+                .metadata(EditorSchema.defaultValue(EXPONENTIAL))
+                .documentation("The shape of the growth: Exponential (unauthored) multiplies the price by Multiplier "
+                        + "for every take already owned (500 at 1.1: 500, 550, 605...); Polynomial pays the base times "
+                        + "the take's number raised to Multiplier (500 at 1: 500, 1000, 1500...), gentler at high "
+                        + "ranks.").add()
+                .appendInherited(new KeyedCodec<>("Multiplier", Codec.DOUBLE, false),
+                        (o, v) -> o.multiplier = v, o -> o.multiplier, (o, p) -> o.multiplier = p.multiplier)
+                .metadata(EditorSchema.defaultValue(1.0))
+                .documentation("How steep the growth is. 1 when unauthored (0 or less reads as 1): the same price "
+                        + "every take on Exponential, a straight line on Polynomial.").add()
+                .appendInherited(new KeyedCodec<>("SoftCap", Codec.INTEGER, false),
+                        (o, v) -> o.softCap = v, o -> o.softCap, (o, p) -> o.softCap = p.softCap)
+                .metadata(EditorSchema.defaultValue(0L))
+                .documentation("The number of takes owned the growth stops at: every take past it costs what that "
+                        + "one cost. 0 when unauthored: it never stops.").add()
+                .build();
+
+        public Scaling() {
+        }
+
+        /** Java-side factory (a test); sets the same fields the codec fills. */
+        @Nonnull
+        public static Scaling of(@Nullable String curve, @Nullable Double multiplier, @Nullable Integer softCap) {
+            Scaling scaling = new Scaling();
+            scaling.curve = curve;
+            scaling.multiplier = multiplier;
+            scaling.softCap = softCap;
+            return scaling;
+        }
+
+        /** The curve word as written, or null when unauthored. */
+        @Nullable
+        public String getCurve() {
+            return blankToNull(curve);
+        }
+
+        /** True when a {@code Curve} is written that is neither word (it reads as Exponential). */
+        public boolean hasUnknownCurve() {
+            String word = getCurve();
+            return word != null && !EXPONENTIAL.equalsIgnoreCase(word) && !POLYNOMIAL.equalsIgnoreCase(word);
+        }
+
+        /** The runtime growth rule this group reads as: Exponential unless Polynomial is written. */
+        @Nonnull
+        public CostScaling toScaling() {
+            CostScaling.Curve shape = POLYNOMIAL.equalsIgnoreCase(getCurve() == null ? "" : getCurve())
+                    ? CostScaling.Curve.POLYNOMIAL : CostScaling.Curve.EXPONENTIAL;
+            return CostScaling.of(shape, multiplier == null ? 1.0 : multiplier, softCap == null ? 0 : softCap);
         }
     }
 

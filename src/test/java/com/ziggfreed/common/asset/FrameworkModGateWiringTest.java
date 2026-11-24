@@ -68,7 +68,8 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
  * where its mod is missing, asked of each viewer otherwise), ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,
- * TrackCategories, TrackWorldRules, TrackPickOptions, TrackStances, DiminishKeys, TrackPrices, TrackSettings,
+ * TrackCategories, TrackWorldRules, TrackPickOptions, TrackStances, TrackPickRespecs, DiminishKeys, TrackPrices,
+ * TrackSettings,
  * BoostSettings, PlayerPower, WeakSpotSettings, EffectFamilies,
  * ConditionalStats, BlockFamilies, GatherRules and Gateways. A
  * store that gains a

@@ -8,6 +8,8 @@ One pick (the one shape every choice, Mastery node, trainer offer and prestige p
 
 One stance (picks owned for good that count only while their face is held in one of its slots) is one file under `Server/ZiggfreedCommon/TrackStances/`, retuned in `track-stances.json`: its `Slots` rows (the `SlotRow` shape, each open while its `Requires` holds and its `Pick` is owned), its `Kinds` (the most of each kind held at once and what holding one adds), its `Hold` and `Break` fees, its `Where` and its `Budget`. A pick joins one through its `Stance` group (a pick naming no `Face` is a face itself), and a pick written `TaughtOnly` is never offered or taken, only taught, as a `Pick` reward (`Params`: `Track`, `Pick`) teaches it when its Claim is collected.
 
+A pick's `Cost.Scaling` grows its `Cost.Price` with each take already owned (`Curve`, `Multiplier`, `SoftCap`). A track's `Loadouts.Slots` opens further saved builds past `Loadouts.Max`, each a `SlotRow` whose `Id` is the build's number and whose `Pick` may write `{Track}` for the track's id. One respec of a kind of pick (it clears every pick of one `ResetsAs` kind on every track, gives back each take's price today at its `Refund` shares and keeps what was only ever taught and what its `Keep` names) is one file under `Server/ZiggfreedCommon/TrackPickRespecs/`, retuned in `track-pick-respecs.json`.
+
 One boost (a percent more on every gain on the tracks it names) is one file under `Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, retuned in `boost-settings.json`, whose `OnStart` group runs a server command whenever a boost starts. A boost starts from a boost item's native `ZigBoost` interaction (`Boost`, and optional `Percent`, `Seconds` and `Track`, the one track it lifts out of those the boost lifts, then a `Next` that consumes the item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, `Seconds`, `Track`) or a native `ZigBoost` reward file when its Claim is collected, or from `/zigboost start`. A stack carrying `ZigBoost` metadata (the `BoostToken` shape, minted by `/zigboost give` onto the library's `Zig_Boost_Token` item or by a mod onto its own) starts what the stack says in place of the interaction's own leaves. A boost with a `Reusable` group is one a player may start themselves (`/zigboost own`, or a mod's page), its `Reusable.Requires` asked only then.
 
 One proc (what a moment does for a player who meets its `Requires`: a talent's knack) is one file under `Server/ZiggfreedCommon/Procs/`, retuned in `mods/ziggfreedcommon/procs.json`. The procs answering one moment run by their `Order`, lower first, then by their ids compared lower-cased.
@@ -32,6 +34,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 - [TrackPickGeneratorAsset](#type-trackpickgeneratorasset)
 - [PickOptionAsset](#type-pickoptionasset)
 - [TrackStanceAsset](#type-trackstanceasset)
+- [TrackPickRespecAsset](#type-trackpickrespecasset)
 - [SlotRow](#type-slotrow)
 - [StatGrant](#type-statgrant)
 - [Cost](#type-cost)
@@ -69,7 +72,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Branches` | map of [Branch](#field-trackasset-branches-item) | `null` | The branches of this track's tree, by id: what each is called and where it sorts. A pick names its branch in its own Branch, and a row's Requires opens on the points spent in it (the ziggfreedcommon:track_branch_spent reading, Param <Track>:<Branch>). Merges branch by branch under Parent and in the owner file. |
 | `Starter` | array of `string` | `null` | The starter build: pick ids in the order they are spent, a pick written again for each further rank. Read by a one-time claim of points a player earned before the tree existed, and offered at a trainer teaching the track as its suggested build, which spends what of it the player has not taken yet. |
 | `Tree` | [Tree](#field-trackasset-tree) | `null` | What the track audit holds this track's tree to: what each branch's nodes add up to, the spare points a row gate leaves, and the most the whole tree may grant a stat. Read by the audit alone, never in play. Leave it out to check only that each row can open. |
-| `Loadouts` | [Loadouts](#field-trackasset-loadouts) | `null` | Saved builds: how many a player keeps on this track and what swapping to one costs. Each leaf left out reads from the track's category, else none are kept and a swap is free. |
+| `Loadouts` | [Loadouts](#field-trackasset-loadouts) | `null` | Saved builds: how many a player keeps on this track, the further ones that open on their own row (Slots), and what swapping to one costs. Each leaf left out reads from the track's category, else none are kept and a swap is free. |
 | `Respec` | [Respec](#field-trackasset-respec) | `null` | What a player pays to clear every pick on this track and get every point back; what a trainer taught stays. Left out, the track's category decides, else it is free. |
 | `Mirror` | [Mirror](#field-trackasset-mirror) | `null` | A native stat this track's level is written onto, so anything reading stats (an item, an effect, a hytale:stat requirement) sees it. Leave it out for no stat. |
 | `Prestige` | [Prestige](#field-trackasset-prestige) | `null` | Whether a player may prestige this track: start the climb again from the bottom, keeping the best level they ever reached, so nothing they unlocked locks again and no unlock pays twice. Leave it out for a track that never prestiges. |
@@ -109,7 +112,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Max` | `integer` | `null` | How many builds a player may save on the track and swap between. 0 when unauthored (here and on the category): no saved builds. |
+| `Max` | `integer` | `null` | How many builds every player may save on the track and swap between. 0 when unauthored (here and on the category): no saved builds but those Slots opens. |
+| `Slots` | array of [SlotRow](#type-slotrow) | `null` | Further saved builds, past Max, each open on its own row: the row's Id is the build's number (III or 3 is the third), and it opens while its Requires holds and its Pick is owned ({Track} in the Pick stands for this track's id, so one row on a parent track serves every track under it). A row numbered at or under Max changes nothing. A build saved in a slot that later closes stays saved, out of use until it opens again. Under Parent this list replaces the parent's whole; left out here, the category's. |
 | `SwapCost` | [Cost](#type-cost) | `null` | What a swap to a saved build costs, in any wallet or item (the one price shape shops use). An empty group is free. Unauthored here and on the category: free. |
 
 <a id="field-trackasset-respec"></a>
@@ -269,7 +273,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Max` | `integer` | `null` | How many builds a player may save on the track and swap between. 0 when unauthored (here and on the category): no saved builds. |
+| `Max` | `integer` | `null` | How many builds every player may save on the track and swap between. 0 when unauthored (here and on the category): no saved builds but those Slots opens. |
+| `Slots` | array of [SlotRow](#type-slotrow) | `null` | Further saved builds, past Max, each open on its own row: the row's Id is the build's number (III or 3 is the third), and it opens while its Requires holds and its Pick is owned ({Track} in the Pick stands for this track's id, so one row on a parent track serves every track under it). A row numbered at or under Max changes nothing. A build saved in a slot that later closes stays saved, out of use until it opens again. Under Parent this list replaces the parent's whole; left out here, the category's. |
 | `SwapCost` | [Cost](#type-cost) | `null` | What a swap to a saved build costs, in any wallet or item (the one price shape shops use). An empty group is free. Unauthored here and on the category: free. |
 
 <a id="field-trackcategoryasset-respec"></a>
@@ -459,6 +464,7 @@ What this world does to tracks: whether gains land and at what multiplier, and w
 | `Points` | `integer` | `null` | The points each take spends. A track earns Points.PerLevel points for each level past the first; what is spent comes back on a respec. 0 when unauthored. |
 | `Track` | `string` | `null` | The track whose points are spent, by id: a pick on a skill's tree priced in that skill's Mastery points names the Mastery track here. Unauthored, the pick's own track. |
 | `Price` | [Cost](#type-cost) | `null` | What each take also costs in any wallet or item (the one price shape shops use), charged as the pick is taken and given back if that take is undone; an admin's teach is free, and a walk that spends picks for the player (a starter build, a re-spend) passes a priced pick over. Free when unauthored. |
+| `Scaling` | [Scaling](#field-trackpickasset-cost-scaling) | `null` | How the Price grows with each take of a pick taken more than once (Repeat): every wallet amount and item count of the next take is worked out from the takes already owned, so the tenth rank costs more than the first. The Points never grow. A respec that gives a pick back works its refund out from the same prices. Leave it out for a price that stays the same. |
 
 <a id="field-trackpickasset-repeat"></a>
 ### TrackPickAsset.Repeat
@@ -482,6 +488,15 @@ What this world does to tracks: whether gains land and at what multiplier, and w
 | `Id` | `string` | `null` | The stance, by id (a file under Server/ZiggfreedCommon/TrackStances). A stance no file defines, or one switched off, holds nothing, so a pick naming it counts nowhere. |
 | `Face` | `string` | `null` | The face this pick is a step of, by its pick id: the pick counts while that face is held. Leave it out on the face itself. |
 | `Kind` | `string` | `null` | On a face: its kind, one the stance's Kinds names (your own word, such as Weapon), which decides how many faces of it may be held at once and what holding one adds. A step writing Face reads its face's kind, never its own. |
+
+<a id="field-trackpickasset-cost-scaling"></a>
+#### TrackPickAsset.Cost.Scaling
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Curve` | `string` | `null` | The shape of the growth: Exponential (unauthored) multiplies the price by Multiplier for every take already owned (500 at 1.1: 500, 550, 605...); Polynomial pays the base times the take's number raised to Multiplier (500 at 1: 500, 1000, 1500...), gentler at high ranks. |
+| `Multiplier` | `double` | `null` | How steep the growth is. 1 when unauthored (0 or less reads as 1): the same price every take on Exponential, a straight line on Polynomial. |
+| `SoftCap` | `integer` | `null` | The number of takes owned the growth stops at: every take past it costs what that one cost. 0 when unauthored: it never stops. |
 
 <a id="type-trackpickgeneratorasset"></a>
 ## TrackPickGeneratorAsset
@@ -565,14 +580,45 @@ What this world does to tracks: whether gains land and at what multiplier, and w
 |---|---|---|---|
 | `Placements` | array of `string` | `null` | The NPC placements (trainers) whose page offers this pick, by id. Empty or unauthored, it is taken on the track's own page. |
 
+<a id="type-trackpickrespecasset"></a>
+## TrackPickRespecAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Enabled` | `boolean` | `null` | Whether this respec exists on this server; unauthored means true. False offers it nowhere. |
+| `Text` | [ContentText](#type-contenttext) | `null` | What the respec is called (TitleKey) and a line on what it does (FlavorKey), as localization keys in your own lang file. Without a TitleKey it is named by its id. |
+| `Icon` | `string` | `null` | The item whose picture stands for the respec. |
+| `Order` | `integer` | `null` | Where the respec sorts among the others on a page: lower first, then by id. |
+| `ResetsAs` | `string` | `null` | The kind of pick it clears, on every track: a pick's own ResetsAs, else TrainerPicks for one whose Where names a trainer and Picks for any other. A respec naming no kind, or one that is none of the five words, clears nothing. |
+| `Keep` | array of `string` | `null` | Pick ids of that kind it leaves be, any case, * matching any run of characters (Your_*_Rank keeps every rank pick). What was only ever taught (TaughtOnly) is always kept. Leave it out to clear every pick of the kind. |
+| `Refund` | [Refund](#field-trackpickrespecasset-refund) | `null` | How much of what each cleared take cost comes back, worked out from its price today (a price that grows with each take, at the price each take had). The points a cleared pick spent always come back whole. Unauthored, everything comes back. |
+| `Cost` | [Cost](#type-cost) | `null` | What the respec costs, in any wallet or item (the one price shape shops use), charged before anything is cleared and given back if it is undone. Free when unauthored; an admin's respec is always free. |
+| `Where` | [Where](#field-trackpickrespecasset-where) | `null` | Where a player buys it: the NPC placements (trainers) whose page offers it. While none of them stands it may be bought anywhere it is offered; with none written no trainer's page lists it, and a mod's own page or an admin's command offers it. |
+
+<a id="field-trackpickrespecasset-refund"></a>
+### TrackPickRespecAsset.Refund
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Currencies` | map of `double` | `null` | Per currency id (the ids a pick's Cost.Price writes), the share of what each cleared take cost in it that comes back, 0 to 1, rounded down: 0.8 keeps a fifth. A currency it does not name comes back in full. Under Parent, or in the owner file, one currency written merges into the map below it. |
+| `Items` | `double` | `null` | The share of every item a cleared take cost that comes back, 0 to 1, rounded down. 1 when unauthored: every item back. |
+
+<a id="field-trackpickrespecasset-where"></a>
+### TrackPickRespecAsset.Where
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Placements` | array of `string` | `null` | The NPC placements (trainers) whose page offers this pick, by id. Empty or unauthored, it is taken on the track's own page. |
+
 <a id="type-slotrow"></a>
 ## SlotRow
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Id` | `string` | `null` | What this slot is known by in a player's record (letters, digits and underscores), such as I, II or III. It names a lasting fact, never a price or a level: renaming it on a live server empties every player's slot of that name. A row with no Id is no slot. |
+| `Id` | `string` | `null` | What this slot is known by in a player's record (letters, digits and underscores), such as I, II or III. It names a lasting fact, never a price or a level: renaming it on a live server empties every player's slot of that name. A row with no Id is no slot. On a track's Loadouts.Slots it is also the saved build's number, as a numeral (III) or in digits (3). |
 | `Requires` | [Requires](#type-requires) | `null` | What a player must meet for this slot to be open, in the Requires shape quests use, every condition read (a mod condition included). Read when the player fills a slot and at each settle (a login, a world change, a change of picks), so write readings that change through the player's own progress (a level, a quest, a permission). Leave it out for no condition. |
-| `Pick` | `string` | `null` | A pick (by id, on any track) the player must own for this slot to be open: the key a quest's reward, a shop or an admin teaches. Leave it out for no key. A row with neither Requires nor Pick is open from the start. |
+| `Pick` | `string` | `null` | A pick (by id, on any track) the player must own for this slot to be open: the key a quest's reward, a shop or an admin teaches. Leave it out for no key. A row with neither Requires nor Pick is open from the start. On a track's Loadouts.Slots, {Track} stands for the track's own id (Your_Build_Key_{Track}), so one row on a parent track serves every track under it. |
 
 <a id="type-statgrant"></a>
 ## StatGrant

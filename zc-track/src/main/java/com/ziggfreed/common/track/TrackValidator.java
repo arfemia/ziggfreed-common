@@ -34,6 +34,7 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.stats.MirroredStats;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.track.asset.SlotRow;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryConfig;
 import com.ziggfreed.common.track.asset.TrackConfig;
@@ -42,6 +43,7 @@ import com.ziggfreed.common.track.asset.TrackCurveConfig;
 import com.ziggfreed.common.track.boost.BoostValidator;
 import com.ziggfreed.common.track.curve.CurveTable;
 import com.ziggfreed.common.track.gain.GainFactors;
+import com.ziggfreed.common.track.pick.PickRespecValidator;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
 import com.ziggfreed.common.track.pick.TrackPicks;
@@ -102,9 +104,13 @@ import com.ziggfreed.common.validation.Severity;
  *       {@link #UNKNOWN_PICK_PREREQUISITE}, {@link #UNKNOWN_COST_TRACK}, {@link #COST_WITHOUT_POINTS},
  *       {@link #WHERE_ON_CHOICE} (a choice naming trainers, which no trainer's page offers),
  *       {@link #PRICE_ON_CHOICE} (a choice with a {@code Cost.Price}, which only a pick bought outright is charged),
+ *       {@link #UNKNOWN_SCALING_CURVE}, {@link #SCALING_WITHOUT_PRICE} (a {@code Cost.Scaling} on a choice or a pick
+ *       with no price, which grows nothing),
  *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}; also over a track's {@code Points.Grants}) and the gate
- *       audit over a pick's {@code Requires};</li>
- *   <li>WARNING, for trees ({@link #auditTrees}): {@link #UNDECLARED_BRANCH}, {@link #UNKNOWN_GATE_BRANCH}, {@link #UNKNOWN_STARTER_PICK}, {@link #RESERVED_PICK_ID}; then the shape audit
+ *       audit over a pick's {@code Requires}; the kind respecs' own audit ({@code pick.PickRespecValidator});</li>
+ *   <li>WARNING, for trees ({@link #auditTrees}): {@link #UNDECLARED_BRANCH}, {@link #UNKNOWN_GATE_BRANCH}, {@link #UNKNOWN_STARTER_PICK}, {@link #RESERVED_PICK_ID},
+ *       {@link #UNNUMBERED_LOADOUT_SLOT}, {@link #UNKNOWN_LOADOUT_SLOT_PICK} (a track's own {@code Loadouts.Slots}
+ *       row, its {@code Requires} the gate audit's); then the shape audit
  *       ({@link TrackTreeAudit}: branches, row gates and their slack, branch totals, node faces, the starter build
  *       walked to the whole pool, stat ceilings, grant kinds) and the pick generators' findings
  *       ({@code TrackPickGenerators}, with zc-progression's {@code GeneratorCore}'s own).</li>
@@ -152,6 +158,10 @@ public final class TrackValidator {
     public static final String COST_WITHOUT_POINTS = "COST_WITHOUT_POINTS";
     public static final String WHERE_ON_CHOICE = "WHERE_ON_CHOICE";
     public static final String PRICE_ON_CHOICE = "PRICE_ON_CHOICE";
+    public static final String UNKNOWN_SCALING_CURVE = "UNKNOWN_SCALING_CURVE";
+    public static final String SCALING_WITHOUT_PRICE = "SCALING_WITHOUT_PRICE";
+    public static final String UNNUMBERED_LOADOUT_SLOT = "UNNUMBERED_LOADOUT_SLOT";
+    public static final String UNKNOWN_LOADOUT_SLOT_PICK = "UNKNOWN_LOADOUT_SLOT_PICK";
     public static final String UNKNOWN_GRANT_STAT = "UNKNOWN_GRANT_STAT";
     public static final String UNDECLARED_BRANCH = "UNDECLARED_BRANCH";
     public static final String UNKNOWN_GATE_BRANCH = "UNKNOWN_GATE_BRANCH";
@@ -225,6 +235,23 @@ public final class TrackValidator {
             }
             out.addAll(BoostValidator.audit());
             out.addAll(StanceValidator.audit());
+            out.addAll(PickRespecValidator.audit());
+            for (TrackDef def : TrackService.defs()) {
+                List<SlotRow> rows = def.loadoutRows();
+                boolean own = def.asset().loadouts() != null && def.asset().loadouts().slots() != null;
+                if (!own) {
+                    // Rows the track's category supplies: the pure tree audit read only the track's own.
+                    auditLoadoutRows(def.asset(), rows, TrackPicks.all().values(), id -> {
+                        TrackPickAsset file = TrackPickConfig.getInstance().resolve(id);
+                        return file != null && !file.isEnabled();
+                    }, out);
+                }
+                for (SlotRow row : rows) {
+                    out.addAll(GateValidator.validate(row.requires(), DOMAIN, def.asset().getId() + "/loadouts/"
+                            + row.key(), "saved build slot", GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered,
+                            null));
+                }
+            }
             return out;
         } catch (Throwable t) {
             SafeLog.warn("[track] the track audit failed: " + t.getMessage(), t);
@@ -703,6 +730,17 @@ public final class TrackValidator {
                         + "pick bought outright is charged one, so making its choice costs nothing. Leave Price out "
                         + "of a choice", id));
             }
+            TrackPickAsset.Scaling scaling = asset.priceScaling();
+            if (scaling != null && scaling.hasUnknownCurve()) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_SCALING_CURVE, where + " grows its price on the Curve '"
+                        + scaling.getCurve() + "', which is neither Exponential nor Polynomial, so it grows "
+                        + "Exponential", id));
+            }
+            if (scaling != null && (pick.isChoice() || asset.price() == null)) {
+                out.add(Finding.warning(DOMAIN, SCALING_WITHOUT_PRICE, where + " writes a Cost.Scaling, but "
+                        + (pick.isChoice() ? "it is a choice, which is charged no price" : "it has no Cost.Price")
+                        + ", so nothing grows. Scaling grows the Price of a pick bought outright", id));
+            }
             if (asset.costPoints() > 0) {
                 String costTrack = asset.costTrack();
                 int perLevel = costTrack == null ? -1 : pointsPerLevel.applyAsInt(costTrack);
@@ -805,8 +843,41 @@ public final class TrackValidator {
                             + "step is passed over", track.getId()));
                 }
             }
+            List<SlotRow> rows = track.loadouts() == null ? null : track.loadouts().slots();
+            auditLoadoutRows(track, rows == null ? List.of() : rows, picks, switchedOff, out);
         }
         return out;
+    }
+
+    /**
+     * The {@code Loadouts.Slots} rows {@code track} reads (its own, or its category's): a row whose id reads as no
+     * build number opens nothing ({@link #UNNUMBERED_LOADOUT_SLOT}), and a row whose key pick, {@code {Track}} filled
+     * with the track's id, is no loaded pick never opens ({@link #UNKNOWN_LOADOUT_SLOT_PICK}; one switched off is
+     * passed over quietly). A row's {@code Requires} is the gate audit's.
+     */
+    static void auditLoadoutRows(@Nonnull TrackAsset track, @Nonnull List<SlotRow> rows,
+            @Nonnull Collection<TrackPicks.PickDef> picks, @Nonnull Predicate<String> switchedOff,
+            @Nonnull List<Finding> out) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        Set<String> known = new HashSet<>();
+        for (TrackPicks.PickDef pick : picks) {
+            known.add(pick.id());
+        }
+        for (SlotRow row : rows) {
+            if (row.number() <= 0) {
+                out.add(Finding.warning(DOMAIN, UNNUMBERED_LOADOUT_SLOT, "track '" + track.getId() + "' Loadouts "
+                        + "slot '" + row.id() + "' has an id that is no build number (write III or 3), so it opens "
+                        + "nothing", track.getId()));
+            }
+            String key = row.pick(track.getId());
+            if (key != null && !known.contains(key) && !switchedOff.test(key)) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_LOADOUT_SLOT_PICK, "track '" + track.getId() + "' Loadouts "
+                        + "slot '" + row.id() + "' opens on the pick '" + key + "', which no loaded file defines, so "
+                        + "it never opens", track.getId()));
+            }
+        }
     }
 
     /** Every Param a {@code ziggfreedcommon:track_branch_spent} condition anywhere in {@code requires} names. */

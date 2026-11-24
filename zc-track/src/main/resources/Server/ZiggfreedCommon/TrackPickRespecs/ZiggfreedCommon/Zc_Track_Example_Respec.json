@@ -1,0 +1,12 @@
+{
+  "$Comment": "The library's sample respec of one kind of pick, switched off: turn it on in mods/ziggfreedcommon/track-pick-respecs.json with { \"Zc_Track_Example_Respec\": { \"Enabled\": true } }, beside the sample track, its trainer picks and the sample trainer. It clears every TrainerPicks pick (what a trainer taught, which a track's own respec never touches) on every track the player climbs, but keeps Zc_Track_Example_Trainer_Guard (its Keep, where * matches any run of characters), so of the sample lessons only Footwork goes. What was only ever taught (TaughtOnly) always stays. The points the cleared picks cost come back whole; of any item a take cost, half comes back (Refund.Items 0.5), and every wallet comes back in full since Refund.Currencies names none. It costs one copper bar, is bought on the sample trainer's page (its Where), and can be undone while that page stays open. Run it for someone with /zigtrack respec --kind=Zc_Track_Example_Respec.",
+  "Enabled": false,
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.respec", "FlavorKey": "ziggfreedcommon.track.example.respec.desc" },
+  "Icon": "Ingredient_Bar_Copper",
+  "Order": 1000,
+  "ResetsAs": "TrainerPicks",
+  "Keep": [ "Zc_Track_Example_Trainer_Guard" ],
+  "Refund": { "Items": 0.5 },
+  "Cost": { "Items": [ { "Item": "Ingredient_Bar_Copper", "Count": 1 } ] },
+  "Where": { "Placements": [ "Zc_Trainer_Example" ] }
+}
