@@ -24,10 +24,14 @@ import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator;
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.objectives.book.BookVerbs;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.progress.gate.GateClause;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.GateValidator;
+import com.ziggfreed.common.progress.runtime.ProgressionFactors;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestPool;
@@ -44,7 +48,8 @@ import com.ziggfreed.common.validation.ValidationReport;
  * {@code Start} beat or a {@code Start.Quests} row ({@value #UNKNOWN_QUEST_ID}, a WARNING: the quest's owner
  * may be a mod this server does not run), and a quest whose {@code CompletionDialogue} nothing can open
  * ({@link QuestCompletionDialogueValidator}, filed under the quest family). A quest the shared store's mod
- * gate refused is absent by design and is never reported unknown.
+ * gate refused is absent by design and is never reported unknown, and neither is a quest named on a line
+ * whose own {@code Requires} shows it only where that quest exists ({@link #shutByMissingQuest}).
  *
  * <p>A {@code Requires} condition's block ({@link RequiresDialogueCondition}) goes through the shared gate
  * audit every domain carrying a {@code Requires} block uses ({@link GateValidator}: the same codes and
@@ -113,8 +118,9 @@ public final class DialogueAudit {
      *
      * <p>{@code heldShut} names the lines a caller knows cannot render on this server (a consumer's own gate
      * on a feature it has switched off): their conditions' and actions' quest ids are not this server's
-     * content, so they are not checked, while their {@code Requires} blocks still are. The library holds no
-     * line shut itself.
+     * content, so they are not checked, while their {@code Requires} blocks still are. The library holds one
+     * kind of line shut itself, on its own reading: a line whose block asks {@code ziggfreedcommon:quest_known}
+     * for a quest this server does not carry ({@link #shutByMissingQuest}).
      */
     @Nonnull
     public static List<Finding> auditConversations(@Nonnull Collection<NpcDialogue> dialogues,
@@ -273,7 +279,7 @@ public final class DialogueAudit {
     private static void checkOption(@Nonnull DialogueOption option, @Nonnull String where, @Nonnull String id,
             @Nonnull Predicate<String> resolves, @Nonnull Predicate<DialogueOption> heldShut,
             @Nonnull List<Finding> out) {
-        if (heldShut(option, heldShut)) {
+        if (heldShut(option, heldShut) || shutByMissingQuest(option, resolves)) {
             // Its quest ids are not this server's content, but its own Requires block is still read, so a
             // mistake in the block that holds it shut is still reported.
             checkConditions(option.getConditions(), where, id, null, out);
@@ -281,6 +287,46 @@ public final class DialogueAudit {
         }
         checkConditions(option.getConditions(), where, id, resolves, out);
         checkActions(option.getActions(), where, id, resolves, out);
+    }
+
+    /**
+     * Whether {@code option}'s own {@code Requires} holds it shut because it asks for a quest this server does not
+     * carry: a {@code ziggfreedcommon:quest_known} condition with a {@code Min} of 1 or more, in the AND position
+     * (the block's own {@code Factors} or an {@code AllOf} group's, either spelling), on a quest id that
+     * {@code resolves} does not answer. That reading is a definite 0 for such a quest, so the line cannot render
+     * and its actions cannot run: it is a line for a pack this server does not run, and the quest ids it names are
+     * that pack's content, not this server's, the same reasoning a caller's switched-off feature follows. A
+     * bounds-less or {@code AnyOf} reading does not hold a line shut, since the line can still render.
+     */
+    public static boolean shutByMissingQuest(@Nonnull DialogueOption option, @Nonnull Predicate<String> resolves) {
+        for (DialogueCondition condition : option.getConditions()) {
+            if (condition instanceof RequiresDialogueCondition.Block block) {
+                GateSpec spec = block.getRequires();
+                if (asksMissingQuest(spec, resolves)) {
+                    return true;
+                }
+                for (GateClause clause : spec.allOfOrEmpty()) {
+                    if (clause != null && asksMissingQuest(clause, resolves)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean asksMissingQuest(@Nonnull GateClause clause, @Nonnull Predicate<String> resolves) {
+        for (FactorCondition factor : clause.factorsOrEmpty()) {
+            if (factor == null || !ProgressionFactors.QUEST_KNOWN.equalsIgnoreCase(factor.getFactor())) {
+                continue;
+            }
+            String questId = factor.getParam();
+            Double min = factor.getMin();
+            if (questId != null && !questId.isBlank() && min != null && min >= 1 && !resolves(questId, resolves)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether the caller holds {@code option} shut; a rule that throws holds nothing shut. */

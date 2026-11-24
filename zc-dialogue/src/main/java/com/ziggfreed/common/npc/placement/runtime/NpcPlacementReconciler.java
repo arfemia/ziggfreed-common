@@ -217,9 +217,18 @@ public final class NpcPlacementReconciler {
                     if (sweepAfterLanding(sectionRef, error)) {
                         // The section is in and ticking now, so the place decision that skipped can go through.
                         defer(world);
-                    } else {
+                    } else if (PUMPING.contains(world)) {
+                        // A running chain asks for the section again on its next pass and gives its own verdict.
                         SafeLog.fine("[placement] the chunk section " + section + " in '" + worldName
                                 + "' could not be brought up" + (error == null ? "" : ": " + error));
+                    } else {
+                        // No chain is left to ask again (one that ran out while this load was in flight gave no
+                        // verdict, sectionLoadPending): say it once here, and wait for the next trigger rather
+                        // than sweep, which a chunk store on its failure backoff would answer at once.
+                        SafeLog.warn("[placement] the chunk section " + section + " an anchor waits on in '"
+                                + worldName + "' could not be brought up" + (error == null ? "" : ": " + error)
+                                + " - its placement waits for the next sweep (a player arriving, a sighting or an"
+                                + " admin reconcile)");
                     }
                 }, world);
         return true;
@@ -234,6 +243,21 @@ public final class NpcPlacementReconciler {
      */
     static boolean sweepAfterLanding(@Nullable Ref<ChunkStore> sectionRef, @Nullable Throwable error) {
         return error == null && sectionRef != null && sectionRef.isValid();
+    }
+
+    /**
+     * Whether an anchor chunk section requested in {@code worldName} is still loading: its landing sweeps the
+     * world again, so a retry chain that runs out meanwhile has no verdict to give. Keyed as
+     * {@link #SECTION_REQUESTS} is, so {@link #forgetWorld} clears it with the world.
+     */
+    static boolean sectionLoadPending(@Nonnull String worldName) {
+        String prefix = worldName + '|';
+        for (String key : SECTION_REQUESTS) {
+            if (key.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ==================== sweep state ====================
@@ -396,8 +420,9 @@ public final class NpcPlacementReconciler {
      * <p>It is deliberately SHORT, because the one case that used to need a long one is now
      * answered directly instead of waited out: an anchor whose position resolved into a sleeping
      * chunk gets that chunk requested (see the place pass), and the request's completion sweeps the
-     * world again. What is left for the budget to cover is the brief startup race where an anchor
-     * provider has not settled yet, which resolves in the first pass or two or not at all.
+     * world again, so a chain that runs out while such a load is in flight gives no verdict
+     * ({@link #sectionLoadPending}). What is left for the budget to cover is the brief startup race
+     * where an anchor provider has not settled yet, which resolves in the first pass or two or not at all.
      */
     private static final int MAX_RESOLVE_RETRIES = 8;
 
@@ -473,6 +498,18 @@ public final class NpcPlacementReconciler {
                 return;
             }
             if (retriesLeft <= 0) {
+                String worldName = NpcPlacementService.worldName(world);
+                if (sectionLoadPending(worldName)) {
+                    // An anchor chunk section this world asked for is still loading, and its landing
+                    // sweeps the world again (requestAnchorSection), so there is no verdict to give yet:
+                    // a load can simply outlast the budget (a fresh world generating its spawn column).
+                    // The world keeps its budget, so the landing's sweep chains again and gives the
+                    // verdict itself if something is still open then.
+                    SafeLog.fine("[placement] '" + worldName + "': " + summary.unresolvedAnchors()
+                            + " placement(s) still open while a chunk section loads; its landing sweeps again");
+                    releasePump(world);
+                    return;
+                }
                 if (RETRY_EXHAUSTED.add(world)) {
                     SafeLog.warn("[placement] '" + NpcPlacementService.worldName(world) + "': "
                             + summary.unresolvedAnchors() + " placement(s) still could not resolve an "

@@ -31,7 +31,7 @@ import com.ziggfreed.common.validation.Finding;
  * nothing and the first join one line naming who reports them, and a spent run prints nothing more.
  * Only the claimed paths are driven here: an unclaimed run walks the live stores and builds the
  * progression runtime, which a booted server proves. Beside them, the pure audit's reading of a
- * {@code Requires} block on a line its caller holds shut.
+ * {@code Requires} block on a line its caller holds shut, and of a line the library holds shut itself.
  */
 class DialogueAuditClaimTest {
 
@@ -111,6 +111,40 @@ class DialogueAuditClaimTest {
                 assertEquals(deprecated, has(on, DialogueAudit.GATE_CONDITION_DEPRECATED),
                         "and on an open one, and Requires never is: " + spelling);
             }
+        } finally {
+            resetVocabulary();
+        }
+    }
+
+    /**
+     * A line whose own block shows it only where a quest exists ({@code ziggfreedcommon:quest_known} with a
+     * {@code Min} of 1) is held shut by the library itself while no catalogue carries that quest, with no rule of
+     * the caller's: it is a line for a pack this server does not run, so the quest it names is not reported. A
+     * bounds-less reading passes on the definite 0, so the same line without the bound renders and is audited.
+     */
+    @Test
+    void aLineShownOnlyWhereItsQuestExistsIsNotAuditedForThatQuest() {
+        resetVocabulary();
+        try {
+            ProgressionDefaults.register();
+            DialogueBootstrap.registerDialogueVocabulary();
+            String body = """
+                    { "Start": { "Fallback": "a" },
+                      "Nodes": { "a": { "TextKey": "k", "Options": [
+                        { "LabelKey": "l",
+                          "Conditions": [ { "Type": "Requires", "Requires": %s } ],
+                          "Actions": [ { "Type": "AcceptQuest", "Quest": "pack_only_quest" } ] } ] } } }
+                    """;
+            String known = "{ \"Factor\": \"ziggfreedcommon:quest_known\", \"Param\": \"pack_only_quest\"%s }";
+            String atLeastOne = known.formatted(", \"Min\": 1");
+            assertFalse(has(audit(body.formatted("{ \"Factors\": [ " + atLeastOne + " ] }")),
+                    DialogueAudit.UNKNOWN_QUEST_ID),
+                    "a line shown only where its quest exists names a pack's quest, not this server's");
+            assertFalse(has(audit(body.formatted("{ \"AllOf\": [ { \"Factors\": [ " + atLeastOne + " ] } ] }")),
+                    DialogueAudit.UNKNOWN_QUEST_ID), "an AllOf group's reading holds it shut too");
+            assertTrue(has(audit(body.formatted("{ \"Factors\": [ " + known.formatted("") + " ] }")),
+                    DialogueAudit.UNKNOWN_QUEST_ID),
+                    "a bounds-less reading passes on 0, so the line renders and its quest is audited");
         } finally {
             resetVocabulary();
         }
