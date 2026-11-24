@@ -11,6 +11,7 @@ import com.hypixel.hytale.assetstore.AssetStore;
 import com.hypixel.hytale.assetstore.RawAsset;
 import com.hypixel.hytale.assetstore.codec.ContainedAssetCodec;
 import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
+import com.hypixel.hytale.common.util.StringUtil;
 import com.hypixel.hytale.server.spawning.assets.spawns.config.WorldNPCSpawn;
 import com.ziggfreed.common.asset.AssetStoreWriter;
 import com.ziggfreed.common.util.SafeLog;
@@ -20,6 +21,12 @@ import com.ziggfreed.common.util.SafeLog;
  * writer thread (the tick thread never waits on the asset lock). The engine decodes the body with its own
  * codec and rebuilds the rule in place. A rule id another file already ships is refused, so an event can
  * never rewrite (and later retire) a rule it does not own.
+ *
+ * <p>The rule ids arrive lower-cased (the plan groups files case-insensitively). The asset is written under
+ * the engine's own key form of that id ({@link StringUtil#capitalize}: each {@code _}-separated word starts
+ * upper-case, so {@code christmas_present_thieves_night} becomes {@code Christmas_Present_Thieves_Night}), the
+ * form its key check expects of the rule and of the flock it derives from it. The store's keys are
+ * case-insensitive, so the casing changes no lookup.
  */
 final class WorldSpawnRuleSink implements CalendarSpawns.RuleSink {
 
@@ -45,9 +52,10 @@ final class WorldSpawnRuleSink implements CalendarSpawns.RuleSink {
             return false;
         }
         owned.add(ruleId);
-        RawAsset<String> raw = new RawAsset<>(null, ruleId, null, 0, json.toCharArray(), null,
+        String key = StringUtil.capitalize(ruleId, '_');
+        RawAsset<String> raw = new RawAsset<>(null, key, null, 0, json.toCharArray(), null,
                 ContainedAssetCodec.Mode.NONE);
-        String what = "calendar spawn rule " + ruleId;
+        String what = "calendar spawn rule " + key;
         AssetStoreWriter.offThread(what, () -> AssetStoreWriter.writeBuffers(what, store, PACK_KEY, List.of(raw)));
         return true;
     }
