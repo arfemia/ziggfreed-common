@@ -1,5 +1,6 @@
 package com.ziggfreed.common.objectives.hytale;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -8,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 
@@ -17,6 +19,8 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.builtin.adventure.objectives.config.completion.ObjectiveCompletionAsset;
 import com.hypixel.hytale.builtin.adventure.objectives.config.task.ObjectiveTaskAsset;
+import com.hypixel.hytale.builtin.adventure.objectives.config.task.TaskSet;
+import com.hypixel.hytale.builtin.adventure.objectives.config.taskcondition.TaskConditionAsset;
 import com.hypixel.hytale.builtin.adventure.objectives.task.ObjectiveTask;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.CollectingExtraInfo;
@@ -27,9 +31,14 @@ import com.hypixel.hytale.codec.schema.config.IntegerSchema;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.objectives.gate.RequiresCheck;
+import com.ziggfreed.common.objectives.gate.ZigRequiresTaskCondition;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
+import com.ziggfreed.common.progress.gate.GateQuery;
+import com.ziggfreed.common.progress.runtime.ProgressionGates;
 import com.ziggfreed.common.testing.EngineAssetStores;
+import com.ziggfreed.common.validation.Finding;
 
 /**
  * Each Type the library registers into Hytale's own Objectives decodes its keys beside the engine base's (none left
@@ -148,7 +157,79 @@ class NativeObjectiveTypesCodecTest {
                 "{\"Type\": \"ZigTrack\", \"Track\": \"Zigtest_Mining\", \"Amount\": 1}");
     }
 
+    @Test
+    void theRequiresConditionDecodesInsideATaskThroughTheEngineUnions() throws IOException {
+        registerMomentAndGate();
+        CollectingExtraInfo info = new CollectingExtraInfo();
+        ObjectiveTaskAsset task = ObjectiveTaskAsset.CODEC.decodeJson(RawJsonReader.fromJsonString("{\"Type\": "
+                + "\"ZigMoment\", \"Moment\": {\"Kind\": \"BREAK_BLOCK\"}, \"TaskConditions\": [{\"Type\": "
+                + "\"ZigRequires\", \"Requires\": {\"Quests\": [\"Zigtest_Intro\"]}}]}"), info);
+        assertTrue(info.getUnknownKeys().isEmpty(), () -> "keys left unread: " + info.getUnknownKeys());
+        TaskConditionAsset[] conditions = task.getTaskConditions();
+        assertNotNull(conditions, "the task's own condition map is read");
+        assertEquals(1, conditions.length);
+        ZigRequiresTaskCondition gate = assertInstanceOf(ZigRequiresTaskCondition.class, conditions[0],
+                "the condition map's Type key picks the arm");
+        assertNotNull(gate.getRequires(), "the Requires block is read");
+        assertArrayEquals(new String[] {"Zigtest_Intro"}, gate.getRequires().questsOrEmpty(),
+                "in the shape every Requires has");
+        // The engine asks a Gather task's conditions with no entity at all as the task starts: a block that asks for
+        // something refuses there, and nothing throws.
+        assertFalse(gate.isConditionFulfilled(null, null, null), "nobody to ask refuses");
+        ZigRequiresTaskCondition open = decode(ZigRequiresTaskCondition.codec(), "{}", new CollectingExtraInfo());
+        assertNull(open.getRequires(), "an unauthored block is none");
+        assertTrue(open.isConditionFulfilled(null, null, null), "and asks for nothing, so it holds");
+        // Asked where no player is (a kill task's creature, a marker's place), a player's requirement inside a Not
+        // group would refuse for want of a player and so open the gate: it refuses outright instead.
+        ZigRequiresTaskCondition unless = decode(ZigRequiresTaskCondition.codec(),
+                "{\"Requires\": {\"Not\": [{\"Quests\": [\"Zigtest_Intro\"]}]}}", new CollectingExtraInfo());
+        assertEquals(List.of("Quests"), RequiresCheck.playerOnlyLeaves(unless.getRequires()),
+                "a Not group's player-only leaf is named");
+        assertFalse(RequiresCheck.holdsWithoutPlayer(GateQuery.NOBODY, unless.getRequires(), true),
+                "and never turns a refusal into a pass");
+        try (EngineAssetStores.Swap items = EngineAssetStores.emptyItems()) {
+            assertSchema(ZigRequiresTaskCondition.codec(), "Requires");
+            assertEncodes(TaskConditionAsset.CODEC.toSchema(new SchemaContext()));
+        }
+    }
+
+    @Test
+    void theConditionAuditNamesAnUnknownFactorByTheObjectiveAndTask() throws IOException {
+        registerMomentAndGate();
+        ProgressionGates.resetForTests();
+        try {
+            TaskSet set = decode(TaskSet.CODEC, "{\"Tasks\": [{\"Type\": \"ZigMoment\", \"Moment\": {\"Kind\": "
+                    + "\"BREAK_BLOCK\"}, \"TaskConditions\": [{\"Type\": \"ZigRequires\", \"Requires\": {\"Factors\": "
+                    + "[{\"Factor\": \"zigtest:nothing_answers\", \"Min\": 1}]}}]}]}", new CollectingExtraInfo());
+            NativeConditionAudit.Result audit = NativeConditionAudit.objective("Zigtest_Objective",
+                    new TaskSet[] {set});
+            assertEquals(1, audit.conditions(), "the one ZigRequires is counted");
+            Finding unknown = audit.findings().stream().filter(f -> "UNKNOWN_FACTOR".equals(f.code())).findFirst()
+                    .orElse(null);
+            assertNotNull(unknown, "the shared gate audit's own code: " + audit.findings());
+            assertEquals("Zigtest_Objective.TaskSets[0].Tasks[0].TaskConditions[0]", unknown.sourceId(),
+                    "filed under the objective, the task and the condition");
+            assertTrue(unknown.message().contains("ZigMoment task"), () -> "naming the task's Type: "
+                    + unknown.message());
+        } finally {
+            ProgressionGates.resetForTests();
+        }
+    }
+
     // ==================== helpers ====================
+
+    /**
+     * The task Type and the gate's task condition in the engine's unions, as the bootstrap registers them. The
+     * location marker's trigger condition is not here: its map's class set-up builds the engine's {@code Weather} and
+     * {@code HourRange} conditions, which ask the Weather plugin and the Time module for their resource types as they
+     * load, and no unit JVM runs those. The boot proves it: the registration is checked at setup, and the library's
+     * example marker decodes it.
+     */
+    private static void registerMomentAndGate() {
+        ObjectiveTaskAsset.CODEC.register(ZigMomentTaskAsset.TYPE, ZigMomentTaskAsset.class, ZigMomentTaskAsset.CODEC);
+        TaskConditionAsset.CODEC.register(ZigRequiresTaskCondition.TYPE_NAME, ZigRequiresTaskCondition.class,
+                ZigRequiresTaskCondition.codec());
+    }
 
     @Nonnull
     private static <T> T decode(@Nonnull BuilderCodec<T> codec, @Nonnull String json, @Nonnull ExtraInfo info)

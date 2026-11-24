@@ -5,6 +5,8 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.builtin.adventure.objectives.ObjectivePlugin;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.objectives.gate.ZigRequiresBootstrap;
+import com.ziggfreed.common.objectives.gate.ZigRequiresTaskCondition;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.runtime.ProgressionRegistrar;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
@@ -18,7 +20,10 @@ import com.ziggfreed.common.util.SafeLog;
  *       a library-default listener), with {@link OffStreamMoments} (a library-default dispatch tap) naming a kind
  *       a loaded task asks for that a mod counts straight into the engines;</li>
  *   <li>the completions {@code ZigRewards} ({@link ZigRewardsCompletionAsset}) and {@code ZigTrack}
- *       ({@link TrackCompletionAsset}), each parking a Claim.</li>
+ *       ({@link TrackCompletionAsset}), each parking a Claim;</li>
+ *   <li>the library's one gate, {@code ZigRequires}, in the objectives' own condition maps: a task's
+ *       {@code TaskConditions} and a location marker's {@code TriggerConditions}
+ *       ({@link ZigRequiresBootstrap#registerObjectiveConditions}).</li>
  * </ul>
  *
  * <p>The engine's {@code registerTask} returns silently while its data store is missing, so the registration
@@ -50,13 +55,15 @@ public final class NativeObjectivesBootstrap {
                 ZigRewardsCompletionAsset.CODEC, ZigRewardsCompletion::new);
         objectives.registerCompletion(TrackCompletionAsset.TYPE, TrackCompletionAsset.class,
                 TrackCompletionAsset.CODEC, TrackCompletion::new);
+        ZigRequiresBootstrap.registerObjectiveConditions(plugin);
         NativeObjectiveAudit.proveRegistered(objectives);
         ProgressionRegistrar library = ProgressionRuntime.defaults(ProgressionDefaults.OWNER);
         library.momentListener(MomentTaskFeed.INSTANCE);
         library.dispatchTap(OffStreamMoments.INSTANCE);
         plugin.getEventRegistry().register(BootEvent.class, event -> NativeObjectiveAudit.run());
         SafeLog.info("[objectives] registered into Hytale's Objectives: the task " + ZigMomentTaskAsset.TYPE
-                + " and the completions " + ZigRewardsCompletionAsset.TYPE + " and " + TrackCompletionAsset.TYPE
-                + ", proved on the engine's codec maps and live task index");
+                + ", the completions " + ZigRewardsCompletionAsset.TYPE + " and " + TrackCompletionAsset.TYPE
+                + ", and " + ZigRequiresTaskCondition.TYPE_NAME + " as a task condition and a location marker trigger"
+                + " condition, proved on the engine's codec maps and live task index");
     }
 }

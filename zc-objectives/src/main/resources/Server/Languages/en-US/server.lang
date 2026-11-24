@@ -54,3 +54,10 @@ customUI.triggerVolumeEffectEditor.field.ZigHasEffect.Effect = Effect
 customUI.triggerVolumeEffectEditor.field.ZigHasEffect.Wears = Wears It
 customUI.triggerVolumeEffectEditor.field.ZigHasEffect.Effect.tooltip = The effect to look for on whoever set the volume off.
 customUI.triggerVolumeEffectEditor.field.ZigHasEffect.Wears.tooltip = On, the condition holds while they wear the effect. Off, while they do not.
+
+# The library's sample native objective (Server/Objective/Objectives/Zc_Objective_Example.json), under the keys the
+# engine reads for an objective and each of its tasks by default.
+objectives.Zc_Objective_Example.title = Steady Hands
+objectives.Zc_Objective_Example.desc = Some work only counts while you are in good health.
+objectives.Zc_Objective_Example.taskSet.0.task.0 = Craft a Crude Hatchet while above half health
+objectives.Zc_Objective_Example.taskSet.0.task.1 = Break stone while above half health

@@ -1,0 +1,20 @@
+{
+  "$Comment": "The library's sample objective location marker: it offers the sample objective Zc_Objective_Example to the players who come near it, and only while ZigRequires holds, beside the engine's own HourRange and Weather trigger conditions. A trigger condition is asked about the marker's place with nobody in it, so this one reads a server-wide switch (the calendar running); to gate on who walks up, gate the objective's tasks instead. Nothing places it: an admin places a marker entity naming it.",
+  "Setup": {
+    "Type": "Objective",
+    "ObjectiveId": "Zc_Objective_Example"
+  },
+  "Area": {
+    "Type": "Radius",
+    "EntryRadius": 8,
+    "ExitRadius": 16
+  },
+  "TriggerConditions": [
+    {
+      "Type": "ZigRequires",
+      "Requires": {
+        "Factors": [ { "Factor": "ziggfreedcommon:feature", "Param": "Calendar", "Min": 1 } ]
+      }
+    }
+  ]
+}

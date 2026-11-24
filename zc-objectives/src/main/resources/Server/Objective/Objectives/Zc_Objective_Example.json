@@ -1,0 +1,33 @@
+{
+  "$Comment": "The library's sample native objective: CommonLib's one gate, ZigRequires, inside Hytale's own objective. The Craft task asks it as a task condition, beside the engine's own SoloInventory, about the player who crafts. The ZigMoment task says the same thing as its Moment's While, the condition a quest step writes, which is the one to use on a ZigMoment. Nothing starts it: an admin starts it by its id, or the sample marker Zc_Objective_Example_Marker offers it. Its words are in server.lang under objectives.Zc_Objective_Example.",
+  "TaskSets": [
+    {
+      "Tasks": [
+        {
+          "Type": "Craft",
+          "ItemId": "Tool_Hatchet_Crude",
+          "Count": 1,
+          "TaskConditions": [
+            {
+              "Type": "ZigRequires",
+              "Requires": {
+                "Factors": [ { "Factor": "hytale:stat_percent", "Param": "Health", "Min": 50 } ]
+              }
+            }
+          ]
+        },
+        {
+          "Type": "ZigMoment",
+          "Count": 5,
+          "Moment": {
+            "Kind": "BREAK_BLOCK",
+            "Target": "Rock_Stone",
+            "While": {
+              "Factors": [ { "Factor": "hytale:stat_percent", "Param": "Health", "Min": 50 } ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

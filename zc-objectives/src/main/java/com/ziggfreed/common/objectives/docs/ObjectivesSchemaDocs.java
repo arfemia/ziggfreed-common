@@ -3,6 +3,7 @@ package com.ziggfreed.common.objectives.docs;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.objectives.gate.ZigRequiresTaskCondition;
 import com.ziggfreed.common.objectives.hytale.TrackCompletionAsset;
 import com.ziggfreed.common.objectives.hytale.ZigMomentTaskAsset;
 import com.ziggfreed.common.objectives.hytale.ZigRewardsCompletionAsset;
@@ -19,11 +20,14 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  * {@code Count}, {@code DescriptionId}, {@code TaskConditions}, {@code MapMarkerPositions}) render beside its own,
  * each with the default its Type's own default instance gives it ({@link SchemaDocWriter.Document#showingDefaults}),
  * so the engine's {@code Count} reads 1 as it does in the Asset Editor; and the shared objective leaf group carries
- * this reference's note that a task does not read its {@code Amount}.
+ * this reference's note that a task does not read its {@code Amount}. {@code ZigRequires} renders once, as the task
+ * condition: the location marker's trigger condition takes the same one key, and its codec cannot be walked outside a
+ * live server (the engine's trigger condition map builds its {@code Weather} and {@code HourRange} conditions as it
+ * loads, which ask plugins only a server runs), so the task condition's note says where else it goes.
  */
 public final class ObjectivesSchemaDocs {
 
-    /** The reference, in reading order: the task, the two completions, then the shared groups they reuse. */
+    /** The reference, in reading order: the task, the two completions, the gate's condition, then the shared groups. */
     @Nonnull
     public static final SchemaDocWriter.Document DOCUMENT = new SchemaDocWriter.Document(
             "Native Objective Types Reference",
@@ -34,7 +38,10 @@ public final class ObjectivesSchemaDocs {
                     + "`Server/Objective/Objectives/`, the vanilla `TaskSets` and `Completions` shape), so a "
                     + "vanilla-shaped objective counts CommonLib's moments and pays through its reward kinds. A task "
                     + "goes in a task set's `Tasks` as `{\"Type\": \"ZigMoment\", ...}`; a completion goes in "
-                    + "`Completions` as `{\"Type\": \"ZigRewards\", ...}` or `{\"Type\": \"ZigTrack\", ...}`. "
+                    + "`Completions` as `{\"Type\": \"ZigRewards\", ...}` or `{\"Type\": \"ZigTrack\", ...}`; and "
+                    + "CommonLib's one gate goes in any task's `TaskConditions` as `{\"Type\": \"ZigRequires\", "
+                    + "\"Requires\": {...}}`, and the same way in a location marker's `TriggerConditions` (files "
+                    + "under `Server/Objective/ObjectiveLocationMarkers/`). "
                     + "They load only where the Objectives plugin runs, and a pack using them lists "
                     + "`Ziggfreed:ZiggfreedCommon` among its manifest's `Dependencies`.\n\n"
                     + "A `ZigMoment` task counts in the objective's own world, as every vanilla task does, and a "
@@ -47,6 +54,16 @@ public final class ObjectivesSchemaDocs {
             .register("ZigMoment", ZigMomentTaskAsset.CODEC)
             .register("ZigRewards", ZigRewardsCompletionAsset.CODEC)
             .register("ZigTrack", TrackCompletionAsset.CODEC)
+            .register("ZigRequires", ZigRequiresTaskCondition.codec())
+            .note("ZigRequires", "A task condition, beside the engine's own `SoloInventory` (every condition in "
+                    + "`TaskConditions` must hold). Which to write: on a `ZigMoment` task the step's condition is its "
+                    + "`Moment`'s `While`, the one a quest step writes, asked of the same player at each moment; this "
+                    + "condition is for the engine's own tasks (`Craft`, `Gather`, `UseBlock`, `UseEntity`, "
+                    + "`ReachLocation`, the kill tasks), which have no `While`. The same Type with the same one key goes "
+                    + "in a location marker's `TriggerConditions`: the marker starts its objective only while the block "
+                    + "holds, asked about the marker's place with nobody in it, so only a server-wide reading (a "
+                    + "feature, a season, an installed mod) can meet it. At every boot the server log names a "
+                    + "requirement that can never pass where it is written.")
             .register("ObjectiveLeaf", ObjectiveLeafAsset.CODEC)
             .note("ObjectiveLeaf", "The leaves a `ZigMoment` task's `Moment` carries, read exactly as a quest step "
                     + "reads them, with one exception: `Amount` is not read there, since the task's own `Count` "

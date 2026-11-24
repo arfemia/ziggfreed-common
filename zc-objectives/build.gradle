@@ -83,6 +83,7 @@ tasks.register('generateSchemaDocs', JavaExec) {
     args schemaDocOutput.absolutePath
     systemProperty 'java.util.logging.manager', 'com.hypixel.hytale.logger.backend.HytaleLogManager'
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/objectives/hytale') { include '**/*.java' })
+    inputs.file('src/main/java/com/ziggfreed/common/objectives/gate/ZigRequiresTaskCondition.java')
     inputs.file('src/main/java/com/ziggfreed/common/objectives/docs/ObjectivesSchemaDocs.java')
     outputs.file(schemaDocOutput)
 }

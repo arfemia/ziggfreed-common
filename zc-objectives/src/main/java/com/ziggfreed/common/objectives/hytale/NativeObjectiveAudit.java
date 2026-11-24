@@ -12,11 +12,16 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.builtin.adventure.objectives.ObjectiveDataStore;
 import com.hypixel.hytale.builtin.adventure.objectives.ObjectivePlugin;
 import com.hypixel.hytale.builtin.adventure.objectives.config.ObjectiveAsset;
+import com.hypixel.hytale.builtin.adventure.objectives.config.ObjectiveLocationMarkerAsset;
 import com.hypixel.hytale.builtin.adventure.objectives.config.completion.ObjectiveCompletionAsset;
 import com.hypixel.hytale.builtin.adventure.objectives.config.task.ObjectiveTaskAsset;
 import com.hypixel.hytale.builtin.adventure.objectives.config.task.TaskSet;
+import com.hypixel.hytale.builtin.adventure.objectives.config.taskcondition.TaskConditionAsset;
+import com.hypixel.hytale.builtin.adventure.objectives.config.triggercondition.ObjectiveLocationTriggerCondition;
 import com.hypixel.hytale.builtin.adventure.objectives.task.ObjectiveTask;
 import com.ziggfreed.common.factor.ModFactors;
+import com.ziggfreed.common.objectives.gate.ZigRequiresMarkerCondition;
+import com.ziggfreed.common.objectives.gate.ZigRequiresTaskCondition;
 import com.ziggfreed.common.objectives.interaction.InteractionRewards;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
@@ -31,8 +36,9 @@ import com.ziggfreed.common.validation.Finding;
  * The checks behind the native objective Types: why they could not register ({@link #reportNotSetUp}), that a
  * registration landed ({@link #proveRegistered}, at
  * setup, since the engine's {@code registerTask} silently does nothing before its data store exists), and what
- * the loaded objectives ask of them ({@link #run}, on every boot): one INFO line counting them, and a WARNING for
- * each step or completion that can never pay. The boot pass also hands {@link OffStreamMoments} the kinds the
+ * the loaded objectives ask of them ({@link #run}, on every boot): one INFO line counting them, a WARNING for
+ * each step or completion that can never pay, and what {@link NativeConditionAudit} says of each {@code ZigRequires}
+ * in a task's or a location marker's conditions. The boot pass also hands {@link OffStreamMoments} the kinds the
  * loaded tasks name, so a kind a mod counts straight into the engines is named the first time it fires.
  */
 public final class NativeObjectiveAudit {
@@ -49,8 +55,8 @@ public final class NativeObjectiveAudit {
      * have set it up first), an INFO line when the server does not run it (switched off, or failed to load).
      */
     public static void reportNotSetUp() {
-        String types = ZigMomentTaskAsset.TYPE + ", " + ZigRewardsCompletionAsset.TYPE + " or "
-                + TrackCompletionAsset.TYPE;
+        String types = ZigMomentTaskAsset.TYPE + ", " + ZigRewardsCompletionAsset.TYPE + ", "
+                + TrackCompletionAsset.TYPE + " or the " + ZigRequiresTaskCondition.TYPE_NAME + " conditions";
         Double installed = ModFactors.installed(OBJECTIVES_PLUGIN);
         if (installed != null && installed >= 1d) {
             SafeLog.warn("[objectives] the Objectives plugin is installed but had not set up when CommonLib "
@@ -84,13 +90,24 @@ public final class NativeObjectiveAudit {
         if (ObjectiveCompletionAsset.CODEC.getCodecFor(TrackCompletionAsset.TYPE) != TrackCompletionAsset.CODEC) {
             missing.add("the " + TrackCompletionAsset.TYPE + " completion");
         }
+        if (TaskConditionAsset.CODEC.getCodecFor(ZigRequiresTaskCondition.TYPE_NAME)
+                != ZigRequiresTaskCondition.codec()) {
+            missing.add("the " + ZigRequiresTaskCondition.TYPE_NAME + " task condition");
+        }
+        if (ObjectiveLocationTriggerCondition.CODEC.getCodecFor(ZigRequiresMarkerCondition.TYPE_NAME)
+                != ZigRequiresMarkerCondition.codec()) {
+            missing.add("the " + ZigRequiresMarkerCondition.TYPE_NAME + " location marker trigger condition");
+        }
         if (!missing.isEmpty()) {
             throw new IllegalStateException("the native objective Types did not register (" + String.join(", ", missing)
                     + "): an objective naming them would fail to load");
         }
     }
 
-    /** Count and check every loaded objective's use of the Types. Never throws. */
+    /**
+     * Count and check every loaded objective's use of the Types, and every location marker's {@code ZigRequires}
+     * trigger condition ({@link NativeConditionAudit}). Never throws.
+     */
     public static void run() {
         try {
             Counts counts = new Counts();
@@ -98,19 +115,43 @@ public final class NativeObjectiveAudit {
                 audit(objective, counts);
             }
             OffStreamMoments.watch(counts.objectivesByKind);
+            auditMarkers(counts);
             SafeLog.info(String.format(Locale.ROOT, "[objectives] native objectives: %d use CommonLib's Types "
-                    + "(%d %s tasks, %d %s and %d %s completions), %d warning(s)", counts.objectives, counts.tasks,
-                    ZigMomentTaskAsset.TYPE, counts.rewards, ZigRewardsCompletionAsset.TYPE, counts.tracks,
-                    TrackCompletionAsset.TYPE, counts.warnings));
+                    + "(%d %s tasks, %d %s and %d %s completions, %d %s task conditions), %d location marker %s "
+                    + "trigger conditions, %d warning(s)", counts.objectives, counts.tasks, ZigMomentTaskAsset.TYPE,
+                    counts.rewards, ZigRewardsCompletionAsset.TYPE, counts.tracks, TrackCompletionAsset.TYPE,
+                    counts.taskConditions, ZigRequiresTaskCondition.TYPE_NAME, counts.markerConditions,
+                    ZigRequiresMarkerCondition.TYPE_NAME, counts.warnings));
         } catch (Throwable t) {
             SafeLog.warn("[objectives] the native objective audit could not run: " + t.getMessage());
         }
     }
 
+    /**
+     * What every location marker's {@code ZigRequires} trigger conditions hold, folded into {@code counts}. Its own
+     * guard: a marker store that cannot be read costs one WARNING line, never the objective pass or its count line.
+     */
+    private static void auditMarkers(@Nonnull Counts counts) {
+        try {
+            for (ObjectiveLocationMarkerAsset marker : ObjectiveLocationMarkerAsset.getAssetMap().getAssetMap()
+                    .values()) {
+                NativeConditionAudit.Result gates = NativeConditionAudit.marker(marker.getId(),
+                        marker.getTriggerConditions());
+                counts.markerConditions += gates.conditions();
+                report("location marker ", gates.findings(), counts);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[objectives] the location marker conditions could not be audited: " + t.getMessage());
+        }
+    }
+
     /** What one objective asks of the Types, folded into {@code counts}. */
     private static void audit(@Nonnull ObjectiveAsset objective, @Nonnull Counts counts) {
-        boolean uses = false;
         TaskSet[] sets = objective.getTaskSets();
+        NativeConditionAudit.Result gates = NativeConditionAudit.objective(objective.getId(), sets);
+        counts.taskConditions += gates.conditions();
+        report("objective ", gates.findings(), counts);
+        boolean uses = gates.conditions() > 0;
         for (TaskSet set : sets == null ? new TaskSet[0] : sets) {
             for (ObjectiveTaskAsset task : set.getTasks() == null ? new ObjectiveTaskAsset[0] : set.getTasks()) {
                 if (task instanceof ZigMomentTaskAsset moment) {
@@ -192,6 +233,23 @@ public final class NativeObjectiveAudit {
         SafeLog.warn("[objectives] objective '" + objective.getId() + "': " + problem);
     }
 
+    /**
+     * Log each finding of a condition audit on one line, its source (the condition's own path) after {@code what}:
+     * a problem as a WARNING, counted; an INFO finding as an INFO line.
+     */
+    private static void report(@Nonnull String what, @Nonnull List<Finding> findings, @Nonnull Counts counts) {
+        for (Finding finding : findings) {
+            String line = "[objectives] " + what + finding.sourceId() + ": " + finding.message() + " ("
+                    + finding.code() + ")";
+            if (finding.isProblem()) {
+                counts.warnings++;
+                SafeLog.warn(line);
+            } else {
+                SafeLog.info(line);
+            }
+        }
+    }
+
     /** The audit's running tallies. */
     private static final class Counts {
         /** Each kind a task runs on (any case) to the objectives naming it, for {@link OffStreamMoments}. */
@@ -200,6 +258,8 @@ public final class NativeObjectiveAudit {
         int tasks;
         int rewards;
         int tracks;
+        int taskConditions;
+        int markerConditions;
         int warnings;
     }
 }

@@ -1,5 +1,9 @@
 package com.ziggfreed.common.objectives.gate;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -9,6 +13,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateQuery;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.runtime.ProgressionGates;
@@ -20,7 +25,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The one read every {@code ZigRequires} surface answers with: the interaction a block or an item chain
  * starts with ({@code objectives/interaction/ZigRequiresInteraction}) and the native condition Types
- * ({@link ZigRequiresBootstrap} lists them: trigger volume, entity, NPC decision, world event, choice). The
+ * ({@link ZigRequiresBootstrap} lists them: trigger volume, entity, NPC decision, world event, choice, and a native
+ * objective's task condition and location marker trigger condition). The
  * player at a ref, as the runtime's own subject, against a {@code Requires} block, through the server's one
  * evaluator ({@link ProgressionGates#evaluator}), so a door gated here and the same block on a quest or a
  * shop row never disagree.
@@ -95,6 +101,17 @@ public final class RequiresCheck {
      */
     @Nullable
     public static GateQuery worldQuery(@Nullable Store<EntityStore> store) {
+        return placeQuery(store, null);
+    }
+
+    /**
+     * The same question about a place: the world and its store with nobody in it, and {@code at}, the entity that
+     * stands for the place (an objective location marker), as what a reading of where it stands reads. It is never a
+     * player, so a server-wide reading answers, so does one of the place, and every reading of a player refuses. A
+     * null or gone {@code at} asks about the world alone ({@link #worldQuery}). Null off the world thread.
+     */
+    @Nullable
+    public static GateQuery placeQuery(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> at) {
         if (store == null) {
             return null;
         }
@@ -103,14 +120,72 @@ public final class RequiresCheck {
                 return null;
             }
             EntityStore entities = store.getExternalData();
-            return GateQuery.of(FactorContext.builder()
+            FactorContext.Builder context = FactorContext.builder()
                     .world(entities == null ? null : entities.getWorld())
-                    .store(store)
-                    .build());
+                    .store(store);
+            if (at != null && at.isValid()) {
+                context.subject(at);
+            }
+            return GateQuery.of(context.build());
         } catch (Throwable t) {
             SafeLog.fine("[gate] the world a Requires check is for could not be read: " + t.getMessage());
             return null;
         }
+    }
+
+    /**
+     * The leaves {@code requires} names in any group (its own, {@code AllOf}, {@code AnyOf}, {@code Not}) that only a
+     * player can meet: {@code Quests}, {@code Permission} and a {@code Custom} kind, in that order, each once. The
+     * evaluator refuses each with no player to ask, and inside a {@code Not} group that refusal would open the gate,
+     * so a condition the engine never asks about a player refuses a block naming any of them outright
+     * ({@link #holdsWithoutPlayer}) and the audit names them. Empty for an absent block or one naming none.
+     */
+    @Nonnull
+    public static List<String> playerOnlyLeaves(@Nullable GateSpec requires) {
+        List<String> out = new ArrayList<>();
+        if (requires == null) {
+            return out;
+        }
+        boolean quests = false;
+        boolean permission = false;
+        boolean custom = false;
+        List<GateClause> clauses = new ArrayList<>(List.of(requires));
+        clauses.addAll(Arrays.asList(requires.allOfOrEmpty()));
+        clauses.addAll(Arrays.asList(requires.anyOfOrEmpty()));
+        clauses.addAll(Arrays.asList(requires.notOrEmpty()));
+        for (GateClause clause : clauses) {
+            if (clause != null) {
+                quests |= clause.questsOrEmpty().length > 0;
+                permission |= clause.getPermission() != null && !clause.getPermission().isBlank();
+                custom |= !clause.customOrEmpty().isEmpty();
+            }
+        }
+        if (quests) {
+            out.add("Quests");
+        }
+        if (permission) {
+            out.add("Permission");
+        }
+        if (custom) {
+            out.add("Custom");
+        }
+        return out;
+    }
+
+    /**
+     * Does {@code requires} hold for {@code query}, a question with no player in it (a creature, a place, a world)?
+     * As {@link #passes(GateQuery, GateSpec)}, except that a block naming a leaf only a player can meet
+     * ({@link #playerOnlyLeaves}) refuses outright: left to the evaluator, such a leaf inside a {@code Not} group would
+     * refuse for want of a player and so open the gate, a refusal turned into a pass.
+     *
+     * @param playerOnly whether the block names such a leaf, worked out once by the caller
+     */
+    public static boolean holdsWithoutPlayer(@Nullable GateQuery query, @Nullable GateSpec requires,
+            boolean playerOnly) {
+        if (asksNothing(requires)) {
+            return true;
+        }
+        return !playerOnly && passes(query, requires);
     }
 
     /**

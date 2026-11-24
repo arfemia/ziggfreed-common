@@ -2,6 +2,8 @@ package com.ziggfreed.common.objectives.gate;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.builtin.adventure.objectives.config.taskcondition.TaskConditionAsset;
+import com.hypixel.hytale.builtin.adventure.objectives.config.triggercondition.ObjectiveLocationTriggerCondition;
 import com.hypixel.hytale.builtin.adventure.worldevents.WorldEventsPlugin;
 import com.hypixel.hytale.builtin.triggervolumes.effect.TriggerCondition;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.choices.ChoiceRequirement;
@@ -20,7 +22,10 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>an NPC decision condition ({@link ZigRequiresNpcCondition});</li>
  *   <li>a choice page's {@code Requirements}, a shop's among them ({@link ZigRequiresChoiceRequirement});</li>
  *   <li>a world event stage's {@code Conditions} ({@link ZigRequiresEventCondition}), when the WorldEvents plugin
- *       is running.</li>
+ *       is running;</li>
+ *   <li>a native objective task's {@code TaskConditions} ({@link ZigRequiresTaskCondition}) and an objective
+ *       location marker's {@code TriggerConditions} ({@link ZigRequiresMarkerCondition}), once the Objectives
+ *       plugin has set up ({@link #registerObjectiveConditions}).</li>
  * </ul>
  *
  * <p>Each goes through the plugin's own codec registry, so the engine drops it again when the library shuts
@@ -45,6 +50,22 @@ public final class ZigRequiresBootstrap {
         plugin.getCodecRegistry(ChoiceRequirement.CODEC).register(ZigRequiresChoiceRequirement.TYPE_NAME,
                 ZigRequiresChoiceRequirement.class, ZigRequiresChoiceRequirement.codec());
         registerEventCondition(plugin);
+    }
+
+    /**
+     * The two native objective maps: a task's {@code TaskConditions} and a location marker's
+     * {@code TriggerConditions}. Called by the native objective bootstrap only once the Objectives plugin has set
+     * up, never from {@link #registerConditions}: the trigger condition map's own class set-up builds the engine's
+     * {@code Weather} and {@code HourRange} conditions, whose own set-up asks the Weather plugin and the Time module
+     * for their resource types and throws where either is not loaded, so the map is touched only once the plugin
+     * that owns it already has. A server without the plugin loads no objective, so it has nothing to gate.
+     * Unguarded, like every other registration here.
+     */
+    public static void registerObjectiveConditions(@Nonnull PluginBase plugin) {
+        plugin.getCodecRegistry(TaskConditionAsset.CODEC).register(ZigRequiresTaskCondition.TYPE_NAME,
+                ZigRequiresTaskCondition.class, ZigRequiresTaskCondition.codec());
+        plugin.getCodecRegistry(ObjectiveLocationTriggerCondition.CODEC).register(ZigRequiresMarkerCondition.TYPE_NAME,
+                ZigRequiresMarkerCondition.class, ZigRequiresMarkerCondition.codec());
     }
 
     /**
