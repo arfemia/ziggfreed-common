@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -701,6 +702,22 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     /** True when {@code migrationId} has already been claimed for this player. */
     public boolean hasMigrated(@Nonnull String migrationId) {
         return migrations.contains(migrationId);
+    }
+
+    /**
+     * Every claim made for this player whose id starts with {@code prefix} (matched exactly, as {@link #hasMigrated}
+     * matches), sorted: what a one-time move that runs in steps reads to learn how far it has got, each step a claim
+     * of its own beside the others, so the record keeps it as it keeps every claim.
+     */
+    @Nonnull
+    public Set<String> migrationsStartingWith(@Nonnull String prefix) {
+        Set<String> out = new TreeSet<>();
+        for (String id : migrations) {
+            if (id.startsWith(prefix)) {
+                out.add(id);
+            }
+        }
+        return Collections.unmodifiableSet(out);
     }
 
     @Override
