@@ -129,6 +129,16 @@ public final class SourceRow {
         return level == null ? 0 : Math.max(0, level);
     }
 
+    /**
+     * Has a climb at {@code level} reached this row: its {@code Level} is the soft gate (R609), so a row waiting for
+     * 1 or less is always reached, and below its level the next row matching the same moment pays instead. The one
+     * rule, for {@link TrackSources#reached} and a consumer matching its own rows. Pure.
+     */
+    public boolean reachedAt(int level) {
+        int needs = level();
+        return needs <= 1 || level >= needs;
+    }
+
     /** Does this row pay anything at all? */
     public boolean pays() {
         return xp() > 0.0 || perAmount() > 0.0 || perMaxHealth() > 0.0;

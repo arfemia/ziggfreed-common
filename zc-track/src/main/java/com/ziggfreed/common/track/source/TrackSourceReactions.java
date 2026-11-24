@@ -50,6 +50,11 @@ import com.ziggfreed.common.util.SafeLog;
  * or victim), so each keeps a count of its own; counted when it pays ({@link #settle}), so a placement waiting on its
  * stand time ({@link SourceStands}) spends nothing until it stands.
  *
+ * <p>A consumer that pays a source file's rows off moment kinds of its own (no producer here fires them) matches the
+ * row itself and hands it over: {@link #payMatched} pays it onto the track through the same knobs, and {@link #share}
+ * answers the share the guards leave, counted, for a consumer paying through its own award; so a source's guards read
+ * one way whoever pays its rows.
+ *
  * <p>Called on the world thread inside the producing system's dispatch, like every reaction; what it writes it
  * writes through the track service, which the moment's own player owns.
  */
@@ -102,15 +107,21 @@ public final class TrackSourceReactions implements MomentListener {
             return;
         }
         SourceRow row = paid.row();
-        double amount = row.payFor(amountOf(moment), row.perMaxHealth() > 0.0 ? maxHealthOf(moment) : 0.0);
-        if (!(amount > 0.0)) {
-            return;
-        }
-        if (paid.skipSpawned() && fromSpawner(moment)) {
-            return;
-        }
-        if (paid.requires() != null && !StoreGates.passes(paid.requires(),
-                GateQuery.of(FactorContext.about(moment.store(), moment.ref())))) {
+        payMatched(moment, player, paid,
+                row.payFor(amountOf(moment), row.perMaxHealth() > 0.0 ? maxHealthOf(moment) : 0.0));
+    }
+
+    /**
+     * Pay {@code amount} of {@code paid}, a row already matched and priced, onto {@code player}'s default climb of its
+     * track, through its source's knobs exactly as a produced moment's row: a spawner's or an item's creature
+     * ({@code SkipSpawnerMobs}), the live {@code Requires}, the stand time, then the diminishing returns counted
+     * under its key. For a consumer whose own trigger matched one of its source files' rows (a mod paying moment kinds
+     * of its own), so its sources' guards read one way; {@code moment} is the moment it reacted to (its place, its
+     * victim and its kind are read). World thread, inside the moment's reaction.
+     */
+    public static void payMatched(@Nonnull Moment moment, @Nonnull UUID player, @Nonnull TrackSources.Paid paid,
+            double amount) {
+        if (!(amount > 0.0) || refused(moment, paid)) {
             return;
         }
         World world = moment.store().getExternalData().getWorld();
@@ -125,6 +136,34 @@ public final class TrackSourceReactions implements MomentListener {
             }
         }
         settle(world, player, paid, amount, countKey, batched);
+    }
+
+    /**
+     * The share of a matched row's pay that {@code paid}'s source guards leave for this moment, its diminishing count
+     * taken now: 0 when a spawner's or an item's creature ({@code SkipSpawnerMobs}) or the live {@code Requires}
+     * refuses it, else the diminishing step this moment pays at (1 with none). For a consumer that pays the row through
+     * its own award, such as one moment paying several tracks or a climb of its own; the stand time is not asked here,
+     * so a source that writes one pays through {@link #payMatched}. World thread, inside the moment's reaction.
+     */
+    public static double share(@Nonnull Moment moment, @Nonnull UUID player, @Nonnull TrackSources.Paid paid) {
+        if (refused(moment, paid)) {
+            return 0.0;
+        }
+        DiminishSpec spec = paid.diminish();
+        if (spec == null) {
+            return 1.0;
+        }
+        World world = moment.store().getExternalData().getWorld();
+        return COUNTS.count(player, countKey(paid, spec, moment, world), spec, System.currentTimeMillis());
+    }
+
+    /** Do {@code paid}'s source guards refuse this moment: a spawner's or an item's creature, or its live Requires? */
+    private static boolean refused(@Nonnull Moment moment, @Nonnull TrackSources.Paid paid) {
+        if (paid.skipSpawned() && fromSpawner(moment)) {
+            return true;
+        }
+        return paid.requires() != null && !StoreGates.passes(paid.requires(),
+                GateQuery.of(FactorContext.about(moment.store(), moment.ref())));
     }
 
     /**
@@ -240,8 +279,13 @@ public final class TrackSourceReactions implements MomentListener {
     /** The id of the one entity the moment happened to, or null when it names none or it cannot be read. */
     @Nullable
     private static String victimId(@Nonnull Moment moment) {
-        Ref<EntityStore> victim = victimRef(moment);
-        if (victim == null) {
+        return entityId(victimRef(moment));
+    }
+
+    /** The id of {@code victim}, or null for none or one that cannot be read. */
+    @Nullable
+    private static String entityId(@Nullable Ref<EntityStore> victim) {
+        if (victim == null || !victim.isValid()) {
             return null;
         }
         try {
@@ -296,8 +340,16 @@ public final class TrackSourceReactions implements MomentListener {
 
     /** Did a spawn marker, a spawn beacon or an item (a spawn egg) stand up the entity the moment happened to? */
     private static boolean fromSpawner(@Nonnull Moment moment) {
-        Ref<EntityStore> victim = victimRef(moment);
-        if (victim == null) {
+        return stoodUpBySpawner(victimRef(moment));
+    }
+
+    /**
+     * Did a spawn marker, a spawn beacon or an item (a spawn egg, {@link ItemSpawnedMobs}) stand {@code victim} up:
+     * the creature a source's {@code SkipSpawnerMobs} pays nothing for. For a consumer pricing a hit of its own off a
+     * source's switch; false for none or one that cannot be read. World thread.
+     */
+    public static boolean stoodUpBySpawner(@Nullable Ref<EntityStore> victim) {
+        if (victim == null || !victim.isValid()) {
             return false;
         }
         try {
@@ -309,7 +361,7 @@ public final class TrackSourceReactions implements MomentListener {
         } catch (Throwable t) {
             // The spawning plugin is not running here, so nothing was stood up by one.
         }
-        String id = victimId(moment);
+        String id = entityId(victim);
         return id != null && ItemSpawnedMobs.isMarked(UUID.fromString(id));
     }
 

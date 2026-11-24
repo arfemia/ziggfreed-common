@@ -169,12 +169,27 @@ public final class ZigDamageProducer {
             if (credited == null) {
                 return;
             }
-            Float before = damage.getIfPresentMetaObject(HEALTH_BEFORE);
-            double dealt = before == null || !(before > 0f) ? amount : Math.min(amount, before);
+            double dealt = dealt(damage);
             String target = isPlayer(store, victim) ? PLAYER_TARGET : ZigMobKillProducer.victimId(store, victim);
             DamageMoments.fire(new DamageHit(chunk, index, store, victim, attacker, credited, damage), commandBuffer,
                     target, HeldItemUtil.heldItemId(store, attacker), dealt, new DamagePayload(victim, damage, dealt));
         }
+    }
+
+    /**
+     * What {@code damage} took, read in the Inspect group once the engine has applied it: its applied amount, held at
+     * the health the creature had just before (which {@link HealthBefore} noted in the Filter group), so a killing
+     * blow counts only what the creature had left; the applied amount where nothing was noted (a hit no player could
+     * be credited with). The one cap, for this producer and for a consumer paying a hit of its own (a skill's damage
+     * XP). Exact, never rounded.
+     */
+    public static double dealt(@Nonnull Damage damage) {
+        float amount = damage.getAmount();
+        if (!(amount > 0f)) {
+            return 0.0;
+        }
+        Float before = damage.getIfPresentMetaObject(HEALTH_BEFORE);
+        return before == null || !(before > 0f) ? amount : Math.min(amount, before);
     }
 
     /**

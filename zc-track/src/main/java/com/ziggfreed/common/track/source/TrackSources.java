@@ -101,14 +101,13 @@ public final class TrackSources {
     public static Paid reached(@Nonnull List<Paid> ladder, @Nonnull IntSupplier level) {
         int read = -1;
         for (Paid paid : ladder) {
-            int needs = paid.row().level();
-            if (needs <= 1) {
+            if (paid.row().level() <= 1) {
                 return paid;
             }
             if (read < 0) {
                 read = Math.max(1, level.getAsInt());
             }
-            if (read >= needs) {
+            if (paid.row().reachedAt(read)) {
                 return paid;
             }
         }
