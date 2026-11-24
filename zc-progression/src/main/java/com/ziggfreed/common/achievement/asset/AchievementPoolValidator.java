@@ -20,6 +20,7 @@ import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.LocationTarget;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.progress.ObjectiveWhile;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
@@ -95,6 +96,10 @@ public final class AchievementPoolValidator {
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
 
             validateCriteria(definition, objectiveKinds, store, out);
+            for (ObjectiveDef criterion : definition.achievement().criteria()) {
+                out.addAll(ObjectiveWhile.findings(criterion, "criterion '" + criterion.id() + "'", DOMAIN, id,
+                        "criterion", gateKinds, null));
+            }
             validateRewards(definition, rewardKinds, out);
             validateRequires(definition, authoredRequires(definition, files), gateKinds, out);
         }

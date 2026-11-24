@@ -26,7 +26,7 @@ import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
  * }</pre>
  *
  * <p>{@code Moment} is the shared objective leaf group ({@link ObjectiveLeafAsset}), decoded by its own codec, so
- * its words (Kind, Target, Targets, MatchMode, Qualifier, Qualifiers, QualifierMatchMode, Zone, TextKey) never
+ * its words (Kind, Target, Targets, MatchMode, Qualifier, Qualifiers, QualifierMatchMode, Zone, TextKey, While) never
  * drift from a quest's, and a kind alias applies here as there ({@link ObjectiveLeafAsset#toDefBuilder}). The
  * native {@code Count} is the step's one number (1 when unwritten, the engine's own default): how many for a kind
  * that adds up, the value to reach for a value-based kind (a level, a tier), and the ceiling a fired value must
@@ -71,7 +71,9 @@ public final class ZigMomentTaskAsset extends CountObjectiveTaskAsset {
             .append(new KeyedCodec<>("Moment", ObjectiveLeafAsset.CODEC, false),
                     (task, moment) -> task.moment = moment, task -> task.moment)
             .documentation("What counts: the objective leaves every quest step carries (Kind, Target, Targets, "
-                    + "MatchMode, Qualifier, Qualifiers, QualifierMatchMode, Zone, TextKey), read the same way. Its "
+                    + "MatchMode, Qualifier, Qualifiers, QualifierMatchMode, Zone, TextKey, While), read the same way, "
+                    + "so a While block is asked of the player at each moment and when the task seeds what they "
+                    + "already stand at. Its "
                     + "Amount is not read here, since Count says how many. TextKey, or else the kind's own sentence, "
                     + "is the line the player reads when the task authors no DescriptionId and ships no line under "
                     + "the objective's default task key. Unauthored, or with no Kind, the task never counts.")
@@ -132,7 +134,8 @@ public final class ZigMomentTaskAsset extends CountObjectiveTaskAsset {
 
     /**
      * The same step when a reload keeps a running task: the count and every leaf that decides what counts. The
-     * TextKey decides only wording, so a reload that retunes it keeps the player's progress.
+     * TextKey decides only wording, so a reload that retunes it keeps the player's progress; so does one that
+     * retunes While, which decides only whether a later moment may count, never what an earlier one meant.
      */
     @Override
     protected boolean matchesAsset0(ObjectiveTaskAsset task) {

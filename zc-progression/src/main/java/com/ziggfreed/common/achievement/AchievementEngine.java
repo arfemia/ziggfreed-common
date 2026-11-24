@@ -33,6 +33,7 @@ import com.ziggfreed.common.progress.ObjectiveIndex;
 import com.ziggfreed.common.progress.ObjectiveKind;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
+import com.ziggfreed.common.progress.ObjectiveWhile;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.StatThresholdProbe;
 import com.ziggfreed.common.progress.ZoneRef;
@@ -410,6 +411,8 @@ public final class AchievementEngine {
      *   <li>the index narrows the work to criteria authored against this kind;
      *   <li>an achievement already earned, out of circulation, or gated shut is skipped;
      *   <li>target, qualifier, and zone must all match;
+     *   <li>an outstanding criterion's own {@code While} must hold ({@link ObjectiveWhile#holds}, asked only
+     *   of a criterion that writes one);
      *   <li>the registered kind decides whether the amount is added or treated as a current value.
      * </ol>
      */
@@ -459,6 +462,10 @@ public final class AchievementEngine {
 
             ObjectiveProgressState state = progressOf(subject, achievement, criterion);
             if (state.isCompleted()) {
+                continue;
+            }
+            // The criterion's own condition, last so a criterion that cannot move asks nothing.
+            if (!ObjectiveWhile.holds(subject, criterion)) {
                 continue;
             }
             int before = state.current();
@@ -1130,7 +1137,7 @@ public final class AchievementEngine {
                 continue;
             }
             ObjectiveProgressState state = progressOf(subject, achievement, criterion);
-            if (state.isCompleted()) {
+            if (state.isCompleted() || !ObjectiveWhile.holds(subject, criterion)) {
                 continue;
             }
             int before = state.current();

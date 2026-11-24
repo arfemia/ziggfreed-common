@@ -16,17 +16,21 @@ import com.ziggfreed.common.asset.KindSelectorCodec;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.progress.ObjectiveWhile;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 
 /**
  * The leaves EVERY authored objective carries, whatever kind of content owns it: what counts, which
  * one specifically, how it is compared, a secondary filter (one value, several, or both) and how
- * that is compared, how many, where, and what the player reads.
+ * that is compared, how many, where, what the player reads, and what must hold for it to count.
  *
  * <pre>{@code
  * { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "MatchMode": "EXACT", "Amount": 10 }
  * { "Kind": "COMPLETE_QUEST", "Qualifiers": ["REPEATABLE", "SEASONAL"], "Amount": 10 }
  * { "Kind": "KILL_ENTITY", "Targets": ["yourmod:Wolf_Grey", "yourmod:Wolf_Black"], "MatchMode": "EXACT" }
+ * { "Kind": "KILL_ENTITY", "Amount": 30,
+ *   "While": { "Factors": [ { "Factor": "yourmod:rank", "Param": "guild", "Min": 1 } ] } }
  * }</pre>
  *
  * <p>The accepted qualifiers are {@code Qualifier} plus every {@code Qualifiers} entry, a union
@@ -34,6 +38,10 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
  * and a seasonal one alike, and a daily not at all. Targets read the same way: {@code Target} plus
  * every {@code Targets} entry, each under the one {@code MatchMode}, so the third example counts
  * the two wolves it names and no other.
+ *
+ * <p>{@code While} is the step's own condition, the shared {@code Requires} shape asked of the player each
+ * time the step would be credited ({@link ObjectiveWhile}): the fourth example counts a kill only while the
+ * guild rank holds, never one made before or after.
  *
  * <p><b>Why a shared base rather than two similar codecs.</b> Two lifecycle engines author
  * objectives, and the moment their field names drift an author has to remember which spelling
@@ -57,6 +65,7 @@ public class ObjectiveLeafAsset {
     @Nullable protected Long amount;
     @Nullable protected String zone;
     @Nullable protected String textKey;
+    @Nullable protected GateSpec countsWhile;
 
     private static final String KIND_KEY = "Kind";
     private static final String TARGET_KEY = "Target";
@@ -66,7 +75,7 @@ public class ObjectiveLeafAsset {
             appendLeaves(BuilderCodec.builder(ObjectiveLeafAsset.class, ObjectiveLeafAsset::new)).build();
 
     /**
-     * Register the ten shared leaves on {@code builder}. Every engine's own objective codec starts
+     * Register the eleven shared leaves on {@code builder}. Every engine's own objective codec starts
      * from this call, which is what keeps the field names from drifting apart.
      */
     @Nonnull
@@ -137,7 +146,21 @@ public class ObjectiveLeafAsset {
                 .appendInherited(new KeyedCodec<>("TextKey", Codec.STRING, false),
                         (o, v) -> o.textKey = v, o -> o.textKey, (o, p) -> o.textKey = p.textKey)
                 .documentation("Localization key for the line a player reads for this step. Unauthored leaves the "
-                        + "wording to whatever renders it.").add();
+                        + "wording to whatever renders it.").add()
+                .appendInherited(new KeyedCodec<>("While", GateSpec.CODEC, false),
+                        (o, v) -> o.countsWhile = v, o -> o.countsWhile, (o, p) -> o.countsWhile = p.countsWhile)
+                .documentation("What must hold for this step to count, in the Requires shape (Factors, Permission, "
+                        + "Quests, Custom, AllOf, AnyOf, Not), asked of the player each time a moment would be "
+                        + "credited. A moment that comes while it does not hold counts nothing toward this step and "
+                        + "is not saved for later; it still counts toward every other step and every other piece of "
+                        + "content. A content file's own Requires is asked only when the content is taken: this one "
+                        + "is asked at every moment. Quest steps, board contract steps, achievement criteria and a "
+                        + "native objective's ZigMoment task read it, at each moment, at a hand-in and when a "
+                        + "standing value is read; a statistic's From entry and an Almanac line count every match and "
+                        + "never read it. Nothing is added to the line "
+                        + "a player reads, so say the condition in the step's own TextKey line (kill thirty foes "
+                        + "with your guild banner raised). Write Min on every factor condition. Unauthored, or "
+                        + "empty, the step counts whenever it matches.").add();
     }
 
     public ObjectiveLeafAsset() {
@@ -212,6 +235,12 @@ public class ObjectiveLeafAsset {
         return textKey;
     }
 
+    /** The authored {@code While} block as written, or null when unauthored; {@link ObjectiveDef#countsWhile()} is the read. */
+    @Nullable
+    public GateSpec getWhile() {
+        return countsWhile;
+    }
+
     /** The authored comparison, defaulting to the forgiving one the engine parses to. */
     @Nonnull
     public MatchMode effectiveMatchMode() {
@@ -281,6 +310,7 @@ public class ObjectiveLeafAsset {
                 .qualifiers(qualifiers == null ? null : Arrays.asList(qualifiers))
                 .qualifierMatchMode(effectiveQualifierMatchMode())
                 .amount(amount == null ? 1L : amount)
-                .zone(zone);
+                .zone(zone)
+                .countsWhile(countsWhile);
     }
 }

@@ -11,6 +11,7 @@ import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.LocationTarget;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.progress.ObjectiveWhile;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -131,6 +132,7 @@ public final class QuestPoolValidator {
             validateRewards(definition, rewardKinds, out);
             validateRequires(definition, pool, gateKinds, out);
             validateShowWhen(definition, pool, gateKinds, out);
+            validateStepConditions(definition, pool, gateKinds, out);
             validateTurnInAt(definition, npcIds, out);
             Finding unnamed = ConventionKeys.unresolvedTitle(DOMAIN, id, definition.quest().text());
             if (unnamed != null) {
@@ -456,6 +458,19 @@ public final class QuestPoolValidator {
             @Nullable GateKindRegistry gateKinds, @Nonnull List<Finding> out) {
         out.addAll(GateValidator.validate(definition.requires(), DOMAIN, definition.id(), NOUN,
                 gateKinds, null, prerequisite -> resolves(pool, prerequisite)));
+    }
+
+    /**
+     * Each step's own {@code While} block, through the SAME gate audit as {@code Requires} with the same codes,
+     * each message naming the step: a condition that can never hold or names a factor nothing on this server
+     * answers leaves the step uncountable, which nothing at runtime says.
+     */
+    private static void validateStepConditions(@Nonnull QuestDefinition definition, @Nonnull QuestPool pool,
+            @Nullable GateKindRegistry gateKinds, @Nonnull List<Finding> out) {
+        for (ObjectiveDef objective : definition.quest().objectives()) {
+            out.addAll(ObjectiveWhile.findings(objective, "step '" + objective.id() + "'", DOMAIN, definition.id(),
+                    "step", gateKinds, prerequisite -> resolves(pool, prerequisite)));
+        }
     }
 
     /**

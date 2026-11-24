@@ -37,6 +37,7 @@ import com.ziggfreed.common.progress.ObjectiveIndex;
 import com.ziggfreed.common.progress.ObjectiveKind;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
+import com.ziggfreed.common.progress.ObjectiveWhile;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.RunSentinels;
 import com.ziggfreed.common.progress.StatThresholdProbe;
@@ -518,7 +519,7 @@ public final class QuestEngine implements QuestStateReader {
             ObjectiveKind kind = objectiveKinds.kind(objective.kind());
             ObjectiveProgressState state = ObjectiveArithmetic.fresh(kind, objective);
             long preSatisfied = preSatisfiedFor(subject, quest, objective);
-            if (preSatisfied > 0) {
+            if (preSatisfied > 0 && ObjectiveWhile.holds(subject, objective)) {
                 ObjectiveArithmetic.applyStanding(kind, objective, state, preSatisfied);
             }
             progress.put(objective.id(), state);
@@ -648,6 +649,8 @@ public final class QuestEngine implements QuestStateReader {
      *   quest start on the player's first qualifying action rather than on a menu visit;
      *   <li>target, qualifier, and zone must all match, then the objective must be unlocked by the
      *   quest's ordering;
+     *   <li>an outstanding step's own {@code While} must hold ({@link ObjectiveWhile#holds}, asked only
+     *   of a step that writes one);
      *   <li>the registered kind decides whether the amount is added or treated as a current value.
      * </ol>
      */
@@ -702,6 +705,11 @@ public final class QuestEngine implements QuestStateReader {
             ObjectiveProgressState state = progress.computeIfAbsent(objective.id(),
                     key -> ObjectiveArithmetic.fresh(kind, objective));
             if (state.isCompleted()) {
+                continue;
+            }
+            // The step's own condition, last so a step that cannot move asks nothing: a moment that
+            // comes while it does not hold counts nothing here, and every other step still sees it.
+            if (!ObjectiveWhile.holds(subject, objective)) {
                 continue;
             }
             int before = state.current();
@@ -1021,7 +1029,8 @@ public final class QuestEngine implements QuestStateReader {
         if (objective == null) {
             return false;
         }
-        return carriesSomethingFor(subject, quest, objective);
+        // A hand-in whose own condition does not hold would take nothing: it is not offered either.
+        return carriesSomethingFor(subject, quest, objective) && ObjectiveWhile.holds(subject, objective);
     }
 
     /**
@@ -1057,6 +1066,9 @@ public final class QuestEngine implements QuestStateReader {
             String itemId = objective.target();
             if (!itemId.isEmpty()
                     && !possession.holds(subject, itemId, remainingFor(subject, quest, objective))) {
+                return false;
+            }
+            if (!ObjectiveWhile.holds(subject, objective)) {
                 return false;
             }
             anyHandIn = true;
@@ -1157,6 +1169,10 @@ public final class QuestEngine implements QuestStateReader {
         }
         int remaining = Math.max(0, state.required() - state.current());
         if (remaining <= 0) {
+            return TurnInOutcome.NOTHING;
+        }
+        // The step's own condition is asked before anything is taken, so a refused hand-in keeps the items.
+        if (!ObjectiveWhile.holds(subject, objective)) {
             return TurnInOutcome.NOTHING;
         }
 
@@ -1946,7 +1962,7 @@ public final class QuestEngine implements QuestStateReader {
             ObjectiveKind kind = objectiveKinds.kind(objective.kind());
             ObjectiveProgressState state = progress.computeIfAbsent(objective.id(),
                     key -> ObjectiveArithmetic.fresh(kind, objective));
-            if (state.isCompleted()) {
+            if (state.isCompleted() || !ObjectiveWhile.holds(subject, objective)) {
                 continue;
             }
             int before = state.current();

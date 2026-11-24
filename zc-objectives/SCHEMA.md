@@ -28,7 +28,7 @@ Counts a CommonLib moment toward a native objective: any objective kind CommonLi
 | `TaskConditions` | array of `codecMap` | `null` |  |
 | `MapMarkerPositions` | array of [Vector3i](#field-zigmoment-mapmarkerpositions-item) | `null` |  |
 | `Count` | `integer` | `1` |  |
-| `Moment` | [ObjectiveLeaf](#type-objectiveleaf) | `null` | What counts: the objective leaves every quest step carries (Kind, Target, Targets, MatchMode, Qualifier, Qualifiers, QualifierMatchMode, Zone, TextKey), read the same way. Its Amount is not read here, since Count says how many. TextKey, or else the kind's own sentence, is the line the player reads when the task authors no DescriptionId and ships no line under the objective's default task key. Unauthored, or with no Kind, the task never counts. |
+| `Moment` | [ObjectiveLeaf](#type-objectiveleaf) | `null` | What counts: the objective leaves every quest step carries (Kind, Target, Targets, MatchMode, Qualifier, Qualifiers, QualifierMatchMode, Zone, TextKey, While), read the same way, so a While block is asked of the player at each moment and when the task seeds what they already stand at. Its Amount is not read here, since Count says how many. TextKey, or else the kind's own sentence, is the line the player reads when the task authors no DescriptionId and ships no line under the objective's default task key. Unauthored, or with no Kind, the task never counts. |
 
 <a id="field-zigmoment-mapmarkerpositions-item"></a>
 ### ZigMoment.MapMarkerPositions[]
@@ -81,6 +81,7 @@ The leaves a `ZigMoment` task's `Moment` carries, read exactly as a quest step r
 | `Amount` | `long` | `null` | How many are needed. Unauthored means 1. |
 | `Zone` | `string` | `null` | Only count it inside this zone or region. Unauthored means anywhere. |
 | `TextKey` | `string` | `null` | Localization key for the line a player reads for this step. Unauthored leaves the wording to whatever renders it. |
+| `While` | [Requires](#type-requires) | `null` | What must hold for this step to count, in the Requires shape (Factors, Permission, Quests, Custom, AllOf, AnyOf, Not), asked of the player each time a moment would be credited. A moment that comes while it does not hold counts nothing toward this step and is not saved for later; it still counts toward every other step and every other piece of content. A content file's own Requires is asked only when the content is taken: this one is asked at every moment. Quest steps, board contract steps, achievement criteria and a native objective's ZigMoment task read it, at each moment, at a hand-in and when a standing value is read; a statistic's From entry and an Almanac line count every match and never read it. Nothing is added to the line a player reads, so say the condition in the step's own TextKey line (kill thirty foes with your guild banner raised). Write Min on every factor condition. Unauthored, or empty, the step counts whenever it matches. |
 
 <a id="type-rewardentry"></a>
 ## RewardEntry

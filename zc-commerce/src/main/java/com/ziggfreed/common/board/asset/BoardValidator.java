@@ -19,6 +19,7 @@ import com.ziggfreed.common.commerce.asset.SelectionAsset;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.ConventionKeys;
+import com.ziggfreed.common.progress.ObjectiveWhile;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
@@ -391,6 +392,10 @@ public final class BoardValidator {
                 out.add(Finding.warning(DOMAIN, "NON_POSITIVE_AMOUNT",
                         "step '" + step.getKey() + "' asks for " + amount + ", so it is already done the moment "
                                 + "the contract is taken", id));
+            }
+            if (objective.getWhile() != null) {
+                out.addAll(ObjectiveWhile.findings(objective.toDef(step.getKey(), null),
+                        "step '" + step.getKey() + "'", DOMAIN, id, "step", gateKinds, null));
             }
         }
 

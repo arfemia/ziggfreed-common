@@ -20,10 +20,12 @@ import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.objectives.interaction.InteractionRewards;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.progress.ObjectiveWhile;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.track.TrackService;
 import com.ziggfreed.common.track.source.TrackSources;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.validation.Finding;
 
 /**
  * The checks behind the native objective Types: why they could not register ({@link #reportNotSetUp}), that a
@@ -117,6 +119,10 @@ public final class NativeObjectiveAudit {
                     warn(objective, momentProblem(moment), counts);
                     ObjectiveDef step = moment.def();
                     if (step != null) {
+                        for (Finding finding : ObjectiveWhile.findings(step, ZigMomentTaskAsset.TYPE + " task",
+                                "objective", objective.getId(), "task", ProgressionRuntime.gateKinds(), null)) {
+                            warn(objective, finding.message() + " (" + finding.code() + ")", counts);
+                        }
                         List<String> naming = counts.objectivesByKind.computeIfAbsent(step.kind(),
                                 kind -> new ArrayList<>());
                         if (!naming.contains(objective.getId())) {

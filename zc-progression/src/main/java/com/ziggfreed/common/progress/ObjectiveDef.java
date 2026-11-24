@@ -7,6 +7,8 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.progress.gate.GateSpec;
+
 /**
  * One authored objective on whatever owns it: what kind of moment counts, which one specifically,
  * how many, where, and when in its owner it unlocks.
@@ -35,6 +37,11 @@ import javax.annotation.Nullable;
  * one or any entry, each under {@link #matchMode()}, so one step can count three named creatures
  * without catching every id that merely contains a shared word. {@link #hasTarget()} is the one
  * "does this step name anything" read, and {@link #namedTarget()} the one a line names.
+ *
+ * <p><b>A condition of its own.</b> {@link #countsWhile()} is the step's {@code While} block (the shared
+ * {@code Requires} shape), asked of the player each time the step would be credited, through
+ * {@link ObjectiveWhile#holds}: a moment that comes while it does not hold counts nothing toward this step.
+ * Null for every step that writes none, and then nothing new is asked.
  */
 public final class ObjectiveDef {
 
@@ -53,6 +60,7 @@ public final class ObjectiveDef {
     @Nullable private final String zone;
     private final int order;
     @Nullable private final String turnInLockId;
+    @Nullable private final GateSpec countsWhile;
 
     private ObjectiveDef(@Nonnull Builder b) {
         this.id = b.id;
@@ -70,6 +78,7 @@ public final class ObjectiveDef {
         this.zone = (b.zone == null || b.zone.isBlank()) ? null : b.zone;
         this.order = Math.max(0, b.order);
         this.turnInLockId = (b.turnInLockId == null || b.turnInLockId.isBlank()) ? null : b.turnInLockId;
+        this.countsWhile = (b.countsWhile == null || b.countsWhile.isEmpty()) ? null : b.countsWhile;
     }
 
     /** Unique within its owner; also the key its progress is stored under. */
@@ -224,6 +233,16 @@ public final class ObjectiveDef {
     }
 
     /**
+     * The step's own condition (its {@code While} block): what must hold for the player each time the step
+     * would be credited, or null when it writes none (an empty block reads as none). It never decides whether a
+     * moment MATCHES the step, only whether a matching one counts; {@link ObjectiveWhile#holds} is the one ask.
+     */
+    @Nullable
+    public GateSpec countsWhile() {
+        return countsWhile;
+    }
+
+    /**
      * Does the identifier + qualifier an event carries satisfy this objective? The target is
      * accepted when it matches {@link #target()} or any of {@link #targets()}, and the qualifier when
      * it matches {@link #qualifier()} or any of {@link #qualifiers()}.
@@ -267,6 +286,7 @@ public final class ObjectiveDef {
         @Nullable private String zone;
         private int order;
         @Nullable private String turnInLockId;
+        @Nullable private GateSpec countsWhile;
 
         private Builder(@Nonnull String id, @Nonnull String kind) {
             this.id = id;
@@ -378,6 +398,17 @@ public final class ObjectiveDef {
         @Nonnull
         public Builder turnInLockId(@Nullable String turnInLockId) {
             this.turnInLockId = turnInLockId;
+            return this;
+        }
+
+        /**
+         * The step's own condition, asked each time it would be credited ({@link ObjectiveDef#countsWhile()});
+         * null or an empty block means none. A consumer that rebuilds an objective carries it through here or
+         * loses it.
+         */
+        @Nonnull
+        public Builder countsWhile(@Nullable GateSpec countsWhile) {
+            this.countsWhile = countsWhile;
             return this;
         }
 

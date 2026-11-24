@@ -24,6 +24,7 @@ import com.ziggfreed.common.progress.ObjectiveArithmetic;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKind;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
+import com.ziggfreed.common.progress.ObjectiveWhile;
 import com.ziggfreed.common.progress.runtime.Moment;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.QuestEngine;
@@ -107,7 +108,8 @@ public final class ZigMomentTask extends CountObjectiveTask {
                     continue;
                 }
                 Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
-                long value = subject == null ? 0L : quests.standingValue(subject, step);
+                long value = subject == null || !ObjectiveWhile.holds(subject, step) ? 0L
+                        : quests.standingValue(subject, step);
                 int next = value <= 0L ? count : standing(kind, step, count, value);
                 if (next != count) {
                     setTaskCompletion(store, ref, next, objective);
@@ -142,7 +144,8 @@ public final class ZigMomentTask extends CountObjectiveTask {
     /**
      * Count {@code moment}, credited to {@code player}, toward this step of {@code objective} when it is this step's
      * moment: the objective's own world (a vanilla task counts there alone), a player taking part, the step's kind,
-     * target, qualifier and zone. World thread.
+     * target, qualifier and zone, and its own {@code While} holding for the moment's player
+     * ({@link ObjectiveWhile#holds}, asked only of a step that writes one). World thread.
      */
     void credit(@Nonnull Moment moment, @Nonnull Objective objective, @Nonnull UUID player, @Nonnull UUID world) {
         if (isComplete() || !world.equals(objective.getWorldUUID())
@@ -151,7 +154,8 @@ public final class ZigMomentTask extends CountObjectiveTask {
         }
         ObjectiveDef step = getAsset().def();
         if (step == null || !step.kind().equalsIgnoreCase(moment.kindId())
-                || !step.matches(moment.target(), moment.qualifier()) || !step.matchesZone(moment.zone())) {
+                || !step.matches(moment.target(), moment.qualifier()) || !step.matchesZone(moment.zone())
+                || !ObjectiveWhile.holds(moment.questSubject(), step)) {
             return;
         }
         int next = counted(ProgressionRuntime.objectiveKinds().kind(step.kind()), step, count, moment.amount());
