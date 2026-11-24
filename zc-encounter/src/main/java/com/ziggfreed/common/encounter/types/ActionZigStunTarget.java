@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.npc.asset.builder.BuilderSupport;
 import com.hypixel.hytale.server.npc.corecomponents.ActionBase;
 import com.hypixel.hytale.server.npc.instructions.ExecutionSupport;
 import com.hypixel.hytale.server.npc.sensorinfo.InfoProvider;
-import com.ziggfreed.common.effect.control.StunControl;
+import com.ziggfreed.common.effect.control.ControlLanding;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.event.Encounters;
@@ -19,10 +19,12 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Stuns the fight's boss the moment the script asks: a breakdown, a stagger after its guard falls, any window the
- * fight opens on it (R683). The stun is the library's own ({@link StunControl}): its chains cancelled, its combat
- * action ended and its attacks paused for the stun, held in place by the stun effect, under {@code Effect} when the
- * script names one. A boss whose rules shrug a stun at that moment (a phase's {@code ZigControlRule} naming Stun under
- * {@code ZigControlShrugs}) takes none, this fight's own included: open a window that lets stuns land instead.
+ * fight opens on it (R683). The stun is the library's own, landed through the one control landing
+ * ({@link ControlLanding}) as a fight's own stun: no immunity refuses or shortens it and it adds no Immunity, so it
+ * lasts exactly {@code Duration}. Its chains are cancelled, its combat action ended and its attacks paused for the
+ * stun, held in place by the stun effect, under {@code Effect} when the script names one. A boss whose rules shrug a
+ * stun at that moment (a phase's {@code ZigControlRule} naming Stun under {@code ZigControlShrugs}) takes none, this
+ * fight's own included: open a window that lets stuns land instead.
  *
  * <p>Like every action this library registers, it ALWAYS answers finished: an action with nothing to stun says so in
  * the log and lets the list move on.
@@ -58,8 +60,9 @@ public class ActionZigStunTarget extends ActionBase {
                 EncounterTypes.executed(EncounterTypes.STUN_TARGET, "encounter=" + encounterId + ": nothing to stun");
                 return true;
             }
-            boolean landed = effect == null ? StunControl.stun(store, target, seconds, ref)
-                    : StunControl.stun(store, target, seconds, ref, effect);
+            ControlLanding.Landing stun = ControlLanding.Landing.stun(ControlLanding.Amount.of(seconds)).by(ref)
+                    .ignoringImmunity().ramp(ControlLanding.Amount.of(0.0));
+            boolean landed = ControlLanding.land(store, target, effect == null ? stun : stun.under(effect));
             EncounterTypes.executed(EncounterTypes.STUN_TARGET, "encounter=" + encounterId + " seconds=" + seconds
                     + (effect == null ? "" : " effect=" + effect) + (landed ? "" : " (did not land)"));
         } catch (Throwable t) {

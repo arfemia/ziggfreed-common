@@ -134,22 +134,9 @@ public final class StunControl {
     }
 
     /**
-     * Stun {@code target} for {@code seconds} with the caller's own stun effect {@code effectId} in place of
-     * {@value #STUNNED_EFFECT}: the same hold, under an effect the caller ships. A stun that must stay exactly as long
-     * as asked is now a fixed control: its effect joins the Stunned family (so {@link #isStunned} and {@link #wake} see
-     * it) and is tagged {@code "ZigControl": ["Fixed"]}, and it lands through {@link ControlLanding}
-     * ({@code Landing.stun(...).under(effectId)}), which this overload's last caller moves onto before it goes.
-     *
-     * @return true when the stun landed
-     */
-    public static boolean stun(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
-            float seconds, @Nullable Ref<EntityStore> source, @Nonnull String effectId) {
-        return stunUnder(accessor, target, seconds, source, effectId);
-    }
-
-    /**
      * The hold of a stun under {@code effectId}: its chains cancelled, a creature's action ended and its attacks paused
-     * for the stun and the wake. {@link ControlLanding}'s stun under a caller's own effect.
+     * for the stun and the wake. {@link ControlLanding}'s stun under a caller's own effect
+     * ({@code Landing.stun(...).under(effectId)}), the one way a stun lands under an effect the caller ships.
      */
     static boolean stunUnder(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
             float seconds, @Nullable Ref<EntityStore> source, @Nonnull String effectId) {
