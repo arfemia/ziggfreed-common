@@ -24,17 +24,17 @@ class ProcOrderTest {
     @Test
     void procsOnOneMoment_runInLowerCasedIdOrder_whateverTheirCaseOrLoadOrder() throws IOException {
         Map<String, ProcAsset> loaded = new LinkedHashMap<>();
-        loaded.put("Mmo_Frostweaving_Freeze", hit());
-        loaded.put("mmo_frostweaving_break_shatter", hit());
-        loaded.put("MMO_Frostweaving_Chill", hit());
-        loaded.put("Mmo_Arcana_Drain", hit());
-        loaded.put("Mmo_Frostweaving_Break_1", hit());
+        loaded.put("Mmo_Ice_Freeze", hit());
+        loaded.put("mmo_ice_break_shatter", hit());
+        loaded.put("MMO_Ice_Chill", hit());
+        loaded.put("Mmo_Arcane_Drain", hit());
+        loaded.put("Mmo_Ice_Break_1", hit());
         List<String> order = new ArrayList<>();
         for (ProcConfig.Def def : ProcConfig.fold(loaded).get(ProcTrigger.HIT)) {
             order.add(def.key());
         }
-        assertEquals(List.of("mmo_arcana_drain", "mmo_frostweaving_break_1", "mmo_frostweaving_break_shatter",
-                "mmo_frostweaving_chill", "mmo_frostweaving_freeze"), order);
+        assertEquals(List.of("mmo_arcane_drain", "mmo_ice_break_1", "mmo_ice_break_shatter",
+                "mmo_ice_chill", "mmo_ice_freeze"), order);
     }
 
     @Test

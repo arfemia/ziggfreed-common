@@ -49,10 +49,10 @@ class TrackDerivedCodecTest {
 
     @Test
     void aTieGoesToTheFirstSourceListed() {
-        Map<String, Integer> levels = Map.of("arcana", 30, "pyromancy", 30, "frostweaving", 12);
-        List<String> sources = List.of("arcana", "pyromancy", "frostweaving");
-        assertEquals("arcana", TrackDerivation.highest(sources, levels::get));
-        assertEquals("pyromancy", TrackDerivation.highest(List.of("frostweaving", "pyromancy", "arcana"), levels::get),
+        Map<String, Integer> levels = Map.of("arcane", 30, "fire", 30, "ice", 12);
+        List<String> sources = List.of("arcane", "fire", "ice");
+        assertEquals("arcane", TrackDerivation.highest(sources, levels::get));
+        assertEquals("fire", TrackDerivation.highest(List.of("ice", "fire", "arcane"), levels::get),
                 "the higher one wins whatever its place");
         assertEquals(30, TrackDerivation.combine(DerivedReading.HIGHEST, sources, levels::get));
         assertEquals(72, TrackDerivation.combine(DerivedReading.SUM, sources, levels::get));
